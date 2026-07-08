@@ -29,6 +29,12 @@ export class R2BlobStore implements BlobStore {
     });
   }
 
+  /** Cria a partir do arquivo de creds em self-essentials (CLOUDFLARE_ENV_FILE) — a fonte única fora do git. */
+  static async fromSecretsFile(file?: string): Promise<R2BlobStore> {
+    const { loadR2Config } = await import("../config/r2-secrets.js");
+    return new R2BlobStore(loadR2Config(file));
+  }
+
   /** Lê a config do ambiente (Railway/Cloudflare). Lança se faltar — fail-closed. */
   static fromEnv(env: NodeJS.ProcessEnv = process.env): R2BlobStore {
     const need = (k: string): string => {
