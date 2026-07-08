@@ -1,6 +1,18 @@
 node_modules/
 dist/
+.next/
+out/
+build/
 .env
 .env.*
+!.env.example
 *.log
 .DS_Store
+.turbo/
+next-env.d.ts
+
+# bancos locais/demo
+*.db
+*.sqlite
+*.sqlite3
+apps/web/src/prisma/*.db

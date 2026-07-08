@@ -1,0 +1,13 @@
+{
+  "name": "adsentice",
+  "version": "0.0.0",
+  "private": true,
+  "description": "adsentice — captação de leads locais por região (GMB) → score → proposta. Hub semântico (rsxt/EVO-API) atrás do cofre.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
