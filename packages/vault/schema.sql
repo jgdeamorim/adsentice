@@ -32,9 +32,15 @@ alter table query_vault enable row level security;
 drop policy if exists qv_service_all on query_vault;
 create policy qv_service_all on query_vault
   for all to service_role using (true) with check (true);
+-- FIX (segurança): o tenant_id vive em app_metadata (controlado pelo servidor), NÃO no topo do JWT.
+-- Ler do topo retornava NULL → o isolamento por tenant falhava. Caminho correto: jwt->app_metadata->>tenant_id.
+-- admin (app_metadata.role='admin') lê tudo (cross-tenant); client lê só o SEU tenant.
 drop policy if exists qv_tenant_read on query_vault;
 create policy qv_tenant_read on query_vault
-  for select to authenticated using (tenant_id = (auth.jwt() ->> 'tenant_id'));
+  for select to authenticated using (
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    or tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')
+  );
 
 -- guarda dura contra o pecado destrutivo: bloqueia UPDATE/DELETE (o ouro é imutável · só append).
 create or replace function forbid_mutation() returns trigger language plpgsql as $$
