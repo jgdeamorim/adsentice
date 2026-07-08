@@ -1,7 +1,8 @@
 // adsentice · callback do OAuth (Google via Supabase). Troca o ?code por sessão (cookies) e redireciona.
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
           getAll() {
             return cookieStore.getAll()
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           }
         }

@@ -1,6 +1,7 @@
 // adsentice · Supabase server client (server components / actions / route handlers). Cookies via next/headers.
 import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export const createClient = async () => {
   const cookieStore = await cookies()
@@ -13,7 +14,7 @@ export const createClient = async () => {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           } catch {
@@ -28,6 +29,7 @@ export const createClient = async () => {
 /** A sessão do usuário no server: user + role + tenant_id (das custom claims em app_metadata). */
 export const getSessionUser = async () => {
   const supabase = await createClient()
+
   const {
     data: { user }
   } = await supabase.auth.getUser()

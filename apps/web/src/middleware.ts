@@ -1,6 +1,7 @@
 // adsentice · middleware — refresh da sessão Supabase + proteção de rota (admin/client). Respeita o [lang] do Materio.
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // páginas públicas (sem login) — as telas de auth + marketing. O resto do app é protegido.
 const AUTH_PAGES = ['login', 'register', 'forgot-password', 'reset-password', 'verify-email', 'two-steps']
@@ -17,7 +18,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
@@ -47,13 +48,16 @@ export async function middleware(request: NextRequest) {
   // não-logado em rota protegida → manda pro login (guardando o destino)
   if (!user && !isPublic) {
     const url = new URL(`/${lang}/login`, request.url)
+
     url.searchParams.set('redirectTo', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+    
+return NextResponse.redirect(url)
   }
 
   // rota de admin exige role=admin (as custom claims vêm de app_metadata)
   if (user && first === 'admin') {
     const role = (user.app_metadata?.role as string | undefined) ?? 'client'
+
     if (role !== 'admin') {
       return NextResponse.redirect(new URL(`/${lang}/not-authorized`, request.url))
     }
