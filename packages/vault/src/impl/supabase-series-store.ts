@@ -3,6 +3,7 @@
 // append-only e isolamento por tenant. Ver schema.sql.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { loadSupabaseSecrets } from "../config/supabase-secrets.js";
 import type { SeriesStore } from "../stores.js";
 import type { VaultRecord } from "../types.js";
 
@@ -21,6 +22,12 @@ export class SupabaseSeriesStore implements SeriesStore {
     if (!url) throw new Error("SupabaseSeriesStore: falta SUPABASE_URL");
     if (!key) throw new Error("SupabaseSeriesStore: falta SUPABASE_SERVICE_ROLE_KEY");
     return new SupabaseSeriesStore(createClient(url, key, { auth: { persistSession: false } }));
+  }
+
+  /** Cria a partir do arquivo de creds em self-essentials (SUPABASE_ENV_FILE) — a fonte única fora do git. */
+  static fromSecretsFile(file?: string): SupabaseSeriesStore {
+    const { url, secretKey } = loadSupabaseSecrets(file);
+    return new SupabaseSeriesStore(createClient(url, secretKey, { auth: { persistSession: false } }));
   }
 
   async append(row: AppendRow): Promise<Pick<VaultRecord, "id" | "ranAt">> {

@@ -16,4 +16,5 @@ export {
 } from "./executor/capability-executor.js";
 export { handleCapabilityRest, type RestRequestBody, type RestResponse } from "./executor/rest.js";
 export { translators } from "./translators.js";
+export { loadSupabaseSecrets, type SupabaseSecrets } from "./config/supabase-secrets.js";
 export { translateGmbProfile, type GmbProfile } from "./gmb/translate.js";
