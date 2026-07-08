@@ -85,12 +85,18 @@ const Login = ({ mode }: { mode: Mode }) => {
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
 
   const onSubmit: SubmitHandler<FormData> = async (data: FormData) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
+    const { data: signIn, error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password
+    })
 
     if (!error) {
-      const redirectURL = searchParams.get('redirectTo') ?? '/'
+      // redireciona por ROLE: admin → /admin · client → /app (ou o destino guardado, se veio de rota protegida)
+      const role = signIn.user?.app_metadata?.role
+      const roleDest = role === 'admin' ? '/admin' : '/app'
+      const redirectURL = searchParams.get('redirectTo')
 
-      router.replace(getLocalizedUrl(redirectURL, locale as Locale))
+      router.replace(getLocalizedUrl(redirectURL && redirectURL !== '/' ? redirectURL : roleDest, locale as Locale))
       router.refresh()
     } else {
       setErrorState({ message: [error.message] })
