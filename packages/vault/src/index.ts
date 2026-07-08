@@ -5,3 +5,15 @@ export type { VaultInput, VaultRecord } from "./types.js";
 // impls concretas (managed v0)
 export { R2BlobStore, type R2Config } from "./impl/r2-blob-store.js";
 export { SupabaseSeriesStore } from "./impl/supabase-series-store.js";
+// executor + porta REST + translators
+export {
+  CapabilityExecutor,
+  type ProviderPort,
+  type Translator,
+  type ExecuteRequest,
+  type ExecuteResult,
+  type ExecutorDeps,
+} from "./executor/capability-executor.js";
+export { handleCapabilityRest, type RestRequestBody, type RestResponse } from "./executor/rest.js";
+export { translators } from "./translators.js";
+export { translateGmbProfile, type GmbProfile } from "./gmb/translate.js";
