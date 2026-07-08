@@ -5,15 +5,10 @@ const nextConfig: NextConfig = {
   redirects: async () => {
     return [
       {
+        // só adiciona o locale · o middleware roteia /:lang por ROLE (admin/client) ou login
         source: '/',
-        destination: '/en/dashboards/crm',
-        permanent: true,
-        locale: false
-      },
-      {
-        source: '/:lang(en|fr|ar)',
-        destination: '/:lang/dashboards/crm',
-        permanent: true,
+        destination: '/en',
+        permanent: false,
         locale: false
       },
       {

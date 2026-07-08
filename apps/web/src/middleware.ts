@@ -37,12 +37,21 @@ export async function middleware(request: NextRequest) {
   const rest = segments[0] && segments[0].length === 2 ? segments.slice(1) : segments
   const first = rest[0] ?? ''
 
-  const isAuthPage = AUTH_PAGES.includes(first)
-  const isPublic = isAuthPage || PUBLIC_PREFIXES.includes(first) || rest.length === 0 && !user
+  const role = (user?.app_metadata?.role as string | undefined) ?? 'client'
+  const roleDest = `/${lang}/${role === 'admin' ? 'admin' : 'app'}`
 
-  // logado tentando ver a tela de login → manda pro dashboard
+  const isAuthPage = AUTH_PAGES.includes(first)
+  const isRoot = rest.length === 0
+  const isPublic = isAuthPage || PUBLIC_PREFIXES.includes(first)
+
+  // raiz /{lang} → dashboard do ROLE (logado) ou login (não-logado)
+  if (isRoot) {
+    return NextResponse.redirect(new URL(user ? roleDest : `/${lang}/login`, request.url))
+  }
+
+  // logado na tela de auth → dashboard do role
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL(`/${lang}`, request.url))
+    return NextResponse.redirect(new URL(roleDest, request.url))
   }
 
   // não-logado em rota protegida → manda pro login (guardando o destino)
@@ -54,13 +63,9 @@ export async function middleware(request: NextRequest) {
 return NextResponse.redirect(url)
   }
 
-  // rota de admin exige role=admin (as custom claims vêm de app_metadata)
-  if (user && first === 'admin') {
-    const role = (user.app_metadata?.role as string | undefined) ?? 'client'
-
-    if (role !== 'admin') {
-      return NextResponse.redirect(new URL(`/${lang}/not-authorized`, request.url))
-    }
+  // /admin exige role=admin · não-admin vai pro próprio /app (sem dead-end)
+  if (user && first === 'admin' && role !== 'admin') {
+    return NextResponse.redirect(new URL(`/${lang}/app`, request.url))
   }
 
   return response
