@@ -29,7 +29,9 @@ let region = pick(["projectregion"]) || "";
 region = region.trim();
 if (!password || !ref) { console.error("faltou database-password ou project-id no arquivo"); process.exit(1); }
 
-const sql = readFileSync(join(here, "..", "schema.sql"), "utf-8");
+// roda as migrations em ordem (schema do cofre → profiles/roles)
+const SQL_FILES = ["schema.sql", "profiles.sql"];
+const sql = SQL_FILES.map(f => readFileSync(join(here, "..", f), "utf-8")).join("\n;\n");
 
 // candidatos de conexão (session mode 5432 · SSL) — direto primeiro, depois pooler.
 const candidates = [
