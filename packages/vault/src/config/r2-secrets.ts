@@ -21,8 +21,9 @@ export function loadR2Config(file = process.env.CLOUDFLARE_ENV_FILE): R2Config {
 
   const accountId = pick(["accountid", "r2accountid"]);
   const accessKeyId = pick(["r2accesskeyid", "accesskeyid"]);
-  const secretAccessKey = pick(["r2secretaccesskey", "secretaccesskey"]);
-  const bucket = pick(["r2bucket", "bucket"]) ?? "adsentice-vault";
+  // "secretacesskey" = o typo do arquivo (ACESS, 1 S) · aceitamos as duas grafias.
+  const secretAccessKey = pick(["r2secretaccesskey", "secretaccesskey", "secretacesskey"]);
+  const bucket = pick(["r2bucket", "bucket"]) ?? "adsentice";
 
   if (!accountId) throw new Error("loadR2Config: ACCOUNT-ID não encontrado");
   if (!accessKeyId) throw new Error("loadR2Config: R2_ACCESS_KEY_ID não encontrado (gere um R2 API Token tipo S3)");
