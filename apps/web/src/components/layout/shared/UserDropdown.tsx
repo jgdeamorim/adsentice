@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 
 // Next Imports
@@ -21,8 +21,8 @@ import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 
-// Third-party Imports
-import { signOut, useSession } from 'next-auth/react'
+// Supabase (adsentice · auth managed)
+import { createClient } from '@/libs/supabase/client'
 
 // Type Imports
 import type { Locale } from '@configs/i18n'
@@ -52,9 +52,25 @@ const UserDropdown = () => {
 
   // Hooks
   const router = useRouter()
-  const { data: session } = useSession()
+  const supabase = createClient()
+  const [user, setUser] = useState<{ name: string; email: string; image: string }>({ name: '', email: '', image: '' })
   const { settings } = useSettings()
   const { lang: locale } = useParams()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user
+
+      if (u) {
+        setUser({
+          name: (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || u.email || '',
+          email: u.email || '',
+          image: (u.user_metadata?.avatar_url as string) || ''
+        })
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleDropdownOpen = () => {
     !open ? setOpen(true) : setOpen(false)
@@ -74,8 +90,9 @@ const UserDropdown = () => {
 
   const handleUserLogout = async () => {
     try {
-      // Sign out from the app
-      await signOut({ callbackUrl: process.env.NEXT_PUBLIC_APP_URL })
+      // Sign out from Supabase e volta pro login
+      await supabase.auth.signOut()
+      router.push(getLocalizedUrl('/login', locale as Locale))
     } catch (error) {
       console.error(error)
 
@@ -95,8 +112,8 @@ const UserDropdown = () => {
       >
         <Avatar
           ref={anchorRef}
-          alt={session?.user?.name || ''}
-          src={session?.user?.image || ''}
+          alt={user.name}
+          src={user.image}
           onClick={handleDropdownOpen}
           className='cursor-pointer bs-[38px] is-[38px]'
         />
@@ -120,12 +137,12 @@ const UserDropdown = () => {
               <ClickAwayListener onClickAway={e => handleDropdownClose(e as MouseEvent | TouchEvent)}>
                 <MenuList>
                   <div className='flex items-center plb-2 pli-4 gap-2' tabIndex={-1}>
-                    <Avatar alt={session?.user?.name || ''} src={session?.user?.image || ''} />
+                    <Avatar alt={user.name} src={user.image} />
                     <div className='flex items-start flex-col'>
                       <Typography className='font-medium' color='text.primary'>
-                        {session?.user?.name || ''}
+                        {user.name}
                       </Typography>
-                      <Typography variant='caption'>{session?.user?.email || ''}</Typography>
+                      <Typography variant='caption'>{user.email}</Typography>
                     </div>
                   </div>
                   <Divider className='mlb-1' />

@@ -16,10 +16,8 @@ import Checkbox from '@mui/material/Checkbox'
 import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
-import Alert from '@mui/material/Alert'
 
 // Third-party Imports
-import { signIn } from 'next-auth/react'
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { object, minLength, string, email, pipe, nonEmpty } from 'valibot'
@@ -34,6 +32,9 @@ import type { Locale } from '@configs/i18n'
 // Component Imports
 import Logo from '@components/layout/shared/Logo'
 import Illustrations from '@components/Illustrations'
+
+// Supabase (adsentice · auth managed · admin/client)
+import { createClient } from '@/libs/supabase/client'
 
 // Config Imports
 import themeConfig from '@configs/themeConfig'
@@ -86,8 +87,8 @@ const Login = ({ mode }: { mode: Mode }) => {
   } = useForm<FormData>({
     resolver: valibotResolver(schema),
     defaultValues: {
-      email: 'admin@materio.com',
-      password: 'admin'
+      email: '',
+      password: ''
     }
   })
 
@@ -101,28 +102,33 @@ const Login = ({ mode }: { mode: Mode }) => {
     borderedDarkIllustration
   )
 
+  const supabase = createClient()
+
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
 
   const onSubmit: SubmitHandler<FormData> = async (data: FormData) => {
-    const res = await signIn('credentials', {
+    const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
-      password: data.password,
-      redirect: false
+      password: data.password
     })
 
-    if (res && res.ok && res.error === null) {
-      // Vars
+    if (!error) {
       const redirectURL = searchParams.get('redirectTo') ?? '/'
 
       router.replace(getLocalizedUrl(redirectURL, locale as Locale))
+      router.refresh()
     } else {
-      if (res?.error) {
-        const error = JSON.parse(res.error)
-
-        setErrorState(error)
-      }
+      setErrorState({ message: [error.message] })
     }
   }
+
+  const handleGoogle = () =>
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirectTo=${searchParams.get('redirectTo') ?? '/'}`
+      }
+    })
 
   return (
     <div className='flex bs-full justify-center'>
@@ -156,13 +162,6 @@ const Login = ({ mode }: { mode: Mode }) => {
             <Typography variant='h4'>{`Welcome to ${themeConfig.templateName}!👋🏻`}</Typography>
             <Typography>Please sign-in to your account and start the adventure</Typography>
           </div>
-          <Alert icon={false} className='bg-primaryLight'>
-            <Typography variant='body2' color='primary.main'>
-              Email: <span className='font-medium'>admin@materio.com</span> / Pass:{' '}
-              <span className='font-medium'>admin</span>
-            </Typography>
-          </Alert>
-
           <form
             noValidate
             action={() => {}}
@@ -250,7 +249,7 @@ const Login = ({ mode }: { mode: Mode }) => {
             className='self-center text-textPrimary'
             startIcon={<img src='/images/logos/google.png' alt='Google' width={22} />}
             sx={{ '& .MuiButton-startIcon': { marginInlineEnd: 3 } }}
-            onClick={() => signIn('google')}
+            onClick={handleGoogle}
           >
             Sign in with Google
           </Button>

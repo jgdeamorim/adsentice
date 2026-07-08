@@ -1,9 +1,9 @@
 'use client'
 
-// Third-party Imports
-import { SessionProvider } from 'next-auth/react'
-import type { SessionProviderProps } from 'next-auth/react'
+// adsentice · auth managed pelo Supabase (cookies + middleware) — não precisa de SessionProvider.
+// Passthrough: mantém o nome/props (ex: basePath) pra não quebrar o Providers até a limpeza da estrutura.
+import type { ReactNode } from 'react'
 
-export const NextAuthProvider = ({ children, ...rest }: SessionProviderProps) => {
-  return <SessionProvider {...rest}>{children}</SessionProvider>
+export const NextAuthProvider = ({ children }: { children: ReactNode; [key: string]: unknown }) => {
+  return <>{children}</>
 }
