@@ -28,9 +28,11 @@ create index if not exists idx_qv_blake3          on query_vault (blake3);
 -- RLS (o container de segurança por tenant · isolamento nativo do Postgres/Supabase)
 alter table query_vault enable row level security;
 
--- o service role (o backend Railway · write-ahead) escreve tudo; o tenant só LÊ o que é dele.
+-- o service role (o backend Railway · write-ahead) escreve tudo; o tenant só LÊ o que é dele. (idempotente)
+drop policy if exists qv_service_all on query_vault;
 create policy qv_service_all on query_vault
   for all to service_role using (true) with check (true);
+drop policy if exists qv_tenant_read on query_vault;
 create policy qv_tenant_read on query_vault
   for select to authenticated using (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
@@ -42,3 +44,12 @@ end $$;
 drop trigger if exists no_mutation on query_vault;
 create trigger no_mutation before update or delete on query_vault
   for each row execute function forbid_mutation();
+
+-- GRANTS explícitos (o "auto-expose new tables" está DESLIGADO de propósito — o ouro não fica público por acidente).
+-- service_role (o backend Railway · bypassa RLS) escreve+lê; authenticated (tenant) só lê (a RLS limita as linhas);
+-- anon NÃO recebe nada (o cofre nunca é público). PostgREST precisa do grant além da policy.
+grant usage on schema public to service_role, authenticated;
+grant insert, select on query_vault to service_role;
+grant select on query_vault to authenticated;
+-- recarrega o cache do PostgREST (a Data API passa a enxergar a tabela nova imediatamente).
+notify pgrst, 'reload schema';
