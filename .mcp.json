@@ -37,6 +37,15 @@
         "ENABLED_MODULES": "SERP,KEYWORDS_DATA,ONPAGE,DATAFORSEO_LABS,BACKLINKS,DOMAIN_ANALYTICS,BUSINESS_DATA,CONTENT_ANALYSIS,AI_OPTIMIZATION"
       }
     },
+    "adsentice-conversation": {
+      "command": "uv",
+      "args": ["run", "--script", "tools/adsentice_conversation.py"],
+      "env": {
+        "CLAUDE_KG_EMBED_URL": "http://127.0.0.1:8081/embed",
+        "CLAUDE_KG_QDRANT_URL": "http://127.0.0.1:6352",
+        "CLAUDE_KG_TAG": "adsentice"
+      }
+    },
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"],

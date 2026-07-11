@@ -2,20 +2,27 @@
 """
 adsentice-pre-compact.py
 Hook PreCompact para o projeto adsentice.
-Antes do resumo (compact), salva o estado COMPLETO da conversa no Redis (:6396):
-  1. Ultimas mensagens (user + assistant)
-  2. Timestamp do compact
-  3. Session ID + message count
-  4. Atualiza estagio OODA com contexto da sessao
-  5. Persiste score do ecossistema
+Antes do resumo (compact), salva o estado COMPLETO da conversa:
+  1. Ultimas mensagens (user + assistant) → Redis :6396
+  2. Timestamp do compact → Redis
+  3. Session ID + message count → Redis
+  4. Atualiza estagio OODA com contexto da sessao → Redis
+  5. Persiste score do ecossistema → Redis
+  6. INGEST da conversa no Qdrant :6352 (collection adsentice-conversation) → DAG/medido=verdade
 
-ISOLADO do EVO-API: Redis :6396, namespace adsentice:ooda:*
+ISOLADO do EVO-API: Redis :6396 · Qdrant :6352 · embed :8081
 """
 
+import hashlib
 import json
-import sys
+import os
 import re
+import sys
+import time
 from datetime import datetime, timezone
+from pathlib import Path
+from urllib.request import Request, urlopen
+
 import redis
 
 REDIS_HOST = "127.0.0.1"
@@ -131,14 +138,22 @@ def main():
     r.setex(f"{OODA_NS}:last_compact_session", 86400 * 60, session_id)
     r.set(f"{OODA_NS}:total_compacts", str(safe_redis_int(r, f"{OODA_NS}:total_compacts") + 1))
 
+    # ── 7. INGEST da conversa no Qdrant (GAP 1 · ADR-0002) ──
+    ingested = 0
+    try:
+        ingested = ingest_conversation_to_qdrant(messages, session_id)
+    except Exception:
+        pass
+
     stages_updated = list(ooda_update.keys())
     context = (
         f"🧭 ADSENTICE · estado OODA salvo ({OODA_NS})\n"
         f"   compact: {ts}\n"
         f"   mensagens preservadas: {len(messages)}\n"
+        f"   ingerido no Qdrant: {ingested} chunks → {CONV_COLLECTION}\n"
         f"   estagios OODA atualizados: {stages_updated if stages_updated else '(nenhum)'}\n"
         f"   decisoes capturadas: {len(decisions)}\n"
-        f"   Redis :{REDIS_PORT} · {len(r.keys(f'{OODA_NS}:*'))} keys ativas"
+        f"   Redis :{REDIS_PORT} · {len(r.keys(f'{OODA_NS}:*'))} keys ativas · Qdrant :6352"
     )
 
     output = {
@@ -158,6 +173,96 @@ def safe_redis_int(r, key: str) -> int:
     except Exception:
         pass
     return 0
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CONVERSATION INGEST (GAP 1 · ADR-0002)
+# Ingere o delta da conversa no Qdrant :6352 → DAG pode recuperar
+# decisoes passadas → medido=verdade.
+# ═══════════════════════════════════════════════════════════════════
+
+EMBED_URL = os.environ.get("EMBED_URL", "http://127.0.0.1:8081/embed")
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6352")
+CONV_COLLECTION = "adsentice-conversation"
+BATCH_SIZE = 6
+
+
+def embed_text(text: str) -> list[float]:
+    """Embed via :8081 (mpnet 768d)."""
+    try:
+        req = Request(
+            EMBED_URL,
+            data=json.dumps({"texts": [text]}).encode(),
+            headers={"Content-Type": "application/json"}
+        )
+        resp = urlopen(req, timeout=10)
+        return json.loads(resp.read()).get("vectors", [[]])[0]
+    except Exception:
+        return []
+
+
+def ingest_conversation_to_qdrant(messages: list, session_id: str):
+    """
+    Ingere mensagens da conversa no Qdrant :6352.
+    Cada mensagem relevante vira 1 ponto com payload {text, role, session_id, ts}.
+    """
+    if not messages:
+        return 0
+
+    embedded = 0
+    batch_vecs = []
+    batch_points = []
+
+    for msg in messages:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "").strip()
+        if not content or len(content) < 30:
+            continue
+
+        # Embed cada mensagem
+        vec = embed_text(content[:800])
+        if not vec:
+            continue
+
+        point_id = hashlib.sha256(f"{session_id}:{embedded}:{content[:80]}".encode()).hexdigest()[:32]
+        payload = {
+            "text": content[:600],
+            "role": role,
+            "session_id": session_id,
+            "ts": int(time.time()),
+            "tag": "adsentice",
+            "source": f"session:{session_id}",
+        }
+
+        batch_vecs.append(vec)
+        batch_points.append({"id": point_id, "vector": vec, "payload": payload})
+
+        if len(batch_points) >= BATCH_SIZE:
+            _qdrant_upsert(batch_points)
+            embedded += len(batch_points)
+            batch_vecs = []
+            batch_points = []
+
+    if batch_points:
+        _qdrant_upsert(batch_points)
+        embedded += len(batch_points)
+
+    return embedded
+
+
+def _qdrant_upsert(points: list):
+    """Envia batch de pontos para o Qdrant."""
+    try:
+        body = json.dumps({"points": points}).encode()
+        req = Request(
+            f"{QDRANT_URL}/collections/{CONV_COLLECTION}/points?wait=true",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="PUT"
+        )
+        urlopen(req, timeout=15)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

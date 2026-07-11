@@ -5,13 +5,18 @@
         "matcher": "",
         "command": "python3 .claude/hooks/adsentice-session-start.py",
         "timeout": 5
+      },
+      {
+        "matcher": "",
+        "command": "python3 tools/adsentice_boa_score.py --save",
+        "timeout": 30
       }
     ],
     "PreCompact": [
       {
         "matcher": "",
         "command": "python3 .claude/hooks/adsentice-pre-compact.py",
-        "timeout": 10
+        "timeout": 15
       }
     ],
     "PostCompact": [
