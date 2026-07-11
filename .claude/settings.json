@@ -3,27 +3,38 @@
     "SessionStart": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/adsentice-session-start.py",
-        "timeout": 5
-      },
-      {
-        "matcher": "",
-        "command": "python3 tools/adsentice_boa_score.py --save",
-        "timeout": 30
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/adsentice-session-start.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 tools/adsentice_boa_score.py --save"
+          }
+        ]
       }
     ],
     "PreCompact": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/adsentice-pre-compact.py",
-        "timeout": 15
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/adsentice-pre-compact.py"
+          }
+        ]
       }
     ],
     "PostCompact": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/adsentice-session-start.py",
-        "timeout": 5
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/adsentice-session-start.py"
+          }
+        ]
       }
     ]
   }
