@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/adsentice-session-start.py",
+        "timeout": 5
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/adsentice-pre-compact.py",
+        "timeout": 10
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/adsentice-session-start.py",
+        "timeout": 5
+      }
+    ]
+  }
+}

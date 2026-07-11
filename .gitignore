@@ -16,3 +16,6 @@ next-env.d.ts
 *.sqlite
 *.sqlite3
 apps/web/src/prisma/*.db
+
+# dados locais (docker volumes)
+.data/
