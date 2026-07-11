@@ -1,0 +1,159 @@
+{
+  "intents": [
+    {
+      "intent": "site_audit",
+      "triggers": [
+        "analisar site",
+        "auditar site",
+        "lighthouse",
+        "performance site",
+        "tecnologia site"
+      ],
+      "pipeline": "site_audit",
+      "layers": [
+        "rsxt:L0",
+        "rsxt:L1",
+        "rsxt:L3"
+      ],
+      "tools": [
+        "firecrawl_scrape",
+        "on_page_instant_pages",
+        "domain_technologies"
+      ],
+      "storage": "rsxt:v0 → busca similares · rsxt:s0 → Vault audit trail",
+      "doctrine": "L0 extrai URL e domínio. L1 check frequência. L3 busca diagnósticos similares. NUNCA pular L0-L1."
+    },
+    {
+      "intent": "seo_discovery",
+      "triggers": [
+        "seo",
+        "palavras-chave",
+        "ranqueamento",
+        "google",
+        "posição",
+        "keyword"
+      ],
+      "pipeline": "seo_discovery",
+      "layers": [
+        "rsxt:L0",
+        "rsxt:L1",
+        "rsxt:L2",
+        "rsxt:L3",
+        "rsxt:L6"
+      ],
+      "tools": [
+        "serp_organic",
+        "keyword_research",
+        "domain_ranked_keywords"
+      ],
+      "storage": "rsxt:t0 → keyword volume trends · rsxt:v0 → similar businesses keywords",
+      "doctrine": "L2 rule: keywords < 5? amplia busca. L3 busca keywords de negócios similares. L6 LLM sintetiza recomendações."
+    },
+    {
+      "intent": "gmb_reputation",
+      "triggers": [
+        "gmb",
+        "google meu negócio",
+        "reviews",
+        "avaliações",
+        "reputação",
+        "perfil google"
+      ],
+      "pipeline": "gmb_reputation",
+      "layers": [
+        "rsxt:L0",
+        "rsxt:L1",
+        "rsxt:L3"
+      ],
+      "tools": [
+        "business_profile_gmb",
+        "business_reviews_google"
+      ],
+      "storage": "rsxt:v0 → similar GMB profiles · rsxt:t0 → review velocity trend",
+      "doctrine": "L0 regex extrai place_id. L1 estatísticas de reviews. L3 busca perfis similares. NUNCA LLM decide score de reputação."
+    },
+    {
+      "intent": "competitor_intel",
+      "triggers": [
+        "concorrentes",
+        "competidores",
+        "mercado",
+        "ranking",
+        "competição"
+      ],
+      "pipeline": "competitor_intel",
+      "layers": [
+        "rsxt:L0",
+        "rsxt:L1",
+        "rsxt:L3",
+        "rsxt:L4",
+        "rsxt:L6"
+      ],
+      "tools": [
+        "domain_competitors",
+        "domain_keyword_gap",
+        "domain_ranked_keywords"
+      ],
+      "storage": "rsxt:k0 → competitor relationship graph · rsxt:v0 → similar businesses",
+      "doctrine": "L4 k0 traversal: concorrente A → também compete com B? L3 similarity: quais negócios têm perfil competitivo parecido? L6 LLM sintetiza estratégia."
+    },
+    {
+      "intent": "lead_scoring",
+      "triggers": [
+        "score",
+        "lead",
+        "qualificar",
+        "prioridade",
+        "oportunidade"
+      ],
+      "pipeline": "lead_scoring",
+      "layers": [
+        "rsxt:L2",
+        "rsxt:L5"
+      ],
+      "tools": [
+        "adsentice_search",
+        "adsentice_kg_neighbors"
+      ],
+      "storage": "rsxt:f0 → BOA score canonical · rsxt:t0 → score timeline",
+      "doctrine": "L2 rules: ANTI-ICP filter. L5 BOA: fixability × potential × value-fit. founder_signal weight = 0.35."
+    },
+    {
+      "intent": "code_generation",
+      "triggers": [
+        "código",
+        "implementar",
+        "endpoint",
+        "rota",
+        "api",
+        "componente",
+        "typescript",
+        "rust"
+      ],
+      "pipeline": "code_assist",
+      "layers": [
+        "rsxt:L3",
+        "rsxt:L6"
+      ],
+      "tools": [
+        "adsentice_search",
+        "adsentice_conversation_search"
+      ],
+      "storage": "rsxt:v0 → código similar no corpus · rsxt:k0 → dependency graph",
+      "doctrine": "L3 busca código similar (SENSOR). L6 LLM gera código (ÁRBITRO). Pattern accumulation: código gerado → pattern pro futuro."
+    }
+  ],
+  "default_intent": {
+    "pipeline": "full_discovery",
+    "layers": [
+      "rsxt:L0",
+      "rsxt:L1",
+      "rsxt:L2",
+      "rsxt:L3",
+      "rsxt:L4",
+      "rsxt:L5",
+      "rsxt:L6"
+    ],
+    "note": "Sem intent específico → pipeline completo L0→L6. Discovery total do negócio."
+  }
+}
