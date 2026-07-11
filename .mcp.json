@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "adsentice-redis": {
+      "command": "npx",
+      "args": ["-y", "@gongrzhe/server-redis-mcp"],
+      "env": {
+        "REDIS_HOST": "127.0.0.1",
+        "REDIS_PORT": "6396",
+        "REDIS_DB": "0"
+      }
+    },
+    "adsentice-qdrant": {
+      "command": "uv",
+      "args": ["run", "--with", "qdrant-client", "tools/adsentice_qdrant_server.py"],
+      "env": {
+        "QDRANT_URL": "http://127.0.0.1:6352",
+        "QDRANT_COLLECTION": "adsentice-self",
+        "EMBED_URL": "http://127.0.0.1:8081"
+      }
+    },
+    "adsentice-kg": {
+      "command": "uv",
+      "args": ["run", "--with", "qdrant-client", "tools/adsentice_kg_server.py"],
+      "env": {
+        "QDRANT_URL": "http://127.0.0.1:6352",
+        "COLLECTION": "adsentice-kg",
+        "EMBED_URL": "http://127.0.0.1:8081",
+        "TAG": "adsentice"
+      }
+    },
+    "dataforseo": {
+      "command": "npx",
+      "args": ["-y", "dataforseo-mcp-server@2.8.10"],
+      "env": {
+        "DATAFORSEO_LOGIN": "${DATAFORSEO_LOGIN}",
+        "DATAFORSEO_PASSWORD": "${DATAFORSEO_PASSWORD}",
+        "ENABLED_MODULES": "SERP,KEYWORDS_DATA,ONPAGE,DATAFORSEO_LABS,BACKLINKS,DOMAIN_ANALYTICS,BUSINESS_DATA,CONTENT_ANALYSIS,AI_OPTIMIZATION"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
