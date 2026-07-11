@@ -3,20 +3,21 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "0.1.1"
+version: "1.0.0"
 date: 2026-07-11
-updated: 2026-07-11T21:00:00-03:00
+updated: 2026-07-11T23:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v0.1.0
+# Base-Matriz do Ecossistema adsentice v1.0.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
 > **Língua:** português (pt-BR).
 > **ISOLADO do EVO-API:** este é o ecossistema adsentice standalone.
+> **Protocolo de interação:** AG-UI (MIT) — 24 eventos, 13 padrões. Chat é 1 dos 13, não o sistema.
 
 ---
 
@@ -41,11 +42,14 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
 | `ADS.COR.docs.objetivos` | Objetivos, soluções e critérios | `docs/adsentice-objetivos-solucoes-criterios.md` | ✅ vivo |
-| `ADS.COR.docs.chat_spec` | Especificação do adsentice Chat | `docs/adsentice-chat-spec.md` | ✅ vivo |
+| `ADS.COR.docs.chat_spec` | Especificação do Interaction Hub (AG-UI native) | `docs/adsentice-chat-spec.md` | ✅ v1.0.0 · AG-UI |
+| `ADS.COR.docs.jasper_analise` | Análise competitiva Jasper.ai | `docs/jasper-ai-analise-competitiva.md` | ✅ vivo |
 | `ADS.COR.docs.jasper_analise` | Análise competitiva Jasper.ai | `docs/jasper-ai-analise-competitiva.md` | ✅ vivo |
 | `ADS.COR.docs.jasper_solutions` | Análise soluções Jasper | `docs/jasper-solutions-analise.md` | ✅ vivo |
 | `ADS.COR.docs.jasper_api` | Documentação API Jasper (16 seções) | `docs/jasper-docs/jasper-api-docs-completo.md` | ✅ referência |
 | `ADS.COR.docs.jasper_reference` | Referência canônica Jasper → adsentice (gap analysis, padrões) | `docs/jasper-docs/README.md` | ✅ vivo |
+| `ADS.COR.docs.jasper_probe` | Probe público Jasper (llms.txt, MCP OAuth, Context Items) | `docs/jasper-docs/probe-2026-07-11-public.md` | ✅ 73 páginas mapeadas |
+| `ADS.COR.docs.gojasper_repos` | Análise dos 10 repos gojasper (ouro/prata/bronze) | `docs/jasper-docs/gojasper-repos-analysis.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_dfseo` | DataForSEO MCP oficial vs EVO-API provider.core | `docs/dataforseo-oficial-mcp-vs-evo-api-provider-core.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_claude_seo` | RSXT+EVO-API vs Claude SEO | `docs/rsxt-evo-api-vs-claude-seo.md` | ✅ vivo |
 
@@ -122,8 +126,9 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.INT.brain.chat` | adsentice Chat — discovery + deep-dive | `docs/adsentice-chat-spec.md` | ⚠️ spec pronta, sem código |
-| `ADS.INT.brain.brand_iq` | Brand IQ automático (descoberto, não configurado) | Pipeline discovery | 🔴 a construir |
+| `ADS.INT.brain.interaction_hub` | Interaction Hub AG-UI native (chat + cards + tips + score + HITL) | `docs/adsentice-chat-spec.md` | ✅ spec v1.0.0 · AG-UI |
+| `ADS.INT.brain.ag_ui` | Protocolo AG-UI implementado (24 eventos, 13 padrões) | `@ag-ui/client` (MIT) | 🟡 spec pronta, código a construir |
+| `ADS.INT.brain.brand_iq` | Brand IQ automático (shared state AG-UI) | Pipeline discovery | 🔴 a construir |
 | `ADS.INT.brain.scoring` | Lead-score: fixability × potential × value-fit | `adsentice-lead-criteria.md` (EVO-API) | 🔴 spec pronta, sem código |
 
 ### ADS.INT.ooda — Ciclo OODA

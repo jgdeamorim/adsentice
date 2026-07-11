@@ -1,596 +1,687 @@
-# adsentice Chat — Especificação Completa
+---
+id: adsentice-interaction-hub-spec
+title: "adsentice Interaction Hub — AG-UI Native Implementation"
+status: living
+type: spec
+version: "1.0.0"
+date: 2026-07-11
+owner: "Jeferson Galote de Amorim"
+deciders: [jgdeamorim]
+tags: [interaction-hub, ag-ui, mcp, pipeline, discovery, brand-iq]
+supersedes: adsentice-chat-spec (v0.1.0)
+---
 
-> 2026-07-11 · Inspirado no Jasper Chat, com a alma do adsentice
-> Referência: https://www.jasper.ai/chat + Stage 0→7 (adsentice-lead-flow) + 73 caps DataForSEO
+# adsentice Interaction Hub v1.0.0
+
+> **Propósito:** especificação completa do Hub de Interação adsentice — AG-UI nativo, pipelines de discovery, Brand IQ como shared state.
+> **Protocolo:** [AG-UI](https://docs.ag-ui.com) — MIT license, 24 eventos, 13 padrões de interação.
+> **Regra-mãe:** `medido=verdade` — toda afirmação cita fonte.
+> **Língua:** português (pt-BR).
 
 ---
 
-## 1. A TESE
-
-> **O empresário NÃO sabe o que perguntar. O Jasper Chat resolve isso entrevistando o usuário. O adsentice Chat resolve isso DESCOBRINDO sozinho.**
+## 1. REPOSICIONAMENTO
 
 ```
-Jasper Chat:  Agente pergunta → usuário responde → agente gera copy
-adsentice Chat: Pipeline descobre TUDO → sistema APRESENTA → empresário decide o que aprofundar
+ERRADO:                               CERTO:
+┌──────────────────┐                 ┌──────────────────────────────────┐
+│  ADSENTICE CHAT   │                 │  ADSENTICE INTERACTION HUB       │
+│  (caixa de texto) │                 │                                  │
+│                   │                 │  AG-UI ── Agent-User Interaction │
+│  input: URL       │                 │  MCP   ── Agent ↔ Tools & Data  │
+│  output: cards    │                 │  A2A   ── Agent ↔ Agent         │
+└──────────────────┘                 │                                  │
+                                      │  13 padrões de interação:        │
+                                      │  📝 Chat  🧠 Thinking  🖼️ UI    │
+                                      │  🗂️ State  🔧 Tools  🛑 HITL    │
+                                      │  🎯 Steer  🔗 Sub-agents  📎 MM │
+                                      │  📡 Stream  🔌 Custom  🏃 Life   │
+                                      └──────────────────────────────────┘
 ```
+
+**"Chat is one entry point into that system, not the system itself."** — Jasper.ai
+**"AG-UI brings agents into user-facing applications."** — AG-UI docs
 
 ---
 
-## 2. EXPERIÊNCIA DO USUÁRIO
+## 2. ARQUITETURA DE 3 CAMADAS
 
-### 2.1 Tela inicial (antes de colocar URL)
+### 2.1 Protocol Stack
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  🤖 ADSENTICE                                            │
-│                                                           │
-│  Sua sentinela de mercado.                                │
-│                                                           │
-│  Cole o site do seu negócio e descubra em segundos:       │
-│  • Onde você aparece (e onde não aparece) no Google       │
-│  • O que seus concorrentes estão fazendo                  │
-│  • Sua reputação online e o que os clientes dizem         │
-│  • Oportunidades de melhoria com impacto real             │
+│                   USUÁRIO (SMB Brasil)                    │
 │                                                           │
 │  ┌──────────────────────────────────────────────────┐    │
-│  │ 🔗 minhaclinica.com.br              [ Analisar ]  │    │
-│  └──────────────────────────────────────────────────┘    │
-│                                                           │
-│  📊 Grátis · sem cartão · resultado em <10s               │
-│                                                           │
-│  ── Exemplos de negócios analisados ──                    │
-│  🦷 Clínicas · 🍕 Restaurantes · 🛍️ E-commerce           │
-│  ⚖️ Advocacia · 🏠 Imobiliárias · 💈 Salões              │
-└──────────────────────────────────────────────────────────┘
-```
-
-### 2.2 Pipeline rodando (3-10 segundos)
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  🤖 Analisando minhaclinica.com.br...                     │
-│                                                           │
-│  ✅ Site encontrado · WordPress 6.4 · LiteSpeed           │
-│  ✅ Google Meu Negócio · 4.3★ · 128 reviews              │
-│  ⏳ Analisando SEO...                                     │
-│  ⏳ Descobrindo concorrentes...                           │
-│  ⏳ Verificando reputação...                              │
-│  ⏳ Rastreando redes sociais...                           │
-│  ⏳ Checando anúncios ativos...                           │
-│                                                           │
-│  [████████████████░░░░] 78%                               │
-└──────────────────────────────────────────────────────────┘
-```
-
-### 2.3 Resultado da descoberta
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  🤖 Pronto! Diagnóstico completo de minhaclinica.com.br   │
-│                                                           │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │ 📊 Score de Mercado                           62/100│  │
-│  │ ████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░ │  │
-│  │ Boa base, com ganhos rápidos em SEO e reputação   │  │
-│  └────────────────────────────────────────────────────┘  │
-│                                                           │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐     │
-│  │ 🔍 SEO       │ │ ⭐ Reputação │ │ 🏢 Concorr.  │     │
-│  │ 54/100       │ │ 71/100       │ │ 3º de 4       │     │
-│  │ 23 keywords  │ │ 4.3★ 128 rev │ │ +7 possíveis  │     │
-│  └──────────────┘ └──────────────┘ └──────────────┘     │
-│                                                           │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐     │
-│  │ 📍 GMB       │ │ 📱 Social    │ │ 💰 Anúncios   │     │
-│  │ Ficha ativa  │ │ IG 1.2k      │ │ Não anuncia   │     │
-│  │ Sem posts 6m │ │ FB 800       │ │ Concorre. A   │     │
-│  └──────────────┘ └──────────────┘ └──────────────┘     │
-│                                                           │
-│  ═══════════════════════════════════════════════════════  │
-│                                                           │
-│  🎯 Suas 3 prioridades (grátis):                          │
-│                                                           │
-│  1. ⚠️ Responda 3 reviews negativas deste mês             │
-│     → 8% dos seus reviews são negativos. Isso afeta       │
-│       a decisão de novos pacientes.                       │
-│                                                           │
-│  2. 🔍 "dentista perto de mim" = 2.900 buscas/mês        │
-│     → Você está na 8ª posição. Com otimização de SEO     │
-│       local, dá pra alcançar o top 3.                     │
-│                                                           │
-│  3. 📍 Atualize seu Google Meu Negócio                    │
-│     → Sem posts há 6 meses. Perfil ativo = +35%           │
-│       de chance de contato.                               │
-│                                                           │
-│  ═══════════════════════════════════════════════════════  │
-│                                                           │
-│  📊 Análises aprofundadas (consomem créditos):            │
-│                                                           │
-│  [ 🏢 Análise de concorrentes (5 créditos) ]              │
-│  [ 🔍 Estratégia SEO completa (10 créditos) ]            │
-│  [ ⭐ Plano de gestão de reviews (3 créditos) ]           │
-│  [ 🔧 Auditoria técnica do site (8 créditos) ]            │
-│  [ 💰 Análise de anúncios (15 créditos) ]                 │
-│                                                           │
-│  ─────────────────────────────────────────────────────    │
-│  💬 Ou me pergunte qualquer coisa sobre seu negócio...    │
-│  ┌──────────────────────────────────────────────────┐    │
-│  │ "Como faço pra aparecer mais no Google?"          │    │
+│  │         AG-UI LAYER (interaction)                 │    │
+│  │  Next.js 15 + Materio + @ag-ui/client              │    │
+│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │    │
+│  │  │ Chat │ │Cards │ │Score │ │HITL  │ │Steer │   │    │
+│  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘   │    │
+│  └──────────────────┬───────────────────────────────┘    │
+│                     │ SSE / WebSocket                     │
+│  ┌──────────────────┴───────────────────────────────┐    │
+│  │         MCP LAYER (tools & data)                  │    │
+│  │  6 servers: redis, qdrant, kg, conversation,      │    │
+│  │  dataforseo, context7                              │    │
+│  └──────────────────┬───────────────────────────────┘    │
+│                     │                                     │
+│  ┌──────────────────┴───────────────────────────────┐    │
+│  │         A2A LAYER (agent ↔ agent)                │    │
+│  │  6 pipelines como sub-agents com scoped state     │    │
+│  │  LLM Árbitro (DeepSeek V4) sintetiza              │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 Deep-dive (após consumir créditos)
+### 2.2 Justificativa AG-UI
+
+| Critério | AG-UI | Alternativas |
+|----------|-------|-------------|
+| Licença | MIT ✅ | — |
+| Eventos padronizados | 24 eventos em 6 categorias ✅ | Proprietário ❌ |
+| SDKs | JS/TS + Python + .NET ✅ | — |
+| State management | Snapshot + JSON Patch RFC 6902 ✅ | — |
+| Interrupts (HITL) | Nativos ✅ | Custom ❌ |
+| Generative UI | Draft spec ✅ | — |
+| Ecossistema | LangGraph, CrewAI, Mastra, Google ADK ✅ | — |
+| Adoção | Jasper, CopilotKit, LangChain ✅ | — |
+
+---
+
+## 3. EVENT CATALOG (AG-UI mapped to adsentice)
+
+### 3.1 Lifecycle Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `RunStarted` | `discovery:started` | Usuário submete URL |
+| `RunFinished` | `discovery:complete` | Todos os 6 pipelines terminaram |
+| `RunError` | `discovery:error` | Pipeline falhou |
+| `StepStarted` | `pipeline:started {name}` | Início de cada pipeline |
+| `StepFinished` | `pipeline:done {name}` | Fim de cada pipeline |
+
+### 3.2 Text Message Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `TextMessageStart` | `message:start` | Chat livre (DeepSeek/Qwen) |
+| `TextMessageContent` | `message:delta` | Streaming de resposta |
+| `TextMessageEnd` | `message:end` | Resposta completa |
+
+### 3.3 Reasoning Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `ReasoningStart` | `thinking:start` | LLM árbitro começa síntese |
+| `ReasoningMessageContent` | `thinking:delta` | Raciocínio intermediário |
+| `ReasoningEnd` | `thinking:end` | Síntese concluída |
+
+### 3.4 Tool Call Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `ToolCallStart` | `tool:start {cap}` | Pipeline chama DataForSEO |
+| `ToolCallArgs` | `tool:args {cap}` | Parâmetros da chamada |
+| `ToolCallEnd` | `tool:end {cap}` | Chamada concluída |
+| `ToolCallResult` | `tool:result {cap}` | Resultado do DataForSEO |
+
+### 3.5 State Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `StateSnapshot` | `brand_iq:snapshot` | Brand IQ completo |
+| `StateDelta` | `brand_iq:delta` | Atualização incremental |
+| `MessagesSnapshot` | `thread:history` | Histórico da conversa |
+
+### 3.6 Activity Events (Generative UI)
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `ActivitySnapshot` | `card:render {id}` | Card de descoberta |
+| `ActivityDelta` | `card:update {id}` | Card atualizado |
+
+### 3.7 Interrupt Events
+
+| Event AG-UI | adsentice | Quando |
+|-------------|-----------|--------|
+| `RunFinished(outcome=interrupt)` | `credit:gate {action}` | Deep-dive requer créditos |
+| `resume` | `credit:approved` | Usuário confirma gasto |
+
+---
+
+## 4. SHARED STATE: BRAND IQ
+
+### 4.1 Modelo
+
+```typescript
+// Brand IQ — shared state AG-UI entre agente e frontend
+interface BrandIQ {
+  // Descoberto automaticamente (GMB + site + redes)
+  business: {
+    name: string
+    url: string
+    domain: string
+    category: string          // "clínica dentária"
+    subcategory?: string      // "ortodontia"
+    location: {
+      address: string
+      city: string
+      state: string
+      lat: number
+      lng: number
+    }
+  }
+
+  // Brand Voice (descoberto, não configurado)
+  voice: {
+    tone: string              // "profissional e acolhedor"
+    formality: number         // 0-1 (casual → formal)
+    keywords: string[]        // ["sorriso", "confiança", "tecnologia"]
+    audienceSignals: string[] // ["mulheres 25-45", "classe B+", "SP zona sul"]
+  }
+
+  // Visual Identity (extraído do site)
+  visual: {
+    primaryColor: string      // "#1a56db"
+    secondaryColor: string    // "#f59e0b"
+    fontFamily: string        // "Inter, sans-serif"
+    logoUrl?: string
+  }
+
+  // Market Position (descoberto dos dados)
+  market: {
+    score: number             // 0-100
+    rank: number              // posição entre concorrentes
+    totalCompetitors: number
+    strengths: string[]       // ["reviews positivos", "site rápido"]
+    gaps: string[]            // ["sem posts GMB 6 meses", "não anuncia"]
+  }
+}
+```
+
+### 4.2 Fluxo de Sincronização
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  📊 Estratégia SEO Local para minhaclinica.com.br         │
-│  💰 10 créditos consumidos                               │
-│                                                           │
-│  ── Keywords Prioritárias (por volume × oportunidade) ──  │
-│                                                           │
-│  #1 "dentista perto de mim"       2.900/mês  Pos #8 → #3 │
-│    📈 +127% de tráfego estimado se alcançar top 3        │
-│    Ação: Otimizar title + meta + página de localização   │
-│                                                           │
-│  #2 "clareamento dental preço"     1.600/mês  Pos #14    │
-│    📈 Subindo 22% este trimestre                         │
-│    Ação: Criar página de serviço com preços e FAQ        │
-│                                                           │
-│  #3 "implante dentário zona sul"     880/mês  Não ranqueia│
-│    Concorrente A domina (pos #1, #2, #4)                │
-│    Ação: Criar conteúdo comparativo + depoimentos        │
-│                                                           │
-│  #4 "avaliação clínica dentária"     720/mês  Pos #3     │
-│    ✅ Já está bem! Manter e monitorar                     │
-│                                                           │
-│  #5 "dentista emergência 24h"        650/mês  Não ranqueia│
-│    Alta intenção de contato (emergência)                  │
-│    Ação: Landing page dedicada + extensão de horário     │
-│                                                           │
-│  ── Plano de ação (em ordem de impacto) ──                │
-│                                                           │
-│  Semana 1-2: Otimizar keywords #1 e #2                    │
-│  Semana 3-4: Criar conteúdo para #3 e #5                 │
-│  Semana 5+: Monitorar ranqueamento e ajustar              │
-│                                                           │
-│  📈 Previsão: +40% tráfego orgânico em 90 dias            │
-│                                                           │
-│  ─────────────────────────────────────────────────────    │
-│  💬 Tirar dúvidas ou pedir mais análises...               │
-└──────────────────────────────────────────────────────────┘
+Browser (Next.js)                    Backend (Railway)
+     │                                    │
+     │  POST /api/chat/discover            │
+     │  {url: "minhaclinica.com.br"}       │
+     │ ──────────────────────────────────► │
+     │                                    │ 6 pipelines → DataForSEO
+     │                                    │ LLM árbitro → síntese
+     │  STATE_SNAPSHOT                     │
+     │  {brandIQ: {...}}                  │
+     │ ◄────────────────────────────────── │
+     │                                    │
+     │  STATE_DELTA                        │
+     │  [{op:"replace",                    │
+     │    path:"/market/score",            │
+     │    value:62}]                       │
+     │ ◄────────────────────────────────── │
+     │                                    │
+     │  ACTIVITY_SNAPSHOT (card: seo)     │
+     │ ◄────────────────────────────────── │
+     │  ACTIVITY_SNAPSHOT (card: gmb)     │
+     │ ◄────────────────────────────────── │
+     │  ... (6 cards)                     │
+     │                                    │
+     │  RUN_FINISHED {outcome: "success"} │
+     │ ◄────────────────────────────────── │
 ```
 
 ---
 
-## 3. ARQUITETURA TÉCNICA
+## 5. INTERRUPTS: CREDIT GATE
 
-### 3.1 Stack
+### 5.1 Fluxo HITL (Human-in-the-Loop)
 
 ```
-Frontend: Next.js 15 + MUI (Materio) — apps/web/src/app/chat/
-Backend:  apps/api/ — Railway (TypeScript)
-          • POST /api/chat/discover
-          • POST /api/chat/analyze
-          • POST /api/chat/message
-          • GET  /api/chat/thread/:id
-
-Data:     DataForSEO MCP (oficial) — dados REAIS
-          Vault (R2 + Supabase) — cofre durável
-          DeepSeek (evo-llm) — síntese de estratégia
-          Supabase — créditos, tenant, auth, RLS
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│ DISCOVER │ ──► │  CARDS   │ ──► │ DEEP-DIVE│
+│ (grátis) │     │ (grátis) │     │ (crédito)│
+└──────────┘     └──────────┘     └────┬─────┘
+                                       │
+                              ┌────────┴────────┐
+                              │  RUN_FINISHED    │
+                              │  outcome:        │
+                              │  "interrupt"     │
+                              │  interrupts: [{  │
+                              │    reason:        │
+                              │    "confirmation" │
+                              │    message:       │
+                              │    "Análise de    │
+                              │     concorrentes  │
+                              │     custa 5       │
+                              │     créditos"     │
+                              │  }]              │
+                              └────────┬────────┘
+                                       │
+                          ┌────────────┴────────────┐
+                          │  Usuário decide          │
+                          │  [Confirmar] [Cancelar]  │
+                          └────────────┬────────────┘
+                                       │
+                          ┌────────────┴────────────┐
+                          │  resume: [{              │
+                          │    interruptId: "int-1", │
+                          │    status: "resolved",   │
+                          │    payload: {confirmed:  │
+                          │      true}               │
+                          │  }]                      │
+                          └────────────┬────────────┘
+                                       │
+                              ┌────────┴────────┐
+                              │  DEEP-DIVE       │
+                              │  EXECUTA          │
+                              └──────────────────┘
 ```
 
-### 3.2 Endpoints
-
-#### `POST /api/chat/discover`
+### 5.2 Interrupt Schema (adsentice)
 
 ```typescript
-// Request
+// Credit gate interrupt
 {
-  url: string  // minhaclinica.com.br
-}
-
-// Response (streaming SSE)
-event: progress
-data: {"step": "site", "status": "done", "detail": "WordPress 6.4 · LiteSpeed"}
-
-event: progress
-data: {"step": "gmb", "status": "done", "detail": "4.3★ · 128 reviews"}
-
-event: progress
-data: {"step": "seo", "status": "running"}
-
-...
-
-event: complete
-data: {
-  "business": {
-    "url": "minhaclinica.com.br",
-    "domain": "minhaclinica.com.br",
-    "analyzed_at": "2026-07-11T15:30:00Z"
+  id: "credit-gate-{uuid}",
+  reason: "confirmation",           // AG-UI core value
+  message: "Análise de concorrentes — 5 créditos",
+  responseSchema: {
+    type: "object",
+    properties: {
+      confirmed: { type: "boolean" },
+      credit_cost: { type: "integer", const: 5 }
+    },
+    required: ["confirmed"]
   },
-  "score": {
-    "overall": 62,
-    "seo": 54,
-    "reputation": 71,
-    "competition": 48
-  },
-  "cards": [
-    {
-      "id": "seo",
-      "icon": "search",
-      "title": "SEO & Descoberta",
-      "score": 54,
-      "highlights": [
-        "23 keywords ranqueadas",
-        "Posição média #14",
-        "\"dentista perto de mim\" = 2.900 buscas/mês · você está em #8"
-      ]
-    },
-    {
-      "id": "gmb",
-      "icon": "map-pin",
-      "title": "Google Meu Negócio",
-      "score": 65,
-      "highlights": [
-        "Ficha encontrada e verificada",
-        "4.3★ · 128 reviews",
-        "⚠️ Sem posts há 6 meses"
-      ]
-    },
-    {
-      "id": "reputation",
-      "icon": "star",
-      "title": "Reputação",
-      "score": 71,
-      "highlights": [
-        "78% positivo · 8% negativo",
-        "⚠️ 3 reviews negativas sem resposta este mês",
-        "+9 reviews este mês"
-      ]
-    },
-    {
-      "id": "competitors",
-      "icon": "users",
-      "title": "Concorrência",
-      "score": 48,
-      "highlights": [
-        "3 concorrentes no raio de 5km",
-        "Você: 3º lugar (score 62)",
-        "Concorrente A lidera (score 78)"
-      ]
-    },
-    {
-      "id": "social",
-      "icon": "share-2",
-      "title": "Redes Sociais",
-      "score": 40,
-      "highlights": [
-        "Instagram @minhaclinica · 1.2k seguidores",
-        "Facebook · 800 curtidas",
-        "❌ TikTok não encontrado"
-      ]
-    },
-    {
-      "id": "ads",
-      "icon": "trending-up",
-      "title": "Anúncios",
-      "score": 0,
-      "highlights": [
-        "❌ Não está anunciando no Google",
-        "Concorrente A anuncia em 12 keywords",
-        "Oportunidade: ads.traffic_forecast disponível"
-      ]
+  metadata: {
+    adsentice: {
+      pipeline: "competitor_intel",
+      credit_cost: 5,
+      estimated_time_ms: 3000,
+      capabilities: ["domain.competitors", "domain.keyword_gap"]
     }
-  ],
-  "tips": [
-    {
-      "priority": 1,
-      "urgency": "high",
-      "title": "Responda 3 reviews negativas deste mês",
-      "detail": "8% dos seus reviews são negativos. Responder reduz o impacto e mostra que você se importa.",
-      "action": "Ver reviews",
-      "credit_cost": 0
-    },
-    {
-      "priority": 2,
-      "urgency": "medium",
-      "title": "Otimize seu SEO local",
-      "detail": "\"dentista perto de mim\" tem 2.900 buscas/mês e você está na 8ª posição. Dá pra subir para o top 3.",
-      "action": "Ver estratégia SEO",
-      "credit_cost": 10
-    },
-    {
-      "priority": 3,
-      "urgency": "low",
-      "title": "Atualize seu Google Meu Negócio",
-      "detail": "Sem posts há 6 meses. Perfis ativos recebem 35% mais contatos.",
-      "action": "Ver checklist GMB",
-      "credit_cost": 0
-    }
-  ],
-  "deep_dives": [
-    {
-      "id": "competitor_analysis",
-      "title": "Análise de concorrentes",
-      "description": "Relatório detalhado: quem são, onde estão, o que fazem melhor que você",
-      "credit_cost": 5,
-      "caps": ["domain.competitors", "domain.keyword_gap", "domain.ranked_keywords"]
-    },
-    {
-      "id": "seo_strategy",
-      "title": "Estratégia SEO completa",
-      "description": "5 keywords prioritárias + previsão de tráfego + plano de conteúdo",
-      "credit_cost": 10,
-      "caps": ["keyword.research", "keyword.volume", "keyword.trends", "serp.organic"]
-    },
-    {
-      "id": "review_plan",
-      "title": "Plano de gestão de reviews",
-      "description": "Respostas sugeridas + estratégia para aumentar volume de reviews positivas",
-      "credit_cost": 3,
-      "caps": ["business.reviews.google", "content.sentiment_detailed"]
-    },
-    {
-      "id": "technical_audit",
-      "title": "Auditoria técnica do site",
-      "description": "Lighthouse completo + tecnologias + correções priorizadas",
-      "credit_cost": 8,
-      "caps": ["on_page.lighthouse", "domain.technologies", "on_page.instant_audit"]
-    },
-    {
-      "id": "ads_strategy",
-      "title": "Estratégia de anúncios",
-      "description": "Onde anunciar, previsão de tráfego, CPC estimado, orçamento sugerido",
-      "credit_cost": 15,
-      "caps": ["ads.traffic_forecast", "serp.ads_advertisers", "keyword.research"]
-    }
-  ]
+  }
 }
 ```
 
-#### `POST /api/chat/analyze`
+---
+
+## 6. FRONTEND TOOLS: PIPELINES COMO TOOLS
+
+### 6.1 Pipeline Tool Definitions
 
 ```typescript
-// Request
-{
-  thread_id: string,          // conversa atual
-  deep_dive_id: string,       // qual análise executar
-  credits_consumed: number    // quantos créditos vai gastar
-}
-
-// Response
-{
-  analysis: {
-    id: string,
-    type: "competitor_analysis" | "seo_strategy" | "review_plan" | "technical_audit" | "ads_strategy",
-    title: string,
-    content: string,          // markdown formatado
-    data: object,             // dados brutos (gráficos, tabelas)
-    synthesized_at: string,
-    cost: {
-      credits: number,
-      usd: number
+// Cada pipeline exposto como frontend tool (AG-UI pattern)
+const PIPELINE_TOOLS: Tool[] = [
+  {
+    name: "discover_site_audit",
+    description: "Auditoria técnica do site — tecnologia, performance, Lighthouse",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", format: "uri", description: "URL do site" },
+        mobile: { type: "boolean", default: true }
+      },
+      required: ["url"]
     }
   },
-  credits_remaining: number
+  {
+    name: "discover_seo",
+    description: "SEO Discovery — keywords, SERP, ranqueamento, volume de busca",
+    parameters: {
+      type: "object",
+      properties: {
+        domain: { type: "string", description: "Domínio a analisar" },
+        location: { type: "string", default: "São Paulo,Brazil" },
+        maxKeywords: { type: "integer", default: 30 }
+      },
+      required: ["domain"]
+    }
+  },
+  // ... gmb, reputation, competitors, ads, social
+]
+```
+
+### 6.2 Tool Lifecycle (exemplo: SEO pipeline)
+
+```
+TOOL_CALL_START  { toolCallId: "tc-1", toolCallName: "discover_seo" }
+TOOL_CALL_ARGS   { delta: '{"domain":"minhaclinica.com.br"}' }
+TOOL_CALL_END    { toolCallId: "tc-1" }
+
+... (DataForSEO processing) ...
+
+TOOL_CALL_RESULT {
+  toolCallId: "tc-1",
+  content: {
+    keywords: 23,
+    avgPosition: 14,
+    topKeyword: { term: "dentista perto de mim", volume: 2900, position: 8 }
+  }
+}
+
+ACTIVITY_SNAPSHOT {
+  activityType: "discovery-card",
+  content: {
+    id: "seo",
+    title: "SEO & Descoberta",
+    score: 54,
+    highlights: [...]
+  }
 }
 ```
 
-#### `POST /api/chat/message`
+---
+
+## 7. SUB-AGENTS: 6 PIPELINES PARALELOS
+
+### 7.1 Composition Pattern (A2A layer)
+
+```
+RunStarted { threadId, runId, input: { url: "minhaclinica.com.br" } }
+     │
+     ├── StepStarted { stepName: "site_audit" }
+     │   ├── ToolCall* { toolCallName: "discover_site_audit" }
+     │   └── StepFinished { stepName: "site_audit" }
+     │
+     ├── StepStarted { stepName: "seo_discovery" }    ← paralelo
+     │   ├── ToolCall* { toolCallName: "discover_seo" }
+     │   └── StepFinished { stepName: "seo_discovery" }
+     │
+     ├── StepStarted { stepName: "gmb_reputation" }   ← paralelo
+     ├── StepStarted { stepName: "competitor_intel" } ← paralelo
+     ├── StepStarted { stepName: "ads_intelligence" } ← paralelo
+     ├── StepStarted { stepName: "social_discovery" } ← paralelo
+     │
+     ├── ReasoningStart    ← LLM árbitro (DeepSeek V4)
+     │   └── ReasoningMessageContent* (síntese cruzada)
+     ├── ReasoningEnd
+     │
+     ├── StateSnapshot { brandIQ: {...} }    ← Brand IQ completo
+     ├── ActivitySnapshot* (6 cards)          ← Generative UI
+     └── RunFinished { outcome: "success" }
+```
+
+### 7.2 Parallel Execution (A2A pattern)
 
 ```typescript
-// Request
-{
-  thread_id: string,
-  message: string
-}
+// Backend — 6 pipelines em paralelo
+async function discoveryPipeline(input: RunAgentInput): Promise<Observable<BaseEvent>> {
+  const { url } = input;
 
-// Response (streaming SSE)
+  // 1. Dispara 6 pipelines em paralelo
+  const pipelines = [
+    runSiteAudit(url),
+    runSEODiscovery(url),
+    runGMBReputation(url),
+    runCompetitorIntel(url),
+    runAdsIntelligence(url),
+    runSocialDiscovery(url),
+  ];
+
+  // 2. Emite StepStarted/StepFinished conforme completam
+  const results = await Promise.allSettled(pipelines);
+
+  // 3. LLM árbitro sintetiza (Reasoning)
+  yield* reason(results);
+
+  // 4. Emite Brand IQ (StateSnapshot)
+  yield { type: "STATE_SNAPSHOT", snapshot: buildBrandIQ(results) };
+
+  // 5. Emite cards (ActivitySnapshot x6)
+  for (const card of buildCards(results)) {
+    yield { type: "ACTIVITY_SNAPSHOT", activityType: "discovery-card", content: card };
+  }
+
+  // 6. Tips ordenados por prioridade
+  yield { type: "ACTIVITY_SNAPSHOT", activityType: "tips", content: buildTips(results) };
+}
+```
+
+---
+
+## 8. ENDPOINTS (REST → AG-UI)
+
+### 8.1 Migration Path
+
+| Antigo (Chat Spec v0.1) | Novo (AG-UI v1.0) | Mudança |
+|--------------------------|-------------------|---------|
+| `POST /api/chat/discover` | `POST /api/ag-ui/run` | Padronizado AG-UI |
+| `POST /api/chat/analyze` | resume com `credit:gate` resolvido | Via interrupt |
+| `POST /api/chat/message` | `POST /api/ag-ui/run` (chat livre) | Unificado |
+| `GET /api/chat/thread/:id` | `GET /api/ag-ui/thread/:id` | Renomeado |
+| — | `GET /api/ag-ui/thread/:id/events` | NOVO: event stream replay |
+| — | `GET /api/ag-ui/openapi.json` | NOVO: OpenAPI spec |
+| — | `GET /api/ag-ui/llms.txt` | NOVO: machine-readable index |
+
+### 8.2 RunAgentInput (AG-UI standard)
+
+```typescript
+// POST /api/ag-ui/run
+interface RunAgentInput {
+  threadId: string          // sessão do usuário
+  runId: string             // idempotência
+  parentRunId?: string      // branching (deep-dive deriva de discover)
+  input: {
+    url?: string            // discovery
+    message?: string        // chat livre
+    deep_dive_id?: string   // deep-dive específico
+  }
+  tools?: Tool[]            // frontend-defined tools
+  context?: {
+    brandIQ?: Partial<BrandIQ>  // estado pré-existente
+  }
+  resume?: Array<{          // HITL resume
+    interruptId: string
+    status: "resolved" | "cancelled"
+    payload?: any
+  }>
+}
+```
+
+### 8.3 Response (SSE stream de BaseEvent[])
+
+```
+Content-Type: text/event-stream
+
 event: message
-data: {"content": "Com base na sua análise...", "tier": "c2-deepseek"}
+data: {"type":"RUN_STARTED","threadId":"th-1","runId":"run-1"}
 
-event: done
-data: {"message_id": "msg_abc123"}
+event: message
+data: {"type":"STEP_STARTED","stepName":"site_audit"}
+
+event: message
+data: {"type":"TOOL_CALL_START","toolCallId":"tc-1","toolCallName":"on_page_lighthouse"}
+
+event: message
+data: {"type":"TOOL_CALL_RESULT","toolCallId":"tc-1","content":{...}}
+
+event: message
+data: {"type":"STEP_FINISHED","stepName":"site_audit"}
+
+... (5 more pipelines in parallel) ...
+
+event: message
+data: {"type":"REASONING_START","messageId":"reason-1"}
+
+event: message
+data: {"type":"REASONING_MESSAGE_CONTENT","delta":"Clínica bem posicionada em SEO local mas..."}
+
+event: message
+data: {"type":"REASONING_END","messageId":"reason-1"}
+
+event: message
+data: {"type":"STATE_SNAPSHOT","snapshot":{"business":{...},"voice":{...},"market":{...}}}
+
+event: message
+data: {"type":"ACTIVITY_SNAPSHOT","activityType":"discovery-card","content":{"id":"seo","title":"SEO","score":54}}
+
+... (5 more cards) ...
+
+event: message
+data: {"type":"RUN_FINISHED","threadId":"th-1","runId":"run-1","outcome":{"type":"success"}}
 ```
 
-### 3.3 Pipeline de Discovery (6 pipelines paralelos)
+---
+
+## 9. GENERATIVE UI: CARDS + TIPS + SCORE
+
+### 9.1 Activity Types
+
+```typescript
+// Tipos de atividade generativa do adsentice
+type AdsenticeActivityType =
+  | "discovery-card"      // Card de pipeline (SEO, GMB, etc.)
+  | "tip"                 // Recomendação acionável
+  | "market-score"        // Score de mercado
+  | "deep-dive-result"    // Resultado de análise aprofundada
+  | "brand-iq-summary"    // Resumo do Brand IQ descoberto
+```
+
+### 9.2 Card Component Schema
+
+```typescript
+// ACTIVITY_SNAPSHOT com activityType: "discovery-card"
+interface DiscoveryCard {
+  id: string               // "seo" | "gmb" | "reputation" | "competitors" | "social" | "ads"
+  icon: string             // ícone Lucide
+  title: string            // "SEO & Descoberta"
+  score: number            // 0-100
+  highlights: string[]     // bullets informativos
+  severity: "critical" | "warning" | "good" | "excellent"
+  deepDiveAvailable: boolean
+  deepDiveCreditCost?: number
+}
+```
+
+### 9.3 Tip Component Schema
+
+```typescript
+// ACTIVITY_SNAPSHOT com activityType: "tip"
+interface Tip {
+  priority: number         // 1 = mais urgente
+  urgency: "high" | "medium" | "low"
+  title: string
+  detail: string
+  action: string           // label do botão
+  credit_cost: number      // 0 = grátis
+  pipeline?: string        // pipeline relacionado
+}
+```
+
+---
+
+## 10. UX FLOW COMPLETO
+
+### 10.1 Tela Inicial → Discovery → Cards → Deep-Dive
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  POST /api/chat/discover { url: "minhaclinica.com.br" }   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 1: Site Audit         (~2s)                │   │
-│  │  on_page.lighthouse → performance score              │   │
-│  │  domain.technologies → stack detection               │   │
-│  │  domain.whois → age, registrar                       │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 2: SEO Discovery       (~3s)                │   │
-│  │  domain.ranked_keywords → o que já ranqueia          │   │
-│  │  keyword.research → volume de keywords do nicho      │   │
-│  │  serp.organic → posição real no Google               │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 3: GMB & Reputation    (~2s)                │   │
-│  │  business.profile.gmb → ficha Google Meu Negócio    │   │
-│  │  business.reviews.google → reviews + nota + volume  │   │
-│  │  content.sentiment_detailed → análise de sentimento  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 4: Competitor Intel    (~2s)                │   │
-│  │  domain.competitors → concorrentes no raio           │   │
-│  │  domain.keyword_gap → keywords que eles têm e vc não │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 5: Ads Intelligence    (~1s)                │   │
-│  │  serp.ads_advertisers → quem anuncia nas suas kw    │   │
-│  │  ads.traffic_forecast → potencial de tráfego pago   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ PIPELINE 6: Social Discovery     (~2s)               │   │
-│  │  Web scraping → Instagram, Facebook, TikTok, etc    │   │
-│  │  (APIs públicas onde disponível)                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Todos rodam em PARALELO. Resultado: 3-6s total.           │
+│ 1. IDLE                                                      │
+│    Input: "minhaclinica.com.br" + [Analisar]                 │
+│    Event: RUN_STARTED                                        │
+├────────────────────────────────────────────────────────────┤
+│ 2. THINKING (6 pipelines paralelos)                          │
+│    STEP_STARTED/STEP_FINISHED × 6                            │
+│    Progress bar: [████████████░░░░] 78%                      │
+│    Template: "✅ Site encontrado · ✅ GMB · ⏳ SEO..."       │
+├────────────────────────────────────────────────────────────┤
+│ 3. REASONING (LLM árbitro)                                   │
+│    REASONING_MESSAGE_CONTENT (streaming)                     │
+│    "Cruzando dados dos 6 pipelines..."                       │
+├────────────────────────────────────────────────────────────┤
+│ 4. BRAND IQ (state snapshot)                                 │
+│    STATE_SNAPSHOT → frontend recebe Brand IQ completo        │
+│    Sidebar: informações do negócio (voz, posição, gaps)     │
+├────────────────────────────────────────────────────────────┤
+│ 5. CARDS (generative UI)                                     │
+│    ACTIVITY_SNAPSHOT × 6 (cards de descoberta)               │
+│    Grid: 3×2 cards com scores e highlights                   │
+│    ACTIVITY_SNAPSHOT × 3 (tips prioritários)                 │
+├────────────────────────────────────────────────────────────┤
+│ 6. DEEP-DIVE (HITL interrupt)                                │
+│    RUN_FINISHED { outcome: "success" }                       │
+│    Botões de deep-dive abaixo dos cards                      │
+│    Click → RUN_FINISHED { outcome: "interrupt" }             │
+│    Modal: "Análise de concorrentes — 5 créditos. Confirmar?" │
+│    Confirm → resume → novo run com deep-dive                 │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. MODELO DE CRÉDITOS
+## 11. IMPLEMENTAÇÃO (FASES)
 
-| Ação | Créditos | Custo DataForSEO real | Margem |
-|---|---|---|---|
-| **Discovery** | 0 (grátis) | ~$0.08 | Custo de aquisição |
-| **Análise de concorrentes** | 5 | ~$0.03 | ~97% |
-| **Estratégia SEO** | 10 | ~$0.10 | ~92% |
-| **Plano de reviews** | 3 | ~$0.02 | ~95% |
-| **Auditoria técnica** | 8 | ~$0.06 | ~94% |
-| **Estratégia de anúncios** | 15 | ~$0.12 | ~94% |
-| **Deep-dive completo** | 30 | ~$0.30 | ~92% |
+### 11.1 MVP (2 semanas)
 
-### Planos
+| Feature | Tech | AG-UI Events |
+|---------|------|-------------|
+| `POST /api/ag-ui/run` | Next.js API route | RunStarted, StepStarted/Finished, RunFinished |
+| 6 pipelines paralelos | Promise.all() DataForSEO MCP | ToolCall*, ToolCallResult |
+| LLM árbitro | DeepSeek V4 | ReasoningStart, ReasoningMessageContent, ReasoningEnd |
+| Brand IQ (estado inicial) | GMB + site crawl | StateSnapshot |
+| Cards + Tips + Score | ActivitySnapshot × 9 | ActivitySnapshot (discovery-card, tip, market-score) |
+| SSE streaming | text/event-stream | Formato AG-UI padrão |
 
-| Plano | Preço | Créditos/mês | Público |
-|---|---|---|---|
-| **Free** | R$0 | 0 (só discovery) | Todo mundo |
-| **Starter** | R$47 | 20 | Pequeno negócio, 1 site |
-| **Pro** | R$197 | 100 | Negócio estabelecido, múltiplas análises |
-| **Escala** | R$497 | Ilimitados | Redes, franquias, múltiplas unidades |
+### 11.2 v0.2 (1 mês)
 
----
+| Feature | Tech | AG-UI Events |
+|---------|------|-------------|
+| Chat livre multi-modelo | DeepSeek + Qwen local | TextMessageStart, TextMessageContent, TextMessageEnd |
+| Credit gate (HITL) | Interrupt pattern | RunFinished(outcome=interrupt), resume |
+| State delta | JSON Patch RFC 6902 | StateDelta |
+| Thread history | Supabase | MessagesSnapshot |
+| OpenAPI spec pública | openapi-typescript | GET /api/ag-ui/openapi.json |
+| llms.txt | Static + auto-gen | Machine-readable index |
 
-## 5. BRAND IQ AUTOMÁTICO (Descoberto, Não Configurado)
+### 11.3 v1.0 (3 meses)
 
-### 5.1 O que é detectado automaticamente
-
-| Atributo | Como detectamos | Exemplo |
-|---|---|---|
-| **Nicho** | keyword.research + GMB category | "clínica odontológica" |
-| **Tom** | Reviews sentiment + site content | "profissional, acolhedor" |
-| **Audiência** | Keywords (intent) + demographic signals | "pessoas buscando dentista perto de mim" |
-| **Intents** | keyword clustering + GMB attributes | "quero mais pacientes", "não apareço no Google" |
-| **Concorrentes** | domain.competitors | 3 no raio de 5km |
-| **Presença digital** | Site + GMB + social discovery | Site WP, GMB ativo, IG 1.2k, sem TikTok |
-
-### 5.2 Comparação com Jasper IQ
-
-| | Jasper IQ | adsentice Brand IQ |
-|---|---|---|
-| **Configuração** | Manual (usuário preenche) | Automático (pipeline descobre) |
-| **Voz/Tom** | Usuário define | Detectado dos reviews + conteúdo do site |
-| **Audiências** | Usuário cria personas | Detectado das keywords (intent) |
-| **Knowledge Base** | Usuário faz upload | Detectado do próprio site + GMB + redes |
-| **Manutenção** | Usuário atualiza | Sistema re-audita periodicamente (sentinela) |
+| Feature | Tech | AG-UI Events |
+|---------|------|-------------|
+| Agent steering | Refinar pipeline mid-execution | Custom event |
+| Sub-agent fanout | Pipelines delegam entre si | parentRunId, nested runs |
+| Multimodality | Screenshot, voice input | MultimodalInput |
+| Generative UI declarativa | JSON Schema → React components | Draft: generateUserInterface |
+| MCP server público | mcp SDK + adsentice tools | Complementa AG-UI |
 
 ---
 
-## 6. FLUXO DE CONVERSA (State Machine)
+## 12. DOUTRINAS (ATUALIZADAS)
 
-```
-                    ┌─────────────┐
-                    │  WELCOME    │
-                    │  (sem URL)  │
-                    └──────┬──────┘
-                           │ usuário coloca URL
-                           ▼
-                    ┌─────────────┐
-                    │ DISCOVERING │
-                    │ (pipeline)  │
-                    └──────┬──────┘
-                           │ 3-6 segundos
-                           ▼
-                    ┌─────────────┐
-                    │  DISCOVERED │
-                    │ cards+tips  │
-                    └──────┬──────┘
-                           │
-          ┌────────────────┼────────────────┐
-          ▼                ▼                 ▼
-   ┌──────────┐    ┌─────────────┐    ┌──────────┐
-   │ Conversar│    │ Deep-dive   │    │  Sair /  │
-   │ (chat)   │    │ (créditos)  │    │  voltar  │
-   └────┬─────┘    └──────┬──────┘    └──────────┘
-        │                 │
-        ▼                 ▼
-   ┌──────────┐    ┌─────────────┐
-   │ Resposta │    │  ANALYSIS   │
-   │ grounded │    │ (executando)│
-   └────┬─────┘    └──────┬──────┘
-        │                 │
-        └─────────┬───────┘
-                  ▼
-           ┌────────────┐
-           │ CONTINUAR  │
-           │ (loop)     │
-           └────────────┘
-```
+1. **medido=verdade:** toda afirmação cita fonte (arquivo, commit, MCP tool, evento AG-UI).
+2. **AG-UI first:** toda interação agente↔UI segue o protocolo AG-UI. Chat é 1 dos 13 padrões.
+3. **Pipeline discovery:** URL → 6 pipelines paralelos (A2A) → cards + tips + score (AG-UI generative).
+4. **LLM = árbitro NUNCA extrator:** DeepSeek cost-capped, Qwen local $0.
+5. **Sandbox default ($0) · live gated:** spend-cap por tenant · credit gate via interrupt.
+6. **Vault:** R2 blob → Postgres série ANTES de indexar.
+7. **Corpora:** A=self(adsentice) ≠ B=cliente(tenant·PII) ≠ C=tooling.
+8. **Spec primeiro · ADR para decisões · Português (pt-BR).**
+9. **Stack:** Next.js 15 + Railway + Supabase + Cloudflare R2 + DataForSEO MCP + AG-UI.
+10. **Público:** SMB brasileiro (dono de clínica, lojista, contador).
+11. **Ticket:** R$0 (free) · R$47 (starter) · R$197 (pro) · R$497 (escala).
+12. **3 machine paths:** llms.txt + OpenAPI + MCP server — interoperabilidade por padrão.
+13. **"Chat is one entry point, not the system itself."** — Jasper.ai + AG-UI.
 
 ---
 
-## 7. IMPLEMENTAÇÃO
+## 13. REFERÊNCIAS
 
-### 7.1 MVP · Semana 1-2
-
-**Backend:**
-- [ ] `POST /api/chat/discover` — Pipeline 1 (Site Audit) + Pipeline 2 (SEO) + Pipeline 3 (GMB)
-- [ ] Vault: salvar resultado da descoberta
-- [ ] Supabase: schema `chat_threads`, `chat_messages`, `discoveries`
-
-**Frontend:**
-- [ ] Tela de boas-vindas (input URL)
-- [ ] Tela de discovery (progresso animado)
-- [ ] Tela de resultado (cards + tips estáticos)
-
-### 7.2 Semana 3-4
-
-- [ ] Pipeline 4 (Competitors) + Pipeline 5 (Ads) + Pipeline 6 (Social)
-- [ ] `POST /api/chat/analyze` — primeiro deep-dive (SEO Strategy)
-- [ ] Sistema de créditos (Supabase)
-- [ ] `POST /api/chat/message` — chat livre com contexto do negócio
-
-### 7.3 Semana 5-6
-
-- [ ] Brand IQ automático (detecção de nicho, tom, intents)
-- [ ] DeepSeek síntese de estratégia (cost-capped)
-- [ ] SSE streaming em todos os endpoints
-- [ ] UI refinada com animações (Materio + motion)
+| Documento | Local |
+|-----------|-------|
+| AG-UI Docs (54 páginas) | https://docs.ag-ui.com |
+| AG-UI Event Catalog | https://docs.ag-ui.com/concepts/events |
+| AG-UI Interrupts | https://docs.ag-ui.com/concepts/interrupts |
+| AG-UI State | https://docs.ag-ui.com/concepts/state |
+| AG-UI Tools | https://docs.ag-ui.com/concepts/tools |
+| AG-UI Generative UI (draft) | https://docs.ag-ui.com/drafts/generative-ui |
+| AG-UI GitHub (MIT) | https://github.com/ag-ui-protocol/ag-ui |
+| Jasper fork do AG-UI | https://github.com/gojasper/ag-ui |
+| Jasper MCP Server | https://mcp.jasper.ai |
+| Probe Público Jasper | `docs/jasper-docs/probe-2026-07-11-public.md` |
+| Análise Repos gojasper | `docs/jasper-docs/gojasper-repos-analysis.md` |
+| Base-Matriz adsentice | `docs/spec/base-matriz-adsentice.md` |
+| CLAUDE.md | raiz do projeto |
 
 ---
 
-## 8. O QUE NÃO FAZER
-
-| O Jasper Chat faz | O adsentice Chat NÃO vai fazer |
-|---|---|
-| ❌ Gerar copy de marketing | É commodity. Nosso valor é DIAGNÓSTICO |
-| ❌ Editor de conteúdo (Marketing Editor) | Já existe Jasper, Notion, Google Docs |
-| ❌ Agentes de criação de imagem | Já existe Midjourney, DALL-E |
-| ❌ Workflows low-code (Canvas/Grid) | Nosso workflow é: descobrir → priorizar → agir |
-| ❌ Brand voice configurável manualmente | Nós DESCOBRIMOS, não perguntamos |
-| ❌ Biblioteca de templates de conteúdo | Nosso "template" é o pipeline de descoberta |
-
----
-
-## 9. MÉTRICAS DE SUCESSO
-
-| Métrica | Alvo |
-|---|---|
-| **Tempo de discovery** | <10 segundos |
-| **Custo por discovery** | <$0.10 |
-| **% de usuários que clicam em deep-dive** | >15% |
-| **Tempo até primeiro deep-dive** | <3 minutos |
-| **% de conversão Free → Starter** | >5% |
-| **Créditos consumidos por cliente pagante/mês** | >80% do plano |
-
----
-
-*Especificação produzida em 2026-07-11 · Inspirada no Jasper Chat, construída sobre os ativos EVO-API/rsxt/adsentice*
+*Especificação v1.0.0 · 2026-07-11 · AG-UI Native · supersedes adsentice-chat-spec v0.1.0*
