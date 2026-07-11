@@ -2,7 +2,7 @@
   "mcpServers": {
     "adsentice-redis": {
       "command": "npx",
-      "args": ["-y", "@gongrzhe/server-redis-mcp"],
+      "args": ["-y", "@gongrzhe/server-redis-mcp@latest"],
       "env": {
         "REDIS_HOST": "127.0.0.1",
         "REDIS_PORT": "6396",
@@ -10,8 +10,8 @@
       }
     },
     "adsentice-qdrant": {
-      "command": "uv",
-      "args": ["run", "--with", "qdrant-client", "tools/adsentice_qdrant_server.py"],
+      "command": "python3",
+      "args": ["tools/adsentice_qdrant_server.py"],
       "env": {
         "QDRANT_URL": "http://127.0.0.1:6352",
         "QDRANT_COLLECTION": "adsentice-self",
@@ -19,13 +19,22 @@
       }
     },
     "adsentice-kg": {
-      "command": "uv",
-      "args": ["run", "--with", "qdrant-client", "tools/adsentice_kg_server.py"],
+      "command": "python3",
+      "args": ["tools/adsentice_kg_server.py"],
       "env": {
         "QDRANT_URL": "http://127.0.0.1:6352",
         "COLLECTION": "adsentice-kg",
         "EMBED_URL": "http://127.0.0.1:8081",
         "TAG": "adsentice"
+      }
+    },
+    "adsentice-conversation": {
+      "command": "python3",
+      "args": ["tools/adsentice_conversation.py"],
+      "env": {
+        "CLAUDE_KG_EMBED_URL": "http://127.0.0.1:8081/embed",
+        "CLAUDE_KG_QDRANT_URL": "http://127.0.0.1:6352",
+        "CLAUDE_KG_TAG": "adsentice"
       }
     },
     "dataforseo": {
@@ -35,15 +44,6 @@
         "DATAFORSEO_LOGIN": "${DATAFORSEO_LOGIN}",
         "DATAFORSEO_PASSWORD": "${DATAFORSEO_PASSWORD}",
         "ENABLED_MODULES": "SERP,KEYWORDS_DATA,ONPAGE,DATAFORSEO_LABS,BACKLINKS,DOMAIN_ANALYTICS,BUSINESS_DATA,CONTENT_ANALYSIS,AI_OPTIMIZATION"
-      }
-    },
-    "adsentice-conversation": {
-      "command": "uv",
-      "args": ["run", "--script", "tools/adsentice_conversation.py"],
-      "env": {
-        "CLAUDE_KG_EMBED_URL": "http://127.0.0.1:8081/embed",
-        "CLAUDE_KG_QDRANT_URL": "http://127.0.0.1:6352",
-        "CLAUDE_KG_TAG": "adsentice"
       }
     },
     "context7": {
