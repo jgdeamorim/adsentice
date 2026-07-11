@@ -243,3 +243,9 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 | Versao | Data | Descricao | Handoff | Status |
 |---|---|---|---|---|
 | v001 | 2026-07-11 | criar-o-ecossistema-adsentice-completo | `HANDOFF-2026-07-11-v001-criar-o-ecossistema-adsentice-completo.md` | ✅ vivo |
+
+## Changelog
+
+| Versao | Data | Descricao | Handoff | Status |
+|---|---|---|---|---|
+| v002 | 2026-07-11 | montar-ecossistema-completo-adsentice-com-mcp-servers-kg-ood | `HANDOFF-2026-07-11-v002-montar-ecossistema-completo-adsentice-com-mcp-serv.md` | ✅ vivo |
