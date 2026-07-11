@@ -19,3 +19,7 @@ apps/web/src/prisma/*.db
 
 # dados locais (docker volumes)
 .data/
+
+# Python cache
+__pycache__/
+*.pyc
