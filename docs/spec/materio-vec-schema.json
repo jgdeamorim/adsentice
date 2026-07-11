@@ -1,0 +1,139 @@
+{
+  "_meta": {
+    "version": "0.1.0",
+    "date": "2026-07-11",
+    "description": "Materio vec() schema — design vocabulary as semantic vectors. Root/edges/nodes/child structure for DCT-compatible design token retrieval. Ingested into Qdrant collection 'adsentice-materio' with tag=materio.",
+    "dct_compat": true,
+    "embed_dim": 768,
+    "embed_model": "mpnet-base (all-mpnet-base-v2)"
+  },
+  "root": {
+    "id": "materio-adsentice-v0",
+    "name": "adsentice Design System",
+    "version": "0.1.0",
+    "brand": "adsentice",
+    "accent": "#f9603f",
+    "mode": "light-first",
+    "font_display": "Plus Jakarta Sans",
+    "font_body": "Inter"
+  },
+  "edges": [
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "palette"},
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "typography"},
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "spacing"},
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "radius"},
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "shadows"},
+    {"source": "materio-adsentice-v0", "relation": "has_category", "target": "motion"},
+    {"source": "palette", "relation": "has_token", "target": "coral-warm"},
+    {"source": "palette", "relation": "has_token", "target": "coral-hover"},
+    {"source": "palette", "relation": "has_token", "target": "coral-soft"},
+    {"source": "palette", "relation": "has_token", "target": "ink"},
+    {"source": "palette", "relation": "has_token", "target": "stone-dark"},
+    {"source": "palette", "relation": "has_token", "target": "muted"},
+    {"source": "palette", "relation": "has_token", "target": "surface"},
+    {"source": "palette", "relation": "has_token", "target": "surface-alt"},
+    {"source": "palette", "relation": "has_token", "target": "border"},
+    {"source": "typography", "relation": "has_token", "target": "font-display"},
+    {"source": "typography", "relation": "has_token", "target": "font-body"},
+    {"source": "typography", "relation": "has_token", "target": "font-mono"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-1"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-2"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-3"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-4"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-5"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-6"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-7"},
+    {"source": "spacing", "relation": "has_token", "target": "sp-8"},
+    {"source": "radius", "relation": "has_token", "target": "r-sm"},
+    {"source": "radius", "relation": "has_token", "target": "r-md"},
+    {"source": "radius", "relation": "has_token", "target": "r-lg"},
+    {"source": "radius", "relation": "has_token", "target": "r-pill"},
+    {"source": "shadows", "relation": "has_token", "target": "sh-sm"},
+    {"source": "shadows", "relation": "has_token", "target": "sh-md"},
+    {"source": "shadows", "relation": "has_token", "target": "sh-lg"},
+    {"source": "shadows", "relation": "has_token", "target": "sh-coral"},
+    {"source": "motion", "relation": "has_token", "target": "ease-default"},
+    {"source": "motion", "relation": "has_token", "target": "duration-fast"},
+    {"source": "motion", "relation": "has_token", "target": "duration-smooth"},
+    {"source": "motion", "relation": "has_token", "target": "duration-reveal"}
+  ],
+  "nodes": {
+    "palette": {
+      "children": [
+        {"id": "coral-warm", "hex": "#f9603f", "role": "accent", "css_var": "--accent", "vec_query": "cor principal laranja quente marca"},
+        {"id": "coral-hover", "hex": "#cf3f1f", "role": "accent-hover", "css_var": "--accent-hover", "vec_query": "hover estado escuro laranja"},
+        {"id": "coral-soft", "hex": "#ffe3da", "role": "accent-soft", "css_var": "--accent-soft", "vec_query": "fundo suave rosa claro"},
+        {"id": "ink", "hex": "#1c1917", "role": "fg-primary", "css_var": "--ink", "vec_query": "texto principal preto quente"},
+        {"id": "stone-dark", "hex": "#1c1917", "role": "bg-dark", "css_var": "--ink", "vec_query": "fundo escuro CTA footer"},
+        {"id": "muted", "hex": "#57534e", "role": "fg-secondary", "css_var": "--muted", "vec_query": "texto secundario cinza"},
+        {"id": "surface", "hex": "#faf8f6", "role": "bg-surface", "css_var": "--surface", "vec_query": "fundo claro superficie card"},
+        {"id": "surface-alt", "hex": "#fff0ea", "role": "bg-surface-alt", "css_var": "--surface-alt", "vec_query": "fundo alternativo coral claro"},
+        {"id": "border", "hex": "#e7e5e4", "role": "border", "css_var": "--border", "vec_query": "borda cinza clara"}
+      ]
+    },
+    "typography": {
+      "children": [
+        {"id": "font-display", "value": "'Plus Jakarta Sans', sans-serif", "role": "heading", "css_var": "--font-display", "vec_query": "fonte titulo headline display"},
+        {"id": "font-body", "value": "'Inter', sans-serif", "role": "body", "css_var": "--font-body", "vec_query": "fonte corpo texto paragrafo"},
+        {"id": "font-mono", "value": "'JetBrains Mono', monospace", "role": "code", "css_var": "--font-mono", "vec_query": "fonte monospace codigo dados"}
+      ]
+    },
+    "spacing": {
+      "children": [
+        {"id": "sp-1", "value": "4px", "css_var": "--sp-1", "vec_query": "espacamento minimo"},
+        {"id": "sp-2", "value": "8px", "css_var": "--sp-2", "vec_query": "espacamento pequeno"},
+        {"id": "sp-3", "value": "12px", "css_var": "--sp-3", "vec_query": "espacamento medio"},
+        {"id": "sp-4", "value": "16px", "css_var": "--sp-4", "vec_query": "padding card padrao"},
+        {"id": "sp-5", "value": "20px", "css_var": "--sp-5", "vec_query": "espacamento largo"},
+        {"id": "sp-6", "value": "24px", "css_var": "--sp-6", "vec_query": "gap grid padrao"},
+        {"id": "sp-7", "value": "28px", "css_var": "--sp-7", "vec_query": "espacamento grande"},
+        {"id": "sp-8", "value": "32px", "css_var": "--sp-8", "vec_query": "padding secao pagina"}
+      ]
+    },
+    "radius": {
+      "children": [
+        {"id": "r-sm", "value": "0.5rem", "css_var": "--r-sm", "vec_query": "borda arredondada pequena botao chip"},
+        {"id": "r-md", "value": "1rem", "css_var": "--r-md", "vec_query": "borda arredondada media card input"},
+        {"id": "r-lg", "value": "1.25rem", "css_var": "--r-lg", "vec_query": "borda arredondada grande modal"},
+        {"id": "r-pill", "value": "100vw", "css_var": "--r-pill", "vec_query": "borda pill botao CTA totalmente redonda"}
+      ]
+    },
+    "shadows": {
+      "children": [
+        {"id": "sh-sm", "value": "0 1px 2px rgba(28,25,23,.04)", "css_var": "--sh-sm", "vec_query": "sombra sutil minima"},
+        {"id": "sh-md", "value": "0 4px 12px rgba(28,25,23,.05)", "css_var": "--sh-md", "vec_query": "sombra media card elevado"},
+        {"id": "sh-lg", "value": "0 8px 24px rgba(28,25,23,.06)", "css_var": "--sh-lg", "vec_query": "sombra grande modal overlay"},
+        {"id": "sh-coral", "value": "0 16px 50px rgba(249,96,63,.18)", "css_var": "--sh-coral", "vec_query": "sombra accent coral CTA destaque"}
+      ]
+    },
+    "motion": {
+      "children": [
+        {"id": "ease-default", "value": "cubic-bezier(.22,.61,.36,1)", "css_var": "--ease", "vec_query": "curva ease padrao suave"},
+        {"id": "duration-fast", "value": "160ms", "css_var": "--motion-fast", "vec_query": "transicao rapida hover"},
+        {"id": "duration-smooth", "value": "400ms", "css_var": "--motion-smooth", "vec_query": "transicao suave morph"},
+        {"id": "duration-reveal", "value": "700ms", "css_var": "--motion-reveal", "vec_query": "reveal animation entrada scroll"}
+      ]
+    }
+  },
+  "providers": {
+    "inspiration": {
+      "description": "Referencias externas de design para busca semantica",
+      "sources": [
+        {"name": "jasper.ai", "url": "https://www.jasper.ai", "vec_tag": "inspiration:jasper", "elements": ["chat interface", "dashboard", "landing page", "pricing table"]},
+        {"name": "linear.app", "url": "https://linear.app", "vec_tag": "inspiration:linear", "elements": ["sidebar", "command palette", "issue tracker", "kanban"]},
+        {"name": "vercel.com", "url": "https://vercel.com", "vec_tag": "inspiration:vercel", "elements": ["hero", "pricing", "docs layout", "footer"]},
+        {"name": "cloudflare.com", "url": "https://cloudflare.com", "vec_tag": "inspiration:cloudflare", "elements": ["dashboard", "analytics", "status page"]}
+      ]
+    }
+  },
+  "vec_queries": {
+    "description": "Exemplos de queries semanticas para recuperar tokens Materio",
+    "examples": [
+      {"query": "cor principal do botao CTA", "expected": "coral-warm"},
+      {"query": "fonte para titulo grande hero", "expected": "font-display"},
+      {"query": "espacamento entre cards no grid", "expected": "sp-6"},
+      {"query": "sombra para dar destaque no CTA", "expected": "sh-coral"},
+      {"query": "transicao suave para animacao de entrada", "expected": "duration-reveal"}
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "version": "0.1.0",
+    "date": "2026-07-11",
+    "description": "Configuracao declarativa dos pipelines de discovery do adsentice Chat. Cada pipeline = 1 ou mais capabilities DataForSEO executadas em paralelo. DERIVADO do codigo — nao hardcode."
+  },
+  "pipelines": [
+    {
+      "id": "site_audit",
+      "name": "Site Audit",
+      "icon": "monitor",
+      "sla_ms": 2000,
+      "capabilities": [
+        {"cap": "on_page.lighthouse", "provider": "dataforseo", "module": "ONPAGE", "cost_usd": 0.005},
+        {"cap": "domain.technologies", "provider": "dataforseo", "module": "DOMAIN_ANALYTICS", "cost_usd": 0.003},
+        {"cap": "domain.whois", "provider": "dataforseo", "module": "DOMAIN_ANALYTICS", "cost_usd": 0.002}
+      ]
+    },
+    {
+      "id": "seo_discovery",
+      "name": "SEO Discovery",
+      "icon": "search",
+      "sla_ms": 3000,
+      "capabilities": [
+        {"cap": "domain.ranked_keywords", "provider": "dataforseo", "module": "DOMAIN_ANALYTICS", "cost_usd": 0.005},
+        {"cap": "keyword.research", "provider": "dataforseo", "module": "DATAFORSEO_LABS", "cost_usd": 0.0126},
+        {"cap": "serp.organic", "provider": "dataforseo", "module": "SERP", "cost_usd": 0.005}
+      ]
+    },
+    {
+      "id": "gmb_reputation",
+      "name": "GMB & Reputation",
+      "icon": "map-pin",
+      "sla_ms": 2000,
+      "capabilities": [
+        {"cap": "business.profile.gmb", "provider": "dataforseo", "module": "BUSINESS_DATA", "cost_usd": 0.005},
+        {"cap": "business.reviews.google", "provider": "dataforseo", "module": "BUSINESS_DATA", "cost_usd": 0.005},
+        {"cap": "content.sentiment_detailed", "provider": "dataforseo", "module": "CONTENT_ANALYSIS", "cost_usd": 0.003}
+      ]
+    },
+    {
+      "id": "competitor_intel",
+      "name": "Competitor Intel",
+      "icon": "users",
+      "sla_ms": 2000,
+      "capabilities": [
+        {"cap": "domain.competitors", "provider": "dataforseo", "module": "DOMAIN_ANALYTICS", "cost_usd": 0.005},
+        {"cap": "domain.keyword_gap", "provider": "dataforseo", "module": "DOMAIN_ANALYTICS", "cost_usd": 0.005}
+      ]
+    },
+    {
+      "id": "ads_intelligence",
+      "name": "Ads Intelligence",
+      "icon": "trending-up",
+      "sla_ms": 1000,
+      "capabilities": [
+        {"cap": "serp.ads_advertisers", "provider": "dataforseo", "module": "SERP", "cost_usd": 0.005},
+        {"cap": "ads.traffic_forecast", "provider": "dataforseo", "module": "KEYWORDS_DATA", "cost_usd": 0.005}
+      ]
+    },
+    {
+      "id": "social_discovery",
+      "name": "Social Discovery",
+      "icon": "share-2",
+      "sla_ms": 2000,
+      "capabilities": [
+        {"cap": "social.instagram", "provider": "web_scraping", "module": "custom", "cost_usd": 0},
+        {"cap": "social.facebook", "provider": "web_scraping", "module": "custom", "cost_usd": 0},
+        {"cap": "social.tiktok", "provider": "web_scraping", "module": "custom", "cost_usd": 0}
+      ]
+    }
+  ],
+  "deep_dives": [
+    {
+      "id": "competitor_analysis",
+      "title": "Analise de concorrentes",
+      "credits": 5,
+      "pipelines": ["competitor_intel"],
+      "synthesis": "deepseek"
+    },
+    {
+      "id": "seo_strategy",
+      "title": "Estrategia SEO completa",
+      "credits": 10,
+      "pipelines": ["seo_discovery", "site_audit"],
+      "synthesis": "deepseek"
+    },
+    {
+      "id": "review_plan",
+      "title": "Plano de gestao de reviews",
+      "credits": 3,
+      "pipelines": ["gmb_reputation"],
+      "synthesis": "deepseek"
+    },
+    {
+      "id": "technical_audit",
+      "title": "Auditoria tecnica do site",
+      "credits": 8,
+      "pipelines": ["site_audit"],
+      "synthesis": "deepseek"
+    },
+    {
+      "id": "ads_strategy",
+      "title": "Estrategia de anuncios",
+      "credits": 15,
+      "pipelines": ["ads_intelligence", "seo_discovery"],
+      "synthesis": "deepseek"
+    }
+  ],
+  "total_discovery_cost_usd": {
+    "all_pipelines": 0.06,
+    "per_pipeline_avg": 0.01,
+    "note": "Custo total de 1 discovery completo (~$0.06). Viabiliza freemium."
+  }
+}

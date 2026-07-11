@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "version": "0.1.0",
+    "date": "2026-07-11",
+    "formula": "BOA = 0.30·stability + 0.20·performance + 0.15·error_free + 0.35·founder_signal",
+    "source": "EVO-API ADR-RSXT-0001 · portado para adsentice"
+  },
+  "dimensions": {
+    "stability": {
+      "weight": 0.30,
+      "description": "Qualidade e consistencia do repositorio",
+      "sources": [
+        {"name": "commits_30d", "type": "git", "command": "git log --since=30.days --oneline | wc -l", "ideal": 20},
+        {"name": "file_churn_5commits", "type": "git", "command": "git diff --name-only HEAD~5 HEAD | wc -l", "max": 30},
+        {"name": "adr_acceptance_rate", "type": "docs", "path": "docs/adr/*.md", "field": "status: accepted / total"}
+      ]
+    },
+    "performance": {
+      "weight": 0.20,
+      "description": "Velocidade e saude da infraestrutura",
+      "sources": [
+        {"name": "embed_latency_ms", "type": "http", "url": "http://127.0.0.1:8081/embed", "target_ms": 100},
+        {"name": "qdrant_health", "type": "http", "url": "http://127.0.0.1:6352/healthz"},
+        {"name": "redis_ping", "type": "redis", "port": 6396},
+        {"name": "corpus_points", "type": "qdrant", "collection": "adsentice-self", "target": 100}
+      ]
+    },
+    "error_free": {
+      "weight": 0.15,
+      "description": "Qualidade de testes e documentacao",
+      "sources": [
+        {"name": "vault_tests", "type": "npm", "command": "npm test -w @adsentice/vault", "expected": "6/6"},
+        {"name": "base_matriz", "type": "file", "path": "docs/spec/base-matriz-adsentice.md"},
+        {"name": "adr_0001", "type": "file", "path": "docs/adr/0001-arquitetura-standalone-adsentice.md"},
+        {"name": "chat_spec", "type": "file", "path": "docs/adsentice-chat-spec.md"}
+      ]
+    },
+    "founder_signal": {
+      "weight": 0.35,
+      "description": "A decisao do founder — o peso mais alto",
+      "sources": [
+        {"name": "explicit_approval", "signal": 1.0, "trigger": "ADR accepted, commit push, gate accept"},
+        {"name": "implicit_long_session", "signal": 0.8, "trigger": "Sessao ativa >10s com decisoes capturadas"},
+        {"name": "implicit_short_session", "signal": 0.6, "trigger": "Sessao curta sem objecao"},
+        {"name": "override", "signal": 0.3, "trigger": "Reverter decisao anterior"},
+        {"name": "explicit_disapproval", "signal": 0.0, "trigger": "Gate reject, founder discorda"},
+        {"name": "none_initial", "signal": 0.7, "trigger": "Default — primeira sessao do ecossistema"}
+      ]
+    }
+  },
+  "thresholds": {
+    "excellent": 0.80,
+    "acceptable": 0.50,
+    "reobserve": 0.20,
+    "fallback_after": "3 consecutive < 0.20 → FALLBACK (last known good + founder alert)"
+  }
+}
