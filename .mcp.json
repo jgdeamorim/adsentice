@@ -29,6 +29,9 @@
         "CLAUDE_KG_TAG": "adsentice"
       }
     },
+    "firecrawl": {
+      "url": "https://mcp.firecrawl.dev/v2/mcp"
+    },
     "dataforseo": {
       "command": "npx",
       "args": ["-y", "dataforseo-mcp-server@2.8.10"],
