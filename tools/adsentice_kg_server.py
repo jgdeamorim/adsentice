@@ -59,6 +59,42 @@ ADSENTICE_EDGES: list[dict] = [
     {"source": "adsentice.platform", "relation": "runs_on", "target": "cloudflare_r2", "source_doc": "ADR-0001"},
     {"source": "adsentice.platform", "relation": "runs_on", "target": "deepseek", "source_doc": "ADR-0001"},
     {"source": "adsentice.platform", "relation": "runs_on", "target": "qwen_local", "source_doc": "ADR-0001"},
+    # ═══ RSXT BRIDGE ═══
+    # Engines hierarchy
+    {"source": "rsxt.t0", "relation": "depends_on", "target": "rsxt.s0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    {"source": "rsxt.v0", "relation": "depends_on", "target": "rsxt.s0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    {"source": "rsxt.k0", "relation": "depends_on", "target": "rsxt.s0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    {"source": "rsxt.f0", "relation": "depends_on", "target": "rsxt.t0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    {"source": "rsxt.f0", "relation": "depends_on", "target": "rsxt.v0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    {"source": "rsxt.f0", "relation": "depends_on", "target": "rsxt.k0", "source_doc": "00-FAMILY5-GENERIC.md"},
+    # Layer pipeline L0→L6
+    {"source": "rsxt.L0", "relation": "feeds_into", "target": "rsxt.L1", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.L1", "relation": "feeds_into", "target": "rsxt.L2", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.L2", "relation": "feeds_into", "target": "rsxt.L3", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.L3", "relation": "feeds_into", "target": "rsxt.L4", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.L4", "relation": "feeds_into", "target": "rsxt.L5", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.L5", "relation": "feeds_into", "target": "rsxt.L6", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    # Engines → layers they operate at
+    {"source": "rsxt.s0", "relation": "operates_at", "target": "rsxt.L0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.s0", "relation": "operates_at", "target": "rsxt.L1", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.v0", "relation": "operates_at", "target": "rsxt.L3", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.k0", "relation": "operates_at", "target": "rsxt.L4", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.f0", "relation": "operates_at", "target": "rsxt.L5", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    # Doctrines govern engines
+    {"source": "rsxt.doctrine.llm_arbitro", "relation": "governs", "target": "rsxt.k0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.doctrine.llm_arbitro", "relation": "governs", "target": "rsxt.f0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.doctrine.embedding_sensor", "relation": "governs", "target": "rsxt.v0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.doctrine.pattern_accum", "relation": "governs", "target": "rsxt.f0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    {"source": "rsxt.doctrine.founder_signal", "relation": "governs", "target": "rsxt.f0", "source_doc": "02-FAMILY5-DOCTRINE.md"},
+    # ADSENTICE BRIDGE — equivalence mapping
+    {"source": "adsentice.vault", "relation": "equivalent_to", "target": "rsxt.s0", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.qdrant", "relation": "equivalent_to", "target": "rsxt.v0", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.kg", "relation": "equivalent_to", "target": "rsxt.k0", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.boa", "relation": "equivalent_to", "target": "rsxt.f0", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.diagnostic", "relation": "could_use", "target": "rsxt.L3", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.diagnostic", "relation": "could_use", "target": "rsxt.L4", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.diagnostic", "relation": "could_use", "target": "rsxt.L5", "source_doc": "rsxt-bridge-adsentice.md"},
+    {"source": "adsentice.lead_scoring", "relation": "uses", "target": "rsxt.doctrine.founder_signal", "source_doc": "rsxt-bridge-adsentice.md"},
 ]
 
 
