@@ -237,3 +237,9 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 ---
 
 *Base-Matriz adsentice v0.1.0 · 2026-07-11 · 7 dimensões · 55+ rotas estáveis · medido=verdade · ISOLADO do EVO-API*
+
+## Changelog
+
+| Versao | Data | Descricao | Handoff | Status |
+|---|---|---|---|---|
+| v001 | 2026-07-11 | criar-o-ecossistema-adsentice-completo | `HANDOFF-2026-07-11-v001-criar-o-ecossistema-adsentice-completo.md` | ✅ vivo |

@@ -29,6 +29,7 @@ REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6396
 REDIS_DB = 0
 OODA_NS = "adsentice:ooda"
+PROJECT_ROOT = Path(__file__).parent.parent
 
 
 def extract_ooda_update(messages: list) -> dict:
@@ -145,12 +146,33 @@ def main():
     except Exception:
         pass
 
+    # ── 8. HANDOFF AUTO-COMPACT (numeração sequencial + changelog) ──
+    handoff_info = ""
+    try:
+        import subprocess as _sp
+        handoff_input = json.dumps({
+            "session_id": session_id,
+            "messages": [{"role": m.get("role", ""), "content": m.get("content", "")} for m in messages],
+        })
+        result = _sp.run(
+            ["python3", str(PROJECT_ROOT / "tools" / "adsentice_handoff_generator.py")],
+            input=handoff_input,
+            capture_output=True, text=True, timeout=30,
+            cwd=str(PROJECT_ROOT)
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            hinfo = json.loads(result.stdout.strip())
+            handoff_info = f"handoff: v{hinfo.get('number', '?')} · {hinfo.get('title', '?')[:60]}\n   {hinfo.get('handoff_path', '?')}"
+    except Exception:
+        handoff_info = "(handoff nao gerado)"
+
     stages_updated = list(ooda_update.keys())
     context = (
         f"🧭 ADSENTICE · estado OODA salvo ({OODA_NS})\n"
         f"   compact: {ts}\n"
         f"   mensagens preservadas: {len(messages)}\n"
         f"   ingerido no Qdrant: {ingested} chunks → {CONV_COLLECTION}\n"
+        f"   {handoff_info}\n"
         f"   estagios OODA atualizados: {stages_updated if stages_updated else '(nenhum)'}\n"
         f"   decisoes capturadas: {len(decisions)}\n"
         f"   Redis :{REDIS_PORT} · {len(r.keys(f'{OODA_NS}:*'))} keys ativas · Qdrant :6352"
