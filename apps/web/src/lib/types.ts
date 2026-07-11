@@ -188,4 +188,18 @@ export interface DiscoveryResult {
     description: string
     credit_cost: number
   }>
+  diagnostics?: {
+    took_ms: number
+    pipelines: string[]
+    layers?: LayerTrace[]
+  }
+}
+
+// ── RSXT L0→L5 Decision Pipeline ──────────────────────────────
+
+export interface LayerTrace {
+  layer: string          // "L0" | "L1" | "L2" | "L3" | "L4" | "L5" | "L6" | "PIPELINES" | "SYNTHESIS"
+  status: "ok" | "warn" | "error" | "skipped"
+  detail: string
+  tookMs: number
 }
