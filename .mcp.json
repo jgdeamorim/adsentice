@@ -2,12 +2,7 @@
   "mcpServers": {
     "adsentice-redis": {
       "command": "npx",
-      "args": ["-y", "@gongrzhe/server-redis-mcp@latest"],
-      "env": {
-        "REDIS_HOST": "127.0.0.1",
-        "REDIS_PORT": "6396",
-        "REDIS_DB": "0"
-      }
+      "args": ["-y", "@gongrzhe/server-redis-mcp@latest", "redis://127.0.0.1:6396"]
     },
     "adsentice-qdrant": {
       "command": "python3",

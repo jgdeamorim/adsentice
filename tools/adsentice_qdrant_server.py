@@ -157,7 +157,7 @@ def handle_request(request: dict) -> dict:
             except Exception:
                 status["redis"] = "offline"
             try:
-                req = Request(f"{EMBED_URL}/health", data=b"{}", headers={"Content-Type": "application/json"})
+                req = Request(f"{EMBED_URL}/healthz")
                 urlopen(req, timeout=2)
                 status["embed"] = "online"
             except Exception:
