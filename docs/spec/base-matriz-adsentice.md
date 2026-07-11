@@ -5,7 +5,7 @@ status: living
 type: spec
 version: "1.0.0"
 date: 2026-07-11
-updated: 2026-07-11T23:00:00-03:00
+updated: 2026-07-12T00:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -58,14 +58,23 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | Rota | Descrição | Status |
 |---|---|---|
 | `ADS.COR.adr.0001` | Arquitetura standalone adsentice | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0002` | Gap analysis EVO-API vs adsentice | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0003` | MCP Server Architecture | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0004` | AG-UI Protocol Decision | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0005` | Lead Funnel & CRM Strategy | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0006` | EVO-API as Data Engine | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0007` | MVP Simplification | ✅ accepted (2026-07-11) |
 
 ### ADS.COR.code — Código
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
 | `ADS.COR.code.web` | Dashboard Next.js + Chat UI | `apps/web/` | ✅ vivo (5 commits) |
-| `ADS.COR.code.vault` | Cofre durável (R2 + Postgres) | `packages/vault/` | ✅ vivo (6/6 testes) |
-| `ADS.COR.code.api` | Backend Railway | `apps/api/` | 🔴 a construir |
+| `ADS.COR.code.vault` | Cofre durável (R2 + Postgres) | `packages/vault/` | ✅ vivo (463 linhas, 6/6 testes) |
+| `ADS.COR.code.vault.r2` | BlobStore → Cloudflare R2 (S3-compat, IfNoneMatch) | `packages/vault/src/impl/r2-blob-store.ts` | ✅ vivo |
+| `ADS.COR.code.vault.supabase` | SeriesStore → Supabase Postgres (service role, query_vault) | `packages/vault/src/impl/supabase-series-store.ts` | ✅ vivo |
+| `ADS.COR.code.vault.creds` | Config de creds (self-essentials, fora do git) | `packages/vault/src/config/` | ✅ vivo |
+| `ADS.COR.code.api` | Backend Railway (endpoints /api/diagnostic, /api/openapi, /api/llms) | `apps/web/src/app/api/` | ✅ MVP (diagnostic ativo) |
 | `ADS.COR.code.core` | Domínio puro (Lead, Score, Solution) | `packages/core/` | 🔴 a construir |
 | `ADS.COR.code.db` | Schemas Supabase | `packages/db/` | 🔴 a construir |
 
