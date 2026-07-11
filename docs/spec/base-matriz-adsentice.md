@@ -3,8 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "0.1.0"
+version: "0.1.1"
 date: 2026-07-11
+updated: 2026-07-11T21:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -67,8 +68,9 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (2 hooks, 2 skills) |
-| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (5 servidores) |
+| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks, 2 skills) |
+| `ADS.COR.config.claudemd` | CLAUDE.md canônico | `CLAUDE.md` | ✅ vivo (recuperação pós-compact) |
+| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (6 servidores) |
 | `ADS.COR.config.docker` | Infra local | `docker-compose.yml` | ✅ vivo (Redis :6396 + Qdrant :6352) |
 
 ---
@@ -138,8 +140,17 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.INT.kg.edges` | Arestas do KG adsentice | `tools/adsentice_kg_server.py` | ✅ 34 arestas, 7 tipos de relação |
-| `ADS.INT.kg.tools` | MCP tools: edges, neighbors, what_produces | `adsentice-kg` MCP server | ✅ vivo |
+| `ADS.INT.kg.edges` | Arestas do KG adsentice | `tools/adsentice_kg_server.py` | ✅ 34 arestas, 5 tipos de relação |
+| `ADS.INT.kg.tools` | MCP tools: edges, neighbors, what_produces, stats | `adsentice-kg` MCP server | ✅ vivo |
+
+### ADS.INT.conversation — Histórico e Memória
+
+| Rota | Descrição | Coleção Qdrant | Status |
+|---|---|---|---|
+| `ADS.INT.conv.history` | Histórico Claude Code (adsentice + EVO-API ref) | `adsentice-conversation` | ✅ 716 pts (38 RUST-CHAT + 678 Claude history) |
+| `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | 🟡 collection criada, vazia |
+| `ADS.INT.conv.tools` | MCP tools: search, recall, remember, status | `adsentice-conversation` MCP server | ✅ vivo |
+| `ADS.INT.conv.ingest` | Scripts de ingestão | `tools/adsentice_*_ingest.py` | ✅ 2 scripts (RUST-CHAT + Claude history) |
 
 ---
 
