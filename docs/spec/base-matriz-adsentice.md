@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.0"
+version: "1.0.1"
 date: 2026-07-11
-updated: 2026-07-12T00:30:00-03:00
+updated: 2026-07-12T01:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -82,10 +82,11 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks, 2 skills) |
+| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks lean, 3 skills) |
 | `ADS.COR.config.claudemd` | CLAUDE.md canônico | `CLAUDE.md` | ✅ vivo (recuperação pós-compact) |
-| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (6 servidores) |
+| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (7 servidores) |
 | `ADS.COR.config.docker` | Infra local | `docker-compose.yml` | ✅ vivo (Redis :6396 + Qdrant :6352) |
+| `ADS.COR.config.pipeline` | Pipeline auto-compact (6 passos canônicos) | `tools/adsentice_pipeline_auto_compact.sh` | ✅ vivo (EVO-API pattern) |
 
 ---
 
@@ -166,6 +167,15 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 | `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | 🟡 collection criada, vazia |
 | `ADS.INT.conv.tools` | MCP tools: search, recall, remember, status | `adsentice-conversation` MCP server | ✅ vivo |
 | `ADS.INT.conv.ingest` | Scripts de ingestão | `tools/adsentice_*_ingest.py` | ✅ 2 scripts (RUST-CHAT + Claude history) |
+| `ADS.INT.conv.precompact` | Ingest automático no PreCompact | `.claude/hooks/adsentice-pre-compact.py` | ✅ vivo (sync ingest) |
+
+### ADS.INT.ritual — Ritual de Fechamento
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.INT.ritual.pipeline` | Pipeline auto-compact (6 passos) | `tools/adsentice_pipeline_auto_compact.sh` | ✅ vivo |
+| `ADS.INT.ritual.corpora` | A=self(482)≠B=cliente(0)≠C=conversa(1401) | Qdrant :6352 | ✅ 1932 pts total |
+| `ADS.INT.ritual.session` | SessionStart hook LEAN (~1k tokens) | `.claude/hooks/adsentice-session-start.py` | ✅ vivo (78 linhas) |
 
 ---
 
