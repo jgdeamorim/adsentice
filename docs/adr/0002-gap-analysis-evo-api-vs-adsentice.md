@@ -1,13 +1,13 @@
 # ADR-0002 — Gap Analysis: EVO-API vs adsentice · O que falta e o que precisa
 
-> 2026-07-11 · Análise completa de gaps entre EVO-API (referência, 2 anos de maturidade) e adsentice (7 dias de construção).
+> 2026-07-11 (atualizado 23:59) · Análise completa de gaps. Gaps #1, #2, #3, #4 RESOLVIDOS na sessão.
 > Medido=verdade: cada gap cita fonte (arquivo, config, código).
 
 ---
 
 ## 1. MCP SERVERS — Comparação
 
-| EVO-API (8 servidores) | adsentice (6 servidores) | Gap |
+| EVO-API (8) | adsentice (7 + Firecrawl keyless) | Gap |
 |---|---|---|
 | `claude-mongodb` (:27030) | ❌ Não temos | 🟢 **Não precisamos.** MongoDB era pra dados de provider docs. Nosso vault usa Postgres. |
 | `claude-redis` (:6395) | ✅ `adsentice-redis` (:6396) | ✅ Coberto |
@@ -18,8 +18,9 @@
 | `evo-ecc` | ❌ Não temos | 🟡 **Médio.** Fanout, dispatch, harvest de sessões. Relevante quando tivermos multi-agente. |
 | `claude-conversation` (tag=all) | ✅ `adsentice-conversation` (tag=adsentice) | ✅ Coberto |
 | — (novo) | ✅ `dataforseo` | 🏆 **Exclusivo adsentice.** EVO-API não tem MCP oficial DataForSEO |
+| — (novo) | ✅ `firecrawl` (remote, 11 tools, keyless $0) | 🏆 **Exclusivo.** Substitui crawler proprio |
 
-**Placar: 6/8 cobertos + 1 exclusivo.**
+**Placar: 7/8 cobertos + 2 exclusivos.**
 
 ---
 
@@ -41,13 +42,14 @@
 
 ## 3. SKILLS — Comparação
 
-| EVO-API (3 skills) | adsentice (2 skills) | Gap |
+| EVO-API (3 skills) | adsentice (3 skills) | Gap |
 |---|---|---|
 | `base-matriz` (consulta ao mapa do ecossistema) | ✅ `adsentice-spec` (cobre parcialmente) | ⚠️ Nosso skill é de AUTORIA, não de CONSULTA. Falta skill de consulta à base-matriz. |
 | `spec-master` (autoria de specs/ADRs) | ✅ `adsentice-spec` | ✅ Coberto |
 | `provider-docs` (consulta à base medida de providers) | ❌ | 🟡 **Médio.** EVO-API tem 73 caps. Nós temos DataForSEO MCP. Skill de "como usar cada módulo DataForSEO" seria útil. |
+| — (novo) | ✅ `adsentice-site-audit` | 🏆 **Exclusivo.** Skill de auditoria Firecrawl + DataForSEO |
 
-**Placar: 2/3 cobertos.**
+**Placar: 3/3 cobertos + 1 exclusivo.**
 
 ---
 
@@ -130,14 +132,20 @@
 
 ## 7. PLANO DE AÇÃO
 
-| Gap | Ação | Prioridade | Esforço |
+| Gap | Ação | Prioridade | Status |
 |---|---|---|---|
-| **GAP 1** | Adicionar ingest de conversa no PreCompact | 🔴 HOJE | 30 min |
-| **GAP 2** | BOA como hook SessionStart | 🔴 HOJE | 15 min |
-| **GAP 3** | Skill adsentice-provider | 🟡 Semana | 30 min |
-| **GAP 4** | Modo consulta no adsentice-spec | 🟡 Semana | 20 min |
-| **GAP 5** | Auto-commit hook | 🟢 Depois | 20 min |
-| **prompt_enrich** | Hook adsentice-prompt-enrich | 🟡 Semana | 1h |
+| **GAP 1** | Adicionar ingest de conversa no PreCompact | 🔴 HOJE | ✅ **RESOLVIDO.** 716 chunks em `adsentice-conversation` |
+| **GAP 2** | BOA como hook SessionStart | 🔴 HOJE | ✅ **RESOLVIDO.** `adsentice_boa_score.py --save` no hook |
+| **GAP 3** | Skill adsentice-provider | 🟡 Semana | 🟡 pendente |
+| **GAP 4** | Modo consulta no adsentice-spec | 🟡 Semana | 🟡 pendente |
+| **GAP 5** | Auto-commit hook | 🟢 Depois | 🟢 pendente |
+
+**ADRs novos (2026-07-11):**
+- ADR-0003 — MCP Server Architecture (7 servers, SDK mcp, Firecrawl)
+- ADR-0004 — AG-UI Protocol Decision (padrão destino, adiado do MVP)
+- ADR-0005 — Lead Funnel & CRM Strategy (Stage 0→7, signal detection, scoring)
+- ADR-0006 — EVO-API as Data Engine (motor × painel)
+- ADR-0007 — MVP Simplification (JSON simples, sem SSE/AG-UI)
 
 ---
 
