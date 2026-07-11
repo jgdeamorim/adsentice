@@ -1,182 +1,173 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["mcp>=1.0", "httpx>=0.27", "redis>=5.0"]
+# ///
 """
-adsentice_qdrant_server.py — MCP server para consulta ao corpus adsentice-self (Qdrant :6352).
-Expoe tools para busca semantica sobre docs, ADRs, specs e codigo do adsentice.
-ISOLADO do EVO-API: collection adsentice-self, Qdrant :6352.
+MCP stdio server — adsentice-qdrant semantic search.
+Embed via :8081 (768d) → Qdrant :6352 · collection adsentice-self.
+ISOLADO do EVO-API: portas, collections e tags separadas.
 """
 
-import json
+import asyncio
+import glob
 import os
-import sys
-from urllib.request import Request, urlopen
-from urllib.error import URLError
+import httpx
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp import types
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6352")
-COLLECTION = os.getenv("QDRANT_COLLECTION", "adsentice-self")
-EMBED_URL = os.getenv("EMBED_URL", "http://127.0.0.1:8081")
+QDRANT_URL  = os.environ.get("QDRANT_URL", "http://127.0.0.1:6352")
+COLLECTION  = os.environ.get("QDRANT_COLLECTION", "adsentice-self")
+EMBED_URL   = os.environ.get("EMBED_URL", "http://127.0.0.1:8081")
 
-def embed(text: str) -> list[float]:
-    """Envia texto para o embed server :8081 e retorna vetor."""
-    try:
-        req = Request(
-            f"{EMBED_URL}/embed",
-            data=json.dumps({"text": text}).encode(),
-            headers={"Content-Type": "application/json"}
-        )
-        resp = urlopen(req, timeout=10)
-        return json.loads(resp.read()).get("embedding", [])
-    except Exception:
-        return []
+async def embed(text: str) -> list[float]:
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(f"{EMBED_URL}/embed", json={"texts": [text]})
+        r.raise_for_status()
+        return r.json()["vectors"][0]
 
-def qdrant_search(vector: list[float], limit: int = 5) -> list[dict]:
-    """Busca no Qdrant por similaridade."""
-    if not vector:
-        return []
-    try:
-        body = json.dumps({
-            "vector": vector,
-            "limit": limit,
-            "with_payload": True
-        })
-        req = Request(
+async def qdrant_search(vec: list[float], limit: int = 5) -> list[dict]:
+    body = {"vector": vec, "limit": limit, "with_payload": True}
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
             f"{QDRANT_URL}/collections/{COLLECTION}/points/search",
-            data=body.encode(),
-            headers={"Content-Type": "application/json"}
+            json=body,
         )
-        resp = urlopen(req, timeout=10)
-        result = json.loads(resp.read())
-        return result.get("result", [])
-    except URLError:
-        return []
+        r.raise_for_status()
+        return r.json().get("result", [])
 
-def handle_request(request: dict) -> dict:
-    method = request.get("method", "")
-    req_id = request.get("id", 0)
+async def qdrant_count() -> int:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{QDRANT_URL}/collections/{COLLECTION}/points/count",
+                json={},
+            )
+            r.raise_for_status()
+            return r.json().get("result", {}).get("count", 0)
+    except Exception:
+        return 0
 
-    if method == "tools/list":
-        return {
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "result": {
-                "tools": [
-                    {
-                        "name": "adsentice_search",
-                        "description": "Busca semantica no corpus adsentice-self (docs, ADRs, specs, codigo). Retorna os trechos mais relevantes com source e score.",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "query": {"type": "string", "description": "Pergunta ou termo de busca"},
-                                "limit": {"type": "integer", "description": "Numero maximo de resultados", "default": 5}
-                            },
-                            "required": ["query"]
-                        }
-                    },
-                    {
-                        "name": "adsentice_docs_list",
-                        "description": "Lista os documentos do corpus adsentice — specs, ADRs, docs de estrategia.",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "kind": {"type": "string", "description": "Filtro: spec, adr, strategy, all"}
-                            }
-                        }
-                    },
-                    {
-                        "name": "adsentice_status",
-                        "description": "Retorna o status do ecossistema adsentice — Redis OODA, Qdrant, embed, docs.",
-                        "inputSchema": {"type": "object", "properties": {}}
-                    }
-                ]
-            }
-        }
+server = Server("adsentice-qdrant")
 
-    elif method == "tools/call":
-        tool_name = request.get("params", {}).get("name", "")
-        args = request.get("params", {}).get("arguments", {})
+@server.list_tools()
+async def list_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            name="adsentice_search",
+            description="Busca semântica no corpus adsentice-self (docs, ADRs, specs, código). Retorna os trechos mais relevantes com source e score.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Pergunta ou termo de busca"},
+                    "limit": {"type": "integer", "description": "Número máximo de resultados", "default": 5},
+                },
+                "required": ["query"],
+            },
+        ),
+        types.Tool(
+            name="adsentice_docs_list",
+            description="Lista os documentos do corpus adsentice — specs, ADRs, docs de estratégia.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "description": "Filtro: spec, adr, strategy, all"},
+                },
+            },
+        ),
+        types.Tool(
+            name="adsentice_status",
+            description="Retorna o status do ecossistema adsentice — Redis OODA, Qdrant, embed, docs.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+    ]
 
-        if tool_name == "adsentice_search":
-            query = args.get("query", "")
-            limit = min(args.get("limit", 5), 10)
-            vec = embed(query)
-            hits = qdrant_search(vec, limit)
-            results = []
-            for h in hits:
-                payload = h.get("payload", {})
-                results.append({
-                    "source": payload.get("source", "?"),
-                    "kind": payload.get("kind", "?"),
-                    "content": payload.get("content", "")[:300],
-                    "score": round(h.get("score", 0), 4)
-                })
-            return {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {
-                    "content": [{"type": "text", "text": json.dumps({
-                        "query": query,
-                        "hits": results,
-                        "total": len(results)
-                    }, ensure_ascii=False, indent=2)}]
-                }
-            }
+@server.call_tool()
+async def call_tool(name: str, args: dict) -> list[types.TextContent]:
+    import json
 
-        elif tool_name == "adsentice_docs_list":
-            import glob
-            docs_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
-            files = []
-            for pattern in ["**/*.md", "**/*.json"]:
-                for f in glob.glob(os.path.join(docs_dir, pattern), recursive=True):
-                    rel = os.path.relpath(f, docs_dir)
-                    kind = "spec" if "spec/" in rel or "adsentice-" in rel else \
-                           "adr" if "adr/" in rel else \
-                           "reference" if "jasper-docs/" in rel else "other"
-                    files.append({"path": rel, "kind": kind})
-            return {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {
-                    "content": [{"type": "text", "text": json.dumps({
-                        "files": files,
-                        "total": len(files)
-                    }, ensure_ascii=False, indent=2)}]
-                }
-            }
+    if name == "adsentice_search":
+        query = args.get("query", "")
+        limit = min(args.get("limit", 5), 10)
+        try:
+            vec = await embed(query)
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"❌ embed offline: {e}")]
 
-        elif tool_name == "adsentice_status":
-            status = {"qdrant": "unknown", "redis": "unknown", "embed": "unknown"}
-            try:
-                urlopen(Request(f"{QDRANT_URL}/healthz"), timeout=2)
-                status["qdrant"] = "online"
-            except Exception:
-                status["qdrant"] = "offline"
+        try:
+            hits = await qdrant_search(vec, limit)
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"❌ Qdrant offline: {e}")]
+
+        results = []
+        for h in hits:
+            payload = h.get("payload", {})
+            results.append({
+                "source": payload.get("source", "?"),
+                "kind": payload.get("kind", "?"),
+                "content": (payload.get("content", "") or "")[:300],
+                "score": round(h.get("score", 0), 4),
+            })
+        return [types.TextContent(
+            type="text",
+            text=json.dumps({"query": query, "hits": results, "total": len(results)}, ensure_ascii=False, indent=2),
+        )]
+
+    elif name == "adsentice_docs_list":
+        docs_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
+        files = []
+        for pattern in ["**/*.md", "**/*.json"]:
+            for f in glob.glob(os.path.join(docs_dir, pattern), recursive=True):
+                rel = os.path.relpath(f, docs_dir)
+                kind = (
+                    "spec" if "spec/" in rel or "adsentice-" in rel
+                    else "adr" if "adr/" in rel
+                    else "reference" if "jasper-docs/" in rel
+                    else "other"
+                )
+                kind_filter = args.get("kind", "all")
+                if kind_filter and kind_filter != "all" and kind != kind_filter:
+                    continue
+                files.append({"path": rel, "kind": kind})
+        return [types.TextContent(
+            type="text",
+            text=json.dumps({"files": files, "total": len(files)}, ensure_ascii=False, indent=2),
+        )]
+
+    elif name == "adsentice_status":
+        status = {"qdrant": "unknown", "redis": "unknown", "embed": "unknown", "corpus_points": 0}
+        # Qdrant
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(f"{QDRANT_URL}/healthz")
+                status["qdrant"] = "online" if r.status_code == 200 else "offline"
+        except Exception:
+            status["qdrant"] = "offline"
+        # Embed
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(f"{EMBED_URL}/healthz")
+                status["embed"] = "online" if r.status_code == 200 else "offline"
+        except Exception:
+            status["embed"] = "offline"
+        # Redis
+        try:
             import redis as _redis
-            try:
-                r = _redis.Redis(host="127.0.0.1", port=6396, socket_connect_timeout=1)
-                r.ping()
-                status["redis"] = "online"
-            except Exception:
-                status["redis"] = "offline"
-            try:
-                req = Request(f"{EMBED_URL}/healthz")
-                urlopen(req, timeout=2)
-                status["embed"] = "online"
-            except Exception:
-                status["embed"] = "offline"
-            return {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {
-                    "content": [{"type": "text", "text": json.dumps(status, indent=2)}]
-                }
-            }
+            r = _redis.Redis(host="127.0.0.1", port=6396, socket_connect_timeout=1)
+            status["redis"] = "online" if r.ping() else "offline"
+        except Exception:
+            status["redis"] = "offline"
+        # Corpus
+        status["corpus_points"] = await qdrant_count()
 
-    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": f"Unknown: {method}"}}
+        return [types.TextContent(type="text", text=json.dumps(status, indent=2))]
+
+    return [types.TextContent(type="text", text=f"tool desconhecida: {name}")]
+
+async def main():
+    async with stdio_server() as (r, w):
+        await server.run(r, w, server.create_initialization_options())
 
 if __name__ == "__main__":
-    for line in sys.stdin:
-        try:
-            req = json.loads(line.strip())
-            resp = handle_request(req)
-            print(json.dumps(resp), flush=True)
-        except json.JSONDecodeError:
-            continue
+    asyncio.run(main())

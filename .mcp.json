@@ -5,8 +5,8 @@
       "args": ["-y", "@gongrzhe/server-redis-mcp@latest", "redis://127.0.0.1:6396"]
     },
     "adsentice-qdrant": {
-      "command": "python3",
-      "args": ["tools/adsentice_qdrant_server.py"],
+      "command": "uv",
+      "args": ["run", "--quiet", "--script", "tools/adsentice_qdrant_server.py"],
       "env": {
         "QDRANT_URL": "http://127.0.0.1:6352",
         "QDRANT_COLLECTION": "adsentice-self",
@@ -14,18 +14,15 @@
       }
     },
     "adsentice-kg": {
-      "command": "python3",
-      "args": ["tools/adsentice_kg_server.py"],
+      "command": "uv",
+      "args": ["run", "--quiet", "--script", "tools/adsentice_kg_server.py"],
       "env": {
-        "QDRANT_URL": "http://127.0.0.1:6352",
-        "COLLECTION": "adsentice-kg",
-        "EMBED_URL": "http://127.0.0.1:8081",
         "TAG": "adsentice"
       }
     },
     "adsentice-conversation": {
-      "command": "python3",
-      "args": ["tools/adsentice_conversation.py"],
+      "command": "uv",
+      "args": ["run", "--quiet", "--script", "tools/adsentice_conversation.py"],
       "env": {
         "CLAUDE_KG_EMBED_URL": "http://127.0.0.1:8081/embed",
         "CLAUDE_KG_QDRANT_URL": "http://127.0.0.1:6352",

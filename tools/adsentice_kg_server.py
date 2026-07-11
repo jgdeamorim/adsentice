@@ -1,22 +1,24 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["mcp>=1.0"]
+# ///
 """
-adsentice_kg_server.py — MCP server para o Knowledge Graph do adsentice (k0-like via Qdrant :6352).
-Expoe tools para navegar entidades, relacoes e travessias do ecossistema adsentice.
-ISOLADO do EVO-API: collection adsentice-kg, tag adsentice.
+MCP stdio server — adsentice-kg Knowledge Graph (k0-like).
+Navegação sobre entidades, relações e capacidades do ecossistema adsentice.
+Dados estáticos — não depende de Qdrant ou embed.
+ISOLADO do EVO-API: edges específicas do adsentice.
 """
 
 import json
 import os
-import sys
-from urllib.request import Request, urlopen
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp import types
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6352")
-COLLECTION = os.getenv("COLLECTION", "adsentice-kg")
-EMBED_URL = os.getenv("EMBED_URL", "http://127.0.0.1:8081")
-TAG = os.getenv("TAG", "adsentice")
+TAG = os.environ.get("TAG", "adsentice")
 
 # ── Knowledge Graph edges (adsentice) ──
-# Cada edge = (source_entity, relation, target_entity, evidence_source)
 ADSENTICE_EDGES: list[dict] = [
     # Pipeline de Discovery
     {"source": "pipeline.discovery", "relation": "has_step", "target": "pipeline.site_audit", "source_doc": "ADR-0002 (pendente)"},
@@ -33,7 +35,7 @@ ADSENTICE_EDGES: list[dict] = [
     {"source": "cap.business_reviews", "relation": "provided_by", "target": "provider.dataforseo", "source_doc": "DataForSEO MCP oficial"},
     {"source": "cap.on_page_lighthouse", "relation": "provided_by", "target": "provider.dataforseo", "source_doc": "DataForSEO MCP oficial"},
     {"source": "cap.ads_traffic_forecast", "relation": "provided_by", "target": "provider.dataforseo", "source_doc": "DataForSEO MCP oficial"},
-    # Solucoes → Capacidades
+    # Soluções → Capacidades
     {"source": "solution.diagnostico_seo_local", "relation": "uses", "target": "cap.keyword_research", "source_doc": "adsentice-objetivos-solucoes-criterios.md"},
     {"source": "solution.diagnostico_seo_local", "relation": "uses", "target": "cap.serp_organic", "source_doc": "adsentice-objetivos-solucoes-criterios.md"},
     {"source": "solution.diagnostico_seo_local", "relation": "uses", "target": "cap.business_profile_gmb", "source_doc": "adsentice-objetivos-solucoes-criterios.md"},
@@ -69,8 +71,10 @@ def find_edges(entity_id: str = "", relation: str = "") -> list[dict]:
             out.append(e)
     return out
 
+
 def what_produces(target: str) -> list[dict]:
     return [e for e in ADSENTICE_EDGES if target in e["target"]]
+
 
 def neighbors(entity_id: str) -> dict:
     incoming = [e for e in ADSENTICE_EDGES if e["target"] == entity_id]
@@ -78,87 +82,81 @@ def neighbors(entity_id: str) -> dict:
     return {"entity": entity_id, "incoming": incoming, "outgoing": outgoing, "count": len(incoming) + len(outgoing)}
 
 
-def handle_request(request: dict) -> dict:
-    method = request.get("method", "")
-    req_id = request.get("id", 0)
+server = Server("adsentice-kg")
 
-    if method == "tools/list":
-        return {
-            "jsonrpc": "2.0", "id": req_id,
-            "result": {"tools": [
-                {
-                    "name": "adsentice_kg_edges",
-                    "description": "Lista arestas do Knowledge Graph adsentice. Filtravel por entity (source) e relation.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "entity": {"type": "string", "description": "Entidade (ex: pipeline.discovery, solution.*)"},
-                            "relation": {"type": "string", "description": "Tipo de relacao (ex: has_step, uses, provided_by)"}
-                        }
-                    }
+
+@server.list_tools()
+async def list_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            name="adsentice_kg_edges",
+            description="Lista arestas do Knowledge Graph adsentice. Filtrável por entity (source) e relation.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "entity": {"type": "string", "description": "Entidade (ex: pipeline.discovery, solution.*)"},
+                    "relation": {"type": "string", "description": "Tipo de relação (ex: has_step, uses, provided_by)"},
                 },
-                {
-                    "name": "adsentice_kg_what_produces",
-                    "description": "Descobre que entidades/capacidades PRODUZEM um target. Ex: 'o que produz cap.keyword_research?'",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {"target": {"type": "string", "description": "Entidade-alvo"}},
-                        "required": ["target"]
-                    }
-                },
-                {
-                    "name": "adsentice_kg_neighbors",
-                    "description": "Retorna todas as arestas (incoming + outgoing) de uma entidade. Navegacao 1-hop.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {"entity": {"type": "string", "description": "ID da entidade"}},
-                        "required": ["entity"]
-                    }
-                },
-                {
-                    "name": "adsentice_kg_stats",
-                    "description": "Estatisticas do Knowledge Graph adsentice: total de entidades, arestas, tipos de relacao.",
-                    "inputSchema": {"type": "object", "properties": {}}
-                }
-            ]}
-        }
+            },
+        ),
+        types.Tool(
+            name="adsentice_kg_what_produces",
+            description="Descobre que entidades/capacidades PRODUZEM um target. Ex: 'o que produz cap.keyword_research?'",
+            inputSchema={
+                "type": "object",
+                "properties": {"target": {"type": "string", "description": "Entidade-alvo"}},
+                "required": ["target"],
+            },
+        ),
+        types.Tool(
+            name="adsentice_kg_neighbors",
+            description="Retorna todas as arestas (incoming + outgoing) de uma entidade. Navegação 1-hop.",
+            inputSchema={
+                "type": "object",
+                "properties": {"entity": {"type": "string", "description": "ID da entidade"}},
+                "required": ["entity"],
+            },
+        ),
+        types.Tool(
+            name="adsentice_kg_stats",
+            description="Estatísticas do Knowledge Graph adsentice: total de entidades, arestas, tipos de relação.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+    ]
 
-    elif method == "tools/call":
-        tool = request.get("params", {}).get("name", "")
-        args = request.get("params", {}).get("arguments", {})
 
-        if tool == "adsentice_kg_edges":
-            results = find_edges(args.get("entity", ""), args.get("relation", ""))
-        elif tool == "adsentice_kg_what_produces":
-            results = what_produces(args.get("target", ""))
-        elif tool == "adsentice_kg_neighbors":
-            results = [neighbors(args.get("entity", ""))]
-        elif tool == "adsentice_kg_stats":
-            sources = set(e["source"] for e in ADSENTICE_EDGES)
-            targets = set(e["target"] for e in ADSENTICE_EDGES)
-            relations = set(e["relation"] for e in ADSENTICE_EDGES)
-            results = [{
-                "entities": len(sources | targets),
-                "edges": len(ADSENTICE_EDGES),
-                "relations": sorted(relations),
-                "tag": TAG
-            }]
-        else:
-            return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": f"Unknown tool: {tool}"}}
+@server.call_tool()
+async def call_tool(name: str, args: dict) -> list[types.TextContent]:
+    if name == "adsentice_kg_edges":
+        results = find_edges(args.get("entity", ""), args.get("relation", ""))
+    elif name == "adsentice_kg_what_produces":
+        results = what_produces(args.get("target", ""))
+    elif name == "adsentice_kg_neighbors":
+        results = [neighbors(args.get("entity", ""))]
+    elif name == "adsentice_kg_stats":
+        sources = set(e["source"] for e in ADSENTICE_EDGES)
+        targets = set(e["target"] for e in ADSENTICE_EDGES)
+        relations = set(e["relation"] for e in ADSENTICE_EDGES)
+        results = [{
+            "entities": len(sources | targets),
+            "edges": len(ADSENTICE_EDGES),
+            "relations": sorted(relations),
+            "tag": TAG,
+        }]
+    else:
+        return [types.TextContent(type="text", text=f"tool desconhecida: {name}")]
 
-        return {
-            "jsonrpc": "2.0", "id": req_id,
-            "result": {"content": [{"type": "text", "text": json.dumps(results, ensure_ascii=False, indent=2)}]}
-        }
+    return [types.TextContent(
+        type="text",
+        text=json.dumps(results, ensure_ascii=False, indent=2),
+    )]
 
-    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": f"Unknown: {method}"}}
+
+async def main():
+    async with stdio_server() as (r, w):
+        await server.run(r, w, server.create_initialization_options())
 
 
 if __name__ == "__main__":
-    for line in sys.stdin:
-        try:
-            req = json.loads(line.strip())
-            resp = handle_request(req)
-            print(json.dumps(resp), flush=True)
-        except json.JSONDecodeError:
-            continue
+    import asyncio
+    asyncio.run(main())
