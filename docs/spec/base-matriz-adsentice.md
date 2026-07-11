@@ -45,6 +45,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.jasper_analise` | Análise competitiva Jasper.ai | `docs/jasper-ai-analise-competitiva.md` | ✅ vivo |
 | `ADS.COR.docs.jasper_solutions` | Análise soluções Jasper | `docs/jasper-solutions-analise.md` | ✅ vivo |
 | `ADS.COR.docs.jasper_api` | Documentação API Jasper (16 seções) | `docs/jasper-docs/jasper-api-docs-completo.md` | ✅ referência |
+| `ADS.COR.docs.jasper_reference` | Referência canônica Jasper → adsentice (gap analysis, padrões) | `docs/jasper-docs/README.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_dfseo` | DataForSEO MCP oficial vs EVO-API provider.core | `docs/dataforseo-oficial-mcp-vs-evo-api-provider-core.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_claude_seo` | RSXT+EVO-API vs Claude SEO | `docs/rsxt-evo-api-vs-claude-seo.md` | ✅ vivo |
 
