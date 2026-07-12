@@ -94,6 +94,10 @@ const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
               <i className='ri-dashboard-3-line' style={{ marginRight: 8 }} />
               Dashboard
             </MenuItem>
+            <MenuItem href={`/${locale}/admin/discovery`}>
+              <i className='ri-radar-line' style={{ marginRight: 8 }} />
+              Discovery
+            </MenuItem>
             <MenuItem href={`/${locale}/admin/categories`}>
               <i className='ri-folder-open-line' style={{ marginRight: 8 }} />
               Categorias
