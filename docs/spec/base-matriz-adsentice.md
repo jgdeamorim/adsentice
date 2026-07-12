@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.4"
+version: "1.0.5"
 date: 2026-07-11
-updated: 2026-07-12T21:00:00-03:00
+updated: 2026-07-12T22:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -56,7 +56,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.discovery_engine` | Motor de Descoberta parametrizável com filtros de dor | `docs/spec/adsentice-discovery-engine.md` | ✅ vivo |
 | `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.esc_skills_analysis` | Análise ESC gui.marketing (27 skills) → Dashboard adsentice | `docs/spec/adsentice-esc-skills-analysis.md` | ✅ v1.0.0 |
-| `ADS.COR.docs.enrichment_layers` | Funil de enriquecimento 5 camadas (GMB→Website→Social→Brand→Diagnóstico) | `docs/spec/adsentice-enrichment-layers.md` | ✅ v1.0.0 |
+| `ADS.COR.docs.enrichment_layers` | Anatomia completa GMB 27 campos canônicos + 5 camadas de enriquecimento | `docs/spec/adsentice-enrichment-layers.md` | ✅ v2.0.0 |
 
 ### ADS.COR.vendor — Referências Externas
 
@@ -325,7 +325,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.4 · 2026-07-12 · 7 dimensões · 85+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 5 camadas de enriquecimento · 8 produtos mapeados*
+*Base-Matriz adsentice v1.0.5 · 2026-07-12 · 7 dimensões · 85+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 27 campos canônicos GMB · 35+ sinais de dor · 10 produtos mapeados*
 
 ## Changelog
 
@@ -336,3 +336,4 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v003 | 2026-07-12 | ingestar-vocabulario-marketing-corey-haines-kim-barrett | `docs/spec/adsentice-marketing-vocab.md` (commit 2e7ad8e) | ✅ vivo |
 | v004 | 2026-07-12 | pain-criteria-v1.2-schwartz-esc-lead-scoring | `docs/spec/adsentice-pain-criteria-v1.md` (commit cd6bc68) | ✅ vivo |
 | v005 | 2026-07-12 | enrichment-layers-5-camadas-gmb-ate-diagnostico | `docs/spec/adsentice-enrichment-layers.md` | ✅ vivo |
+| v006 | 2026-07-12 | enrichment-layers-v2-anatomia-completa-gmb-27-campos | `docs/spec/adsentice-enrichment-layers.md` (commit a920978) | ✅ vivo |
