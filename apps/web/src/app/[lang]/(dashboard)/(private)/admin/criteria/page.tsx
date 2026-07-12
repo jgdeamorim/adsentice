@@ -169,13 +169,13 @@ return (
             <Grid container spacing={3} alignItems='center'>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Box sx={{ fontFamily: 'monospace', fontSize: '1.1rem', p: 2, bgcolor: 'white', borderRadius: 1 }}>
-                  <Typography variant='body1' sx={{ fontFamily: 'monospace' }}>
-                    <strong>Fit</strong> (0-70 → 0-100) × <Chip label='0.40' size='small' color='primary' variant='tonal' /><br />
-                    + <strong>Engagement</strong> (0-70 → 0-100) × <Chip label='0.35' size='small' color='warning' variant='tonal' /><br />
-                    + <strong>Intent</strong> (0-60 → 0-100) × <Chip label='0.25' size='small' color='error' variant='tonal' /><br />
-                    ─────────────────────────<br />
-                    = <strong>Score Composto</strong> (0-100)
-                  </Typography>
+                  <Box sx={{ fontFamily: 'monospace', fontSize: '1.05rem', lineHeight: 2 }}>
+                  <strong>Fit</strong> (0-70 → 0-100) × <Chip label='0.40' size='small' color='primary' variant='tonal' /><br />
+                  + <strong>Engagement</strong> (0-70 → 0-100) × <Chip label='0.35' size='small' color='warning' variant='tonal' /><br />
+                  + <strong>Intent</strong> (0-60 → 0-100) × <Chip label='0.25' size='small' color='error' variant='tonal' /><br />
+                  ─────────────────────────<br />
+                  = <strong>Score Composto</strong> (0-100)
+                </Box>
                 </Box>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
