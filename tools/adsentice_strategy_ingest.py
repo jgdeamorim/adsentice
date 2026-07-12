@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""
+adsentice_strategy_ingest.py — INGESTÃO DE FRAMEWORKS DE MARKETING
+═══════════════════════════════════════════════════════════════════
+Ingere conhecimento de marketing enterprise como self-knowledge
+para que o adsentice possa:
+  1. Analisar nichos com critérios reais de mercado
+  2. Criar funis de leads com estratégia validada
+  3. Recomendar canais e táticas por persona/nicho
+  4. Pontuar leads com frameworks profissionais
+
+FONTES: marketingagentskills (Jaymes) + frameworks extraídos via probe
+OUTPUT: Qdrant :6352 (adsentice-self) + knowledge base em docs/spec/
+"""
+
+import json, os, sys, time, uuid
+from urllib.request import Request, urlopen
+
+EMBED_URL = "http://127.0.0.1:8081/embed"
+QDRANT_URL = "http://127.0.0.1:6352"
+COLLECTION = "adsentice-self"
+TAG = "adsentice"
+
+def embed(texts: list[str]) -> list[list[float]]:
+    req = Request(EMBED_URL, data=json.dumps({"texts": texts}).encode(),
+                  headers={"Content-Type": "application/json"})
+    return json.loads(urlopen(req, timeout=30).read())["vectors"]
+
+def upsert(points: list[dict]) -> str:
+    body = json.dumps({"points": points}).encode()
+    req = Request(f"{QDRANT_URL}/collections/{COLLECTION}/points?wait=true",
+                  data=body, headers={"Content-Type": "application/json"}, method="PUT")
+    return json.loads(urlopen(req, timeout=30).read()).get("status", "error")
+
+def ingest_batch(items: list[dict]):
+    texts = [i["text"][:600] for i in items]
+    vecs = embed(texts)
+    points = []
+    for item, vec in zip(items, vecs):
+        points.append({"id": str(uuid.uuid4()), "vector": vec, "payload": {**item, "tag": TAG, "ts": int(time.time())}})
+    return upsert(points)
+
+# ═══════════════════════════════════════════════════════════════
+# FRAMEWORKS DE MARKETING ENTERPRISE
+# ═══════════════════════════════════════════════════════════════
+
+FRAMEWORKS = [
+    # ── POSICIONAMENTO E ESTRATÉGIA ──
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "positioning_cascade",
+        "title": "Positioning Cascade — 5 Partes",
+        "text": "Positioning Framework em 5 partes: 0) Positioning Statement: For [target] who [need], [product] is a [category] that [benefit]. Unlike [competitor], our product [differentiation]. 1) Customers: grupos (5-7), use cases (5-7), pain points (5-7). 2) Product: capabilities, features, benefits, unique attributes, embedded proof, how it works. 3) Market: category + relevant trends (5-7). 4) Competitive Alternatives: direct (mesmo JTBD), secondary (JTBD diferente), indirect (conflitante). Para cada competitor: failure analysis (o que oferecem, fazem bem, e POR QUE FALHAM).",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "messaging_hierarchy",
+        "title": "Messaging Hierarchy — 6 Níveis",
+        "text": "Hierarquia de mensagens em 6 níveis: 1) Value Proposition: 5-7 variações de 10-20 palavras cada. 2) Taglines: <10 palavras em 7 fórmulas (Category Leadership, USP, FAB, Emotional Appeal, Problem→Promise, Alliteration, Transformation). 3) Audience Definition: persona + emotional drivers + segmentos. 4) Elevator Pitch: 3 versões de 1-2 frases cada. 5) Long Description: 3 versões de 100-200 palavras. 6) Outcome Pillars: 3 pilares (1-3 palavras) com cascata Pain→Benefit→Detail→Proof (mínimo 3 por nível).",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "iceee_experimentation",
+        "title": "ICEEE Prioritization — Score Fórmula",
+        "text": "Framework de priorização ICEEE: Score = ((Impact + Confidence) × 2) − (Engineering Effort × 2) − Marketing Effort − Other Effort. Impact 1-10 (1=minimal, 5-8=10-25% gain, 9-10=25%+). Confidence 1-5 (1=not confident, 5=extremely). Effort 1-5 (1=<0.5day, 5=5-10days). Engineering Effort tem peso 2x (recurso mais escasso). Processo 7 passos: Observation → Objective → Hypothesis → Experiment Design → Considerations → Success Criteria → Measurement.",
+    },
+
+    # ── SEGMENTAÇÃO E ICP ──
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "customer_segmentation",
+        "title": "Customer Segmentation — 3 Eixos × 5 Abordagens",
+        "text": "Segmentação em 3 eixos: Traits (demographics, firmographics, psychographics), Behaviors (ações, engajamento, uso), Lifecycle (onde está na jornada). 5 abordagens: 1) Lifecycle Stage: Prospects→Leads→New Customers→Active→At-Risk→Churned. 2) Engagement: Power Users (diário)→Regular (semanal)→Casual (mensal)→Dormant (30d+ inativo). 3) Value/Fit: Ideal Fit (match ICP, LTV alto)→Good Fit→Poor Fit. 4) Role/Persona: Decision Makers→Influencers→End Users. 5) Industry/Vertical: messaging por setor.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "icp_qualification",
+        "title": "ICP Qualification — B2B + B2C Templates",
+        "text": "ICP B2B: Firmographics (tamanho, receita, indústria, localização, tech stack, growth stage) + Buying Committee (Champions, Decision-makers, Influencers, Blockers) + Account Qualification (fit criteria, disqualifying signals, account examples). ICP B2C: Demographics (idade, renda, educação, localização) + Psychographics (interesses, valores, estilo de vida) + Behavioral (padrões de compra, uso de canais, fidelidade). Buyer Persona 17 seções: Bio, Role, Background, Demographics, Company, Personality, Responsibilities, Goals, Challenges, Motivators, Validators, Objections, Deal-closers, Communication, Features, Price.",
+    },
+
+    # ── FUNIL E CONVERSÃO ──
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "lifecycle_campaigns",
+        "title": "Lifecycle Marketing — SaaS + Services + Digital Products",
+        "text": "Lifecycle campaigns para 3 tipos de negócio: SAAS: Free Plan User (ativar em 3d, convidar time, converter em 14d. Flow: D0 Welcome→D2 Collaboration→D5 Limit Awareness→D8 Feature Spotlight→D12 Case Study→D14 Final Reminder). Trial User: feature adoption + urgency. Paid: habit loops + upgrade. Pro/Enterprise: deep adoption + cross-team expansion. SERVICE BUSINESS: Inbound Lead (reduzir no-show, credibilidade)→Active Client (onboarding suave, early wins)→Retainer Client (ROI, expand scope)→Referral Partner (ativar, recompensar). DIGITAL PRODUCTS: Free→First Buyer→Flagship→Repeat/Member.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "signal_detection",
+        "title": "Signal Detection — 4 Categorias Clay GTM",
+        "text": "Signal Detection em 4 categorias para qualificação de leads: INTENT (35%): pesquisando categoria, visitando concorrente, interagindo com conteúdo. Sinais: keyword search, site visit, demo request. GROWTH (25%): funding, contratação agressiva, nova unidade, tráfego subindo. CHANGE (20%): novo CMO/CTO, migração tech, rebranding, trocou CMS. DISTRESS (20%): reviews negativas sem resposta, site lento/fora, perdeu posição Google, compliance violations. Stacking rule: 1 sinal=frio, 2+=quente, 3+ em <30d=URGENTE. Waterfall enrichment: cheapest→most expensive. Email: 4-parágrafo (hook, pain, solution, CTA), subject 2-4 palavras lowercase.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "abm_stages",
+        "title": "ABM Stages — 3 Níveis + CRM Writeback",
+        "text": "Account-Based Marketing em 3 estágios: AWARE (construindo relações iniciais) → INTERESTED (nutrindo curiosidade ativa) → EVALUATING (táticas high-touch para fechar). 3-table workflow: 1) Named Account List do CRM (tracking ABM stage + contact grade). 2) LinkedIn Brand Mentions (daily domain monitoring, AI post classification, engagement scoring). 3) Lookup & Stage Updates (cross-reference mentions com account list, auto-update stages, writeback pro CRM). Deliverability: 15 emails/dia warmup, 20 LinkedIn actions/dia, SPF+DKIM+DMARC, não trackear opens/clicks, métrica=foco em replies.",
+    },
+
+    # ── CRITÉRIOS DE NICHO ──
+    {
+        "source": "marketing-strategy",
+        "kind": "heuristic",
+        "framework": "niche_selection",
+        "title": "Niche Selection Criteria — 7 Dimensões",
+        "text": "Critérios de seleção de nicho em 7 dimensões: 1) SEARCH VOLUME: volume de keywords do nicho × intenção de compra. >1000/mês = viable, >5000 = gold. 2) COMPETITION DENSITY: quantos concorrentes com GMB ativo? <20 = greenfield, 20-50 = competitive, >50 = saturated. 3) TICKET COMPATIBILITY: ticket do nicho / ticket adsentice. Ratio >3 = excelente, 1-3 = ok, <1 = inviável. 4) GROWTH VELOCITY: tendência de busca (Google Trends). Subindo >15% trimestre = acelerando. 5) DIGITAL MATURITY: % negócios com site+GMB ativo. >60% = maduro (fácil vender), <30% = early (educar primeiro). 6) PAIN INTENSITY: reviews negativas, gaps de SEO, site performance ruim. Média score <60 = alta dor. 7) ADSENTICE COVERAGE: % capabilities cobertas. >80% = full coverage, 50-80% = partial, <50% = gap.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "heuristic",
+        "framework": "funnel_builder",
+        "title": "Funnel Builder — Atração→Nutrição→Conversão→Retenção",
+        "text": "Construção de funil em 4 camadas: ATRAÇÃO (topo): canais orgânicos (SEO local, GMB, Instagram, YouTube Shorts) + pagos (Google Ads local, Meta Ads geolocalizado). Conteúdo: diagnóstico gratuito, benchmark de mercado, calculator de ROI. NUTRIÇÃO (meio): email sequence 5 passos (D0: diagnóstico gratuito, D3: case similar, D7: proposta personalizada, D14: objeções, D21: último follow-up). WhatsApp: áudio personalizado com 1 insight do diagnóstico. CONVERSÃO (fundo): proposta data-driven ('seu score é 62/100, projeção 85 em 90 dias'), demo ao vivo de 15min, trial de 7 dias com 1 deep-dive grátis. RETENÇÃO (pós-venda): relatório mensal automático, alertas de concorrente novo, score timeline, QBR trimestral com founder.",
+    },
+
+    # ── TÁTICAS POR CANAL ──
+    {
+        "source": "marketing-strategy",
+        "kind": "tactic",
+        "framework": "seo_local_smb",
+        "title": "SEO Local para SMB — Playbook Completo",
+        "text": "SEO Local para pequenos negócios: 1) GMB OTIMIZAÇÃO: categoria correta, fotos semanais (3+), posts semanais (offer+event+product), Q&A preenchido, responder TODAS reviews em <48h. 2) ON-PAGE: title tag com [serviço] + [cidade], H1 com keyword primária, meta description <160 chars com CTA, schema LocalBusiness JSON-LD. 3) KEYWORDS: 5-10 keywords primárias (serviço+cidade), 10-20 secundárias (serviço+variação), 20+ long-tail (perguntas). 4) BACKLINKS: diretórios locais (Google, Bing, Apple Maps), parcerias (fornecedores, associações), imprensa local. 5) REVIEWS: meta de +5 reviews/mês, template de resposta (agradecer→personalizar→convidar voltar), NUNCA comprar reviews.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "tactic",
+        "framework": "social_smb",
+        "title": "Social Media para SMB — Canais por Nicho",
+        "text": "Estratégia de social media por nicho: CLÍNICAS ESTÉTICA: Instagram (antes/depois, stories de procedimento, Reels educativo), TikTok (tendências de beleza, skincare routine), WhatsApp (agendamento, lembrete). RESTAURANTES: Instagram (pratos, ambiente, stories do chef), Google Posts (cardápio, promoções), TikTok (bastidores cozinha). ADVOCACIA: LinkedIn (artigos jurídicos, cases), Instagram (direitos em 60s), Google Posts (serviços). E-COMMERCE: Instagram Shopping, Pinterest, TikTok Shop, WhatsApp Business (carrinho abandonado). CALENDÁRIO: 3-5 posts/semana, 2 stories/dia, 1 live/quinzena. HASHTAGS: 5-10 por post (2 nicho + 3 localização + 3 conteúdo + 2 marca).",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "tactic",
+        "framework": "paid_media_smb",
+        "title": "Paid Media para SMB — Budget + ROAS por Nicho",
+        "text": "Estratégia de mídia paga para pequenos negócios: GOOGLE ADS: Search (keywords locais, phrase match, negative keywords), Performance Max (GMB feed + assets), budget inicial R$500-1000/mês. META ADS: Advantage+ (público automático), retargeting (visitantes site 30d), lookalike (clientes existentes), budget R$300-800/mês. TIKTOK ADS: Spark Ads (impulsionar conteúdo orgânico), In-Feed, budget R$200-500/mês. MÉTRICAS: CPC <R$2 (bom), CPA <R$50 (clínica), CPA <R$30 (restaurante), ROAS >3x (saudável). OTIMIZAÇÃO: pausar anúncio após 3 dias sem conversão, refresh criativo a cada 2 semanas, testar 3 variações por ad set.",
+    },
+
+    # ── CRM E VENDAS ──
+    {
+        "source": "marketing-strategy",
+        "kind": "tactic",
+        "framework": "crm_playbook",
+        "title": "CRM Playbook — Contato Multicanal SMB",
+        "text": "Playbook de CRM para SMB Brasil: CANAIS: WhatsApp (principal, 80%+ resposta), Email (formal, proposta), Ligação (follow-up, demo). SEQUÊNCIA: D0: WhatsApp com diagnóstico gratuito + 1 insight personalizado. D2: Email com proposta detalhada + case similar. D5: Ligação de follow-up (max 5min). D10: WhatsApp com última tentativa + senso de urgência. D30: Email de re-engajamento com conteúdo novo. OBJEÇÕES COMUNS: 'Tá caro' → mostrar ROI projection, 'Já tenho agência' → mostrar gap (o que a agência NÃO faz), 'Vou pensar' → agendar follow-up em 7 dias com nova análise. PIPELINE CRM: New → Contacted → Meeting Booked → Proposal Sent → Negotiating → Won/Lost. TAXA CONVERSÃO: lead frio 2-5%, lead quente 15-25%, lead urgente 40-60%.",
+    },
+    {
+        "source": "marketing-strategy",
+        "kind": "heuristic",
+        "framework": "proposal_engine",
+        "title": "Proposal Engine — Template Data-Driven",
+        "text": "Template de proposta data-driven: SEÇÃO 1: Market Score (gráfico radar com 5 dimensões, comparação com média do nicho). SEÇÃO 2: Opportunities (3 quick wins com impacto estimado em R$ e %, fonte: DataForSEO). SEÇÃO 3: Competitor Gap (tabela comparativa: você vs top 3 concorrentes nas 5 dimensões). SEÇÃO 4: Roadmap (mês 1-3: quick wins, mês 4-6: otimização, mês 7-12: domínio). SEÇÃO 5: Investment (plano recomendado + ROI projection: 'investimento R$197/mês, retorno estimado +40% tráfego em 90 dias'). SEÇÃO 6: Social Proof (cases similares do mesmo nicho, métricas reais, depoimentos). A proposta NÃO vende — os DADOS vendem. O vendedor só explica os dados.",
+    },
+
+    # ── MÉTRICAS E ANALYTICS ──
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "kpi_framework",
+        "title": "KPI Framework — Métricas por Canal e Funil",
+        "text": "KPIs por camada do funil: ATRAÇÃO: tráfego orgânico (Search Console), impressões GMB (Google Business Profile), impressões sociais (Meta Business Suite), CTR anúncios (Google Ads). NUTRIÇÃO: taxa abertura email (target >25%), taxa resposta WhatsApp (target >60%), tempo até primeiro contato (target <2h). CONVERSÃO: taxa demo→cliente (target >30%), CAC (target <R$100), ciclo de venda (target <14 dias). RETENÇÃO: churn mensal (target <5%), NPS (target >50), expansão MRR (target >10%/mês). DASHBOARD: atualização semanal, alerta automático se métrica desviar >20% da baseline, relatório mensal automático pro cliente.",
+    },
+
+    # ── FRAMEWORKS DE AGÊNCIA ──
+    {
+        "source": "marketing-strategy",
+        "kind": "framework",
+        "framework": "agency_operations",
+        "title": "Agency Operations — Pipeline de Agência Digital",
+        "text": "Operação de agência digital enterprise: CLIENT ACQUISITION: inbound (SEO + conteúdo + referral) vs outbound (cold email/DM + LinkedIn + Google Maps scraping). QUALIFICATION: BANT (Budget, Authority, Need, Timeline) + ICP fit score. ONBOARDING: D0 kickoff call, D3 brand audit completo, D7 strategy presentation, D14 first campaign live. DELIVERY: sprint semanal (plan→execute→review), relatório mensal (KPIs + insights + próximos passos), QBR trimestral (resultados + estratégia). RETENTION: NPS trimestral, health score (on-time payment + engagement + results + communication), churn prediction (3 meses antes). PRICING: retainer (R$2k-15k/mês), project (R$5k-50k), performance (% spend ou revenue share).",
+    },
+
+    # ── CRUZAMENTO ADSENTICE ──
+    {
+        "source": "marketing-strategy",
+        "kind": "bridge",
+        "framework": "adsentice_niche_engine",
+        "title": "Ads​entice Niche Engine — Como o sistema escolhe o nicho",
+        "text": "Engine de seleção de nicho adsentice: INPUT: briefing do negócio (missão, ticket, capacidades, stack). PROCESS: 1) DataForSEO keyword_data → volume por categoria×cidade. 2) business_listings_search → densidade competitiva (quantos GMB ativos). 3) Google Trends → crescimento de demanda. 4) domain_competitors → saturação de mercado. 5) Cruzar com cobertura adsentice (5 soluções-core). OUTPUT: ranking de nichos com score 0-100. Score = (Volume×0.25 + Crescimento×0.20 + TicketCompat×0.20 + Cobertura×0.20 + Dor×0.15). Threshold: >70 = ATACAR AGORA, 50-70 = explorar, <50 = ignorar. O sistema NÃO decide sozinho — founder aprova o nicho (Stage 0 gate).",
+    },
+]
+
+# ── Main ───────────────────────────────────────────────────────
+
+def main():
+    print("🧠 ADSENTICE · MARKETING STRATEGY INGEST")
+    print(f"   Frameworks: {len(FRAMEWORKS)}")
+    print(f"   Destino: Qdrant :6352 ({COLLECTION})")
+    print()
+
+    total = 0
+    batch = []
+    for fw in FRAMEWORKS:
+        batch.append(fw)
+        if len(batch) >= 6:
+            status = ingest_batch(batch)
+            total += len(batch)
+            print(f"  ✅ {len(batch)} frameworks → {status}")
+            batch = []
+
+    if batch:
+        status = ingest_batch(batch)
+        total += len(batch)
+        print(f"  ✅ {len(batch)} frameworks → {status}")
+
+    # Save as JSON reference
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs", "spec")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "marketing-strategy-frameworks.json"), "w") as f:
+        json.dump(FRAMEWORKS, f, indent=2, ensure_ascii=False)
+
+    print(f"\n🏁 {total} frameworks de marketing ingeridos")
+    print(f"   Query: adsentice_search('nicho clínica SP critério')")
+    print(f"   Query: adsentice_search('funil atração nutrição conversão')")
+    print(f"   Query: adsentice_search('CRM playbook WhatsApp SMB')")
+
+
+if __name__ == "__main__":
+    main()
