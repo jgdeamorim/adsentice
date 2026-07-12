@@ -1,6 +1,7 @@
 
 // adsentice · Admin / Costs — centro de custos DataForSEO
 import { redirect } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -8,8 +9,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
+
 import CardStatVertical from '@components/card-statistics/Vertical'
-import CardStatHorizontalWithBorder from '@components/card-statistics/HorizontalWithBorder'
 import { getSessionUser } from '@/libs/supabase/server'
 
 interface CostItem {
@@ -33,6 +34,7 @@ const COST_DATA: CostItem[] = [
 const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const totalToday = COST_DATA.reduce((s, c) => s + c.costToday, 0)

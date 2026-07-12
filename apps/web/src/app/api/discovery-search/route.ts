@@ -5,12 +5,15 @@
 // Com cache (30min TTL), persistência Redis (24h), e cost tracking
 // ══════════════════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from "next/server"
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server"
+
 import { businessListingsSearch } from "@/lib/evo-mcp"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
 } from "@/lib/discovery-cache"
+import { scoreLeads, computeDistribution, type ScoreData, type ScoreDistribution } from "@/lib/scoring"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -28,6 +31,7 @@ export async function POST(request: NextRequest) {
   // ═══ CACHE CHECK ═══
   if (!force) {
     const cached = getCached(cacheKey) || getPersistedResults(cacheKey)
+
     if (cached) {
       return NextResponse.json({ ...(cached as object), fromCache: true, costToday: getCostToday(), costTotal: getCostTotal() })
     }
@@ -49,8 +53,27 @@ export async function POST(request: NextRequest) {
       costUsd: result.cost_usd, totalCount: result.total_count,
     })
 
+    // ═══ SCORING PASS ═══
+    const scores: ScoreData[] = scoreLeads(result.listings)
+    const distribution: ScoreDistribution = computeDistribution(scores)
+
+    // Persist score stats to Redis for admin dashboard
+    try {
+      const { execSync } = await import("child_process")
+
+      const statsJson = JSON.stringify({
+        total: result.total_count, avgScore: distribution.avgScore,
+        unaware: distribution.unaware, problemAware: distribution.problemAware,
+        solutionAware: distribution.solutionAware, productAware: distribution.productAware,
+        mostAware: distribution.mostAware,
+      })
+
+      execSync(`redis-cli -p 6396 --no-auth-warning SETEX adsentice:discovery:last_score_stats 86400 '${statsJson.replace(/'/g, "'\\''")}'`, { timeout: 2000, stdio: "ignore" })
+    } catch { /* Redis offline — degrade gracefully */ }
+
     // Persist + cache
-    const payload = { ...result, fromCache: false, costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast() }
+    const payload = { ...result, scores, distribution, fromCache: false, costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast() }
+
     setCache(cacheKey, payload)
     persistResults(cacheKey, payload)
 

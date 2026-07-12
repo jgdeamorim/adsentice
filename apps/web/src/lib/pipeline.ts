@@ -16,7 +16,6 @@ import {
   domainCompetitors,
   businessProfileSearch,
 } from "./dataforseo"
-import { firecrawlScrape, discoverSiteStructure } from "./firecrawl"
 
 // ── L0 · ESTRUTURAL (µs) ─────────────────────────────────────
 
@@ -31,12 +30,15 @@ interface L0Result {
 
 export function layer0_structural(input: string): L0Result {
   let url = input.trim()
+
   if (!url.startsWith("http")) url = `https://${url}`
 
   try {
     const u = new URL(url)
     const domain = u.hostname
-    return {
+
+    
+return {
       domain,
       url: u.toString(),
       valid: domain.includes(".") && !domain.startsWith("."),
@@ -47,7 +49,9 @@ export function layer0_structural(input: string): L0Result {
   } catch {
     const parts = input.split(".")
     const domain = parts.length >= 2 ? input.replace(/^https?:\/\//, "") : input
-    return {
+
+    
+return {
       domain,
       url: `https://${domain}`,
       valid: parts.length >= 2,
@@ -117,6 +121,7 @@ export function layer2_deterministic(
   // Rule 2: Not localhost/test
   const blocked = ["localhost", "127.0.0.1", "example.com", "test.com"]
   const isBlocked = blocked.some((b) => domain.includes(b))
+
   checks.push({
     rule: "not_blocked",
     passed: !isBlocked,
@@ -128,6 +133,7 @@ export function layer2_deterministic(
     l1.cacheHit &&
     l1.lastAnalyzedAt &&
     Date.now() - new Date(l1.lastAnalyzedAt).getTime() < 86400000
+
   checks.push({
     rule: "cache_recency",
     passed: true,
@@ -136,6 +142,7 @@ export function layer2_deterministic(
 
   // Rule 4: TLD heuristic
   const validTlds = ["com", "br", "com.br", "net", "org", "io", "app", "dev"]
+
   checks.push({
     rule: "valid_tld",
     passed: validTlds.includes(l0.tld),
@@ -177,6 +184,7 @@ export async function layer3_sensor(
   if (searchFn) {
     try {
       const results = await searchFn(query)
+
       candidates = results.slice(0, 5).map((r) => ({
         domain: r.domain,
         score: r.score,
@@ -304,11 +312,13 @@ export async function runL0L5Pipeline(
   // ═══ L0 · ESTRUTURAL ═══
   const tL0 = Date.now()
   const l0 = layer0_structural(url)
+
   trace.push({ layer: "L0", status: "ok", detail: `domain=${l0.domain}`, tookMs: Date.now() - tL0 })
 
   if (!l0.valid) {
     trace.push({ layer: "L2", status: "error", detail: "URL inválida", tookMs: 0 })
-    return {
+    
+return {
       trace,
       result: { business: { name: l0.domain, url: l0.url, domain: l0.domain }, score: { overall: 0, breakdown: {} }, cards: [], tips: [t("URL inválida. Verifique o endereço.")], deep_dives: [], diagnostics: { took_ms: Date.now() - startedAt, pipelines: [], layers: trace } },
     }
@@ -317,32 +327,37 @@ export async function runL0L5Pipeline(
   // ═══ L1 · ESTATÍSTICO ═══
   const tL1 = Date.now()
   const l1 = layer1_statistical(l0.domain)
+
   trace.push({ layer: "L1", status: "ok", detail: l1.cacheHit ? "cache hit" : "cache miss", tookMs: Date.now() - tL1 })
 
   // ═══ L2 · DETERMINÍSTICO ═══
   const tL2 = Date.now()
   const l2 = layer2_deterministic(l0.domain, l0, l1)
+
   trace.push({ layer: "L2", status: l2.passed ? "ok" : "warn", detail: `${l2.priority} priority · ${l2.creditCost} credits`, tookMs: Date.now() - tL2 })
 
   // ═══ L3 · SENSOR ═══
-  const tL3 = Date.now()
   const l3 = await layer3_sensor(l0.domain, searchSimilar)
+
   trace.push({ layer: "L3", status: "ok", detail: `${l3.candidates.length} candidates`, tookMs: l3.tookMs })
 
   // ═══ L4 · GRAPH ═══
   const tL4 = Date.now()
   const l4 = layer4_graph(l0, l3)
+
   trace.push({ layer: "L4", status: "ok", detail: `${l4.pipelines.length} pipelines: ${l4.pipelines.join(", ")}`, tookMs: Date.now() - tL4 })
 
   // ═══ L5 · BOA ═══
   const tL5 = Date.now()
   const l5 = layer5_boa(l1, l2, l3, l4)
+
   trace.push({ layer: "L5", status: l5.shouldProceed ? "ok" : "warn", detail: `BOA ${l5.boaScore} · ${l5.reasoning}`, tookMs: Date.now() - tL5 })
 
   // ═══ Cache hit (<24h)? Retorna resultado anterior ═══
   if (l1.cacheHit && l1.avgScore) {
     trace.push({ layer: "L6", status: "skipped", detail: "cache hit — LLM não chamado", tookMs: 0 })
-    return {
+    
+return {
       trace,
       result: {
         business: { name: l0.domain, url: l0.url, domain: l0.domain },
@@ -358,7 +373,8 @@ export async function runL0L5Pipeline(
   // ═══ BOA < 0.40? Skip DataForSEO ═══
   if (!l5.shouldProceed) {
     trace.push({ layer: "L6", status: "skipped", detail: `BOA ${l5.boaScore} < 0.40 — análise não justifica custo`, tookMs: 0 })
-    return {
+    
+return {
       trace,
       result: {
         business: { name: l0.domain, url: l0.url, domain: l0.domain },
@@ -374,10 +390,12 @@ export async function runL0L5Pipeline(
   // ═══ RUN PIPELINES (DataForSEO — $0.10~$0.50) ═══
   const pipelinedStarted = Date.now()
   const pipelineResults = await runSelectedPipelines(l0.url, l0.domain, l4.pipelines)
+
   trace.push({ layer: "PIPELINES", status: "ok", detail: `${l4.pipelines.length} pipelines · ${Date.now() - pipelinedStarted}ms`, tookMs: Date.now() - pipelinedStarted })
 
   // ═══ MOUNT CARDS + TIPS (determinístico, L2-level) ═══
   const result = buildResult(l0, pipelineResults, l5, l4.pipelines)
+
   trace.push({ layer: "SYNTHESIS", status: "ok", detail: `${result.cards.length} cards · ${result.tips.length} tips`, tookMs: 0 })
 
   // ═══ Cache store (L1 feedback) ═══
@@ -418,6 +436,7 @@ async function runSelectedPipelines(
           onPageInstantAudit(url),
           domainTechnologies(domain),
         ])
+
         data.site = lh.status === "fulfilled" ? lh.value : null
         data.tech = t.status === "fulfilled" ? t.value : null
       })()
@@ -429,6 +448,7 @@ async function runSelectedPipelines(
       (async () => {
         const kw = deriveSEOKw(domain)
         const s = await serpOrganicCheck(domain, kw).catch(() => null)
+
         data.seo = s
       })()
     )
@@ -438,6 +458,7 @@ async function runSelectedPipelines(
     tasks.push(
       (async () => {
         const g = await businessProfileSearch(domain).catch(() => null)
+
         data.gmb = g
       })()
     )
@@ -447,13 +468,15 @@ async function runSelectedPipelines(
     tasks.push(
       (async () => {
         const c = await domainCompetitors(domain).catch(() => [])
+
         data.competitors = c
       })()
     )
   }
 
   await Promise.all(tasks)
-  return data
+  
+return data
 }
 
 // ── Result Builder (L2 deterministic, NO LLM) ─────────────────
@@ -495,6 +518,7 @@ function buildResult(
   // SEO card
   if (data.seo && data.seo.length > 0) {
     const avgPos = avgPosition(data.seo)
+
     const topKw = data.seo
       .filter((k) => k.volume > 0)
       .sort((a, b) => b.volume - a.volume)[0]
@@ -618,12 +642,16 @@ function t(title: string): Tip {
 
 function deriveSEOKw(domain: string): string[] {
   const name = domain.split(".")[0]
-  return [name, `${name} são paulo`, `${name} avaliação`, `${name} preço`, "perto de mim"].slice(0, 4)
+
+  
+return [name, `${name} são paulo`, `${name} avaliação`, `${name} preço`, "perto de mim"].slice(0, 4)
 }
 
 function avgPosition(kw: Array<{ position: number | null }>): number {
   const ranked = kw.filter((k) => k.position !== null)
-  return ranked.length > 0
+
+  
+return ranked.length > 0
     ? Math.round(ranked.reduce((s, k) => s + (k.position || 0), 0) / ranked.length)
     : 0
 }
@@ -632,7 +660,8 @@ function severity(s: number): "excellent" | "good" | "warning" | "critical" {
   if (s >= 80) return "excellent"
   if (s >= 60) return "good"
   if (s >= 40) return "warning"
-  return "critical"
+  
+return "critical"
 }
 
 function scoreSite(
@@ -641,6 +670,7 @@ function scoreSite(
 ): number {
   if (!lh) return 30
   let s = 45
+
   if (lh.performance >= 80) s += 15
   else if (lh.performance >= 50) s += 8
   if (lh.seo >= 80) s += 15
@@ -648,7 +678,8 @@ function scoreSite(
   if (lh.accessibility >= 80) s += 7
   if (tech?.cms && tech.cms !== "desconhecido") s += 10
   if (tech?.analytics?.length) s += 5
-  return Math.min(100, s)
+  
+return Math.min(100, s)
 }
 
 function scoreSEO(
@@ -657,10 +688,13 @@ function scoreSEO(
   if (!kw?.length) return 20
   let s = 25
   const ranked = kw.filter((k) => k.position !== null && k.position <= 20)
+
   if (ranked.length > 0) s += Math.min(30, ranked.length * 5)
   const withVol = kw.filter((k) => k.volume > 100)
+
   if (withVol.length > 0) s += Math.min(35, withVol.length * 7)
-  return Math.min(100, s)
+  
+return Math.min(100, s)
 }
 
 function scoreGMB(gmb: {
@@ -669,10 +703,12 @@ function scoreGMB(gmb: {
   is_claimed: boolean
 }): number {
   let s = 30
+
   if (gmb.rating >= 4.5) s += 25
   else if (gmb.rating >= 4.0) s += 15
   if (gmb.total_reviews > 50) s += 20
   else if (gmb.total_reviews > 10) s += 8
   if (gmb.is_claimed) s += 20
-  return Math.min(100, s)
+  
+return Math.min(100, s)
 }

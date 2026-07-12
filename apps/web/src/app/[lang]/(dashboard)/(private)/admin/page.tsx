@@ -6,7 +6,6 @@
 // Stack: Next.js 15 + MUI Grid2 + CardStatistics + server-side engine
 
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 
 // MUI Imports
 import Grid from '@mui/material/Grid2'
@@ -33,13 +32,13 @@ import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminDashboardData } from '@/lib/engine'
 
 const RECENT_ACTIVITY = [
+  { action: 'Dashboard v0.2 deployed', detail: 'Score Composto (Fit×0.40+Eng×0.35+Int×0.25) + Schwartz + Benchmark', time: 'hoje', chip: 'v0.2' },
+  { action: 'Pain Criteria v1.2', detail: 'Schwartz awareness levels substituem thresholds. Scoring engine em scoring.ts', time: 'hoje', chip: 'v1.2' },
   { action: 'EVO-API MCP LIVE testado', detail: 'Dados REAIS: 5.761 dentistas em SP ($0.0149)', time: 'hoje 02:32', chip: 'LIVE' },
   { action: 'Category Ranker calibrado', detail: 'Pain Criteria v1.1 — 20 sinais, 3 tiers', time: 'hoje 01:15', chip: 'v1.1' },
   { action: 'business_listings_search fix', detail: 'Adicionado location_coordinate ao translator', time: 'hoje 00:45', chip: 'fix' },
   { action: 'business.profile.gmb estendido', detail: '10 → 27 campos canônicos (place_id, website, lat/lng, ...)', time: 'ontem 19:30', chip: 'feat' },
   { action: 'Marketing Council executado', detail: '12 advisors avaliaram estratégia. Hormozi: parar de construir, falar com clientes', time: 'ontem 18:00', chip: 'council' },
-  { action: 'RSXT Bridge ingerida', detail: '30 edges conectando engines, layers, doctrines ao KG', time: 'ontem 16:00', chip: 'feat' },
-  { action: '3 MCP servers reescritos', detail: 'adsentice-qdrant, kg, conversation — JSON-RPC raw → SDK mcp + uv run', time: 'ontem 14:00', chip: 'fix' },
 ]
 
 const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> }) => {
@@ -124,7 +123,7 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
           trendNumber={String(5)}
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
         <CardStatVertical
           stats={`${e.corpusTotal.toLocaleString('pt-BR')}`}
           title='Corpus Total'
@@ -133,6 +132,17 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
           avatarIcon='ri-database-2-line'
           trend='positive'
           trendNumber={String(parseInt(e.commits) || 53)}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <CardStatVertical
+          stats={e.avgScore > 0 ? `${e.avgScore}/100` : '—'}
+          title='Score Médio Leads'
+          subtitle={e.schwartzDistribution ? `${e.schwartzDistribution[4].count + e.schwartzDistribution[3].count} Product+Most Aware` : 'Execute 1ª descoberta'}
+          avatarColor='secondary'
+          avatarIcon='ri-bar-chart-line'
+          trend='positive'
+          trendNumber={String(e.avgScore || 0)}
         />
       </Grid>
 
@@ -192,15 +202,15 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent>
-            <Typography variant='h6' gutterBottom>📊 Funil de Leads (Stage 0→7)</Typography>
+            <Typography variant='h6' gutterBottom>📊 Funil de Leads (Schwartz Awareness)</Typography>
             <Box sx={{ mt: 2 }}>
               {[
-                { stage: 'S0 Seleção', count: 39, label: 'categorias testadas', pct: 100 },
-                { stage: 'S1 Discovery', count: e.leadsDiscovered, label: 'negócios mapeados', pct: 82 },
-                { stage: 'S2 Pré-filtro', count: Math.round(e.leadsDiscovered * 0.4), label: 'passaram (~40%)', pct: 64 },
-                { stage: 'S3 Análise', count: e.leadsUrgentes + e.leadsQuentes, label: 'leads quentes+urgentes', pct: 46 },
-                { stage: 'S4 Score', count: e.leadsUrgentes, label: 'urgentes', pct: 28 },
-              ].map((s, i) => (
+                { stage: 'Most Aware', count: e.schwartzDistribution?.[4]?.count ?? e.leadsUrgentes, label: 'prontos para fechar', pct: Math.round(((e.schwartzDistribution?.[4]?.count ?? e.leadsUrgentes) / Math.max(e.leadsDiscovered, 1)) * 100), color: 'error' as const },
+                { stage: 'Product Aware', count: e.schwartzDistribution?.[3]?.count ?? 0, label: 'consideram adsentice', pct: Math.round(((e.schwartzDistribution?.[3]?.count ?? 0) / Math.max(e.leadsDiscovered, 1)) * 100), color: 'warning' as const },
+                { stage: 'Solution Aware', count: e.schwartzDistribution?.[2]?.count ?? e.leadsQuentes, label: 'sabem que existe solução', pct: Math.round(((e.schwartzDistribution?.[2]?.count ?? e.leadsQuentes) / Math.max(e.leadsDiscovered, 1)) * 100), color: 'info' as const },
+                { stage: 'Problem Aware', count: e.schwartzDistribution?.[1]?.count ?? 0, label: 'sentem a dor', pct: Math.round(((e.schwartzDistribution?.[1]?.count ?? 0) / Math.max(e.leadsDiscovered, 1)) * 100), color: 'primary' as const },
+                { stage: 'Unaware', count: e.schwartzDistribution?.[0]?.count ?? 0, label: 'não sabem do problema', pct: Math.round(((e.schwartzDistribution?.[0]?.count ?? 0) / Math.max(e.leadsDiscovered, 1)) * 100), color: 'success' as const },
+              ].map((s) => (
                 <Box key={s.stage} sx={{ mb: 1.5 }}>
                   <div className='flex justify-between mb-1'>
                     <Typography variant='body2' fontWeight={600}>{s.stage}</Typography>
@@ -210,8 +220,8 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
                   </div>
                   <LinearProgress
                     variant='determinate'
-                    value={s.pct}
-                    color={i === 0 ? 'primary' : i === 1 ? 'info' : i === 2 ? 'warning' : i === 3 ? 'error' : 'success'}
+                    value={Math.min(s.pct, 100)}
+                    color={s.color}
                     sx={{ height: 6, borderRadius: 3 }}
                   />
                 </Box>
@@ -221,7 +231,39 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
         </Card>
       </Grid>
 
-      {/* ═══ ROW 4 · RECENT ACTIVITY ═══ */}
+      {/* ═══ ROW 4 · SCHWARTZ DISTRIBUTION ═══ */}
+      {e.schwartzDistribution && (
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent>
+              <Typography variant='h6' gutterBottom>
+                📊 Distribuição Schwartz · Score Médio: {e.avgScore}/100
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {e.schwartzDistribution.map((s) => {
+                  const pct = e.leadsDiscovered > 0 ? Math.round((s.count / e.leadsDiscovered) * 100) : 0
+                  const colors = ['#9e9e9e', '#42a5f5', '#ffa726', '#ef5350', '#d32f2f']
+
+                  
+return (
+                    <Box key={s.level} sx={{ flex: 1, minWidth: 120, textAlign: 'center' }}>
+                      <Typography variant='h5' fontWeight={800} sx={{ color: colors[s.level - 1] }}>
+                        {s.count.toLocaleString('pt-BR')}
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary'>{s.label}</Typography>
+                      <LinearProgress variant='determinate' value={pct}
+                        sx={{ height: 6, borderRadius: 3, mt: 0.5, bgcolor: `${colors[s.level - 1]}22`, '& .MuiLinearProgress-bar': { bgcolor: colors[s.level - 1] } }} />
+                      <Typography variant='caption'>{pct}%</Typography>
+                    </Box>
+                  )
+                })}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+
+      {/* ═══ ROW 5 · RECENT ACTIVITY ═══ */}
       <Grid size={{ xs: 12 }}>
         <TableContainer component={Paper}>
           <Table>

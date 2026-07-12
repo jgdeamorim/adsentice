@@ -1,166 +1,263 @@
 
-// adsentice · Admin / Criteria — configuração dos Pain Criteria v1.1
-// 20 sinais em 3 tiers com thresholds, pesos, e explicações
+// adsentice · Admin / Criteria — Pain Criteria v1.2
+// Schwartz Awareness Levels + Compound Score + ESC Lead Scoring
 import { redirect } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
-import LinearProgress from '@mui/material/LinearProgress'
 import Divider from '@mui/material/Divider'
+
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
+import { SCHWARTZ_LEVELS } from '@/lib/scoring'
 
 interface PainSignal {
   id: string
   name: string
   condition: string
   points: number
-  tier: 1 | 2 | 3
-  category: string
+  dimension: 'Fit' | 'Engagement' | 'Intent'
+  layer: 'L0' | 'L1' | 'L2' | 'L3'
   description: string
   impact: string
 }
 
-const PAIN_SIGNALS: PainSignal[] = [
-  // TIER 1 · CRÍTICO
-  { id: 'T1.1', name: 'Website Invisível', condition: 'Tem site E SEO < 30%', points: 35, tier: 1, category: 'Website', description: 'Existe mas ninguém acha — o pior cenário', impact: 'Perda total de tráfego orgânico. Clientes não encontram o negócio.' },
-  { id: 'T1.2', name: 'Reputação Tóxica', condition: 'Rating ≤ 3.5★ E reviews > 5', points: 35, tier: 1, category: 'Reputação', description: 'Reviews negativas visíveis com volume suficiente', impact: 'Clientes desistem ao ver avaliações ruins. Perda direta de receita.' },
-  { id: 'T1.3', name: 'Negócio Estagnado', condition: '0 reviews nos últimos 60 dias', points: 20, tier: 1, category: 'Engajamento', description: 'Sem atividade recente — possível abandono', impact: 'Sinal de que o dono não está ativo no digital. Lead mais difícil de converter.' },
-  { id: 'T1.4', name: 'Owner Ausente', condition: 'Reviews ≤2★ sem resposta', points: 30, tier: 1, category: 'Engajamento', description: 'Não engaja com cliente — perde vendas', impact: 'Cliente reclama e ninguém responde. Imagem de descaso.' },
-  { id: 'T1.5', name: 'Sem Presença Web', condition: 'Sem website', points: 25, tier: 1, category: 'Website', description: 'Invisível online — só existe no GMB', impact: 'Limita o que podemos vender. Lead precisa de site antes de SEO.' },
-
-  // TIER 2 · ALTO
-  { id: 'T2.1', name: 'SEO Abaixo da Média', condition: 'Tem site E SEO 30-60%', points: 20, tier: 2, category: 'Website', description: 'Abaixo da média BR (~50%). Melhorável', impact: 'Otimização traz resultado rápido. Fácil de demonstrar ROI.' },
-  { id: 'T2.2', name: 'Reputação Medíocre', condition: 'Rating 3.5-3.8★ E reviews > 10', points: 20, tier: 2, category: 'Reputação', description: 'Não é terrível mas afasta clientes', impact: 'Poucas melhorias já sobem a nota. Quick win demonstrável.' },
-  { id: 'T2.3', name: 'Perfil Abandonado', condition: '< 3 fotos no GMB', points: 20, tier: 2, category: 'GMB', description: 'Parece largado — cliente desconfia', impact: 'Adicionar fotos é grátis e aumenta confiança imediatamente.' },
-  { id: 'T2.4', name: 'Sem WhatsApp', condition: 'Tem telefone mas NÃO é WhatsApp', points: 15, tier: 2, category: 'Contato', description: 'Canal #1 de venda no Brasil ausente', impact: 'Brasil: 80%+ das vendas SMB são por WhatsApp. Sem ele = perde venda.' },
-  { id: 'T2.5', name: 'Pressão Competitiva', condition: '≥ 3 concorrentes no raio de 3km', points: 15, tier: 2, category: 'Concorrência', description: 'Mercado disputado — precisa se destacar', impact: 'Lead sente a concorrência. Nossa proposta de diferenciação é o que ele precisa.' },
-  { id: 'T2.6', name: 'Reviews Caindo', condition: 'Média 60d < média geral', points: 20, tier: 2, category: 'Reputação', description: 'Tendência negativa — vai piorar', impact: 'Urgência embutida. Se não agir agora, rating vai cair mais.' },
-
-  // TIER 3 · MODERADO
-  { id: 'T3.1', name: 'Sem Analytics', condition: 'Tem site MAS sem GA4/Pixel', points: 10, tier: 3, category: 'Website', description: 'Não mede tráfego — decisões no escuro', impact: 'Dono não sabe quantas pessoas visitam o site. Fácil de instalar e mostrar valor.' },
-  { id: 'T3.2', name: 'Não Anuncia', condition: 'Sem Google Ads ativo', points: 8, tier: 3, category: 'Ads', description: 'Não investe em aquisição paga', impact: 'Oportunidade de upsell futuro (gestão de Ads).' },
-  { id: 'T3.3', name: 'CMS Desatualizado', condition: 'WordPress sem updates > 6 meses', points: 8, tier: 3, category: 'Website', description: 'Risco de segurança', impact: 'Vender auditoria técnica + atualização. Porta de entrada.' },
-  { id: 'T3.4', name: 'Sem Blog/Conteúdo', condition: 'Sem blog ou último post > 90 dias', points: 5, tier: 3, category: 'Conteúdo', description: 'Sem estratégia de conteúdo', impact: 'Conteúdo é o que ranqueia. Lead não investe nisso.' },
-  { id: 'T3.5', name: 'Mobile Ruim', condition: 'Performance mobile < 40', points: 10, tier: 3, category: 'Website', description: '70%+ do tráfego é mobile no BR', impact: 'Maioria dos clientes acessa pelo celular. Site quebrado no mobile = perda de venda.' },
+const FIT_SIGNALS: PainSignal[] = [
+  { id: 'F1', name: 'Categoria no ICP', condition: 'category ∈ 57 categorias BR', points: 15, dimension: 'Fit', layer: 'L0', description: 'Negócio está nas categorias-alvo do adsentice', impact: 'Lead fora do ICP = desperdício de aquisição.' },
+  { id: 'F2', name: 'Porte do Negócio', condition: 'rating_votes ≥ 10', points: 10, dimension: 'Fit', layer: 'L0', description: 'Negócio estabelecido com volume suficiente de avaliações', impact: 'Negócios com poucas reviews são arriscados (podem ser novos ou inativos).' },
+  { id: 'F3', name: 'Tem Website', condition: 'website ≠ null', points: 10, dimension: 'Fit', layer: 'L0', description: 'Presença web com domínio próprio', impact: 'Sem website = invisível online (40pts Intent!). Lead precisa de site antes de SEO.' },
+  { id: 'F4', name: 'Tem Telefone', condition: 'phone ≠ null', points: 5, dimension: 'Fit', layer: 'L0', description: 'Canal de contato existe no perfil', impact: 'Sem telefone = difícil contato. +15pts Intent se também sem website (R5).' },
+  { id: 'F5', name: 'Região Mapeada', condition: 'address presente', points: 5, dimension: 'Fit', layer: 'L0', description: 'Endereço preenchido no GMB', impact: 'Permite validação NAP e cálculo de densidade competitiva.' },
+  { id: 'F6', name: 'Horário Preenchido', condition: 'business_status = OPERATIONAL', points: 5, dimension: 'Fit', layer: 'L0', description: 'Negócio operacional com horário no GMB', impact: 'Negócio ativo = pode atender leads. Fechado = excluir.' },
+  { id: 'F7', name: 'Descrição Preenchida', condition: 'description ≠ null', points: 5, dimension: 'Fit', layer: 'L0', description: 'Descrição do negócio no GMB', impact: 'Sem descrição = SEO local fraco. 5 minutos para corrigir.' },
+  { id: 'F8', name: 'Serviços Listados', condition: 'categories[] length ≥ 2', points: 5, dimension: 'Fit', layer: 'L0', description: 'Múltiplas categorias no GMB', impact: 'Cada categoria extra = +alcance. Concorrentes usam 5-7 categorias.' },
+  { id: 'F9', name: 'Domínio Próprio', condition: 'website é domínio próprio', points: 5, dimension: 'Fit', layer: 'L0', description: 'Não é Wix, Linktree, Facebook como site', impact: 'Domínio próprio = profissional. Wix/Linktree = amador, perde credibilidade.' },
+  { id: 'F10', name: 'CNPJ Ativo', condition: 'business_status = OPERATIONAL', points: 5, dimension: 'Fit', layer: 'L0', description: 'Negócio não marcado como fechado', impact: 'Anti-falso-positivo R3: fechado = excluir.' },
 ]
 
-const THRESHOLDS = {
-  lead: 40,
-  quente: 55,
-  urgente: 70,
-}
+const ENGAGEMENT_SIGNALS: PainSignal[] = [
+  { id: 'E1', name: 'Rating Bom', condition: 'rating_value ≥ 4.0', points: 15, dimension: 'Engagement', layer: 'L0', description: 'Lead se importa com reputação', impact: 'Rating alto = orgulho do negócio. Rating baixo = oportunidade de melhoria.' },
+  { id: 'E2', name: 'Reviews Recentes', condition: 'review_velocity > 0 nos últimos 60d', points: 15, dimension: 'Engagement', layer: 'L0', description: 'Atividade recente — negócio não está parado', impact: 'Sem reviews recentes = possível abandono (T1.3 legacy).' },
+  { id: 'E3', name: 'Fotos Suficientes', condition: 'total_photos ≥ benchmark por categoria', points: 10, dimension: 'Engagement', layer: 'L0', description: 'Dentista: 15 min · Restaurante: 25 min · Veja benchmarks', impact: 'Fotos insuficientes = perfil largado. Cliente desconfia.' },
+  { id: 'E4', name: 'Perfil Reivindicado', condition: 'is_claimed = true', points: 10, dimension: 'Engagement', layer: 'L0', description: 'Dono controla o próprio perfil', impact: 'NÃO reivindicado = I1 (25pts Intent). Maior sinal de abandono.' },
+  { id: 'E5', name: 'WhatsApp Business', condition: 'telefone é WhatsApp', points: 10, dimension: 'Engagement', layer: 'L0', description: 'Canal #1 de venda no Brasil', impact: 'Sem WhatsApp = perde ~80% dos clientes potenciais no BR.' },
+  { id: 'E6', name: 'Posts no GMB', condition: 'total_photos ≥ benchmark.good', points: 5, dimension: 'Engagement', layer: 'L0', description: 'Proxy: fotos acima da média indicam perfil ativo', impact: 'GMB ativo = dono investe tempo no digital.' },
+  { id: 'E7', name: 'Q&A Ativo', condition: 'descrição > 50 chars + is_claimed', points: 5, dimension: 'Engagement', layer: 'L0', description: 'Proxy: tem descrição E é reivindicado', impact: 'Perfil completo + reivindicado = dono engajado.' },
+]
+
+const INTENT_SIGNALS: PainSignal[] = [
+  { id: 'I1', name: 'NÃO Reivindicado', condition: 'is_claimed = false', points: 25, dimension: 'Intent', layer: 'L0', description: 'NÃO controla o próprio perfil GMB', impact: 'Maior sinal de urgência. Lead não sabe que existe painel GMB. Fácil de resolver.' },
+  { id: 'I2', name: 'Reputação Tóxica', condition: 'rating ≤ 3.5 E reviews ≥ 5', points: 20, dimension: 'Intent', layer: 'L0', description: 'Reviews negativas visíveis com volume suficiente', impact: 'Clientes fogem ao ver avaliações ruins. Perda direta de receita. Urgente.' },
+  { id: 'I3', name: 'Perfil Abandonado', condition: 'total_photos < 3 OU reviews < 5', points: 15, dimension: 'Intent', layer: 'L0', description: 'Parece largado — cliente desconfia', impact: 'Sinal de que o dono não está ativo no digital. Lead mais difícil de converter.' },
+]
+
+const WEBSITE_SIGNALS: PainSignal[] = [
+  { id: 'W1', name: 'Sem HTTPS', condition: 'HTTP apenas (Lighthouse)', points: 20, dimension: 'Intent', layer: 'L1', description: 'Site sem segurança — Chrome mostra "Não seguro"', impact: 'Risco de segurança real. Perde cliente imediatamente.' },
+  { id: 'W2', name: 'Core Web Vitals Ruins', condition: 'LCP > 4s OU CLS > 0.25', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Performance abaixo do aceitável', impact: '70% dos usuários abandonam site que demora > 3s.' },
+  { id: 'W3', name: 'Mobile Ruim', condition: 'Mobile score < 40', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Experiência mobile quebrada', impact: '70%+ do tráfego BR é mobile. Site quebrado = venda perdida.' },
+  { id: 'W4', name: 'Sem Meta Tags', condition: 'Title OU description ausente', points: 8, dimension: 'Engagement', layer: 'L1', description: 'SEO on-page básico ausente', impact: 'Google não sabe do que se trata a página. Ranqueia mal.' },
+  { id: 'W5', name: 'Sem Analytics', condition: 'Nenhum GA4/GTM/Pixel detectado', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Não mede tráfego — decisões no escuro', impact: 'Dono não sabe quantas pessoas visitam o site. Fácil de instalar.' },
+  { id: 'W6', name: 'CMS Desatualizado', condition: 'WordPress sem updates > 6 meses', points: 5, dimension: 'Engagement', layer: 'L1', description: 'Risco de segurança', impact: 'Vender auditoria técnica + atualização. Porta de entrada.' },
+  { id: 'W7', name: 'Sem Blog/Conteúdo', condition: 'Último post > 90 dias', points: 5, dimension: 'Fit', layer: 'L1', description: 'Sem estratégia de conteúdo', impact: 'Conteúdo é o que ranqueia. Lead não investe nisso.' },
+  { id: 'W8', name: 'Sem Schema Markup', condition: 'JSON-LD LocalBusiness ausente', points: 5, dimension: 'Engagement', layer: 'L1', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
+]
 
 const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  const tier1Count = PAIN_SIGNALS.filter(s => s.tier === 1).length
-  const tier2Count = PAIN_SIGNALS.filter(s => s.tier === 2).length
-  const tier3Count = PAIN_SIGNALS.filter(s => s.tier === 3).length
-  const totalPoints = PAIN_SIGNALS.reduce((s, sig) => s + sig.points, 0)
+  const fitPts = FIT_SIGNALS.reduce((s, sig) => s + sig.points, 0)
+  const engPts = ENGAGEMENT_SIGNALS.reduce((s, sig) => s + sig.points, 0)
+  const intentPts = INTENT_SIGNALS.reduce((s, sig) => s + sig.points, 0)
 
   return (
     <Grid container spacing={6}>
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>🎯 Critérios de Atração</Typography>
         <Typography variant='body2' color='text.secondary'>
-          Pain Criteria v1.1 — 20 sinais em 3 tiers. Thresholds: LEAD ≥{THRESHOLDS.lead} · QUENTE ≥{THRESHOLDS.quente} · URGENTE ≥{THRESHOLDS.urgente}
+          Pain Criteria v1.2 — Score Composto (Fit×0.40 + Engagement×0.35 + Intent×0.25) · Schwartz Awareness Levels
         </Typography>
       </Grid>
 
-      {/* Summary cards */}
+      {/* ── Dimension Summary Cards ── */}
       <Grid size={{ xs: 12, sm: 4 }}>
         <CardStatVertical
-          stats={`${tier1Count}`}
-          title='Tier 1 · Crítico'
-          subtitle={`${PAIN_SIGNALS.filter(s => s.tier === 1).reduce((s, sig) => s + sig.points, 0)} pontos · dor grave`}
+          stats={`${FIT_SIGNALS.length}`}
+          title='Fit · ICP Match'
+          subtitle={`${fitPts}pts max · 10 sinais · peso 0.40`}
+          avatarColor='primary'
+          avatarIcon='ri-user-search-line'
+          trendNumber={String(FIT_SIGNALS.length)}
+          trend='positive'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 4 }}>
+        <CardStatVertical
+          stats={`${ENGAGEMENT_SIGNALS.length}`}
+          title='Engagement · Atividade'
+          subtitle={`${engPts}pts max · 7 sinais · peso 0.35`}
+          avatarColor='warning'
+          avatarIcon='ri-bar-chart-line'
+          trendNumber={String(ENGAGEMENT_SIGNALS.length)}
+          trend='positive'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 4 }}>
+        <CardStatVertical
+          stats={`${INTENT_SIGNALS.length}`}
+          title='Intent · Urgência'
+          subtitle={`${intentPts}pts max · 3 sinais · peso 0.25`}
           avatarColor='error'
           avatarIcon='ri-alert-line'
-          trendNumber={String(tier1Count)}
+          trendNumber={String(INTENT_SIGNALS.length)}
           trend='negative'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical
-          stats={`${tier2Count}`}
-          title='Tier 2 · Alto'
-          subtitle={`${PAIN_SIGNALS.filter(s => s.tier === 2).reduce((s, sig) => s + sig.points, 0)} pontos · gaps significativos`}
-          avatarColor='warning'
-          avatarIcon='ri-error-warning-line'
-          trendNumber={String(tier2Count)}
-          trend='positive'
-        />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical
-          stats={`${tier3Count}`}
-          title='Tier 3 · Moderado'
-          subtitle={`${PAIN_SIGNALS.filter(s => s.tier === 3).reduce((s, sig) => s + sig.points, 0)} pontos · oportunidades`}
-          avatarColor='info'
-          avatarIcon='ri-lightbulb-line'
-          trendNumber={String(tier3Count)}
-          trend='positive'
-        />
-      </Grid>
 
-      {/* Threshold explanation */}
+      {/* ── Schwartz Awareness Levels ── */}
       <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
-            <Typography variant='h6' gutterBottom>📊 Como o Score de Dor funciona</Typography>
+            <Typography variant='h6' gutterBottom>🧠 Níveis de Consciência (Eugene Schwartz, 1966)</Typography>
             <Typography variant='body2' sx={{ mb: 3 }}>
-              Cada sinal detectado soma pontos. O total define a prioridade do lead.
-              Múltiplos sinais Tier 1 = lead URGENTE. Sinais Tier 3 sozinhos = lead frio.
+              O Score Composto determina o nível de consciência do lead — e cada nível tem uma regra de abordagem.
+              Baseado em 50+ anos de direct response marketing.
             </Typography>
             <Grid container spacing={3}>
-              {[
-                { label: '🟢 SAUDÁVEL', range: `0-${THRESHOLDS.lead - 1}`, color: 'success', desc: 'Não é lead. Monitorar.' },
-                { label: '🟡 LEAD', range: `${THRESHOLDS.lead}-${THRESHOLDS.quente - 1}`, color: 'info', desc: 'Lead potencial. Nutrir com conteúdo.' },
-                { label: '🟠 QUENTE', range: `${THRESHOLDS.quente}-${THRESHOLDS.urgente - 1}`, color: 'warning', desc: 'Lead qualificado. Abordar com diagnóstico.' },
-                { label: '🔴 URGENTE', range: `≥${THRESHOLDS.urgente}`, color: 'error', desc: 'Múltiplas dores críticas. Contato IMEDIATO.' },
-              ].map((t) => (
-                <Grid key={t.label} size={{ xs: 12, sm: 3 }}>
-                  <Card sx={{ borderLeft: 4, borderColor: `${t.color}.main` }}>
-                    <CardContent>
-                      <Typography variant='subtitle2' fontWeight={700}>{t.label}</Typography>
-                      <Typography variant='h5' fontWeight={800}>{t.range}</Typography>
-                      <Typography variant='caption' color='text.secondary'>{t.desc}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+              {([1, 2, 3, 4, 5] as const).map((level) => {
+                const def = SCHWARTZ_LEVELS[level]
+                const ranges = ['0-29', '30-49', '50-69', '70-84', '85-100']
+                const colors = ['success', 'info', 'warning', 'error', 'error'] as const
+
+                
+return (
+                  <Grid key={level} size={{ xs: 12, sm: 4, md: 2.4 }}>
+                    <Card sx={{ borderLeft: 4, borderColor: `${colors[level - 1]}.main` }}>
+                      <CardContent>
+                        <Typography variant='subtitle2' fontWeight={700}>{def.label}</Typography>
+                        <Typography variant='h5' fontWeight={800} sx={{ color: `${colors[level - 1]}.main` }}>
+                          {ranges[level - 1]}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1 }}>
+                          {def.action}
+                        </Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant='caption' color='error.main' fontWeight={600}>
+                          🚫 {def.messagingRule}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )
+              })}
             </Grid>
           </CardContent>
         </Card>
       </Grid>
 
-      {/* Tier 1 signals */}
+      {/* ── Compound Score Formula ── */}
+      <Grid size={{ xs: 12 }}>
+        <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>📐 Fórmula do Score Composto</Typography>
+            <Grid container spacing={3} alignItems='center'>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Box sx={{ fontFamily: 'monospace', fontSize: '1.1rem', p: 2, bgcolor: 'white', borderRadius: 1 }}>
+                  <Typography variant='body1' sx={{ fontFamily: 'monospace' }}>
+                    <strong>Fit</strong> (0-70 → 0-100) × <Chip label='0.40' size='small' color='primary' variant='tonal' /><br />
+                    + <strong>Engagement</strong> (0-70 → 0-100) × <Chip label='0.35' size='small' color='warning' variant='tonal' /><br />
+                    + <strong>Intent</strong> (0-60 → 0-100) × <Chip label='0.25' size='small' color='error' variant='tonal' /><br />
+                    ─────────────────────────<br />
+                    = <strong>Score Composto</strong> (0-100)
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant='body2' sx={{ mb: 1 }}>
+                  Cada dimensão é normalizada para 0-100 antes da ponderação.
+                  Sinais com dados ausentes = 0pts (conservador).
+                </Typography>
+                <Typography variant='body2' sx={{ mb: 1 }}>
+                  <strong>Confiança:</strong> fração dos 20 sinais com dados disponíveis (0-1).
+                  Quanto mais camadas de enriquecimento (L0→L3), maior a confiança.
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Inspirado no lead scoring architecture do ESC gui.marketing e 50+ anos de direct response (Eugene Schwartz).
+                </Typography>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── Decay + Calibration ── */}
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>⏳ Decay de Engagement</Typography>
+            <Typography variant='body2' sx={{ mb: 2 }}>
+              Scoring sem decay gera leads fantasmas em &lt;90 dias (ESC anti-pattern #3).
+            </Typography>
+            <Box sx={{ fontFamily: 'monospace', fontSize: '0.85rem', p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace' }}>
+                Após <strong>30 dias</strong> sem nova interação:<br />
+                → <strong>-5 pts/dia</strong> no Engagement Score<br />
+                → Mínimo: <strong>5 pts</strong> (nunca zera)<br />
+                → Novo sinal (review, foto, post) = <strong>reset</strong><br />
+                → Fit e Intent <strong>NÃO</strong> sofrem decay (são estruturais)
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>📅 Calibração Mensal</Typography>
+            <Typography variant='body2' sx={{ mb: 1 }}>
+              <strong>Frequência:</strong> 1º dia útil de cada mês
+            </Typography>
+            <Box component='ul' sx={{ pl: 2, '& li': { fontSize: '0.85rem', mb: 0.5 } }}>
+              <li>Taxa de conversão real por nível Schwartz</li>
+              <li>% Problem Aware → Solution Aware (target: 10-20%)</li>
+              <li>% Solution Aware → Product Aware (target: 5-10%)</li>
+              <li>% de falsos positivos (lead quente que não converteu)</li>
+              <li>Recalcular pesos se necessário</li>
+              <li>Ajustar thresholds dos níveis Schwartz</li>
+              <li>Atualizar decay rate baseado no ciclo de vendas real</li>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── Fit Signals ── */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
-          <Chip label={`TIER 1 · CRÍTICO (${tier1Count} sinais)`} color='error' size='small' sx={{ mr: 1 }} />
-          Dor grave — 2 sinais = lead URGENTE
+          <Chip label={`FIT · ICP MATCH (${FIT_SIGNALS.length} sinais)`} color='primary' size='small' sx={{ mr: 1 }} />
+          Peso 0.40 — O lead é o cliente ideal? Max 70pts raw
         </Typography>
         <Grid container spacing={3}>
-          {PAIN_SIGNALS.filter(s => s.tier === 1).map((sig) => (
+          {FIT_SIGNALS.map((sig) => (
             <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card sx={{ borderTop: 3, borderColor: 'error.main' }}>
+              <Card sx={{ borderTop: 3, borderColor: 'primary.main' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Chip label={sig.id} size='small' color='error' variant='tonal' />
-                    <Chip label={`${sig.points} pts`} size='small' color='error' variant='outlined' />
+                    <Chip label={sig.id} size='small' color='primary' variant='tonal' />
+                    <Chip label={`${sig.points} pts`} size='small' color='primary' variant='outlined' />
                   </Box>
                   <Typography variant='subtitle2' fontWeight={700} gutterBottom>{sig.name}</Typography>
                   <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1 }}>
                     {sig.condition}
                   </Typography>
-                  <Typography variant='body2' color='text.secondary'>{sig.description}</Typography>
+                  <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>{sig.description}</Typography>
                   <Divider sx={{ my: 1 }} />
-                  <Typography variant='caption' color='error.main' fontWeight={600}>
+                  <Typography variant='caption' color='primary.main' fontWeight={600}>
                     💡 {sig.impact}
                   </Typography>
                 </CardContent>
@@ -170,14 +267,14 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
         </Grid>
       </Grid>
 
-      {/* Tier 2 signals */}
+      {/* ── Engagement Signals ── */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
-          <Chip label={`TIER 2 · ALTO (${tier2Count} sinais)`} color='warning' size='small' sx={{ mr: 1 }} />
-          Gaps significativos — combinar 2-3 = lead QUENTE
+          <Chip label={`ENGAGEMENT · ATIVIDADE (${ENGAGEMENT_SIGNALS.length} sinais)`} color='warning' size='small' sx={{ mr: 1 }} />
+          Peso 0.35 — O lead se importa com presença digital? Max 70pts raw
         </Typography>
         <Grid container spacing={3}>
-          {PAIN_SIGNALS.filter(s => s.tier === 2).map((sig) => (
+          {ENGAGEMENT_SIGNALS.map((sig) => (
             <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
               <Card sx={{ borderTop: 3, borderColor: 'warning.main' }}>
                 <CardContent>
@@ -189,7 +286,11 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
                   <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1 }}>
                     {sig.condition}
                   </Typography>
-                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                  <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>{sig.description}</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant='caption' color='warning.main' fontWeight={600}>
+                    💡 {sig.impact}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -197,20 +298,55 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
         </Grid>
       </Grid>
 
-      {/* Tier 3 signals */}
+      {/* ── Intent Signals ── */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
-          <Chip label={`TIER 3 · MODERADO (${tier3Count} sinais)`} color='info' size='small' sx={{ mr: 1 }} />
-          Oportunidades — reforçam Tiers 1-2
+          <Chip label={`INTENT · URGÊNCIA (${INTENT_SIGNALS.length} sinais)`} color='error' size='small' sx={{ mr: 1 }} />
+          Peso 0.25 — O lead está em momento de compra? Max 60pts raw
         </Typography>
         <Grid container spacing={3}>
-          {PAIN_SIGNALS.filter(s => s.tier === 3).map((sig) => (
+          {INTENT_SIGNALS.map((sig) => (
             <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card sx={{ borderTop: 3, borderColor: 'info.main' }}>
+              <Card sx={{ borderTop: 3, borderColor: 'error.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Chip label={sig.id} size='small' color='error' variant='tonal' />
+                    <Chip label={`${sig.points} pts`} size='small' color='error' variant='outlined' />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={700} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1 }}>
+                    {sig.condition}
+                  </Typography>
+                  <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>{sig.description}</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant='caption' color='error.main' fontWeight={600}>
+                    💡 {sig.impact}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── Website Signals (Tier 3 · Lighthouse) ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='WEBSITE · TIER 3' color='info' size='small' sx={{ mr: 1 }} />
+          Enriquecimento Lighthouse · 8 sinais · +73pts distribuídos
+          <Chip label='Simulado até v0.3' size='small' color='default' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Grid container spacing={3}>
+          {WEBSITE_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'info.main', opacity: 0.8 }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Chip label={sig.id} size='small' color='info' variant='tonal' />
-                    <Chip label={`${sig.points} pts`} size='small' color='info' variant='outlined' />
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Chip label={sig.dimension} size='small' color={sig.dimension === 'Intent' ? 'error' : 'warning'} variant='outlined' />
+                      <Chip label={`${sig.points} pts`} size='small' color='info' variant='outlined' />
+                    </Box>
                   </Box>
                   <Typography variant='subtitle2' fontWeight={700} gutterBottom>{sig.name}</Typography>
                   <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1 }}>
@@ -224,7 +360,7 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
         </Grid>
       </Grid>
 
-      {/* Anti-false-positive rules */}
+      {/* ── Anti-False-Positive Rules ── */}
       <Grid size={{ xs: 12 }}>
         <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
           <CardContent>
@@ -232,16 +368,45 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
             <Grid container spacing={2}>
               {[
                 'Sem GMB → ignorar (sem dados para avaliar)',
-                '< 3 reviews → reduzir peso do rating (amostra pequena)',
+                '< 3 reviews → reduzir peso do rating em 50% (amostra pequena)',
                 'Fechado (business_status ≠ OPERATIONAL) → excluir',
                 'Franquia/Rede (> 5 locações) → classificar ENTERPRISE',
-                'Sem telefone E sem website → +10 pts bônus (offline total)',
+                'Sem telefone E sem website → +15 pts bônus no Intent (offline total)',
                 'Tem website mas sem dados de SEO → usar estimativa GMB',
               ].map((rule, i) => (
                 <Grid key={i} size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Chip label={`R${i + 1}`} size='small' variant='outlined' />
                     <Typography variant='body2'>{rule}</Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── Derived Fields ── */}
+      <Grid size={{ xs: 12 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>🔧 Campos Derivados (calculados pelo Scoring Engine)</Typography>
+            <Grid container spacing={2}>
+              {[
+                ['whatsapp_detected', 'Regex DDI 55 + celular no telefone', '95% precisão para números BR'],
+                ['review_velocity', 'rating_votes / 36 meses (estimativa)', 'Reviews/mês. < 1 = estagnado, > 10 = ativo'],
+                ['photos_per_rating', 'total_photos / rating_votes', '< 0.5 = não investe em imagem, > 2.0 = visualmente ativo'],
+                ['category_coverage', 'categories[] length vs TOP 5 concorrentes', '< 50% das categorias = tráfego perdido'],
+                ['description_quality', 'Score 0-60: length + keywords + CTA + link + localização', '25/60 = descrição largada, 50/60 = excelente'],
+                ['domain_type', 'proprio | wix | linktree | facebook | google_sites', 'Domínio próprio = profissional. Linktree = não é website.'],
+              ].map(([field, condition, note]) => (
+                <Grid key={field} size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                    <Chip label={field} size='small' color='secondary' variant='tonal' sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }} />
+                    <Box>
+                      <Typography variant='body2' fontWeight={600}>{condition}</Typography>
+                      <Typography variant='caption' color='text.secondary'>{note}</Typography>
+                    </Box>
                   </Box>
                 </Grid>
               ))}

@@ -6,30 +6,37 @@
 // ── AG-UI Core Events ───────────────────────────────────────────
 
 export type AguiEventType =
+
   // Lifecycle
   | "RUN_STARTED"
   | "RUN_FINISHED"
   | "RUN_ERROR"
   | "STEP_STARTED"
   | "STEP_FINISHED"
+
   // Text Messages
   | "TEXT_MESSAGE_START"
   | "TEXT_MESSAGE_CONTENT"
   | "TEXT_MESSAGE_END"
+
   // Reasoning
   | "REASONING_START"
   | "REASONING_MESSAGE_CONTENT"
   | "REASONING_END"
+
   // Tool Calls
   | "TOOL_CALL_START"
   | "TOOL_CALL_ARGS"
   | "TOOL_CALL_END"
   | "TOOL_CALL_RESULT"
+
   // State
   | "STATE_SNAPSHOT"
   | "STATE_DELTA"
+
   // Activity (Generative UI)
   | "ACTIVITY_SNAPSHOT"
+
   // Custom
   | "CUSTOM"
 

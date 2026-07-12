@@ -2,6 +2,7 @@
 // adsentice · Admin / Lead Detail — ficha completa do lead
 // 27 campos GMB + Pain Criteria aplicados + Canal de origem
 import { redirect } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -9,16 +10,17 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
-import Divider from '@mui/material/Divider'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
+
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
 // Mock lead data — future: fetch from @adsentice/db + EVO-API MCP
 interface LeadProfile {
+
   // ── GMB Profile (27 campos) ──
   gmb: {
     title: string; category: string; categories: string[]
@@ -32,13 +34,16 @@ interface LeadProfile {
     business_status: string; price_level: number
     types: string[]
   }
+
   // ── Pain Score ──
   pain: {
     total: number; classification: string
     signals: Array<{ id: string; name: string; points: number; matched: boolean }>
   }
+
   // ── SEO ──
   seo: { score: number; keywords: number; avgPosition: number; topKeyword: string }
+
   // ── Channel ──
   channel: { source: string; discoveredAt: string; costUsd: number }
 }
@@ -79,6 +84,7 @@ const LeadDetail = async ({ params }: { params: Promise<{ lang: string; id: stri
   const { lang } = await params
 
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const l = MOCK_LEAD

@@ -1,6 +1,7 @@
 
 // adsentice · Admin / Pipeline — funil de leads Stage 0→7
 import { redirect } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -8,6 +9,7 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
+
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
@@ -34,6 +36,7 @@ const PIPELINE: StageData[] = [
 const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const totalEntered = PIPELINE[0].count
@@ -87,7 +90,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>Estágios do Funil</Typography>
         <Grid container spacing={3}>
-          {PIPELINE.map((s, i) => (
+          {PIPELINE.map((s) => (
             <Grid key={s.stage} size={{ xs: 12, sm: 6, md: 3 }}>
               <Card
                 sx={{
