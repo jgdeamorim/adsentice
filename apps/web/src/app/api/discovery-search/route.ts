@@ -14,6 +14,7 @@ import {
   getCostToday, getCostTotal, getCostLast,
 } from "@/lib/discovery-cache"
 import { scoreLeads, computeDistribution, type ScoreData, type ScoreDistribution } from "@/lib/scoring"
+import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const scores: ScoreData[] = scoreLeads(result.listings)
     const distribution: ScoreDistribution = computeDistribution(scores)
 
-    // Persist score stats to Redis for admin dashboard
+    // Persist score stats to Redis for admin dashboard (fast cache, 24h TTL)
     try {
       const { execSync } = await import("child_process")
 
@@ -71,7 +72,26 @@ export async function POST(request: NextRequest) {
       execSync(`redis-cli -p 6396 --no-auth-warning SETEX adsentice:discovery:last_score_stats 86400 '${statsJson.replace(/'/g, "'\\''")}'`, { timeout: 2000, stdio: "ignore" })
     } catch { /* Redis offline — degrade gracefully */ }
 
-    // Persist + cache
+    // ═══ SUPABASE PERSISTENCE (durável — dados pagos NUNCA perdidos) ═══
+    // Fire-and-forget: não bloqueia a resposta se Supabase estiver offline
+    const enrichedListings = result.listings.map((l, i) => ({ ...l, score: scores[i] }))
+
+    saveDiscoverySearch({
+      categories,
+      lat: lat || -23.55,
+      lng: lng || -46.63,
+      radiusKm: radiusKm || 10,
+      totalCount: result.total_count,
+      costUsd: result.cost_usd,
+      listings: enrichedListings,
+      distribution,
+    }).then((saved) => {
+      if (saved) console.log(`[discovery-persistence] Saved ${saved.savedCount} listings to Supabase (search ${saved.searchId})`)
+    }).catch((err) => {
+      console.error("[discovery-persistence] Supabase save failed (data preserved in Redis):", err.message)
+    })
+
+    // Persist + cache (Redis + memory)
     const payload = { ...result, scores, distribution, fromCache: false, costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast() }
 
     setCache(cacheKey, payload)

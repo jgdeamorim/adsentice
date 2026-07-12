@@ -183,14 +183,33 @@ export async function getAdminDashboardData(): Promise<EngineData> {
     adrCount = readdirSync(adrDir).filter((f: string) => f.endsWith(".md")).length
   } catch { /* fallback */ }
 
-  // ═══ Scoring v0.2 — last discovery stats from Redis ═══
+  // ═══ Scoring v0.2 — Supabase (primary) → Redis (fallback) ═══
   let lastScoreStats: ScoreStats | null = null
 
   try {
-    const raw = redisCli("GET adsentice:discovery:last_score_stats")
+    const { getScoreDistribution } = await import("./discovery-persistence")
+    const supabaseDist = await getScoreDistribution()
 
-    if (raw) lastScoreStats = JSON.parse(raw)
-  } catch { /* no data yet */ }
+    if (supabaseDist && supabaseDist.total > 0) {
+      lastScoreStats = {
+        total: supabaseDist.total,
+        avgScore: supabaseDist.avgScore,
+        unaware: supabaseDist.unaware,
+        problemAware: supabaseDist.problemAware,
+        solutionAware: supabaseDist.solutionAware,
+        productAware: supabaseDist.productAware,
+        mostAware: supabaseDist.mostAware,
+      }
+    }
+  } catch { /* Supabase offline */ }
+
+  if (!lastScoreStats) {
+    try {
+      const raw = redisCli("GET adsentice:discovery:last_score_stats")
+
+      if (raw) lastScoreStats = JSON.parse(raw)
+    } catch { /* no data yet */ }
+  }
 
   // Projected monthly cost: daily avg × 30, or total cost if already accumulated
   const projectedCost = costTotal > 0 ? costTotal : costToday * 30
