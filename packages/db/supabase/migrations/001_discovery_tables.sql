@@ -77,23 +77,21 @@ ORDER BY pain_pct DESC;
 CREATE OR REPLACE FUNCTION get_score_distribution()
 RETURNS TABLE(
   total BIGINT,
-  avg_score DOUBLE PRECISION,
+  avg DOUBLE PRECISION,
   unaware BIGINT,
   problem_aware BIGINT,
   solution_aware BIGINT,
   product_aware BIGINT,
   most_aware BIGINT
-) AS $$
-BEGIN
-  RETURN QUERY
+)
+LANGUAGE SQL AS $$
   SELECT
     COUNT(*)::BIGINT,
-    AVG(score_compound),
+    COALESCE(AVG(score_compound), 0)::DOUBLE PRECISION,
     COUNT(*) FILTER (WHERE schwartz_level = 1)::BIGINT,
     COUNT(*) FILTER (WHERE schwartz_level = 2)::BIGINT,
     COUNT(*) FILTER (WHERE schwartz_level = 3)::BIGINT,
     COUNT(*) FILTER (WHERE schwartz_level = 4)::BIGINT,
     COUNT(*) FILTER (WHERE schwartz_level = 5)::BIGINT
   FROM discovery_listings;
-END;
-$$ LANGUAGE plpgsql;
+$$;

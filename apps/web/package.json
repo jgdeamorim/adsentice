@@ -103,6 +103,7 @@
     "eslint-import-resolver-typescript": "3.7.0",
     "eslint-plugin-import": "2.31.0",
     "globby": "14.0.2",
+    "pg": "^8.22.0",
     "postcss": "8.4.49",
     "postcss-styled-syntax": "0.7.0",
     "prettier": "3.4.2",
