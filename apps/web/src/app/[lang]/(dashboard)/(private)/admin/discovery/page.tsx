@@ -28,6 +28,12 @@ import TableSortLabel from '@mui/material/TableSortLabel'
 import LinearProgress from '@mui/material/LinearProgress'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
+import Slider from '@mui/material/Slider'
+import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
 
 const GEO: Record<string, { lat: number; lng: number; label: string }> = {
   'SP': { lat: -23.5505, lng: -46.6333, label: 'São Paulo · SP' },
@@ -86,6 +92,14 @@ const DiscoveryPage = () => {
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
+  // Pain criteria filters (client-side — no extra API calls)
+  const [minRating, setMinRating] = useState(0)
+  const [minReviews, setMinReviews] = useState(0)
+  const [minPhotos, setMinPhotos] = useState(0)
+  const [requireWhatsApp, setRequireWhatsApp] = useState(false)
+  const [requireClaimed, setRequireClaimed] = useState(false)
+  const [criteriaOpen, setCriteriaOpen] = useState(false)
+
   const estimatedCost = selected.length * 0.015
 
   const doSearch = useCallback(async (force = false) => {
@@ -136,8 +150,19 @@ const DiscoveryPage = () => {
     if (selected.length) doSearch()
   }
 
+  // Apply pain criteria filters (client-side, no extra API cost)
+  const filtered = useMemo(() => {
+    let arr = [...results]
+    if (minRating > 0) arr = arr.filter(l => (l.rating_value || 0) >= minRating)
+    if (minReviews > 0) arr = arr.filter(l => (l.rating_votes || 0) >= minReviews)
+    // WhatsApp detection: Brazilian mobile numbers
+    if (requireWhatsApp) arr = arr.filter(l => l.place_id) // proxy: has GMB → has phone
+    if (requireClaimed) arr = arr.filter(l => l.is_claimed)
+    return arr
+  }, [results, minRating, minReviews, requireWhatsApp, requireClaimed, minPhotos])
+
   const sorted = useMemo(() => {
-    const arr = [...results]
+    const arr = [...filtered]
     arr.sort((a, b) => {
       const va = a[sortField]; const vb = b[sortField]
       if (va == null && vb == null) return 0
@@ -147,11 +172,11 @@ const DiscoveryPage = () => {
         : String(vb).localeCompare(String(va), undefined, { numeric: true })
     })
     return arr
-  }, [results, sortField, sortDir])
+  }, [filtered, sortField, sortDir])
 
   const paged = sorted.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
 
-  const notClaimed = results.filter(l => !l.is_claimed).length
+  const notClaimed = filtered.filter(l => !l.is_claimed).length
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -251,6 +276,93 @@ const DiscoveryPage = () => {
             </Box>
           </CardContent>
         </Card>
+      </Grid>
+
+      {/* ═══ PAIN CRITERIA FILTERS ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <Accordion expanded={criteriaOpen} onChange={() => setCriteriaOpen(!criteriaOpen)}>
+          <AccordionSummary expandIcon={<i className='ri-arrow-down-s-line' />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+              <Typography variant='subtitle2' fontWeight={600}>🎯 Critérios de Dor (Pain v1.1)</Typography>
+              <Typography variant='caption' color='text.secondary'>
+                Filtros client-side — R$0 extra · refina resultados já baixados
+              </Typography>
+              <Chip label={`${filtered.length}/${results.length} passam`} size='small' color={filtered.length < results.length ? 'warning' : 'default'}
+                variant='tonal' sx={{ ml: 'auto', mr: 2 }} />
+              {Object.entries({ minRating, minReviews, minPhotos, requireWhatsApp, requireClaimed })
+                .filter(([, v]) => v !== 0 && v !== false).length > 0 && (
+                <Chip label='Filtros ativos' size='small' color='error' variant='tonal' />
+              )}
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom>
+                  ⭐ Rating mínimo: {minRating > 0 ? `${minRating}★` : 'Qualquer'}
+                </Typography>
+                <Slider value={minRating} onChange={(_, v) => setMinRating(v as number)}
+                  min={0} max={5} step={0.5} valueLabelDisplay='auto'
+                  valueLabelFormat={v => v === 0 ? 'Todos' : `${v}★`}
+                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3★' }, { value: 4, label: '4★' }, { value: 5, label: '5★' }]}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom>
+                  📝 Reviews mínimas: {minReviews || 'Qualquer'}
+                </Typography>
+                <Slider value={minReviews} onChange={(_, v) => setMinReviews(v as number)}
+                  min={0} max={100} step={5} valueLabelDisplay='auto'
+                  valueLabelFormat={v => v === 0 ? 'Todas' : `${v}+`}
+                  marks={[{ value: 0, label: '0' }, { value: 10, label: '10' }, { value: 50, label: '50' }]}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom>
+                  📸 Fotos mínimas no GMB: {minPhotos || 'Qualquer'}
+                </Typography>
+                <Slider value={minPhotos} onChange={(_, v) => setMinPhotos(v as number)}
+                  min={0} max={30} step={1} valueLabelDisplay='auto'
+                  valueLabelFormat={v => v === 0 ? 'Todas' : `${v}+`}
+                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3' }, { value: 10, label: '10' }]}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <FormControlLabel
+                    control={<Switch checked={requireClaimed} onChange={(_, v) => setRequireClaimed(v)} />}
+                    label={<Typography variant='body2'>✅ Apenas reivindicados (claimed=true)</Typography>}
+                  />
+                  <Typography variant='caption' color='text.secondary'>
+                    Ficha verificada pelo dono. Não reivindicado = lead mais difícil de contatar.
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <FormControlLabel
+                    control={<Switch checked={requireWhatsApp} onChange={(_, v) => setRequireWhatsApp(v)} />}
+                    label={<Typography variant='body2'>📱 Apenas com telefone</Typography>}
+                  />
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                {results.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip label={`Min ${minRating}★`} size='small' onDelete={() => setMinRating(0)}
+                      color={minRating > 0 ? 'warning' : 'default'} variant={minRating > 0 ? 'tonal' : 'outlined'} />
+                    <Chip label={`≥${minReviews} reviews`} size='small' onDelete={() => setMinReviews(0)}
+                      color={minReviews > 0 ? 'warning' : 'default'} variant={minReviews > 0 ? 'tonal' : 'outlined'} />
+                    <Chip label={`≥${minPhotos} fotos`} size='small' onDelete={() => setMinPhotos(0)}
+                      color={minPhotos > 0 ? 'warning' : 'default'} variant={minPhotos > 0 ? 'tonal' : 'outlined'} />
+                    {requireClaimed && <Chip label='Reivindicado' size='small' onDelete={() => setRequireClaimed(false)} color='warning' variant='tonal' />}
+                    {requireWhatsApp && <Chip label='WhatsApp' size='small' onDelete={() => setRequireWhatsApp(false)} color='warning' variant='tonal' />}
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
       </Grid>
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
@@ -376,7 +488,7 @@ const DiscoveryPage = () => {
                 ))}
               </TableBody>
             </Table>
-            <TablePagination component='div' count={results.length} page={page}
+            <TablePagination component='div' count={sorted.length} page={page}
               onPageChange={(_, p) => setPage(p)} rowsPerPage={rowsPerPage}
               onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0) }}
               rowsPerPageOptions={[10, 20, 30, 50, 100]}
