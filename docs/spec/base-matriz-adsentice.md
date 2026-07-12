@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.6"
+version: "1.0.7"
 date: 2026-07-11
-updated: 2026-07-12T23:59:00-03:00
+updated: 2026-07-13T00:15:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -57,6 +57,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.esc_skills_analysis` | Análise ESC gui.marketing (27 skills) → Dashboard adsentice | `docs/spec/adsentice-esc-skills-analysis.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.enrichment_layers` | Anatomia completa GMB 27 campos canônicos + 5 camadas de enriquecimento | `docs/spec/adsentice-enrichment-layers.md` | ✅ v2.0.0 |
+| `ADS.COR.docs.architecture_flow` | Arquitetura completa — fluxo operacional técnico com diagrama ASCII + 12 seções | `docs/spec/adsentice-architecture-flow.md` | ✅ v1.0.0 |
 
 ### ADS.COR.vendor — Referências Externas
 
@@ -333,7 +334,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.6 · 2026-07-12 · 7 dimensões · 95+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 27 campos canônicos GMB · 95+ cidades BR · 35+ sinais de dor · 6 integrações · zero hardcoded no engine*
+*Base-Matriz adsentice v1.0.7 · 2026-07-13 · 7 dimensões · 100+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 27 campos canônicos GMB · 95+ cidades BR · 3 camadas de persistência · Supabase LIVE · Cloudflare R2 configurado*
 
 ## Changelog
 
@@ -348,3 +349,4 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v007 | 2026-07-12 | dashboard-v0.2-score-composto-schwartz-benchmark | `apps/web/src/lib/scoring.ts` (commit effbc0d) | ✅ vivo |
 | v008 | 2026-07-12 | correcao-geo-95-cidades-categories-alinhado-discovery | `apps/web/src/app/.../(discovery\|categories)/page.tsx` (commit 24cb0f2) | ✅ vivo |
 | v009 | 2026-07-12 | auditoria-hardcoded-removidos-engine-redis-real | `apps/web/src/lib/engine.ts` (commit 0eb6dc7) | ✅ vivo |
+| v010 | 2026-07-12 | arquitetura-completa-fluxo-operacional-tecnico | `docs/spec/adsentice-architecture-flow.md` | ✅ vivo |
