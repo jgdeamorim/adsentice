@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.1"
+version: "1.0.2"
 date: 2026-07-11
-updated: 2026-07-12T01:00:00-03:00
+updated: 2026-07-12T18:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -52,6 +52,16 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.gojasper_repos` | Análise dos 10 repos gojasper (ouro/prata/bronze) | `docs/jasper-docs/gojasper-repos-analysis.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_dfseo` | DataForSEO MCP oficial vs EVO-API provider.core | `docs/dataforseo-oficial-mcp-vs-evo-api-provider-core.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_claude_seo` | RSXT+EVO-API vs Claude SEO | `docs/rsxt-evo-api-vs-claude-seo.md` | ✅ vivo |
+| `ADS.COR.docs.pain_criteria` | Matriz de Dor Inteligente v1.1 (20 sinais, 3 tiers) | `docs/spec/adsentice-pain-criteria-v1.md` | ✅ vivo |
+| `ADS.COR.docs.discovery_engine` | Motor de Descoberta parametrizável com filtros de dor | `docs/spec/adsentice-discovery-engine.md` | ✅ vivo |
+| `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
+
+### ADS.COR.vendor — Referências Externas
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.COR.vendor.marketingskills` | Corey Haines — 43 skills SaaS marketing (SEO, CRO, analytics, pricing, copy, growth) | `vendor/marketingskills/` | ✅ MIT · gitignored |
+| `ADS.COR.vendor.advertising_skills` | Kim Barrett — 12 skills direct response (Schwartz, avatar, offer, objection, funnel) | `vendor/advertising-skills/` | ✅ MIT · gitignored |
 
 ### ADS.COR.adr — ADRs
 
@@ -108,6 +118,23 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.CAP.dataforseo.ai_mentions` | Menções em IA | AI_OPTIMIZATION | ✅ via MCP |
 
 Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
+
+### ADS.CAP.marketing — Inteligência de Marketing (Domain Enrichment)
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.CAP.marketing.seo_audit` | Framework de auditoria SEO (30+ sinais, 5 prioridades) | Corey `seo-audit` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.programmatic_seo` | 12 playbooks de páginas em escala (Locations = Discovery Engine) | Corey `programmatic-seo` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.analytics_tracking` | Framework de analytics (8 sinais granulares, GTM/GA4/Pixel) | Corey `analytics` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.cro` | 7 dimensões de otimização de conversão | Corey `cro` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.psychology` | 50+ mental models (persuasão, precificação, growth, design) | Corey `marketing-psychology` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.avatar_extraction` | Extração de persona (pains, desires, failed attempts, emotional drivers) | Kim `avatar-extraction` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.schwartz_mapper` | 5 níveis de consciência (Unaware→Most Aware) — substitui thresholds arbitrários | Kim `schwartz-awareness-mapper` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.objection_crusher` | Framework de objeções (Price/Time/Trust/Complexity/Past Failures) | Kim `objection-crusher` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.campaign_orchestrator` | Full-funnel: 9 passos avatar→offer→awareness→mechanism→angles→creative→funnel→objections→qa | Kim `full-funnel-campaign-orchestrator` SKILL.md | ✅ referência ingerida |
+| `ADS.CAP.marketing.performance_diagnosis` | Diagnóstico 5 dimensões (Offer/Audience/Creative/Funnel/Sales) | Kim `performance-diagnosis` SKILL.md | ✅ referência ingerida |
+
+Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ### ADS.CAP.ai — Inteligência Artificial
 
@@ -272,16 +299,12 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 
 ---
 
-*Base-Matriz adsentice v0.1.0 · 2026-07-11 · 7 dimensões · 55+ rotas estáveis · medido=verdade · ISOLADO do EVO-API*
+*Base-Matriz adsentice v1.0.2 · 2026-07-12 · 7 dimensões · 70+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 55 skills marketing ingeridos*
 
 ## Changelog
 
 | Versao | Data | Descricao | Handoff | Status |
 |---|---|---|---|---|
 | v001 | 2026-07-11 | criar-o-ecossistema-adsentice-completo | `HANDOFF-2026-07-11-v001-criar-o-ecossistema-adsentice-completo.md` | ✅ vivo |
-
-## Changelog
-
-| Versao | Data | Descricao | Handoff | Status |
-|---|---|---|---|---|
 | v002 | 2026-07-11 | montar-ecossistema-completo-adsentice-com-mcp-servers-kg-ood | `HANDOFF-2026-07-11-v002-montar-ecossistema-completo-adsentice-com-mcp-serv.md` | ✅ vivo |
+| v003 | 2026-07-12 | ingestar-vocabulario-marketing-corey-haines-kim-barrett | `docs/spec/adsentice-marketing-vocab.md` (commit 2e7ad8e) | ✅ vivo |
