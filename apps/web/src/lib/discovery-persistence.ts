@@ -238,7 +238,7 @@ export async function getScoreDistribution(): Promise<{
 
     return {
       total: Number(d.total || 0),
-      avgScore: Number(d.avg_score || 0),
+      avgScore: Number(d.avg || d.avg_score || 0),
       unaware: Number(d.unaware || 0),
       problemAware: Number(d.problem_aware || 0),
       solutionAware: Number(d.solution_aware || 0),

@@ -3,9 +3,9 @@ id: adsentice-architecture-flow
 title: "Ads​entice Arquitetura Completa — Fluxo Operacional Técnico v1.0"
 status: living
 type: spec
-version: "1.0.0"
+version: "1.0.1"
 date: 2026-07-12
-audited_at: 2026-07-12T23:59:00-03:00
+audited_at: 2026-07-13T01:00:00-03:00
 sources:
   - apps/web/src/lib/evo-mcp.ts (MCP client :7700)
   - apps/web/src/lib/scoring.ts (Scoring Engine)
@@ -30,120 +30,119 @@ sources:
 ## 1. Diagrama de Arquitetura (ASCII)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           ADSENTICE · ECOSSISTEMA COMPLETO                            │
-│                                   v1.0 · 2026-07-12                                  │
-└─────────────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------------+
+|                        ADSENTICE ECOSSISTEMA COMPLETO                              |
+|                               v1.0.1  2026-07-13                                  |
++-----------------------------------------------------------------------------------+
 
-                              ┌──────────────────────┐
-                              │    USUÁRIO (Admin)    │
-                              │  http://localhost:3000│
-                              └──────────┬───────────┘
-                                         │
-                    ┌────────────────────┼────────────────────┐
-                    │                    │                    │
-                    ▼                    ▼                    ▼
-          ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-          │  /admin       │    │  /admin/      │    │  /admin/      │
-          │  (Dashboard)  │    │  discovery    │    │  categories   │
-          │  page.tsx     │    │  page.tsx     │    │  page.tsx     │
-          │  SERVER comp  │    │  CLIENT comp  │    │  SERVER comp  │
-          └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
-                 │                   │                    │
-                 │                   │                    │
-    ═══════════════════════════════════════════════════════════════
-    ║                    API LAYER (Next.js Route Handlers)        ║
-    ═══════════════════════════════════════════════════════════════
-                 │                   │                    │
-                 ▼                   ▼                    ▼
-    ┌────────────────┐  ┌────────────────────┐  ┌────────────────────┐
-    │ engine.ts      │  │ POST /api/         │  │ GET /api/          │
-    │ getAdminDash   │  │ discovery-search   │  │ discovery-data     │
-    │ boardData()    │  │ route.ts           │  │ route.ts           │
-    └───┬──┬──┬─────┘  └────────┬───────────┘  └────────┬───────────┘
-        │  │  │                 │                       │
-        │  │  │    ╔═════════════════════════════════════════════════╗
-        │  │  │    ║              SCORING ENGINE                     ║
-        │  │  │    ║  scoring.ts: scoreLeads() + computeDistribution ║
-        │  │  │    ║  Fit×0.40 + Engagement×0.35 + Intent×0.25      ║
-        │  │  │    ║  Schwartz 5-level classifier                   ║
-        │  │  │    ╚═════════════════════════════════════════════════╝
-        │  │  │                 │                       │
-        │  │  │                 ▼                       │
-        │  │  │    ┌────────────────────┐               │
-        │  │  │    │ EVO-API MCP :7700  │               │
-        │  │  │    │ evo-mcp.ts         │               │
-        │  │  │    │ MCP 2024-11-05     │               │
-        │  │  │    │ JSON-RPC over SSE  │               │
-        │  │  │    └────────┬───────────┘               │
-        │  │  │             │                           │
-        │  │  │             ▼                           │
-        │  │  │    ┌────────────────────┐               │
-        │  │  │    │ DataForSEO LIVE    │               │
-        │  │  │    │ api.dataforseo.com │               │
-        │  │  │    │ business_listings  │               │
-        │  │  │    │ _search $0.015     │               │
-        │  │  │    └────────────────────┘               │
-        │  │  │                                        │
-    ════════════════════════════════════════════════════════════════
-    ║              PERSISTENCE LAYER (3 camadas)                    ║
-    ════════════════════════════════════════════════════════════════
-        │  │  │                                        │
-        ▼  ▼  ▼                                        ▼
-┌──────────┐ ┌──────────┐ ┌──────────┐    ┌────────────────────────┐
-│ SUPABASE │ │  REDIS   │ │  MEMORY  │    │   discovery-persistence │
-│ Postgres │ │  :6396   │ │  Map<>   │    │   .ts                   │
-│ PERMANENT│ │ Cache 24h│ │ Cache 30m│    │   saveDiscoverySearch() │
-└────┬─────┘ └────┬─────┘ └────┬─────┘    │   getCategoryAnalytics()│
-     │            │            │           │   getScoreDistribution()│
-     │            │            │           └────────────────────────┘
-     ▼            ▼            ▼
-┌──────────────────────────────────────────────────────┐
-│                   SUPABASE POSTGRES                   │
-│  tdigauruusdhnpvppixb · ca-central-1                 │
-│                                                       │
-│  Tables:                                               │
-│  ┌─ discovery_searches                                │
-│  │  id (UUID PK) · categories · lat · lng · radius_km │
-│  │  total_count · cost_usd · avg_score                │
-│  │  schwartz distribution (5 cols)                    │
-│  │  created_at                                        │
-│  │                                                     │
-│  ├─ discovery_listings                                │
-│  │  id (UUID PK) · search_id (FK) · place_id (UNIQUE) │
-│  │  title · category · rating · reviews · is_claimed  │
-│  │  lat · lng · address                                │
-│  │  score_compound · score_fit · score_engagement      │
-│  │  score_intent · schwartz_level · schwartz_label     │
-│  │  signals_detected · created_at                      │
-│  │                                                     │
-│  ├─ VIEW: category_analytics                          │
-│  │  GROUP BY category → total · pain% · avg_score     │
-│  │                                                     │
-│  └─ RPC: get_score_distribution()                     │
-│     → total · avg · unaware · problem_aware ·         │
-│       solution_aware · product_aware · most_aware     │
-│                                                       │
-│  Indexes: search_id · category · schwartz_level       │
-│           place_id · created_at DESC                  │
-└──────────────────────────────────────────────────────┘
+                           +----------------------+
+                           |   USUARIO (Admin)    |
+                           | http://localhost:3000|
+                           +----------+-----------+
+                                      |
+                 +--------------------+--------------------+
+                 |                    |                    |
+                 v                    v                    v
+       +--------------+    +--------------+    +--------------+
+       | /admin       |    | /admin/      |    | /admin/      |
+       | (Dashboard)  |    | discovery    |    | categories   |
+       | page.tsx     |    | page.tsx     |    | page.tsx     |
+       | SERVER comp  |    | CLIENT comp  |    | SERVER comp  |
+       +------+-------+    +------+-------+    +------+-------+
+              |                   |                    |
+              |                   |                    |
+  =================== API LAYER (Next.js Route Handlers) ===================
+              |                   |                    |
+              v                   v                    v
++----------------+  +--------------------+  +--------------------+
+| engine.ts      |  | POST /api/         |  | GET /api/          |
+| getAdminDash   |  | discovery-search   |  | discovery-data     |
+| boardData()    |  | route.ts           |  | route.ts           |
++---+--+--+-----+  +--------+-----------+  +--------+-----------+
+    |  |  |                  |                       |
+    |  |  |                  v                       |
+    |  |  |     +--------------------+               |
+    |  |  |     | EVO-API MCP :7700  |               |
+    |  |  |     | evo-mcp.ts         |               |
+    |  |  |     | MCP 2024-11-05     |               |
+    |  |  |     | JSON-RPC over SSE  |               |
+    |  |  |     +--------+-----------+               |
+    |  |  |              |                           |
+    |  |  |              v                           |
+    |  |  |     +--------------------+               |
+    |  |  |     | DataForSEO LIVE    |               |
+    |  |  |     | api.dataforseo.com |               |
+    |  |  |     | business_listings  |               |
+    |  |  |     | _search $0.015     |               |
+    |  |  |     +--------+-----------+               |
+    |  |  |              |                           |
+    |  |  |              | (dados brutos retornam)   |
+    |  |  |              v                           |
+    |  |  |     +========================+           |
+    |  |  |     |    SCORING ENGINE       |           |
+    |  |  |     | scoring.ts             |           |
+    |  |  |     | scoreLeads() 50 listings|           |
+    |  |  |     | Fitx0.40+Engx0.35+Intx0.25|        |
+    |  |  |     | Schwartz 5-level class  |           |
+    |  |  |     +========================+           |
+    |  |  |              |                           |
+    |  |  |              | (scores + distribution)   |
+    |  |  |              v                           |
+    |  |  |     +--------------------+               |
+    |  |  |     | Cost Tracking      |               |
+    |  |  |     | trackCost() Redis  |               |
+    |  |  |     +--------------------+               |
+    |  |  |                                         |
+  =========== PERSISTENCE LAYER (3 camadas) ==========================
+    |  |  |                                         |
+    v  v  v                                         v
++----------+ +----------+ +----------+  +------------------------+
+| SUPABASE | |  REDIS   | |  MEMORY  |  | discovery-persistence  |
+| Postgres | |  :6396   | |  Map<>   |  | .ts                    |
+| PERMANENT| | Cache 24h| | Cache 30m|  | saveDiscoverySearch()  |
++----+-----+ +----+-----+ +----+-----+  | getCategoryAnalytics() |
+     |            |            |         | getScoreDistribution() |
+     |            |            |         +------------------------+
+     v            v            v
++--------------------------------------------------------+
+|                  SUPABASE POSTGRES                       |
+| project: tdigauruusdhnpvppixb  region: ca-central-1     |
+|                                                          |
+| Tables:                                                  |
+| +- discovery_searches (UUID PK, categories[], lat/lng,   |
+| |   radius_km, total_count, cost_usd, avg_score,         |
+| |   schwartz dist 5 cols, created_at)                    |
+| |                                                        |
+| +- discovery_listings (UUID PK, search_id FK, place_id,  |
+| |   title, category, rating, reviews, is_claimed,        |
+| |   lat/lng, score_compound/fit/engagement/intent,       |
+| |   schwartz_level, schwartz_label, signals_detected)    |
+| |                                                        |
+| +- VIEW: category_analytics (GROUP BY category)          |
+| |   -> total, pain_pct, avg_score, schwartz breakdown   |
+| |                                                        |
+| +- RPC: get_score_distribution()                         |
+|     -> total, avg, unaware, problem_aware,               |
+|        solution_aware, product_aware, most_aware         |
+|                                                          |
+| Indexes: search_id, category, schwartz_level,            |
+|          place_id, created_at DESC                       |
++----------------------------------------------------------+
 
-    ════════════════════════════════════════════════════════════════
-    ║               INFRA LAYER (Docker + Processos)               ║
-    ════════════════════════════════════════════════════════════════
+  ================ INFRA LAYER (Docker + Processos) ================
 
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│ REDIS    │ │ QDRANT   │ │ EMBED    │ │ NEXT.JS  │ │ EVO-API  │
-│ :6396    │ │ :6352    │ │ :8081    │ │ :3000    │ │ :7700    │
-│ OODA     │ │ adsentice│ │ mpnet    │ │ dev       │ │ MCP      │
-│ Cost     │ │ -self    │ │ 768d     │ │ turbopack │ │ Rust     │
-│ Cache    │ │ -conv    │ │          │ │           │ │ 76 caps  │
-│ Score    │ │ -materio │ │          │ │           │ │ ~10K LOC │
-└──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
-  adsentice   adsentice    embed-       Next.js 15   EVO-API
-  -redis      -qdrant      server-rs    :3000        main/
-  7.4-alpine  v1.13.6      (shared      dev mode     Rust
-  :6396       :6352        process)     dev mode     binary
++----------+ +----------+ +----------+ +----------+ +----------+
+| REDIS    | | QDRANT   | | EMBED    | | NEXT.JS  | | EVO-API  |
+| :6396    | | :6352    | | :8081    | | :3000    | | :7700    |
+| OODA     | |adsentice | | mpnet    | |dev mode  | | MCP      |
+| Cost     | | -self    | | 768d     | |turbopack | | Rust     |
+| Cache    | | -conv    | |          | |          | | 76 caps  |
+| Score    | | -materio | |          | |          | | ~10K LOC |
++----------+ +----------+ +----------+ +----------+ +----------+
+ adsentice    adsentice    embed-       Next.js 15   EVO-API
+ -redis       -qdrant      server-rs    :3000        main/
+ 7.4-alpine   v1.13.6      (shared      dev mode     Rust
+ :6396        :6352        process)                  binary
 ```
 
 ---
@@ -574,7 +573,7 @@ engine.ts
 admin/page.tsx ──► engine.ts
 pipeline/page.tsx ──► engine.ts
 costs/page.tsx ──► engine.ts + Redis :6396 (cost:last)
-categories/page.tsx ──► GET /api/discovery-data ──► engine.ts (via persistence)
+categories/page.tsx ──► GET /api/discovery-data ──► discovery-persistence.ts ──► Supabase
 settings/page.tsx ──► engine.ts + process.env
 criteria/page.tsx ──► scoring.ts (SCHWARTZ_LEVELS constant, puro)
 ```

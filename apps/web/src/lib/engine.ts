@@ -86,7 +86,8 @@ async function fetchEvoApiCapabilities(): Promise<number> {
 // ── Types ───────────────────────────────────────────────────
 
 interface ScoreStats {
-  total: number
+  total: number          // scored listings count (sum of distribution)
+  regionalTotal?: number // total businesses in radius (DataForSEO total_count)
   avgScore: number
   unaware: number
   problemAware: number
@@ -116,7 +117,8 @@ export interface EngineData {
   commits: string
   adrs: number
 
-  leadsDiscovered: number
+  leadsDiscovered: number    // scored listings (sum of distribution)
+  regionalTotal: number      // total in radius (DataForSEO total_count)
   leadsUrgentes: number
   leadsQuentes: number
 
@@ -241,7 +243,8 @@ export async function getAdminDashboardData(): Promise<EngineData> {
     adrs: adrCount,
 
     // Pipeline — real from last discovery or zero (was 10530 hardcoded)
-    leadsDiscovered: lastScoreStats?.total ?? 0,
+    leadsDiscovered: lastScoreStats?.total ?? 0,                    // scored listings
+    regionalTotal: lastScoreStats?.regionalTotal ?? 0,              // total_count from DataForSEO
     leadsUrgentes: lastScoreStats ? (lastScoreStats.productAware + lastScoreStats.mostAware) : 0,
     leadsQuentes: lastScoreStats?.solutionAware ?? 0,
 

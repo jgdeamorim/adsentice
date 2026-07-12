@@ -63,7 +63,9 @@ export async function POST(request: NextRequest) {
       const { execSync } = await import("child_process")
 
       const statsJson = JSON.stringify({
-        total: result.total_count, avgScore: distribution.avgScore,
+        total: result.listings.length, // scored listings count (matches sum of distribution)
+        regionalTotal: result.total_count, // total businesses in radius (for reference)
+        avgScore: distribution.avgScore,
         unaware: distribution.unaware, problemAware: distribution.problemAware,
         solutionAware: distribution.solutionAware, productAware: distribution.productAware,
         mostAware: distribution.mostAware,
