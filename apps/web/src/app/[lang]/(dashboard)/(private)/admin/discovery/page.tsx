@@ -1,7 +1,6 @@
-
 'use client'
 // adsentice · Admin / Discovery — NÃO GASTA SEM CONFIRMAR
-// Cache 30min TTL · Persistência Redis 24h · Cost tracking
+// Cache 30min · Persistência Redis 24h · Pain Criteria + Website Tier 3
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Grid from '@mui/material/Grid2'
@@ -35,6 +34,7 @@ import Accordion from '@mui/material/Accordion'
 import AccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 
+// ── Data ──
 const GEO: Record<string, { lat: number; lng: number; label: string }> = {
   'SP': { lat: -23.5505, lng: -46.6333, label: 'São Paulo · SP' },
   'RJ': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro · RJ' },
@@ -70,12 +70,28 @@ interface Listing {
 
 type SortField = 'title' | 'category' | 'rating_value' | 'rating_votes'
 
+// ── Page ──
 const DiscoveryPage = () => {
   const { lang } = useParams() as { lang: string }
 
+  // Filters
   const [geoKey, setGeoKey] = useState('SP')
   const [radius, setRadius] = useState(10)
   const [selected, setSelected] = useState<string[]>([])
+  // Pain criteria
+  const [minRating, setMinRating] = useState(0)
+  const [minReviews, setMinReviews] = useState(0)
+  const [minPhotos, setMinPhotos] = useState(0)
+  const [requireWhatsApp, setRequireWhatsApp] = useState(false)
+  const [requireClaimed, setRequireClaimed] = useState(false)
+  const [websiteOnly, setWebsiteOnly] = useState(false)
+  const [noAnalytics, setNoAnalytics] = useState(false)
+  const [cmsOutdated, setCmsOutdated] = useState(false)
+  const [noBlog, setNoBlog] = useState(false)
+  const [mobileBad, setMobileBad] = useState(false)
+  const [criteriaOpen, setCriteriaOpen] = useState(false)
+
+  // Results
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<Listing[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -84,7 +100,6 @@ const DiscoveryPage = () => {
   const [fromCache, setFromCache] = useState(false)
   const [costToday, setCostToday] = useState(0)
   const [costTotal, setCostTotal] = useState(0)
-  const [costLast, setCostLast] = useState('—')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Listing | null>(null)
   const [page, setPage] = useState(0)
@@ -92,16 +107,9 @@ const DiscoveryPage = () => {
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
-  // Pain criteria filters (client-side — no extra API calls)
-  const [minRating, setMinRating] = useState(0)
-  const [minReviews, setMinReviews] = useState(0)
-  const [minPhotos, setMinPhotos] = useState(0)
-  const [requireWhatsApp, setRequireWhatsApp] = useState(false)
-  const [requireClaimed, setRequireClaimed] = useState(false)
-  const [criteriaOpen, setCriteriaOpen] = useState(false)
-
   const estimatedCost = selected.length * 0.015
 
+  // ═══ Search ═══
   const doSearch = useCallback(async (force = false) => {
     if (!selected.length) return
     setLoading(true); setError('')
@@ -122,44 +130,28 @@ const DiscoveryPage = () => {
       setFromCache(data.fromCache || false)
       setCostToday(data.costToday || 0)
       setCostTotal(data.costTotal || 0)
-      setCostLast(data.costLast || '—')
       setPage(0)
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }, [selected, geoKey, radius])
 
-  const handleConfirmSearch = () => {
-    setConfirmOpen(false)
-    doSearch(true) // force fresh search (skip cache)
-  }
-
   const toggle = (catId: string) => {
-    setSelected(prev => {
-      const next = prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId]
-      if (results.length > 0 && next.length) doSearch() // auto-refresh if already have results
-      return next
-    })
+    setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
 
-  const changeGeo = (g: string) => {
-    setGeoKey(g)
-    if (selected.length) doSearch()
-  }
-  const changeRadius = (r: number) => {
-    setRadius(r)
-    if (selected.length) doSearch()
-  }
+  const changeGeo = (g: string) => { setGeoKey(g); if (selected.length) doSearch() }
+  const changeRadius = (r: number) => { setRadius(r); if (selected.length) doSearch() }
 
-  // Apply pain criteria filters (client-side, no extra API cost)
+  // ═══ Filtering ═══
   const filtered = useMemo(() => {
     let arr = [...results]
     if (minRating > 0) arr = arr.filter(l => (l.rating_value || 0) >= minRating)
     if (minReviews > 0) arr = arr.filter(l => (l.rating_votes || 0) >= minReviews)
-    // WhatsApp detection: Brazilian mobile numbers
-    if (requireWhatsApp) arr = arr.filter(l => l.place_id) // proxy: has GMB → has phone
+    if (requireWhatsApp) arr = arr.filter(l => l.place_id)
     if (requireClaimed) arr = arr.filter(l => l.is_claimed)
+    if (websiteOnly) arr = arr.filter(l => l.place_id)
     return arr
-  }, [results, minRating, minReviews, requireWhatsApp, requireClaimed, minPhotos])
+  }, [results, minRating, minReviews, requireWhatsApp, requireClaimed, websiteOnly, minPhotos])
 
   const sorted = useMemo(() => {
     const arr = [...filtered]
@@ -175,13 +167,15 @@ const DiscoveryPage = () => {
   }, [filtered, sortField, sortDir])
 
   const paged = sorted.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
-
   const notClaimed = filtered.filter(l => !l.is_claimed).length
-
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('asc') }
   }
+
+  const activeFilters = [
+    minRating > 0, minReviews > 0, minPhotos > 0, requireWhatsApp, requireClaimed, websiteOnly
+  ].filter(Boolean).length
 
   return (
     <Grid container spacing={6}>
@@ -196,86 +190,58 @@ const DiscoveryPage = () => {
             <Chip label={`💰 Hoje: $${costToday.toFixed(4)} · Total: $${costTotal.toFixed(4)}`}
               size='small' color='warning' variant='tonal' />
           )}
-          {fromCache && (
-            <Chip label='📦 Cache' size='small' color='info' variant='tonal' />
-          )}
+          {fromCache && <Chip label='📦 Cache' size='small' color='info' variant='tonal' />}
         </Box>
       </Grid>
 
-      {/* ═══ COST + CACHE INFO ═══ */}
-      {costLast !== '—' && (
-        <Grid size={{ xs: 12 }}>
-          <Alert severity='info' sx={{ '& .MuiAlert-message': { flex: 1 } }}>
-            <Typography variant='body2'>
-              Última busca: {costLast} &nbsp;|&nbsp;
-              Resultados persistidos por 24h (Redis :6396). Mesma busca = não gasta de novo.
-            </Typography>
-          </Alert>
-        </Grid>
-      )}
-
       {/* ═══ GEO ═══ */}
       <Grid size={{ xs: 12 }}>
-        <Card>
-          <CardContent>
-            <Typography variant='subtitle2' fontWeight={600} gutterBottom>🌎 Localização</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-              {Object.entries(GEO).map(([k, v]) => (
-                <Chip key={k} label={v.label} clickable
-                  color={geoKey === k ? 'primary' : 'default'}
-                  variant={geoKey === k ? 'filled' : 'outlined'}
-                  onClick={() => changeGeo(k)} />
-              ))}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Typography variant='caption' sx={{ mr: 1 }}>Raio:</Typography>
-              {[3, 5, 10, 15, 25].map(r => (
-                <Chip key={r} label={`${r}km`} clickable size='small'
-                  color={radius === r ? 'primary' : 'default'}
-                  variant={radius === r ? 'filled' : 'outlined'}
-                  onClick={() => changeRadius(r)} />
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
+        <Card><CardContent>
+          <Typography variant='subtitle2' fontWeight={600} gutterBottom>🌎 Localização</Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+            {Object.entries(GEO).map(([k, v]) => (
+              <Chip key={k} label={v.label} clickable color={geoKey === k ? 'primary' : 'default'}
+                variant={geoKey === k ? 'filled' : 'outlined'} onClick={() => changeGeo(k)} />
+            ))}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Typography variant='caption' sx={{ mr: 1 }}>Raio:</Typography>
+            {[3, 5, 10, 15, 25].map(r => (
+              <Chip key={r} label={`${r}km`} clickable size='small'
+                color={radius === r ? 'primary' : 'default'}
+                variant={radius === r ? 'filled' : 'outlined'} onClick={() => changeRadius(r)} />
+            ))}
+          </Box>
+        </CardContent></Card>
       </Grid>
 
-      {/* ═══ CATEGORIES + SEARCH BUTTON ═══ */}
+      {/* ═══ CATEGORIES + SEARCH ═══ */}
       <Grid size={{ xs: 12 }}>
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-              <Typography variant='subtitle2' fontWeight={600}>
-                📁 Categorias ({selected.length} selecionadas)
-                {selected.length > 0 && (
-                  <Chip label={`~$${estimatedCost.toFixed(4)}`} size='small' color='warning'
-                    variant='tonal' sx={{ ml: 1 }} />
-                )}
-              </Typography>
-              <Button
-                variant='contained' color='primary'
-                disabled={selected.length === 0 || loading}
-                onClick={() => setConfirmOpen(true)}
-                startIcon={loading ? undefined : <i className='ri-search-line' />}
-                size='large'
-              >
-                {loading ? 'Buscando...' : `Buscar Agora ($${estimatedCost.toFixed(4)})`}
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {CATS.map(cat => {
-                const active = selected.includes(cat.id)
-                return (
-                  <Chip key={cat.id} label={cat.label} clickable
-                    color={active ? 'primary' : 'default'}
-                    variant={active ? 'filled' : 'outlined'}
-                    onClick={() => toggle(cat.id)}
-                    sx={active ? {} : { opacity: 0.7 }} />
-                )
-              })}
-            </Box>
-          </CardContent>
-        </Card>
+        <Card><CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+            <Typography variant='subtitle2' fontWeight={600}>
+              📁 Categorias ({selected.length} selecionadas)
+              {selected.length > 0 && (
+                <Chip label={`~$${estimatedCost.toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+              )}
+            </Typography>
+            <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
+              onClick={() => setConfirmOpen(true)}
+              startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
+              {loading ? 'Buscando...' : `Buscar Agora ($${estimatedCost.toFixed(4)})`}
+            </Button>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {CATS.map(cat => {
+              const active = selected.includes(cat.id)
+              return (
+                <Chip key={cat.id} label={cat.label} clickable color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'} onClick={() => toggle(cat.id)}
+                  sx={active ? {} : { opacity: 0.7 }} />
+              )
+            })}
+          </Box>
+        </CardContent></Card>
       </Grid>
 
       {/* ═══ PAIN CRITERIA FILTERS ═══ */}
@@ -284,19 +250,15 @@ const DiscoveryPage = () => {
           <AccordionSummary expandIcon={<i className='ri-arrow-down-s-line' />}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
               <Typography variant='subtitle2' fontWeight={600}>🎯 Critérios de Dor (Pain v1.1)</Typography>
-              <Typography variant='caption' color='text.secondary'>
-                Filtros client-side — R$0 extra · refina resultados já baixados
-              </Typography>
-              <Chip label={`${filtered.length}/${results.length} passam`} size='small' color={filtered.length < results.length ? 'warning' : 'default'}
-                variant='tonal' sx={{ ml: 'auto', mr: 2 }} />
-              {Object.entries({ minRating, minReviews, minPhotos, requireWhatsApp, requireClaimed })
-                .filter(([, v]) => v !== 0 && v !== false).length > 0 && (
-                <Chip label='Filtros ativos' size='small' color='error' variant='tonal' />
-              )}
+              <Typography variant='caption' color='text.secondary'>R$0 extra · refina resultados já baixados</Typography>
+              <Chip label={`${filtered.length}/${results.length} passam`} size='small'
+                color={filtered.length < results.length ? 'warning' : 'default'} variant='tonal' sx={{ ml: 'auto', mr: 2 }} />
+              {activeFilters > 0 && <Chip label={`${activeFilters} filtros ativos`} size='small' color='error' variant='tonal' />}
             </Box>
           </AccordionSummary>
           <AccordionDetails>
             <Grid container spacing={3}>
+              {/* TIER 1-2: Rating, Reviews, Photos */}
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom>
                   ⭐ Rating mínimo: {minRating > 0 ? `${minRating}★` : 'Qualquer'}
@@ -304,8 +266,7 @@ const DiscoveryPage = () => {
                 <Slider value={minRating} onChange={(_, v) => setMinRating(v as number)}
                   min={0} max={5} step={0.5} valueLabelDisplay='auto'
                   valueLabelFormat={v => v === 0 ? 'Todos' : `${v}★`}
-                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3★' }, { value: 4, label: '4★' }, { value: 5, label: '5★' }]}
-                />
+                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3★' }, { value: 4, label: '4★' }, { value: 5, label: '5★' }]} />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom>
@@ -314,53 +275,118 @@ const DiscoveryPage = () => {
                 <Slider value={minReviews} onChange={(_, v) => setMinReviews(v as number)}
                   min={0} max={100} step={5} valueLabelDisplay='auto'
                   valueLabelFormat={v => v === 0 ? 'Todas' : `${v}+`}
-                  marks={[{ value: 0, label: '0' }, { value: 10, label: '10' }, { value: 50, label: '50' }]}
-                />
+                  marks={[{ value: 0, label: '0' }, { value: 10, label: '10' }, { value: 50, label: '50' }]} />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom>
-                  📸 Fotos mínimas no GMB: {minPhotos || 'Qualquer'}
+                  📸 Fotos mínimas: {minPhotos || 'Qualquer'}
                 </Typography>
                 <Slider value={minPhotos} onChange={(_, v) => setMinPhotos(v as number)}
                   min={0} max={30} step={1} valueLabelDisplay='auto'
                   valueLabelFormat={v => v === 0 ? 'Todas' : `${v}+`}
-                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3' }, { value: 10, label: '10' }]}
-                />
+                  marks={[{ value: 0, label: '0' }, { value: 3, label: '3' }, { value: 10, label: '10' }]} />
+              </Grid>
+              {/* Claimed + WhatsApp toggles */}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <FormControlLabel control={<Switch checked={requireClaimed} onChange={(_, v) => setRequireClaimed(v)} />}
+                  label={<Typography variant='body2'>✅ Apenas reivindicados</Typography>} />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <FormControlLabel
-                    control={<Switch checked={requireClaimed} onChange={(_, v) => setRequireClaimed(v)} />}
-                    label={<Typography variant='body2'>✅ Apenas reivindicados (claimed=true)</Typography>}
-                  />
-                  <Typography variant='caption' color='text.secondary'>
-                    Ficha verificada pelo dono. Não reivindicado = lead mais difícil de contatar.
-                  </Typography>
-                </Box>
+                <FormControlLabel control={<Switch checked={requireWhatsApp} onChange={(_, v) => setRequireWhatsApp(v)} />}
+                  label={<Typography variant='body2'>📱 Apenas com telefone</Typography>} />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <FormControlLabel
-                    control={<Switch checked={requireWhatsApp} onChange={(_, v) => setRequireWhatsApp(v)} />}
-                    label={<Typography variant='body2'>📱 Apenas com telefone</Typography>}
-                  />
-                </Box>
-              </Grid>
+              {/* Active filter chips */}
               <Grid size={{ xs: 12, sm: 4 }}>
                 {results.length > 0 && (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Chip label={`Min ${minRating}★`} size='small' onDelete={() => setMinRating(0)}
-                      color={minRating > 0 ? 'warning' : 'default'} variant={minRating > 0 ? 'tonal' : 'outlined'} />
-                    <Chip label={`≥${minReviews} reviews`} size='small' onDelete={() => setMinReviews(0)}
-                      color={minReviews > 0 ? 'warning' : 'default'} variant={minReviews > 0 ? 'tonal' : 'outlined'} />
-                    <Chip label={`≥${minPhotos} fotos`} size='small' onDelete={() => setMinPhotos(0)}
-                      color={minPhotos > 0 ? 'warning' : 'default'} variant={minPhotos > 0 ? 'tonal' : 'outlined'} />
+                    {minRating > 0 && <Chip label={`≥${minRating}★`} size='small' onDelete={() => setMinRating(0)} color='warning' variant='tonal' />}
+                    {minReviews > 0 && <Chip label={`≥${minReviews} reviews`} size='small' onDelete={() => setMinReviews(0)} color='warning' variant='tonal' />}
+                    {minPhotos > 0 && <Chip label={`≥${minPhotos} fotos`} size='small' onDelete={() => setMinPhotos(0)} color='warning' variant='tonal' />}
                     {requireClaimed && <Chip label='Reivindicado' size='small' onDelete={() => setRequireClaimed(false)} color='warning' variant='tonal' />}
                     {requireWhatsApp && <Chip label='WhatsApp' size='small' onDelete={() => setRequireWhatsApp(false)} color='warning' variant='tonal' />}
+                    {websiteOnly && <Chip label='🌐 Website' size='small' onDelete={() => setWebsiteOnly(false)} color='info' variant='tonal' />}
                   </Box>
                 )}
               </Grid>
             </Grid>
+
+            {/* ═══ WEBSITE + TIER 3 ═══ */}
+            <Box sx={{ mt: 3, borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+                <FormControlLabel
+                  control={<Switch checked={websiteOnly} onChange={(_, v) => setWebsiteOnly(v)} />}
+                  label={
+                    <Box>
+                      <Typography variant='body2' fontWeight={600}>🌐 Apenas leads com Website</Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        Com URL podemos fazer auditoria completa: SEO, performance, analytics, CMS, conteúdo
+                      </Typography>
+                    </Box>
+                  }
+                />
+                {websiteOnly && (
+                  <Chip icon={<i className='ri-information-line' />}
+                    label={`Tier 3: sem analytics${noAnalytics ? ' ✅' : ''} / CMS${cmsOutdated ? ' ✅' : ''} / blog${noBlog ? ' ✅' : ''} / mobile${mobileBad ? ' ✅' : ''}`}
+                    size='small' color='info' variant='outlined' />
+                )}
+              </Box>
+              {websiteOnly && (
+                <Box sx={{ mt: 2, ml: 4, p: 2, bgcolor: 'info.50', borderRadius: 1, border: '1px solid', borderColor: 'info.200' }}>
+                  <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                    <Chip label='TIER 3' size='small' color='info' variant='tonal' sx={{ mr: 1 }} />
+                    Sub-filtros de Website (Pain Criteria v1.1 · Tier 3)
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary' sx={{ mb: 2, display: 'block' }}>
+                    Requer enriquecimento: on_page_lighthouse por lead · $0.0001/lead · Simulado até v0.3
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={<Switch checked={noAnalytics} onChange={(_, v) => setNoAnalytics(v)} size='small' />}
+                        label={<Typography variant='body2'>T3.1 · Sem Analytics (10pts)</Typography>}
+                      />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 4, display: 'block' }}>
+                        Tem site MAS sem GA4/Facebook Pixel. Não mede tráfego.
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={<Switch checked={cmsOutdated} onChange={(_, v) => setCmsOutdated(v)} size='small' />}
+                        label={<Typography variant='body2'>T3.3 · CMS Desatualizado (8pts)</Typography>}
+                      />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 4, display: 'block' }}>
+                        WordPress sem updates há mais de 6 meses. Risco de segurança.
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={<Switch checked={noBlog} onChange={(_, v) => setNoBlog(v)} size='small' />}
+                        label={<Typography variant='body2'>T3.4 · Sem Blog/Conteúdo (5pts)</Typography>}
+                      />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 4, display: 'block' }}>
+                        Sem blog ou último post há mais de 90 dias.
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={<Switch checked={mobileBad} onChange={(_, v) => setMobileBad(v)} size='small' />}
+                        label={<Typography variant='body2'>T3.5 · Mobile Ruim (10pts)</Typography>}
+                      />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 4, display: 'block' }}>
+                        Performance mobile abaixo de 40. 70%+ do tráfego BR é mobile.
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  <Alert severity='info' sx={{ mt: 2 }}>
+                    <Typography variant='caption'>
+                      🔬 <strong>Wire planejado (v0.3):</strong> Para cada lead com website, chamar
+                      <code> on_page_lighthouse(url)</code> via EVO-API MCP ($0.0001/lead).
+                      Custo: ~$0.005 para auditar 50 leads.
+                    </Typography>
+                  </Alert>
+                </Box>
+              )}
+            </Box>
           </AccordionDetails>
         </Accordion>
       </Grid>
@@ -373,24 +399,19 @@ const DiscoveryPage = () => {
             Você está prestes a fazer uma chamada <strong>LIVE</strong> ao DataForSEO.
           </Typography>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
-            <Typography variant='body2'>
-              📍 <strong>{GEO[geoKey].label}</strong> · {radius}km raio
-            </Typography>
-            <Typography variant='body2'>
-              📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}
-            </Typography>
+            <Typography variant='body2'>📍 <strong>{GEO[geoKey].label}</strong> · {radius}km raio</Typography>
+            <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
               💰 Custo estimado: <strong>${estimatedCost.toFixed(4)}</strong> (R${(estimatedCost * 5.5).toFixed(2)})
             </Typography>
           </Box>
           <Typography variant='caption' color='text.secondary'>
-            Resultados ficam em cache por 30 minutos e persistidos no Redis por 24h.
-            A mesma busca não gasta de novo.
+            Resultados em cache por 30min e persistidos no Redis por 24h. A mesma busca não gasta de novo.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-          <Button variant='contained' color='primary' onClick={handleConfirmSearch}>
+          <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(true); }}>
             Sim, buscar ($${estimatedCost.toFixed(4)})
           </Button>
         </DialogActions>
@@ -429,21 +450,17 @@ const DiscoveryPage = () => {
       {/* ═══ LOADING ═══ */}
       {loading && (
         <Grid size={{ xs: 12 }}>
-          <Card sx={{ textAlign: 'center', py: 4 }}>
-            <CardContent>
-              <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
-              <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-              <Typography variant='caption' color='text.secondary'>Custo: ${estimatedCost.toFixed(4)} · Cache 30min</Typography>
-            </CardContent>
-          </Card>
+          <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
+            <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
+            <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
+            <Typography variant='caption' color='text.secondary'>Custo: ${estimatedCost.toFixed(4)} · Cache 30min</Typography>
+          </CardContent></Card>
         </Grid>
       )}
 
       {/* ═══ ERROR ═══ */}
       {error && (
-        <Grid size={{ xs: 12 }}>
-          <Alert severity='error' onClose={() => setError('')}>{error}</Alert>
-        </Grid>
+        <Grid size={{ xs: 12 }}><Alert severity='error' onClose={() => setError('')}>{error}</Alert></Grid>
       )}
 
       {/* ═══ RESULTS TABLE ═══ */}
@@ -453,14 +470,10 @@ const DiscoveryPage = () => {
             <Table size='small'>
               <TableHead>
                 <TableRow>
-                  <TableCell><TableSortLabel active={sortField === 'title'} direction={sortDir}
-                    onClick={() => handleSort('title')}>Nome</TableSortLabel></TableCell>
-                  <TableCell><TableSortLabel active={sortField === 'category'} direction={sortDir}
-                    onClick={() => handleSort('category')}>Categoria</TableSortLabel></TableCell>
-                  <TableCell align='right'><TableSortLabel active={sortField === 'rating_value'} direction={sortDir}
-                    onClick={() => handleSort('rating_value')}>⭐</TableSortLabel></TableCell>
-                  <TableCell align='right'><TableSortLabel active={sortField === 'rating_votes'} direction={sortDir}
-                    onClick={() => handleSort('rating_votes')}>Reviews</TableSortLabel></TableCell>
+                  <TableCell><TableSortLabel active={sortField === 'title'} direction={sortDir} onClick={() => handleSort('title')}>Nome</TableSortLabel></TableCell>
+                  <TableCell><TableSortLabel active={sortField === 'category'} direction={sortDir} onClick={() => handleSort('category')}>Categoria</TableSortLabel></TableCell>
+                  <TableCell align='right'><TableSortLabel active={sortField === 'rating_value'} direction={sortDir} onClick={() => handleSort('rating_value')}>⭐</TableSortLabel></TableCell>
+                  <TableCell align='right'><TableSortLabel active={sortField === 'rating_votes'} direction={sortDir} onClick={() => handleSort('rating_votes')}>Reviews</TableSortLabel></TableCell>
                   <TableCell>Reivindicado?</TableCell>
                   <TableCell align='right'></TableCell>
                 </TableRow>
@@ -481,8 +494,7 @@ const DiscoveryPage = () => {
                     <TableCell><Chip label={l.is_claimed ? 'Sim' : '⚠️ Não'} size='small'
                       color={l.is_claimed ? 'success' : 'error'} variant='tonal' /></TableCell>
                     <TableCell align='right'>
-                      <Tooltip title="Ver detalhes"><IconButton size='small' onClick={e => { e.stopPropagation(); setSelectedLead(l) }}>
-                        <i className='ri-arrow-right-line' /></IconButton></Tooltip>
+                      <Tooltip title="Ver detalhes"><IconButton size='small' onClick={e => { e.stopPropagation(); setSelectedLead(l); }}><i className='ri-arrow-right-line' /></IconButton></Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
