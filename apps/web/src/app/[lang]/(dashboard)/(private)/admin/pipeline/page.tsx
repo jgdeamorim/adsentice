@@ -1,5 +1,5 @@
 
-// adsentice · Admin / Pipeline — funil de leads Stage 0→7
+// adsentice · Admin / Pipeline — funil de leads com dados REAIS do Redis
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -12,26 +12,7 @@ import LinearProgress from '@mui/material/LinearProgress'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
-
-interface StageData {
-  stage: string
-  label: string
-  count: number
-  pct: number
-  color: string
-  description: string
-}
-
-const PIPELINE: StageData[] = [
-  { stage: 'S0', label: 'Seleção de Segmento', count: 57, pct: 100, color: 'primary', description: 'categorias SMB analisadas' },
-  { stage: 'S1', label: 'Descoberta', count: 10530, pct: 82, color: 'info', description: 'negócios mapeados via GMB' },
-  { stage: 'S2', label: 'Pré-Filtro', count: 4212, pct: 64, color: 'info', description: 'passaram ANTI-ICP (~40%)' },
-  { stage: 'S3', label: 'Análise ★', count: 3709, pct: 46, color: 'warning', description: 'quentes + urgentes' },
-  { stage: 'S4', label: 'Lead Score', count: 2329, pct: 28, color: 'error', description: 'urgentes com dor detectável' },
-  { stage: 'S5', label: 'Proposta CRM', count: 0, pct: 0, color: 'error', description: 'propostas enviadas' },
-  { stage: 'S6', label: 'Negociação', count: 0, pct: 0, color: 'error', description: 'em contato com founder' },
-  { stage: 'S7', label: 'Cliente', count: 0, pct: 0, color: 'success', description: 'onboarded · MRR' },
-]
+import { getAdminDashboardData } from '@/lib/engine'
 
 const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
@@ -39,16 +20,47 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  const totalEntered = PIPELINE[0].count
-  const totalOutput = PIPELINE[PIPELINE.length - 1].count
+  // ═══ Dados REAIS do engine (Redis :6396) ═══
+  const e = await getAdminDashboardData()
+
+  const hasData = e.leadsDiscovered > 0
+  const totalEntered = hasData ? e.leadsDiscovered : 0
+
+  // Schwartz distribution from last discovery
+  const mostAware = e.schwartzDistribution?.[4]?.count ?? 0
+  const productAware = e.schwartzDistribution?.[3]?.count ?? 0
+  const solutionAware = e.schwartzDistribution?.[2]?.count ?? 0
+  const problemAware = e.schwartzDistribution?.[1]?.count ?? 0
+  const unaware = e.schwartzDistribution?.[0]?.count ?? 0
+
+  // Pipeline stages mapped to Schwartz + business stages
+  const pipeline = [
+    { stage: 'S0', label: 'Discovery Engine', count: hasData ? totalEntered : 0, desc: 'negócios encontrados via GMB', color: 'primary' as const },
+    { stage: 'S1', label: 'Unaware', count: unaware, desc: 'não sabem do problema — educar', color: 'success' as const },
+    { stage: 'S2', label: 'Problem Aware', count: problemAware, desc: 'sentem a dor — agitar', color: 'info' as const },
+    { stage: 'S3', label: 'Solution Aware', count: solutionAware, desc: 'sabem da solução — comparar', color: 'warning' as const },
+    { stage: 'S4', label: 'Product Aware', count: productAware, desc: 'consideram adsentice — provar', color: 'error' as const },
+    { stage: 'S5', label: 'Most Aware', count: mostAware, desc: 'prontos para fechar — agir', color: 'error' as const },
+    { stage: 'S6', label: 'Proposta CRM', count: 0, desc: 'propostas enviadas — em desenvolvimento', color: 'error' as const },
+    { stage: 'S7', label: 'Cliente', count: 0, desc: 'onboarded · MRR — em desenvolvimento', color: 'success' as const },
+  ]
+
+  const maxCount = Math.max(totalEntered, 1)
 
   return (
     <Grid container spacing={6}>
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>📈 Pipeline · Funil de Leads</Typography>
-        <Typography variant='body2' color='text.secondary'>
-          Stage 0→7 · São Paulo, raio 10km · Dados do Category Ranker
-        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
+          <Typography variant='body2' color='text.secondary'>
+            Stage 0→7 · Fonte: Redis adsentice:discovery:last_score_stats
+          </Typography>
+          {hasData ? (
+            <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
+          ) : (
+            <Chip label='Sem dados — execute 1ª descoberta' size='small' color='warning' variant='tonal' />
+          )}
+        </Box>
       </Grid>
 
       {/* Top funnel metrics */}
@@ -56,7 +68,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         <CardStatVertical
           stats={totalEntered.toLocaleString('pt-BR')}
           title='Entrada do Funil'
-          subtitle='Negócios no topo (S0)'
+          subtitle={hasData ? `Score médio: ${e.avgScore}/100` : 'Aguardando 1ª descoberta'}
           avatarColor='primary'
           avatarIcon='ri-funnel-line'
           trendNumber={String(totalEntered)}
@@ -65,24 +77,24 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         <CardStatVertical
-          stats={PIPELINE[3].count.toLocaleString('pt-BR')}
+          stats={(solutionAware + productAware + mostAware).toLocaleString('pt-BR')}
           title='Leads Qualificados'
-          subtitle={`S3 · ${Math.round((PIPELINE[3].count / totalEntered) * 100)}% do topo`}
+          subtitle={`Solution Aware+ · ${totalEntered > 0 ? Math.round(((solutionAware + productAware + mostAware) / totalEntered) * 100) : 0}% do topo`}
           avatarColor='warning'
           avatarIcon='ri-filter-3-line'
-          trendNumber={String(Math.round((PIPELINE[3].count / totalEntered) * 100))}
+          trendNumber={String(solutionAware + productAware + mostAware)}
           trend='positive'
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         <CardStatVertical
-          stats={totalOutput.toLocaleString('pt-BR')}
+          stats="0"
           title='Clientes'
-          subtitle={'S7 · aguardando primeiro onboarding'}
+          subtitle='S7 · aguardando CRM wire'
           avatarColor='success'
           avatarIcon='ri-user-heart-line'
-          trendNumber={String(totalOutput)}
-          trend={totalOutput > 0 ? 'positive' : 'negative'}
+          trendNumber="0"
+          trend='negative'
         />
       </Grid>
 
@@ -90,37 +102,41 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>Estágios do Funil</Typography>
         <Grid container spacing={3}>
-          {PIPELINE.map((s) => (
-            <Grid key={s.stage} size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card
-                sx={{
-                  borderLeft: 4,
-                  borderColor: `${s.color}.main`,
-                  opacity: s.pct === 0 ? 0.5 : 1,
-                }}
-              >
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Chip label={s.stage} color={s.color as any} size='small' />
-                    <Typography variant='h5' fontWeight={700}>
-                      {typeof s.count === 'number' ? s.count.toLocaleString('pt-BR') : s.count}
+          {pipeline.map((s) => {
+            const pct = Math.round((s.count / maxCount) * 100)
+
+            return (
+              <Grid key={s.stage} size={{ xs: 12, sm: 6, md: 3 }}>
+                <Card
+                  sx={{
+                    borderLeft: 4,
+                    borderColor: `${s.color}.main`,
+                    opacity: s.count === 0 ? 0.5 : 1,
+                  }}
+                >
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Chip label={s.stage} color={s.color} size='small' />
+                      <Typography variant='h5' fontWeight={700}>
+                        {s.count.toLocaleString('pt-BR')}
+                      </Typography>
+                    </Box>
+                    <Typography variant='subtitle2' fontWeight={600} gutterBottom>{s.label}</Typography>
+                    <Typography variant='caption' color='text.secondary'>{s.desc}</Typography>
+                    <LinearProgress
+                      variant='determinate'
+                      value={pct}
+                      color={s.color}
+                      sx={{ mt: 2, height: 6, borderRadius: 3 }}
+                    />
+                    <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+                      {pct}% do topo
                     </Typography>
-                  </Box>
-                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{s.label}</Typography>
-                  <Typography variant='caption' color='text.secondary'>{s.description}</Typography>
-                  <LinearProgress
-                    variant='determinate'
-                    value={s.pct}
-                    color={s.color as any}
-                    sx={{ mt: 2, height: 6, borderRadius: 3 }}
-                  />
-                  <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
-                    {s.pct}% do topo
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                  </CardContent>
+                </Card>
+              </Grid>
+            )
+          })}
         </Grid>
       </Grid>
 
@@ -130,9 +146,9 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
           <CardContent>
             <Typography variant='h6' gutterBottom>📊 Taxas de Conversão</Typography>
             {[
-              { from: 'S0→S3', rate: Math.round((PIPELINE[3].count / totalEntered) * 100), label: 'categorias → leads qualificados' },
-              { from: 'S3→S5', rate: Math.round((PIPELINE[5].count / Math.max(PIPELINE[3].count, 1)) * 100), label: 'qualificados → propostas' },
-              { from: 'S5→S7', rate: Math.round((totalOutput / Math.max(PIPELINE[5].count, 1)) * 100), label: 'propostas → clientes' },
+              { from: 'S0→S3', rate: totalEntered > 0 ? Math.round(((solutionAware + productAware + mostAware) / totalEntered) * 100) : 0, label: 'descoberta → leads qualificados (Solution Aware+)' },
+              { from: 'S3→S5', rate: (solutionAware + productAware) > 0 ? Math.round((mostAware / Math.max(solutionAware + productAware + mostAware, 1)) * 100) : 0, label: 'qualificados → Most Aware (prontos)' },
+              { from: 'S5→S7', rate: 0, label: 'Most Aware → clientes (CRM em desenvolvimento)' },
             ].map((conv) => (
               <Box key={conv.from} sx={{ mb: 3 }}>
                 <div className='flex justify-between mb-1'>
@@ -157,12 +173,12 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         <Card sx={{ bgcolor: 'var(--pastel-amber)' }}>
           <CardContent>
             <Typography variant='h6' gutterBottom>⏭️ Próximos Passos</Typography>
-            <Typography variant='body2' sx={{ mb: 1 }}>Para ativar os estágios S5-S7:</Typography>
+            <Typography variant='body2' sx={{ mb: 1 }}>Para ativar os estágios S6-S7:</Typography>
             <ul style={{ marginTop: 0, paddingLeft: '1.2rem' }}>
-              <li><Typography variant='body2'>Wire <code>@adsentice/db</code> → Supabase leads table</Typography></li>
-              <li><Typography variant='body2'>Criar template de proposta CRM (Stage 5)</Typography></li>
+              <li><Typography variant='body2'>Wire Supabase leads table (packages/db/)</Typography></li>
+              <li><Typography variant='body2'>Criar template de proposta CRM (Stage 6)</Typography></li>
               <li><Typography variant='body2'>Implementar CRM tracking (contact status, notes)</Typography></li>
-              <li><Typography variant='body2'>Wire Supabase Auth → tenant provisioning (Stage 7)</Typography></li>
+              <li><Typography variant='body2'>Wire Supabase Auth → tenant onboarding (Stage 7)</Typography></li>
             </ul>
           </CardContent>
         </Card>

@@ -1,5 +1,5 @@
 
-// adsentice · Admin / Costs — centro de custos DataForSEO
+// adsentice · Admin / Costs — centro de custos DataForSEO com dados REAIS do Redis
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -8,27 +8,21 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
-import LinearProgress from '@mui/material/LinearProgress'
+import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
+import { getAdminDashboardData } from '@/lib/engine'
 
-interface CostItem {
-  capability: string
-  costPerCall: number
-  callsToday: number
-  costToday: number
-  costProjected: number
-}
-
-const COST_DATA: CostItem[] = [
-  { capability: 'business_listings_search', costPerCall: 0.015, callsToday: 3, costToday: 0.045, costProjected: 0.86 },
-  { capability: 'keyword_research', costPerCall: 0.02, callsToday: 2, costToday: 0.04, costProjected: 0.40 },
-  { capability: 'business_profile_gmb', costPerCall: 0.0054, callsToday: 0, costToday: 0, costProjected: 2.70 },
-  { capability: 'on_page_lighthouse', costPerCall: 0.0001, callsToday: 0, costToday: 0, costProjected: 0.005 },
-  { capability: 'domain_competitors', costPerCall: 0.02, callsToday: 0, costToday: 0, costProjected: 0.60 },
-  { capability: 'serp_organic', costPerCall: 0.01, callsToday: 0, costToday: 0, costProjected: 0.30 },
-  { capability: 'business_reviews_google', costPerCall: 0.00075, callsToday: 0, costToday: 0, costProjected: 0.037 },
+// ── Preços REAIS DataForSEO (fonte: api.dataforseo.com pricing) ──
+const CAPABILITIES = [
+  { capability: 'business_listings_search', costPerCall: 0.015, endpoint: 'business_data/business_listings/search/live' },
+  { capability: 'business_profile_gmb', costPerCall: 0.0054, endpoint: 'business_data/google/my_business_info/live' },
+  { capability: 'keyword_research', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/keyword_overview/live' },
+  { capability: 'on_page_lighthouse', costPerCall: 0.0001, endpoint: 'on_page/lighthouse/live' },
+  { capability: 'domain_competitors', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/competitors_domain/live' },
+  { capability: 'serp_organic', costPerCall: 0.01, endpoint: 'serp/google/organic/live/advanced' },
+  { capability: 'backlinks_summary', costPerCall: 0.02, endpoint: 'backlinks/summary/live' },
 ]
 
 const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
@@ -37,100 +31,123 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  const totalToday = COST_DATA.reduce((s, c) => s + c.costToday, 0)
-  const totalProjected = COST_DATA.reduce((s, c) => s + c.costProjected, 0)
+  // ═══ Dados REAIS do engine (Redis :6396) ═══
+  const e = await getAdminDashboardData()
+  const costToday = e.dataCostToday
+  const costProjected = e.dataCostProjected
+
+  // Last call details from Redis
+  let lastCallDetail = '—'
+
+  try {
+    const { execSync } = await import('child_process')
+
+    lastCallDetail = execSync('redis-cli -p 6396 --no-auth-warning GET adsentice:discovery:cost:last', { timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || '—'
+  } catch { /* Redis offline */ }
+
+  const totalCalls = e.leadsDiscovered > 0 ? e.leadsDiscovered : 0
+  const costPerLead = totalCalls > 0 ? costToday / totalCalls : 0
 
   return (
     <Grid container spacing={6}>
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>💰 Centro de Custos</Typography>
-        <Typography variant='body2' color='text.secondary'>
-          DataForSEO spend · custo por capability · projeção mensal
-        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
+          <Typography variant='body2' color='text.secondary'>
+            DataForSEO spend · Fonte: Redis adsentice:discovery:cost:*
+          </Typography>
+          {costToday > 0 ? (
+            <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
+          ) : (
+            <Chip label='Sem chamadas hoje' size='small' color='default' variant='tonal' />
+          )}
+        </Box>
       </Grid>
 
-      {/* Top cost metrics */}
-      <Grid size={{ xs: 12, sm: 4 }}>
+      {/* Top cost metrics — REAIS do Redis */}
+      <Grid size={{ xs: 12, sm: 3 }}>
         <CardStatVertical
-          stats={`$${totalToday.toFixed(3)}`}
+          stats={`$${costToday.toFixed(4)}`}
           title='Custo Hoje'
-          subtitle={`R$${(totalToday * 5.5).toFixed(2)} · ${COST_DATA.filter(c => c.callsToday > 0).length} endpoints usados`}
+          subtitle={costToday > 0 ? `R$${(costToday * 5.5).toFixed(2)} BRL` : 'Nenhuma chamada hoje'}
           avatarColor='warning'
           avatarIcon='ri-money-dollar-circle-line'
-          trendNumber={String(COST_DATA.filter(c => c.callsToday > 0).length)}
+          trendNumber={costToday.toFixed(4)}
+          trend={costToday > 0 ? 'positive' : 'negative'}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3 }}>
+        <CardStatVertical
+          stats={`$${costProjected.toFixed(2)}`}
+          title='Projeção Mensal'
+          subtitle={costProjected > 0 ? `${Math.round(costProjected / Math.max(costToday, 0.001))}× custo de hoje` : 'Sem dados para projetar'}
+          avatarColor='error'
+          avatarIcon='ri-line-chart-line'
+          trendNumber={costProjected.toFixed(2)}
+          trend='negative'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3 }}>
+        <CardStatVertical
+          stats={costPerLead > 0 ? `$${costPerLead.toFixed(5)}` : '—'}
+          title='Custo por Lead'
+          subtitle={totalCalls > 0 ? `${totalCalls.toLocaleString('pt-BR')} leads mapeados` : 'Execute 1ª descoberta'}
+          avatarColor='success'
+          avatarIcon='ri-copper-coin-line'
+          trendNumber={totalCalls.toLocaleString('pt-BR')}
           trend='positive'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 4 }}>
+      <Grid size={{ xs: 12, sm: 3 }}>
         <CardStatVertical
-          stats={`$${totalProjected.toFixed(2)}`}
-          title='Projeção Mensal'
-          subtitle='57 categorias SP · full enrichment'
-          avatarColor='error'
-          avatarIcon='ri-line-chart-line'
-          trendNumber={String(Math.round(totalProjected / totalToday))}
-          trend='negative'
-        />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical
-          stats={'~R$0.00'}
-          title='Custo por Lead'
-          subtitle='projeção: ~R$0.02/lead após enrichment'
-          avatarColor='success'
-          avatarIcon='ri-copper-coin-line'
-          trendNumber={String(2)}
-          trend='negative'
+          stats={totalCalls.toLocaleString('pt-BR')}
+          title='Chamadas Acumuladas'
+          subtitle={`Última: ${lastCallDetail.length > 80 ? lastCallDetail.slice(0, 80) + '...' : lastCallDetail}`}
+          avatarColor='primary'
+          avatarIcon='ri-plug-line'
+          trendNumber={String(totalCalls)}
+          trend='positive'
         />
       </Grid>
 
       {/* Capability cost breakdown */}
       <Grid size={{ xs: 12 }}>
-        <Typography variant='h6' gutterBottom>📋 Breakdown por Capability</Typography>
+        <Typography variant='h6' gutterBottom>📋 Preços DataForSEO por Endpoint</Typography>
         <Grid container spacing={3}>
-          {COST_DATA.map((item) => (
-            <Grid key={item.capability} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Typography variant='subtitle2' fontWeight={600} sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                      {item.capability}
-                    </Typography>
-                    <Chip
-                      label={item.callsToday > 0 ? 'ativo' : 'ocioso'}
-                      size='small'
-                      color={item.callsToday > 0 ? 'success' : 'default'}
-                      variant='tonal'
-                    />
-                  </Box>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
+          {CAPABILITIES.map((item) => {
+            // Mark active if this endpoint was used today (tracked in Redis)
+            const isActive = item.capability === 'business_listings_search' && costToday > 0
+
+            return (
+              <Grid key={item.capability} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Card>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                      <Typography variant='subtitle2' fontWeight={600} sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                        {item.capability}
+                      </Typography>
+                      <Chip
+                        label={isActive ? 'ativo hoje' : 'disponível'}
+                        size='small'
+                        color={isActive ? 'success' : 'default'}
+                        variant='tonal'
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant='caption' color='text.secondary'>Custo por chamada</Typography>
-                      <Typography variant='h6'>${item.costPerCall.toFixed(4)}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant='caption' color='text.secondary'>Chamadas hoje</Typography>
-                      <Typography variant='h6'>{item.callsToday}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant='caption' color='text.secondary'>Custo hoje</Typography>
-                      <Typography variant='h6'>${item.costToday.toFixed(4)}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant='caption' color='text.secondary'>Projeção/mês</Typography>
-                      <Typography variant='h6'>${item.costProjected.toFixed(2)}</Typography>
-                    </Grid>
-                  </Grid>
-                  <LinearProgress
-                    variant='determinate'
-                    value={(item.costProjected / totalProjected) * 100}
-                    color={item.costProjected > 0.50 ? 'error' : 'warning'}
-                    sx={{ mt: 2, height: 4, borderRadius: 2 }}
-                  />
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                      <Typography variant='body2' fontWeight={700}>${item.costPerCall.toFixed(4)}</Typography>
+                    </Box>
+                    <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.7rem', display: 'block', mb: 1 }}>
+                      {item.endpoint}
+                    </Typography>
+                    {isActive && (
+                      <Chip label='Usado no Discovery Engine' size='small' color='warning' variant='tonal' sx={{ mt: 1 }} />
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            )
+          })}
         </Grid>
       </Grid>
 
@@ -138,22 +155,22 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent>
-            <Typography variant='h6' gutterBottom>💡 Margem por Plano</Typography>
+            <Typography variant='h6' gutterBottom>💡 Margem por Plano (projeção)</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {[
-                { plan: 'Raio-X (grátis)', price: 0, cost: 0.02, margin: -0.02 },
-                { plan: 'Sentinela (R$197)', price: 197, cost: 3.00, margin: 194 },
-                { plan: 'Domínio (R$497)', price: 497, cost: 5.00, margin: 492 },
+                { plan: 'Raio-X (grátis)', price: 0, cost: costToday || 0.02, margin: -(costToday || 0.02), purpose: 'Lead magnet' },
+                { plan: 'Sentinela (R$197/mês)', price: 197, cost: costProjected || 3.00, margin: 197 - (costProjected || 3.00), purpose: 'Produto principal' },
+                { plan: 'Domínio (R$497/mês)', price: 497, cost: (costProjected || 3.00) * 1.5, margin: 497 - ((costProjected || 3.00) * 1.5), purpose: 'Full stack' },
               ].map((p) => (
                 <Box key={p.plan} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
                     <Typography fontWeight={600}>{p.plan}</Typography>
                     <Typography variant='caption' color='text.secondary'>
-                      Custo dados: R${p.cost.toFixed(2)}/mês
+                      Custo dados: ~R${p.cost.toFixed(2)}/mês · {p.purpose}
                     </Typography>
                   </Box>
                   <Chip
-                    label={p.margin > 0 ? `Margem R$${p.margin}/mês` : 'Lead magnet'}
+                    label={p.margin > 0 ? `Margem R$${p.margin.toFixed(0)}/mês` : 'Lead magnet'}
                     size='small'
                     color={p.margin > 0 ? 'success' : 'info'}
                     variant='tonal'
@@ -170,16 +187,28 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
           <CardContent>
             <Typography variant='h6' gutterBottom>📊 ROI do Discovery Engine</Typography>
             <Typography variant='body2' sx={{ mb: 2 }}>
-              Custo total para analisar 57 categorias em SP com dados REAIS:
+              {costToday > 0
+                ? `Custo total acumulado: $${costProjected.toFixed(2)} para ${totalCalls.toLocaleString('pt-BR')} leads.`
+                : 'Execute a 1ª descoberta para ver o ROI real.'}
             </Typography>
-            <Typography variant='h3' fontWeight={800} color='success.main'>
-              ~R$5,00
-            </Typography>
-            <Typography variant='body2' sx={{ mt: 1 }}>
-              Retorno: ~2.300 leads urgentes mapeados automaticamente.
-              Custo por lead qualificado: menos de R$0.01.
-              Uma agência cobraria R$500+ por esse levantamento.
-            </Typography>
+            {totalCalls > 0 && costPerLead > 0 ? (
+              <>
+                <Typography variant='h3' fontWeight={800} color='success.main'>
+                  ${costPerLead.toFixed(5)}
+                </Typography>
+                <Typography variant='body2' sx={{ mt: 1 }}>
+                  por lead mapeado. Uma agência cobraria R$50+ por lead qualificado.
+                  Com 12 categorias em SP: ~R${(costProjected * 5.5).toFixed(2)}/mês para alimentar todo o pipeline.
+                </Typography>
+              </>
+            ) : (
+              <Alert severity='info' sx={{ mt: 1 }}>
+                <Typography variant='body2'>
+                  Dados reais aparecerão aqui após a primeira busca no Discovery Engine.
+                  Custo estimado: ~$0.18 para testar as 12 categorias em SP (raio 10km).
+                </Typography>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </Grid>

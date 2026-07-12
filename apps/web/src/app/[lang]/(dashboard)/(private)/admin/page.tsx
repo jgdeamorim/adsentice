@@ -322,9 +322,9 @@ return (
         <Card>
           <CardContent className='flex flex-col gap-2'>
             <i className='ri-user-settings-line text-[24px] text-info' />
-            <Typography variant='h6'>Tenants</Typography>
-            <Typography variant='body2'>Clientes, spend-cap, planos</Typography>
-            <Button size='small' variant='outlined' href={`/${lang}/admin/tenants`} sx={{ mt: 1 }}>Gerenciar</Button>
+            <Typography variant='h6'>Settings</Typography>
+            <Typography variant='body2'>Integrações, APIs, credenciais</Typography>
+            <Button size='small' variant='outlined' href={`/${lang}/admin/settings`} sx={{ mt: 1 }}>Configurar</Button>
           </CardContent>
         </Card>
       </Grid>
@@ -334,7 +334,7 @@ return (
             <i className='ri-settings-3-line text-[24px] text-warning' />
             <Typography variant='h6'>Infra & MCP</Typography>
             <Typography variant='body2'>Servidores, health, configuração</Typography>
-            <Button size='small' variant='outlined' href={`/${lang}/admin/infra`} sx={{ mt: 1 }}>Monitorar</Button>
+            <Button size='small' variant='outlined' href={`/${lang}/admin/settings`} sx={{ mt: 1 }}>Monitorar</Button>
           </CardContent>
         </Card>
       </Grid>
