@@ -35,16 +35,61 @@ import AccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 
 // ── Data ──
-const GEO: Record<string, { lat: number; lng: number; label: string }> = {
-  'SP': { lat: -23.5505, lng: -46.6333, label: 'São Paulo · SP' },
-  'RJ': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro · RJ' },
-  'BH': { lat: -19.9167, lng: -43.9345, label: 'Belo Horizonte · MG' },
-  'BSB': { lat: -15.8267, lng: -47.9218, label: 'Brasília · DF' },
-  'SSA': { lat: -12.9714, lng: -38.5014, label: 'Salvador · BA' },
-  'POA': { lat: -30.0346, lng: -51.2177, label: 'Porto Alegre · RS' },
-  'CWB': { lat: -25.4284, lng: -49.2733, label: 'Curitiba · PR' },
-  'REC': { lat: -8.0476, lng: -34.8770, label: 'Recife · PE' },
-  'FOR': { lat: -3.7172, lng: -38.5434, label: 'Fortaleza · CE' },
+// Brazilian geo hierarchy: Estado → Cidades (coordenadas REAIS)
+const STATES: Record<string, { label: string; cities: Record<string, { lat: number; lng: number; label: string }> }> = {
+  'SP': { label: 'SP', cities: {
+    'sp-capital': { lat: -23.5505, lng: -46.6333, label: 'São Paulo (Capital)' },
+    'sp-campinas': { lat: -22.9056, lng: -47.0608, label: 'Campinas' },
+    'sp-santos': { lat: -23.9608, lng: -46.3336, label: 'Santos' },
+    'sp-sjcampos': { lat: -23.1791, lng: -45.8872, label: 'São José dos Campos' },
+    'sp-ribeirao': { lat: -21.1767, lng: -47.8202, label: 'Ribeirão Preto' },
+    'sp-sorocaba': { lat: -23.5015, lng: -47.4526, label: 'Sorocaba' },
+  }},
+  'RJ': { label: 'RJ', cities: {
+    'rj-capital': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro (Capital)' },
+    'rj-niteroi': { lat: -22.8832, lng: -43.1034, label: 'Niterói' },
+  }},
+  'MG': { label: 'MG', cities: {
+    'mg-bh': { lat: -19.9167, lng: -43.9345, label: 'Belo Horizonte' },
+    'mg-uberlandia': { lat: -18.9186, lng: -48.2772, label: 'Uberlândia' },
+  }},
+  'PR': { label: 'PR', cities: {
+    'pr-curitiba': { lat: -25.4284, lng: -49.2733, label: 'Curitiba' },
+    'pr-londrina': { lat: -23.3103, lng: -51.1628, label: 'Londrina' },
+    'pr-maringa': { lat: -23.4253, lng: -51.9386, label: 'Maringá' },
+  }},
+  'RS': { label: 'RS', cities: {
+    'rs-poa': { lat: -30.0346, lng: -51.2177, label: 'Porto Alegre' },
+    'rs-caxias': { lat: -29.1685, lng: -51.1794, label: 'Caxias do Sul' },
+  }},
+  'SC': { label: 'SC', cities: {
+    'sc-floripa': { lat: -27.5969, lng: -48.5495, label: 'Florianópolis' },
+    'sc-joinville': { lat: -26.3045, lng: -48.8487, label: 'Joinville' },
+  }},
+  'BA': { label: 'BA', cities: {
+    'ba-salvador': { lat: -12.9714, lng: -38.5014, label: 'Salvador' },
+  }},
+  'PE': { label: 'PE', cities: {
+    'pe-recife': { lat: -8.0476, lng: -34.8770, label: 'Recife' },
+  }},
+  'CE': { label: 'CE', cities: {
+    'ce-fortaleza': { lat: -3.7172, lng: -38.5434, label: 'Fortaleza' },
+  }},
+  'DF': { label: 'DF', cities: {
+    'df-brasilia': { lat: -15.8267, lng: -47.9218, label: 'Brasília' },
+  }},
+  'GO': { label: 'GO', cities: { 'go-goiania': { lat: -16.6869, lng: -49.2648, label: 'Goiânia' } }},
+  'AM': { label: 'AM', cities: { 'am-manaus': { lat: -3.1190, lng: -60.0217, label: 'Manaus' } }},
+  'PA': { label: 'PA', cities: { 'pa-belem': { lat: -1.4550, lng: -48.5024, label: 'Belém' } }},
+  'ES': { label: 'ES', cities: { 'es-vitoria': { lat: -20.3155, lng: -40.3128, label: 'Vitória' } }},
+  'MT': { label: 'MT', cities: { 'mt-cuiaba': { lat: -15.6010, lng: -56.0974, label: 'Cuiabá' } }},
+  'MS': { label: 'MS', cities: { 'ms-cg': { lat: -20.4697, lng: -54.6201, label: 'Campo Grande' } }},
+  'RN': { label: 'RN', cities: { 'rn-natal': { lat: -5.7793, lng: -35.2009, label: 'Natal' } }},
+  'PB': { label: 'PB', cities: { 'pb-joaopessoa': { lat: -7.1195, lng: -34.8450, label: 'João Pessoa' } }},
+  'AL': { label: 'AL', cities: { 'al-maceio': { lat: -9.6658, lng: -35.7353, label: 'Maceió' } }},
+  'SE': { label: 'SE', cities: { 'se-aracaju': { lat: -10.9472, lng: -37.0731, label: 'Aracaju' } }},
+  'MA': { label: 'MA', cities: { 'ma-saoluis': { lat: -2.5307, lng: -44.3068, label: 'São Luís' } }},
+  'PI': { label: 'PI', cities: { 'pi-teresina': { lat: -5.0892, lng: -42.8016, label: 'Teresina' } }},
 }
 
 const CATS = [
@@ -75,7 +120,8 @@ const DiscoveryPage = () => {
   const { lang } = useParams() as { lang: string }
 
   // Filters
-  const [geoKey, setGeoKey] = useState('SP')
+  const [stateKey, setStateKey] = useState('SP')
+  const [cityKey, setCityKey] = useState('sp-capital')
   const [radius, setRadius] = useState(10)
   const [selected, setSelected] = useState<string[]>([])
   // Pain criteria
@@ -114,11 +160,12 @@ const DiscoveryPage = () => {
     if (!selected.length) return
     setLoading(true); setError('')
     try {
-      const g = GEO[geoKey]
+      const city = STATES[stateKey]?.cities[cityKey]
+      if (!city) return
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          categories: selected, lat: g.lat, lng: g.lng, radiusKm: radius,
+          categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
           limit: 50, force,
         }),
       })
@@ -133,13 +180,19 @@ const DiscoveryPage = () => {
       setPage(0)
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
-  }, [selected, geoKey, radius])
+  }, [selected, stateKey, cityKey, radius])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
 
-  const changeGeo = (g: string) => { setGeoKey(g); if (selected.length) doSearch() }
+  const changeState = (s: string) => {
+    setStateKey(s)
+    const firstCity = Object.keys(STATES[s].cities)[0]
+    setCityKey(firstCity)
+    if (selected.length) doSearch()
+  }
+  const changeCity = (c: string) => { setCityKey(c); if (selected.length) doSearch() }
   const changeRadius = (r: number) => { setRadius(r); if (selected.length) doSearch() }
 
   // ═══ Filtering ═══
@@ -198,15 +251,28 @@ const DiscoveryPage = () => {
       <Grid size={{ xs: 12 }}>
         <Card><CardContent>
           <Typography variant='subtitle2' fontWeight={600} gutterBottom>🌎 Localização</Typography>
+          {/* Estado */}
+          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Estado:</Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-            {Object.entries(GEO).map(([k, v]) => (
-              <Chip key={k} label={v.label} clickable color={geoKey === k ? 'primary' : 'default'}
-                variant={geoKey === k ? 'filled' : 'outlined'} onClick={() => changeGeo(k)} />
+            {Object.keys(STATES).map(k => (
+              <Chip key={k} label={STATES[k].label} clickable size='small'
+                color={stateKey === k ? 'primary' : 'default'}
+                variant={stateKey === k ? 'filled' : 'outlined'} onClick={() => changeState(k)} />
             ))}
           </Box>
+          {/* Cidade */}
+          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Cidade:</Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+            {Object.entries(STATES[stateKey]?.cities || {}).map(([k, v]) => (
+              <Chip key={k} label={v.label} clickable size='small'
+                color={cityKey === k ? 'primary' : 'default'}
+                variant={cityKey === k ? 'filled' : 'outlined'} onClick={() => changeCity(k)} />
+            ))}
+          </Box>
+          {/* Raio */}
+          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Raio (km):</Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Typography variant='caption' sx={{ mr: 1 }}>Raio:</Typography>
-            {[3, 5, 10, 15, 25].map(r => (
+            {[1, 3, 5, 10, 15, 25].map(r => (
               <Chip key={r} label={`${r}km`} clickable size='small'
                 color={radius === r ? 'primary' : 'default'}
                 variant={radius === r ? 'filled' : 'outlined'} onClick={() => changeRadius(r)} />
@@ -399,7 +465,7 @@ const DiscoveryPage = () => {
             Você está prestes a fazer uma chamada <strong>LIVE</strong> ao DataForSEO.
           </Typography>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
-            <Typography variant='body2'>📍 <strong>{GEO[geoKey].label}</strong> · {radius}km raio</Typography>
+            <Typography variant='body2'>📍 <strong>{STATES[stateKey]?.cities[cityKey]?.label || stateKey}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
               💰 Custo estimado: <strong>${estimatedCost.toFixed(4)}</strong> (R${(estimatedCost * 5.5).toFixed(2)})

@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/adsentice-session-start.py"
+            "command": "python3 /media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/.claude/hooks/adsentice-session-start.py"
           },
           {
             "type": "command",
-            "command": "python3 tools/adsentice_boa_score.py --save"
+            "command": "python3 /media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/tools/adsentice_boa_score.py --save"
           }
         ]
       }
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/adsentice-pre-compact.py"
+            "command": "python3 /media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/.claude/hooks/adsentice-pre-compact.py"
           }
         ]
       }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/adsentice-session-start.py"
+            "command": "python3 /media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/.claude/hooks/adsentice-session-start.py"
           }
         ]
       }
