@@ -22,6 +22,7 @@ async function mcpRequest(
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
   }
+
   if (sessionId) headers["Mcp-Session-Id"] = sessionId
 
   const res = await fetch(MCP, {
@@ -37,8 +38,10 @@ async function mcpRequest(
   for (const line of text.split("\n")) {
     if (!line.startsWith("data: ")) continue
     const data = JSON.parse(line.slice(6))
+
     if (data.error) throw new Error(`MCP error: ${JSON.stringify(data.error)}`)
-    return { result: data.result, sessionId: newSessionId }
+    
+return { result: data.result, sessionId: newSessionId }
   }
 
   throw new Error(`MCP: no data (HTTP ${res.status})`)
@@ -76,6 +79,7 @@ export async function businessListingsSearch(params: {
     capabilities: {},
     clientInfo: { name: "adsentice-engine", version: "1.0" },
   })
+
   const sid = init.sessionId
 
   // 2. Send initialized notification
@@ -113,19 +117,24 @@ export async function businessListingsSearch(params: {
 
   // 4. Parse result
   const content = (call.result as any)?.content?.[0]?.text
+
   if (!content) throw new Error("MCP: no content in response")
 
   const data = JSON.parse(content)
 
   let cost_usd = 0
   const bill = data.billing_event
+
   if (typeof bill === "string") {
     const m = bill.match(/provider_cost_usd:\s*([\d.]+)/)
+
     if (m) cost_usd = parseFloat(m[1])
   }
 
   const output = data.canonical_output || {}
-  return {
+
+  
+return {
     total_count: output.total_count || 0,
     listings: output.listings || [],
     cost_usd,

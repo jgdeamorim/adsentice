@@ -1,6 +1,7 @@
 
 // adsentice · Admin / Categorias — ranking de nichos com score de dor
 import { redirect } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -15,6 +16,7 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
@@ -37,6 +39,7 @@ const CATEGORY_DATA = [
 const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const totalLeads = CATEGORY_DATA.reduce((s, c) => s + c.leads, 0)

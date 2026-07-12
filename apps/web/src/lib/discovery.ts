@@ -15,6 +15,7 @@ export interface GeoLocation {
 }
 
 export interface PainFilters {
+
   // Reviews & Reputação
   reviewsMin?: number           // default 2 — mínimo de reviews
   ratingMax?: number            // default 4.0 — nota BAIXA = dor
@@ -104,9 +105,12 @@ function defaultFilters(): Required<PainFilters> {
 
 function isWhatsAppNumber(phone: string | undefined): boolean {
   if (!phone) return false
+
   // Brazilian mobile: (XX) 9XXXX-XXXX or XX 9XXXX-XXXX
   const cleaned = phone.replace(/[\s\-.()]/g, "")
-  return /^(\+?55)?\s*\(?\d{2}\)?\s*9\d{4}-?\d{4}$/.test(phone) ||
+
+  
+return /^(\+?55)?\s*\(?\d{2}\)?\s*9\d{4}-?\d{4}$/.test(phone) ||
          /^9\d{8}$/.test(cleaned) ||
          /^559\d{8,9}$/.test(cleaned)
 }
@@ -138,6 +142,7 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
 
   // ── SAÚDE TÉCNICA (20%) ──
   let saude = 50
+
   if (ctx.lighthouse) {
     if (ctx.lighthouse.seo < f.seoMax) {
       dores.push(`SEO ${ctx.lighthouse.seo}/100`)
@@ -146,11 +151,13 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
       sinais.push(`SEO ${ctx.lighthouse.seo}/100`)
       saude += 10
     }
+
     if (ctx.lighthouse.performance < f.perfMax) {
       dores.push(`Performance ${ctx.lighthouse.performance}/100`)
       saude -= 20
     }
   }
+
   if (ctx.tech) {
     if (ctx.tech.analytics.length === 0) {
       dores.push("Sem analytics")
@@ -158,14 +165,18 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
     } else {
       sinais.push(`Analytics: ${ctx.tech.analytics.join(", ")}`)
     }
+
     if (ctx.tech.cms !== "desconhecido") saude += 10
   }
+
   scores.saude_tecnica = Math.max(0, Math.min(100, saude))
 
   // ── PRESENÇA LOCAL (20%) ──
   let presenca = 50
+
   if (ctx.profile) {
     const photos = (ctx.profile.total_photos as number) || 0
+
     if (photos >= (f.fotosMin || 3)) {
       sinais.push(`${photos} fotos no GMB`)
       presenca += 15
@@ -173,22 +184,27 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
       dores.push(`Apenas ${photos} fotos`)
       presenca -= 15
     }
+
     if (ctx.profile.description) {
       presenca += 10
     } else dores.push("Sem descrição no GMB")
     if (ctx.profile.is_claimed) presenca += 15
+
     if (!ctx.hasRecentPosts) {
       dores.push(`Sem posts recentes (>${f.postsInativoDias}d)`)
       presenca -= 10
     }
   }
+
   scores.presenca_local = Math.max(0, Math.min(100, presenca))
 
   // ── REPUTAÇÃO (20%) ──
   let rep = 50
+
   if (ctx.profile) {
     const rating = (ctx.profile.rating_value as number) || 0
     const votes = (ctx.profile.rating_votes as number) || 0
+
     if (rating > 0 && rating < f.ratingMax) {
       dores.push(`Nota ${rating}★`)
       rep -= 20
@@ -196,6 +212,7 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
       sinais.push(`${rating}★`)
       rep += 15
     }
+
     if (votes < (f.reviewsMin || 2)) {
       dores.push(`Apenas ${votes} reviews`)
       rep -= 15
@@ -204,13 +221,16 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
       rep += 10
     }
   }
+
   scores.reputacao = Math.max(0, Math.min(100, rep))
 
   // ── ENGAJAMENTO (15%) ──
   let eng = 40
   const phone = ctx.profile?.phone as string | undefined
+
   if (phone) {
     const isWA = isWhatsAppNumber(phone)
+
     if (isWA) {
       sinais.push("WhatsApp")
       eng += 25
@@ -224,6 +244,7 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
 
   // ── CONCORRÊNCIA (15%) ──
   let comp = 50
+
   if (ctx.competitorCount >= (f.concorrentesMin || 2)) {
     dores.push(`${ctx.competitorCount} concorrentes no raio`)
     comp += 20
@@ -232,6 +253,7 @@ function scoreLead(ctx: LeadCtx): { total: number; breakdown: Record<string, num
 
   // ── MATURIDADE DIGITAL (10%) ──
   let mat = 30
+
   if (ctx.profile?.website) mat += 20
   if (ctx.tech?.cms && ctx.tech.cms !== "desconhecido") mat += 20
   if ((ctx.tech?.analytics?.length || 0) > 0) mat += 15
@@ -287,7 +309,8 @@ export async function discoverLeads(
   const qualified = candidates.filter(c => {
     if (filters.websiteObrigatorio && !c.website) return false
     if (filters.reviewsMin && (c.rating_votes || 0) < filters.reviewsMin) return false
-    return true
+    
+return true
   })
 
   trace.push({
@@ -354,6 +377,7 @@ export async function discoverLeads(
   // Count by priority
   const urg = filtered.filter(l => l.prioridade === "URGENTE").length
   const quente = filtered.filter(l => l.prioridade === "QUENTE").length
+
   trace.push({
     layer: "SYNTHESIS",
     status: "ok",

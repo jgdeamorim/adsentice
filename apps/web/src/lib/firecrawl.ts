@@ -9,8 +9,10 @@ const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY || "" // opcional
 
 function headers(): Record<string, string> {
   const h: Record<string, string> = { "Content-Type": "application/json" }
+
   if (FIRECRAWL_KEY) h["Authorization"] = `Bearer ${FIRECRAWL_KEY}`
-  return h
+  
+return h
 }
 
 // ── Scrape ────────────────────────────────────────────────────
@@ -142,9 +144,11 @@ export async function discoverSiteStructure(
     }
 
     const links = mapResult.links
+
     const blogPages = links.filter(
       (l) => l.includes("/blog/") || l.includes("/artigos/") || l.includes("/noticias/")
     )
+
     const keyPages = links.filter(
       (l) =>
         l.includes("/servicos") ||

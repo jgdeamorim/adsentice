@@ -9,7 +9,9 @@ const DATAFORSEO_BASE = "https://api.dataforseo.com/v3"
 function auth(): string {
   const login = process.env.DATAFORSEO_LOGIN || ""
   const password = process.env.DATAFORSEO_PASSWORD || ""
-  return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`
+
+  
+return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`
 }
 
 async function dfPost(path: string, body: unknown[]): Promise<unknown> {
@@ -25,6 +27,7 @@ async function dfPost(path: string, body: unknown[]): Promise<unknown> {
 
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText)
+
     throw new Error(`DataForSEO ${res.status}: ${err}`)
   }
 
@@ -81,6 +84,7 @@ export async function onPageInstantAudit(targetUrl: string): Promise<LighthouseD
 
   const raw = (await dfPost("/on_page/instant_pages", body)) as DfResponse
   const task = raw.tasks?.[0]
+
   if (task?.status_code !== 20000 || !task.result?.[0]?.items?.[0]) return null
 
   const item = task.result[0].items[0] as Record<string, unknown>
@@ -128,6 +132,7 @@ export async function domainTechnologies(target: string): Promise<DomainTechnolo
 
   const raw = (await dfPost("/domain_analytics/technologies/domain_technologies/live", body)) as DfResponse
   const task = raw.tasks?.[0]
+
   if (task?.status_code !== 20000 || !task.result?.[0]?.items?.[0]) return null
 
   const item = task.result[0].items[0] as Record<string, unknown>
@@ -177,9 +182,11 @@ export async function serpOrganicCheck(
     try {
       const raw = (await dfPost("/serp/google/organic/live/advanced", body)) as DfResponse
       const task = raw.tasks?.[0]
+
       if (task?.status_code !== 20000 || !task.result?.[0]?.items) continue
 
       const items = task.result[0].items as Array<Record<string, unknown>>
+
       const pos = items.findIndex(
         (i) => typeof i.url === "string" && i.url.includes(domain)
       )
@@ -202,11 +209,14 @@ export async function serpOrganicCheck(
       const body = [{ keywords, location_name: "Brazil", language_code: "pt" }]
       const raw = (await dfPost("/dataforseo_labs/google/keyword_overview/live", body)) as DfResponse
       const task = raw.tasks?.[0]
+
       if (task?.status_code === 20000 && task.result?.[0]?.items) {
         const items = task.result[0].items as Array<Record<string, unknown>>
+
         for (const item of items) {
           const kw = item.keyword as string
           const match = results.find((r) => r.keyword === kw)
+
           if (match) {
             match.volume = (item.search_volume as number) || 0
             match.cpc = (item.cpc as number) || 0
@@ -260,11 +270,15 @@ export async function businessProfileSearch(
       "/business_data/google/my_business_info/live",
       body
     )) as DfResponse
+
     const task = raw.tasks?.[0]
+
     if (task?.status_code !== 20000 || !task.result?.[0]?.items?.[0]) return null
 
     const item = task.result[0].items[0] as Record<string, unknown>
-    return {
+
+    
+return {
       place_id: (item.place_id as string) || "",
       title: (item.title as string) || businessName,
       rating: (item.rating as number) || 0,
@@ -299,7 +313,9 @@ export async function domainCompetitors(
       "/dataforseo_labs/google/competitors_domain/live",
       body
     )) as DfResponse
+
     const task = raw.tasks?.[0]
+
     if (task?.status_code !== 20000 || !task.result?.[0]?.items) return []
 
     return (task.result[0].items as Array<Record<string, unknown>>)

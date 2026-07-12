@@ -49,6 +49,7 @@ const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) =
 
 const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
   const isAdmin = role === 'admin'
+
   // Hooks
   const theme = useTheme()
   const verticalNavOptions = useVerticalNav()

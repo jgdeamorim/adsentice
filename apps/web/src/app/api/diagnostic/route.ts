@@ -13,7 +13,9 @@
 //   L6 · LLM ÁRBITRO    → SÓ se L0-L5 não bastarem (delegado ao caller)
 // ══════════════════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from "next/server"
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server"
+
 import { runL0L5Pipeline } from "@/lib/pipeline"
 
 export const runtime = "nodejs"
