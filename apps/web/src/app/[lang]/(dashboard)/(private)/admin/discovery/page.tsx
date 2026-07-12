@@ -1,6 +1,7 @@
 
 'use client'
-// adsentice · Admin / Discovery — DADOS REAIS, AUTO-LOAD, CONTAGEM NOS FILTROS
+// adsentice · Admin / Discovery — NÃO GASTA SEM CONFIRMAR
+// Cache 30min TTL · Persistência Redis 24h · Cost tracking
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Grid from '@mui/material/Grid2'
@@ -20,38 +21,39 @@ import Paper from '@mui/material/Paper'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 import IconButton from '@mui/material/IconButton'
 import TablePagination from '@mui/material/TablePagination'
 import TableSortLabel from '@mui/material/TableSortLabel'
-import Badge from '@mui/material/Badge'
 import LinearProgress from '@mui/material/LinearProgress'
 import Tooltip from '@mui/material/Tooltip'
+import Alert from '@mui/material/Alert'
 
-const GEO: Record<string, { lat: number; lng: number; label: string; count: number }> = {
-  'SP': { lat: -23.5505, lng: -46.6333, label: 'São Paulo · SP', count: 0 },
-  'RJ': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro · RJ', count: 0 },
-  'BH': { lat: -19.9167, lng: -43.9345, label: 'Belo Horizonte · MG', count: 0 },
-  'BSB': { lat: -15.8267, lng: -47.9218, label: 'Brasília · DF', count: 0 },
-  'SSA': { lat: -12.9714, lng: -38.5014, label: 'Salvador · BA', count: 0 },
-  'POA': { lat: -30.0346, lng: -51.2177, label: 'Porto Alegre · RS', count: 0 },
-  'CWB': { lat: -25.4284, lng: -49.2733, label: 'Curitiba · PR', count: 0 },
-  'REC': { lat: -8.0476, lng: -34.8770, label: 'Recife · PE', count: 0 },
-  'FOR': { lat: -3.7172, lng: -38.5434, label: 'Fortaleza · CE', count: 0 },
+const GEO: Record<string, { lat: number; lng: number; label: string }> = {
+  'SP': { lat: -23.5505, lng: -46.6333, label: 'São Paulo · SP' },
+  'RJ': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro · RJ' },
+  'BH': { lat: -19.9167, lng: -43.9345, label: 'Belo Horizonte · MG' },
+  'BSB': { lat: -15.8267, lng: -47.9218, label: 'Brasília · DF' },
+  'SSA': { lat: -12.9714, lng: -38.5014, label: 'Salvador · BA' },
+  'POA': { lat: -30.0346, lng: -51.2177, label: 'Porto Alegre · RS' },
+  'CWB': { lat: -25.4284, lng: -49.2733, label: 'Curitiba · PR' },
+  'REC': { lat: -8.0476, lng: -34.8770, label: 'Recife · PE' },
+  'FOR': { lat: -3.7172, lng: -38.5434, label: 'Fortaleza · CE' },
 }
 
 const CATS = [
-  { id: 'dentist', label: '🦷 Dentistas', count: 0 },
-  { id: 'medical_aesthetic_clinic', label: '💉 Clínicas Estéticas', count: 0 },
-  { id: 'medical_clinic', label: '🏥 Clínicas Médicas', count: 0 },
-  { id: 'restaurant', label: '🍽️ Restaurantes', count: 0 },
-  { id: 'gym', label: '🏋️ Academias', count: 0 },
-  { id: 'lawyer', label: '⚖️ Advogados', count: 0 },
-  { id: 'barber_shop', label: '💈 Barbearias', count: 0 },
-  { id: 'pharmacy', label: '💊 Farmácias', count: 0 },
-  { id: 'veterinarian', label: '🐾 Veterinários', count: 0 },
-  { id: 'real_estate_agency', label: '🏠 Imobiliárias', count: 0 },
-  { id: 'accountant', label: '📊 Contadores', count: 0 },
-  { id: 'car_repair', label: '🔧 Oficinas', count: 0 },
+  { id: 'dentist', label: '🦷 Dentistas' },
+  { id: 'medical_aesthetic_clinic', label: '💉 Clínicas Estéticas' },
+  { id: 'medical_clinic', label: '🏥 Clínicas Médicas' },
+  { id: 'restaurant', label: '🍽️ Restaurantes' },
+  { id: 'gym', label: '🏋️ Academias' },
+  { id: 'lawyer', label: '⚖️ Advogados' },
+  { id: 'barber_shop', label: '💈 Barbearias' },
+  { id: 'pharmacy', label: '💊 Farmácias' },
+  { id: 'veterinarian', label: '🐾 Veterinários' },
+  { id: 'real_estate_agency', label: '🏠 Imobiliárias' },
+  { id: 'accountant', label: '📊 Contadores' },
+  { id: 'car_repair', label: '🔧 Oficinas' },
 ]
 
 interface Listing {
@@ -67,62 +69,72 @@ const DiscoveryPage = () => {
 
   const [geoKey, setGeoKey] = useState('SP')
   const [radius, setRadius] = useState(10)
-  const [selected, setSelected] = useState<string[]>(['dentist'])
-  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<Listing[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [costUsd, setCostUsd] = useState(0)
   const [error, setError] = useState('')
-  const [geoCounts, setGeoCounts] = useState<Record<string, number>>({})
-  const [catCounts, setCatCounts] = useState<Record<string, number>>({})
+  const [fromCache, setFromCache] = useState(false)
+  const [costToday, setCostToday] = useState(0)
+  const [costTotal, setCostTotal] = useState(0)
+  const [costLast, setCostLast] = useState('—')
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Listing | null>(null)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(20)
   const [sortField, setSortField] = useState<SortField>('title')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
-  const search = useCallback(async (cats: string[], geo: string, rad: number) => {
-    if (!cats.length) { setResults([]); setTotalCount(0); return }
+  const estimatedCost = selected.length * 0.015
+
+  const doSearch = useCallback(async (force = false) => {
+    if (!selected.length) return
     setLoading(true); setError('')
     try {
-      const g = GEO[geo]
+      const g = GEO[geoKey]
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categories: cats, lat: g.lat, lng: g.lng, radiusKm: rad, limit: 50 }),
+        body: JSON.stringify({
+          categories: selected, lat: g.lat, lng: g.lng, radiusKm: radius,
+          limit: 50, force,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      const listings: Listing[] = data.listings || []
-      setResults(listings)
+      setResults(data.listings || [])
       setTotalCount(data.total_count || 0)
       setCostUsd(data.cost_usd || 0)
-      // Update counts in geo and categories
-      const tc = data.total_count || 0
-      setGeoCounts(prev => ({ ...prev, [geo]: tc }))
-      setCatCounts(prev => {
-        const next = { ...prev }
-        cats.forEach(c => { next[c] = tc })
-        return next
-      })
+      setFromCache(data.fromCache || false)
+      setCostToday(data.costToday || 0)
+      setCostTotal(data.costTotal || 0)
+      setCostLast(data.costLast || '—')
       setPage(0)
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
-  }, [])
+  }, [selected, geoKey, radius])
 
-  // Auto-load on mount
-  useEffect(() => { search(selected, geoKey, radius) }, [])
+  const handleConfirmSearch = () => {
+    setConfirmOpen(false)
+    doSearch(true) // force fresh search (skip cache)
+  }
 
   const toggle = (catId: string) => {
     setSelected(prev => {
       const next = prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId]
-      if (next.length) search(next, geoKey, radius)
-      else { setResults([]); setTotalCount(0) }
+      if (results.length > 0 && next.length) doSearch() // auto-refresh if already have results
       return next
     })
   }
 
-  const changeGeo = (g: string) => { setGeoKey(g); search(selected, g, radius) }
-  const changeRadius = (r: number) => { setRadius(r); search(selected, geoKey, r) }
+  const changeGeo = (g: string) => {
+    setGeoKey(g)
+    if (selected.length) doSearch()
+  }
+  const changeRadius = (r: number) => {
+    setRadius(r)
+    if (selected.length) doSearch()
+  }
 
   const sorted = useMemo(() => {
     const arr = [...results]
@@ -140,35 +152,42 @@ const DiscoveryPage = () => {
   const paged = sorted.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
 
   const notClaimed = results.filter(l => !l.is_claimed).length
-  const inCity = results.filter(l => {
-    if (!l.latitude || !l.longitude) return false
-    const g = GEO[geoKey]
-    return Math.abs(l.latitude - g.lat) < 2 && Math.abs(l.longitude - g.lng) < 2
-  }).length
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('asc') }
   }
 
-  // Compute display labels with counts
-  const geoLabels = Object.entries(GEO).map(([k, v]) => ({
-    key: k, label: `${v.label}${geoCounts[k] ? ` (${geoCounts[k].toLocaleString('pt-BR')})` : ''}`
-  }))
-  const catLabels = CATS.map(c => ({
-    ...c,
-    label: catCounts[c.id] ? `${c.label} (${catCounts[c.id].toLocaleString('pt-BR')})` : c.label
-  }))
-
   return (
     <Grid container spacing={6}>
+      {/* Header */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>🔍 Discovery Engine</Typography>
-        <Typography variant='body2' color='text.secondary'>
-          Dados REAIS via EVO-API MCP · DataForSEO LIVE
-          {costUsd > 0 && <Chip label={`$${costUsd.toFixed(4)}`} size='small' color='warning' sx={{ ml: 1 }} />}
-        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
+          <Typography variant='body2' color='text.secondary'>
+            Dados REAIS via EVO-API MCP · DataForSEO LIVE · Cache 30min
+          </Typography>
+          {costTotal > 0 && (
+            <Chip label={`💰 Hoje: $${costToday.toFixed(4)} · Total: $${costTotal.toFixed(4)}`}
+              size='small' color='warning' variant='tonal' />
+          )}
+          {fromCache && (
+            <Chip label='📦 Cache' size='small' color='info' variant='tonal' />
+          )}
+        </Box>
       </Grid>
+
+      {/* ═══ COST + CACHE INFO ═══ */}
+      {costLast !== '—' && (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info' sx={{ '& .MuiAlert-message': { flex: 1 } }}>
+            <Typography variant='body2'>
+              Última busca: {costLast} &nbsp;|&nbsp;
+              Resultados persistidos por 24h (Redis :6396). Mesma busca = não gasta de novo.
+            </Typography>
+          </Alert>
+        </Grid>
+      )}
 
       {/* ═══ GEO ═══ */}
       <Grid size={{ xs: 12 }}>
@@ -176,11 +195,11 @@ const DiscoveryPage = () => {
           <CardContent>
             <Typography variant='subtitle2' fontWeight={600} gutterBottom>🌎 Localização</Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-              {geoLabels.map(g => (
-                <Chip key={g.key} label={g.label} clickable
-                  color={geoKey === g.key ? 'primary' : 'default'}
-                  variant={geoKey === g.key ? 'filled' : 'outlined'}
-                  onClick={() => changeGeo(g.key)} />
+              {Object.entries(GEO).map(([k, v]) => (
+                <Chip key={k} label={v.label} clickable
+                  color={geoKey === k ? 'primary' : 'default'}
+                  variant={geoKey === k ? 'filled' : 'outlined'}
+                  onClick={() => changeGeo(k)} />
               ))}
             </Box>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -196,16 +215,30 @@ const DiscoveryPage = () => {
         </Card>
       </Grid>
 
-      {/* ═══ CATEGORIES ═══ */}
+      {/* ═══ CATEGORIES + SEARCH BUTTON ═══ */}
       <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
-            <Typography variant='subtitle2' fontWeight={600} gutterBottom>
-              📁 Categorias ({selected.length} selecionadas)
-            </Typography>
-            {loading && <LinearProgress sx={{ mb: 1, borderRadius: 2 }} />}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant='subtitle2' fontWeight={600}>
+                📁 Categorias ({selected.length} selecionadas)
+                {selected.length > 0 && (
+                  <Chip label={`~$${estimatedCost.toFixed(4)}`} size='small' color='warning'
+                    variant='tonal' sx={{ ml: 1 }} />
+                )}
+              </Typography>
+              <Button
+                variant='contained' color='primary'
+                disabled={selected.length === 0 || loading}
+                onClick={() => setConfirmOpen(true)}
+                startIcon={loading ? undefined : <i className='ri-search-line' />}
+                size='large'
+              >
+                {loading ? 'Buscando...' : `Buscar Agora ($${estimatedCost.toFixed(4)})`}
+              </Button>
+            </Box>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {catLabels.map(cat => {
+              {CATS.map(cat => {
                 const active = selected.includes(cat.id)
                 return (
                   <Chip key={cat.id} label={cat.label} clickable
@@ -219,6 +252,37 @@ const DiscoveryPage = () => {
           </CardContent>
         </Card>
       </Grid>
+
+      {/* ═══ CONFIRMATION DIALOG ═══ */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
+        <DialogTitle>⚠️ Confirmar gasto?</DialogTitle>
+        <DialogContent>
+          <Typography variant='body1' gutterBottom>
+            Você está prestes a fazer uma chamada <strong>LIVE</strong> ao DataForSEO.
+          </Typography>
+          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
+            <Typography variant='body2'>
+              📍 <strong>{GEO[geoKey].label}</strong> · {radius}km raio
+            </Typography>
+            <Typography variant='body2'>
+              📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}
+            </Typography>
+            <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
+              💰 Custo estimado: <strong>${estimatedCost.toFixed(4)}</strong> (R${(estimatedCost * 5.5).toFixed(2)})
+            </Typography>
+          </Box>
+          <Typography variant='caption' color='text.secondary'>
+            Resultados ficam em cache por 30 minutos e persistidos no Redis por 24h.
+            A mesma busca não gasta de novo.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
+          <Button variant='contained' color='primary' onClick={handleConfirmSearch}>
+            Sim, buscar ($${estimatedCost.toFixed(4)})
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ═══ METRICS ═══ */}
       {results.length > 0 && (
@@ -237,23 +301,36 @@ const DiscoveryPage = () => {
           </Grid>
           <Grid size={{ xs: 6, sm: 3 }}>
             <Card><CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant='h5' fontWeight={800}>{inCity}</Typography>
-              <Typography variant='caption' color='text.secondary'>📍 Na Cidade</Typography>
+              <Typography variant='h5' fontWeight={800} color='warning.main'>${costUsd.toFixed(4)}</Typography>
+              <Typography variant='caption' color='text.secondary'>Custo da Chamada</Typography>
             </CardContent></Card>
           </Grid>
           <Grid size={{ xs: 6, sm: 3 }}>
             <Card><CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant='h5' fontWeight={800} color='warning.main'>${costUsd.toFixed(4)}</Typography>
-              <Typography variant='caption' color='text.secondary'>Custo</Typography>
+              <Typography variant='h5' fontWeight={800}>{fromCache ? '📦' : '🆕'}</Typography>
+              <Typography variant='caption' color='text.secondary'>{fromCache ? 'Do Cache' : 'Ao Vivo'}</Typography>
             </CardContent></Card>
           </Grid>
         </>
       )}
 
+      {/* ═══ LOADING ═══ */}
+      {loading && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ textAlign: 'center', py: 4 }}>
+            <CardContent>
+              <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
+              <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
+              <Typography variant='caption' color='text.secondary'>Custo: ${estimatedCost.toFixed(4)} · Cache 30min</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+
       {/* ═══ ERROR ═══ */}
       {error && (
         <Grid size={{ xs: 12 }}>
-          <Card sx={{ bgcolor: 'error.50' }}><CardContent><Typography color='error'>{error}</Typography></CardContent></Card>
+          <Alert severity='error' onClose={() => setError('')}>{error}</Alert>
         </Grid>
       )}
 
@@ -308,19 +385,7 @@ const DiscoveryPage = () => {
         </Grid>
       )}
 
-      {/* ═══ INITIAL LOADING ═══ */}
-      {loading && results.length === 0 && (
-        <Grid size={{ xs: 12 }}>
-          <Card sx={{ textAlign: 'center', py: 4 }}>
-            <CardContent>
-              <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
-              <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      )}
-
-      {/* ═══ MODAL · LEAD DETAIL ═══ */}
+      {/* ═══ LEAD DETAIL MODAL ═══ */}
       <Dialog open={!!selectedLead} onClose={() => setSelectedLead(null)} maxWidth='sm' fullWidth>
         {selectedLead && (
           <>
@@ -338,7 +403,7 @@ const DiscoveryPage = () => {
                   ['📝 Reviews', String(selectedLead.rating_votes || 0)],
                   ['🔑 Place ID', selectedLead.place_id],
                   ['✅ Reivindicado', selectedLead.is_claimed ? 'Sim' : '⚠️ Não'],
-                  ['📐 Lat/Lng', selectedLead.latitude ? `${selectedLead.latitude.toFixed(4)}, ${selectedLead.longitude?.toFixed(4)}` : '—'],
+                  ['📐 Coordenadas', selectedLead.latitude ? `${selectedLead.latitude.toFixed(4)}, ${selectedLead.longitude?.toFixed(4)}` : '—'],
                 ].map(([label, value], i) => (
                   <Grid key={i} size={{ xs: 12, sm: 6 }}>
                     <Typography variant='caption' color='text.secondary'>{label}</Typography>

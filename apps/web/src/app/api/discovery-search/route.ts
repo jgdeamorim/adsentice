@@ -1,22 +1,39 @@
+
 // ══════════════════════════════════════════════════════════════════
 // ADSENTICE · POST /api/discovery-search
-// Bridge: client component → EVO-API MCP :7700 → DataForSEO LIVE
+// Bridge: client → EVO-API MCP :7700 → DataForSEO LIVE
+// Com cache (30min TTL), persistência Redis (24h), e cost tracking
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server"
 import { businessListingsSearch } from "@/lib/evo-mcp"
+import {
+  getCached, setCache, trackCost, persistResults, getPersistedResults,
+  getCostToday, getCostTotal, getCostLast,
+} from "@/lib/discovery-cache"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit } = body
+  const { categories, lat, lng, radiusKm, limit, force } = body
 
   if (!categories?.length) {
     return NextResponse.json({ error: "categories required" }, { status: 400 })
   }
 
+  const cacheKey = `discovery:${categories.sort().join(',')}:${lat}:${lng}:${radiusKm}`
+
+  // ═══ CACHE CHECK ═══
+  if (!force) {
+    const cached = getCached(cacheKey) || getPersistedResults(cacheKey)
+    if (cached) {
+      return NextResponse.json({ ...(cached as object), fromCache: true, costToday: getCostToday(), costTotal: getCostTotal() })
+    }
+  }
+
+  // ═══ LIVE SEARCH ═══
   try {
     const result = await businessListingsSearch({
       categories,
@@ -26,7 +43,18 @@ export async function POST(request: NextRequest) {
       limit: limit || 50,
     })
 
-    return NextResponse.json(result)
+    // Track cost
+    trackCost({
+      categories, lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10,
+      costUsd: result.cost_usd, totalCount: result.total_count,
+    })
+
+    // Persist + cache
+    const payload = { ...result, fromCache: false, costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast() }
+    setCache(cacheKey, payload)
+    persistResults(cacheKey, payload)
+
+    return NextResponse.json(payload)
   } catch (e: any) {
     return NextResponse.json(
       { error: e.message || "EVO-API MCP unavailable" },
