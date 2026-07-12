@@ -38,6 +38,7 @@ type RenderExpandIconProps = {
 type Props = {
   dictionary: Awaited<ReturnType<typeof getDictionary>>
   scrollMenu: (container: any, isPerfectScrollbar: boolean) => void
+  role?: string
 }
 
 const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) => (
@@ -46,7 +47,8 @@ const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) =
   </StyledVerticalNavExpandIcon>
 )
 
-const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
+const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
+  const isAdmin = role === 'admin'
   // Hooks
   const theme = useTheme()
   const verticalNavOptions = useVerticalNav()
@@ -81,6 +83,42 @@ const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
         renderExpandedMenuItemIcon={{ icon: <i className='ri-circle-line' /> }}
         menuSectionStyles={menuSectionStyles(verticalNavOptions, theme)}
       >
+        {/* ═══ ADSENTICE ADMIN ═══ */}
+        {isAdmin && (
+          <SubMenu
+            label='adsentice'
+            icon={<i className='ri-radar-line' />}
+            suffix={<Chip label='ADMIN' size='small' color='primary' />}
+          >
+            <MenuItem href={`/${locale}/admin`}>
+              <i className='ri-dashboard-3-line' style={{ marginRight: 8 }} />
+              Dashboard
+            </MenuItem>
+            <MenuItem href={`/${locale}/dashboards/analytics`}>
+              <i className='ri-bar-chart-2-line' style={{ marginRight: 8 }} />
+              Analytics
+            </MenuItem>
+            <MenuItem href={`/${locale}/dashboards/crm`}>
+              <i className='ri-user-star-line' style={{ marginRight: 8 }} />
+              Pipeline CRM
+            </MenuItem>
+          </SubMenu>
+        )}
+        {!isAdmin && (
+          <SubMenu
+            label='Meu Painel'
+            icon={<i className='ri-dashboard-3-line' />}
+          >
+            <MenuItem href={`/${locale}/app`}>
+              <i className='ri-home-3-line' style={{ marginRight: 8 }} />
+              Visão Geral
+            </MenuItem>
+            <MenuItem href={`/${locale}/dashboards/analytics`}>
+              <i className='ri-bar-chart-2-line' style={{ marginRight: 8 }} />
+              Meus Resultados
+            </MenuItem>
+          </SubMenu>
+        )}
         <SubMenu
           label={dictionary['navigation'].dashboards}
           icon={<i className='ri-home-smile-line' />}

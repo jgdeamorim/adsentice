@@ -28,6 +28,9 @@ import { i18n } from '@configs/i18n'
 import { getDictionary } from '@/utils/getDictionary'
 import { getMode, getSystemMode } from '@core/utils/serverHelpers'
 
+// Auth (adsentice)
+import { getSessionUser } from '@/libs/supabase/server'
+
 const Layout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> }) => {
   const params = await props.params
 
@@ -38,6 +41,8 @@ const Layout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> 
   const dictionary = await getDictionary(params.lang)
   const mode = await getMode()
   const systemMode = await getSystemMode()
+  const user = await getSessionUser()
+  const role = user?.role ?? 'client'
 
   return (
     <Providers direction={direction}>
@@ -46,7 +51,7 @@ const Layout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> 
           systemMode={systemMode}
           verticalLayout={
             <VerticalLayout
-              navigation={<Navigation dictionary={dictionary} mode={mode} />}
+              navigation={<Navigation dictionary={dictionary} mode={mode} role={role} />}
               navbar={<Navbar />}
               footer={<VerticalFooter />}
             >
