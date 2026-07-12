@@ -239,10 +239,10 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
                 'Tem website mas sem dados de SEO → usar estimativa GMB',
               ].map((rule, i) => (
                 <Grid key={i} size={{ xs: 12, sm: 6 }}>
-                  <Typography variant='body2'>
-                    <Chip label={`R${i + 1}`} size='small' variant='outlined' sx={{ mr: 1 }} />
-                    {rule}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip label={`R${i + 1}`} size='small' variant='outlined' />
+                    <Typography variant='body2'>{rule}</Typography>
+                  </Box>
                 </Grid>
               ))}
             </Grid>
