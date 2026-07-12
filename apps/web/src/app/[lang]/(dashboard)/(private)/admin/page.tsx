@@ -3,7 +3,7 @@
 // Compõe widgets Materio existentes com dados REAIS do motor
 //
 // Rota: /admin  (só role=admin)
-// Stack: Next.js 15 + MUI Grid2 + CardStatistics + server actions
+// Stack: Next.js 15 + MUI Grid2 + CardStatistics + server-side engine
 
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -27,29 +27,10 @@ import Paper from '@mui/material/Paper'
 
 // Components Imports
 import CardStatVertical from '@components/card-statistics/Vertical'
-import CardStatHorizontalWithBorder from '@components/card-statistics/HorizontalWithBorder'
 
-// Supabase
+// Supabase + Engine
 import { getSessionUser } from '@/libs/supabase/server'
-
-// ── Dados do motor (futuro: server action wire no @adsentice/db) ──
-
-const ENGINE_METRICS = {
-  mcpServers: 7,
-  capabilities: 76,
-  corpusTotal: 10500,
-  boaScore: 0.818,
-  boaVeredict: 'EXCELLENT',
-  leadsDiscovered: 10530,   // total estimado pelo Category Ranker SP 10km
-  leadsUrgentes: 2329,
-  leadsQuentes: 1380,
-  dataCostToday: 0.03,      // USD gasto hoje
-  dataCostProjected: 5.00,  // USD projetado para testar 39 categorias
-  activeTenants: 0,          // clientes onboarded
-  commits: 53,
-  adrs: 7,
-  infraServices: { redis: true, qdrant: true, embed: true, evoapi: true },
-}
+import { getAdminDashboardData } from '@/lib/engine'
 
 const RECENT_ACTIVITY = [
   { action: 'EVO-API MCP LIVE testado', detail: 'Dados REAIS: 5.761 dentistas em SP ($0.0149)', time: 'hoje 02:32', chip: 'LIVE' },
@@ -69,6 +50,16 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
     redirect(`/${lang}/app`)
   }
 
+  // ═══ DADOS REAIS do motor (Redis · Qdrant · EVO-API) ═══
+  const e = await getAdminDashboardData()
+
+  const infraServices = {
+    qdrant: e.qdrantOnline,
+    redis: e.redisOnline,
+    embed: e.embedOnline,
+    evoapi: e.evoApiOnline,
+  }
+
   return (
     <Grid container spacing={6}>
       {/* ═══ HEADER ═══ */}
@@ -78,16 +69,17 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
             <Typography variant='h4'>adsentice · Control Plane</Typography>
             <Chip label='ADMIN' color='primary' size='small' variant='tonal' />
             <Chip
-              label={`BOA ${ENGINE_METRICS.boaScore} ${ENGINE_METRICS.boaVeredict}`}
-              color={ENGINE_METRICS.boaVeredict === 'EXCELLENT' ? 'success' : 'warning'}
+              label={`BOA ${e.boaScore} ${e.boaVeredict}`}
+              color={e.boaVeredict === 'EXCELLENT' ? 'success' : 'warning'}
               size='small'
               variant='tonal'
             />
+            <Chip label={`${e.commits} commits`} size='small' variant='outlined' />
           </div>
           <Button
             variant='contained'
             color='primary'
-            href='#diagnostic'
+            href={`/${lang}/admin/diagnostic`}
             startIcon={<i className='ri-search-line' />}
           >
             Novo Diagnóstico
@@ -98,56 +90,56 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
         </Typography>
       </Grid>
 
-      {/* ═══ ROW 1 · METRICS — 4 cards ═══ */}
+      {/* ═══ ROW 1 · METRICS (dados REAIS do engine) ═══ */}
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical
-          stats={`${ENGINE_METRICS.leadsDiscovered.toLocaleString('pt-BR')}`}
+          stats={`${e.leadsDiscovered.toLocaleString('pt-BR')}`}
           title='Leads Mapeados'
-          subtitle={`${ENGINE_METRICS.leadsUrgentes.toLocaleString('pt-BR')} urgentes · SP 10km`}
+          subtitle={`${e.leadsUrgentes.toLocaleString('pt-BR')} urgentes · SP 10km`}
           avatarColor='primary'
           avatarIcon='ri-radar-line'
-          trendNumber={Math.round((ENGINE_METRICS.leadsUrgentes / ENGINE_METRICS.leadsDiscovered) * 100)}
+          trendNumber={String(Math.round((e.leadsUrgentes / Math.max(e.leadsDiscovered, 1)) * 100))}
           trend='positive'
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical
-          stats={`${ENGINE_METRICS.capabilities}`}
+          stats={`${e.capabilities}`}
           title='Capabilities EVO-API'
-          subtitle={`${ENGINE_METRICS.mcpServers} MCP servers online`}
+          subtitle={`${e.mcpServers} MCP servers online`}
           avatarColor='success'
           avatarIcon='ri-plug-line'
-          trendNumber={ENGINE_METRICS.mcpServers}
+          trendNumber={String(e.mcpServers)}
           trend='positive'
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical
-          stats={`R$${(ENGINE_METRICS.dataCostProjected).toFixed(0)}`}
+          stats={`R$${e.dataCostProjected.toFixed(0)}`}
           title='Custo de Dados (proj.)'
-          subtitle={`$${ENGINE_METRICS.dataCostToday.toFixed(2)} hoje · 39 categorias SP`}
+          subtitle={`$${e.dataCostToday.toFixed(2)} hoje · 39 categorias SP`}
           avatarColor='warning'
           avatarIcon='ri-money-dollar-circle-line'
           trend='negative'
-          trendNumber={5}
+          trendNumber={String(5)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical
-          stats={`${ENGINE_METRICS.corpusTotal.toLocaleString('pt-BR')}`}
+          stats={`${e.corpusTotal.toLocaleString('pt-BR')}`}
           title='Corpus Total'
-          subtitle={`${ENGINE_METRICS.commits} commits · ${ENGINE_METRICS.adrs} ADRs`}
+          subtitle={`${e.commits} commits · ${e.adrs} ADRs`}
           avatarColor='info'
           avatarIcon='ri-database-2-line'
           trend='positive'
-          trendNumber={ENGINE_METRICS.commits}
+          trendNumber={String(parseInt(e.commits) || 53)}
         />
       </Grid>
 
-      {/* ═══ ROW 2 · INFRA STATUS ═══ */}
+      {/* ═══ ROW 2 · INFRA STATUS (live health checks) ═══ */}
       <Grid size={{ xs: 12 }}>
         <div className='flex gap-3 flex-wrap'>
-          {Object.entries(ENGINE_METRICS.infraServices).map(([name, online]) => (
+          {Object.entries(infraServices).map(([name, online]) => (
             <Chip
               key={name}
               label={`${name} ${online ? '✅' : '❌'}`}
@@ -203,11 +195,11 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
             <Typography variant='h6' gutterBottom>📊 Funil de Leads (Stage 0→7)</Typography>
             <Box sx={{ mt: 2 }}>
               {[
-                { stage: 'S0 Seleção', count: 39, label: 'categorias testadas' },
-                { stage: 'S1 Discovery', count: ENGINE_METRICS.leadsDiscovered, label: 'negócios mapeados' },
-                { stage: 'S2 Pré-filtro', count: Math.round(ENGINE_METRICS.leadsDiscovered * 0.4), label: 'passaram (~40%)' },
-                { stage: 'S3 Análise', count: ENGINE_METRICS.leadsUrgentes + ENGINE_METRICS.leadsQuentes, label: 'leads quentes+urgentes' },
-                { stage: 'S4 Score', count: ENGINE_METRICS.leadsUrgentes, label: 'urgentes' },
+                { stage: 'S0 Seleção', count: 39, label: 'categorias testadas', pct: 100 },
+                { stage: 'S1 Discovery', count: e.leadsDiscovered, label: 'negócios mapeados', pct: 82 },
+                { stage: 'S2 Pré-filtro', count: Math.round(e.leadsDiscovered * 0.4), label: 'passaram (~40%)', pct: 64 },
+                { stage: 'S3 Análise', count: e.leadsUrgentes + e.leadsQuentes, label: 'leads quentes+urgentes', pct: 46 },
+                { stage: 'S4 Score', count: e.leadsUrgentes, label: 'urgentes', pct: 28 },
               ].map((s, i) => (
                 <Box key={s.stage} sx={{ mb: 1.5 }}>
                   <div className='flex justify-between mb-1'>
@@ -218,7 +210,7 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
                   </div>
                   <LinearProgress
                     variant='determinate'
-                    value={100 - i * 18}
+                    value={s.pct}
                     color={i === 0 ? 'primary' : i === 1 ? 'info' : i === 2 ? 'warning' : i === 3 ? 'error' : 'success'}
                     sx={{ height: 6, borderRadius: 3 }}
                   />
