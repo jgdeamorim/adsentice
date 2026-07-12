@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.5"
+version: "1.0.6"
 date: 2026-07-11
-updated: 2026-07-12T22:00:00-03:00
+updated: 2026-07-12T23:59:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -82,7 +82,15 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.COR.code.web` | Dashboard Next.js + Chat UI | `apps/web/` | ✅ vivo (5 commits) |
+| `ADS.COR.code.web` | Dashboard Next.js + Chat UI | `apps/web/` | ✅ vivo (80+ commits) |
+| `ADS.COR.code.scoring` | Scoring Engine — Fit×0.40+Engagement×0.35+Intent×0.25 · Schwartz classifier | `apps/web/src/lib/scoring.ts` | ✅ v1.0 · 480 linhas |
+| `ADS.COR.code.engine` | Admin dashboard data bridge (Redis :6396 · Qdrant :6352 · EVO-API :7700) | `apps/web/src/lib/engine.ts` | ✅ vivo · zero hardcoded |
+| `ADS.COR.code.discovery_page` | Discovery Engine UI — score composto + Schwartz chips + benchmark competitivo | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/discovery/page.tsx` | ✅ v0.2 |
+| `ADS.COR.code.criteria_page` | Pain Criteria v1.2 — Schwartz awareness + compound formula + decay + calibration | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/criteria/page.tsx` | ✅ v1.2 |
+| `ADS.COR.code.settings_page` | Settings · Integrações — 6 provider cards (Supabase, R2, EVO-API, DataForSEO, Qdrant, Redis) | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/settings/page.tsx` | ✅ vivo |
+| `ADS.COR.code.error_boundaries` | error.tsx + not-found.tsx + global-error.tsx (Next.js 15 required) | `apps/web/src/app/[lang]/error.tsx` | ✅ vivo |
+| `ADS.COR.code.benchmark_route` | API competitive benchmark — TOP 5 concorrentes no raio | `apps/web/src/app/api/competitive-benchmark/route.ts` | ✅ vivo |
+| `ADS.COR.code.discovery_route` | API discovery-search — bridge EVO-API MCP :7700 → DataForSEO LIVE | `apps/web/src/app/api/discovery-search/route.ts` | ✅ vivo · scoring pass |
 | `ADS.COR.code.vault` | Cofre durável (R2 + Postgres) | `packages/vault/` | ✅ vivo (463 linhas, 6/6 testes) |
 | `ADS.COR.code.vault.r2` | BlobStore → Cloudflare R2 (S3-compat, IfNoneMatch) | `packages/vault/src/impl/r2-blob-store.ts` | ✅ vivo |
 | `ADS.COR.code.vault.supabase` | SeriesStore → Supabase Postgres (service role, query_vault) | `packages/vault/src/impl/supabase-series-store.ts` | ✅ vivo |
@@ -325,7 +333,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.5 · 2026-07-12 · 7 dimensões · 85+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 27 campos canônicos GMB · 35+ sinais de dor · 10 produtos mapeados*
+*Base-Matriz adsentice v1.0.6 · 2026-07-12 · 7 dimensões · 95+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 27 campos canônicos GMB · 95+ cidades BR · 35+ sinais de dor · 6 integrações · zero hardcoded no engine*
 
 ## Changelog
 
@@ -337,3 +345,6 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v004 | 2026-07-12 | pain-criteria-v1.2-schwartz-esc-lead-scoring | `docs/spec/adsentice-pain-criteria-v1.md` (commit cd6bc68) | ✅ vivo |
 | v005 | 2026-07-12 | enrichment-layers-5-camadas-gmb-ate-diagnostico | `docs/spec/adsentice-enrichment-layers.md` | ✅ vivo |
 | v006 | 2026-07-12 | enrichment-layers-v2-anatomia-completa-gmb-27-campos | `docs/spec/adsentice-enrichment-layers.md` (commit a920978) | ✅ vivo |
+| v007 | 2026-07-12 | dashboard-v0.2-score-composto-schwartz-benchmark | `apps/web/src/lib/scoring.ts` (commit effbc0d) | ✅ vivo |
+| v008 | 2026-07-12 | correcao-geo-95-cidades-categories-alinhado-discovery | `apps/web/src/app/.../(discovery\|categories)/page.tsx` (commit 24cb0f2) | ✅ vivo |
+| v009 | 2026-07-12 | auditoria-hardcoded-removidos-engine-redis-real | `apps/web/src/lib/engine.ts` (commit 0eb6dc7) | ✅ vivo |
