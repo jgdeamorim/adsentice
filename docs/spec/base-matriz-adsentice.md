@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.2"
+version: "1.0.3"
 date: 2026-07-11
-updated: 2026-07-12T18:30:00-03:00
+updated: 2026-07-12T20:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -52,9 +52,10 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.gojasper_repos` | Análise dos 10 repos gojasper (ouro/prata/bronze) | `docs/jasper-docs/gojasper-repos-analysis.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_dfseo` | DataForSEO MCP oficial vs EVO-API provider.core | `docs/dataforseo-oficial-mcp-vs-evo-api-provider-core.md` | ✅ vivo |
 | `ADS.COR.docs.comparativo_claude_seo` | RSXT+EVO-API vs Claude SEO | `docs/rsxt-evo-api-vs-claude-seo.md` | ✅ vivo |
-| `ADS.COR.docs.pain_criteria` | Matriz de Dor Inteligente v1.1 (20 sinais, 3 tiers) | `docs/spec/adsentice-pain-criteria-v1.md` | ✅ vivo |
+| `ADS.COR.docs.pain_criteria` | Matriz de Dor Inteligente v1.2 — Schwartz awareness levels + ESC lead scoring composto | `docs/spec/adsentice-pain-criteria-v1.md` | ✅ v1.2.0 |
 | `ADS.COR.docs.discovery_engine` | Motor de Descoberta parametrizável com filtros de dor | `docs/spec/adsentice-discovery-engine.md` | ✅ vivo |
 | `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
+| `ADS.COR.docs.esc_skills_analysis` | Análise ESC gui.marketing (27 skills) → Dashboard adsentice | `docs/spec/adsentice-esc-skills-analysis.md` | ✅ v1.0.0 |
 
 ### ADS.COR.vendor — Referências Externas
 
@@ -62,6 +63,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 |---|---|---|---|
 | `ADS.COR.vendor.marketingskills` | Corey Haines — 43 skills SaaS marketing (SEO, CRO, analytics, pricing, copy, growth) | `vendor/marketingskills/` | ✅ MIT · gitignored |
 | `ADS.COR.vendor.advertising_skills` | Kim Barrett — 12 skills direct response (Schwartz, avatar, offer, objection, funnel) | `vendor/advertising-skills/` | ✅ MIT · gitignored |
+| `ADS.COR.vendor.esc_skills` | gui.marketing — 27 skills agência de performance (lead scoring, measurement, brandformance, ICP, CRO) | `~/Downloads/esc-skills-main/` | ✅ referência externa |
 
 ### ADS.COR.adr — ADRs
 
@@ -299,7 +301,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.2 · 2026-07-12 · 7 dimensões · 70+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 55 skills marketing ingeridos*
+*Base-Matriz adsentice v1.0.3 · 2026-07-12 · 7 dimensões · 75+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos (55 Corey+Kim + 27 ESC)*
 
 ## Changelog
 
@@ -308,3 +310,4 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v001 | 2026-07-11 | criar-o-ecossistema-adsentice-completo | `HANDOFF-2026-07-11-v001-criar-o-ecossistema-adsentice-completo.md` | ✅ vivo |
 | v002 | 2026-07-11 | montar-ecossistema-completo-adsentice-com-mcp-servers-kg-ood | `HANDOFF-2026-07-11-v002-montar-ecossistema-completo-adsentice-com-mcp-serv.md` | ✅ vivo |
 | v003 | 2026-07-12 | ingestar-vocabulario-marketing-corey-haines-kim-barrett | `docs/spec/adsentice-marketing-vocab.md` (commit 2e7ad8e) | ✅ vivo |
+| v004 | 2026-07-12 | pain-criteria-v1.2-schwartz-esc-lead-scoring | `docs/spec/adsentice-pain-criteria-v1.md` (commit cd6bc68) | ✅ vivo |
