@@ -111,7 +111,8 @@ interface Listing {
 type SortField = 'score' | 'title' | 'category' | 'rating_value' | 'rating_votes'
 
 const DiscoveryPage = () => {
-  useParams() // locale handling
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { lang: _lang } = useParams() as { lang: string }
 
   // ── Geo ──
   const [stateKey, setStateKey] = useState('SP')
