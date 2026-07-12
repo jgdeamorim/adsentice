@@ -106,6 +106,10 @@ const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
               <i className='ri-money-dollar-circle-line' style={{ marginRight: 8 }} />
               Custos
             </MenuItem>
+            <MenuItem href={`/${locale}/admin/criteria`}>
+              <i className='ri-equalizer-line' style={{ marginRight: 8 }} />
+              Critérios
+            </MenuItem>
             <MenuItem href={`/${locale}/dashboards/analytics`}>
               <i className='ri-bar-chart-2-line' style={{ marginRight: 8 }} />
               Analytics
