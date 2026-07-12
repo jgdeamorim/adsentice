@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.3"
+version: "1.0.4"
 date: 2026-07-11
-updated: 2026-07-12T20:30:00-03:00
+updated: 2026-07-12T21:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -56,6 +56,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.discovery_engine` | Motor de Descoberta parametrizável com filtros de dor | `docs/spec/adsentice-discovery-engine.md` | ✅ vivo |
 | `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.esc_skills_analysis` | Análise ESC gui.marketing (27 skills) → Dashboard adsentice | `docs/spec/adsentice-esc-skills-analysis.md` | ✅ v1.0.0 |
+| `ADS.COR.docs.enrichment_layers` | Funil de enriquecimento 5 camadas (GMB→Website→Social→Brand→Diagnóstico) | `docs/spec/adsentice-enrichment-layers.md` | ✅ v1.0.0 |
 
 ### ADS.COR.vendor — Referências Externas
 
@@ -231,6 +232,29 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | `ADS.PRD.chat.analyze` | Deep-dive credit-gated | 🔴 a construir |
 | `ADS.PRD.chat.message` | Chat livre com contexto do negócio | 🔴 a construir |
 
+### ADS.PRD.enrichment — Funil de Enriquecimento (5 camadas)
+
+| Rota | Camada | Dados | Custo/lead | Status |
+|---|---|---|---|---|
+| `ADS.PRD.enrich.l0_gmb` | L0 · Atração GMB | 27 campos canônicos | $0.015 | ✅ live |
+| `ADS.PRD.enrich.l1_website` | L1 · Website Lighthouse | SEO, performance, analytics, CMS, schema | $0.0001 | 🟡 spec pronta |
+| `ADS.PRD.enrich.l2_social` | L2 · Social Media | Instagram, Facebook, TikTok, engajamento | $0.0005 | 🔴 v0.3 |
+| `ADS.PRD.enrich.l3_brand` | L3 · Brand & Market | Branded search, SOV, backlinks, AI mentions | $0.03 | 🔴 v0.5 |
+| `ADS.PRD.enrich.l4_diagnostic` | L4 · Diagnóstico LLM | Plano 7/30/90, script abordagem, proposta | $0.02 | 🔴 v0.5 |
+
+### ADS.PRD.products — Produtos por Camada
+
+| Rota | Produto | Preço | Camada | Status |
+|---|---|---|---|---|
+| `ADS.PRD.products.raio_x` | Raio-X (diagnóstico gratuito) | R$0 | L0 | 🟡 spec pronta |
+| `ADS.PRD.products.auditoria` | Auditoria de Site (PDF 30+ checks) | R$47 | L1 | 🔴 v0.3 |
+| `ADS.PRD.products.social_kit` | Social Media Kit (templates+calendário) | R$47 | L2 | 🔴 v0.4 |
+| `ADS.PRD.products.sentinela` | Sentinela (monitoramento 24/7) | R$197/mês | L0-L2 | 🔴 v0.4 |
+| `ADS.PRD.products.seo_local` | SEO Local (otimização contínua) | R$197/mês | L1 | 🔴 v0.3 |
+| `ADS.PRD.products.brandformance` | Brandformance (mix brand+performance) | R$497/mês | L3 | 🔴 v0.5 |
+| `ADS.PRD.products.dominio` | Domínio (full stack) | R$497/mês | L0-L4 | 🔴 v0.6 |
+| `ADS.PRD.products.consultoria` | Consultoria (diagnóstico completo) | ticket | L4 | 🔴 v0.6 |
+
 ### ADS.PRD.solutions — Soluções
 
 | Rota | Solução | Caps | Status |
@@ -301,7 +325,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.3 · 2026-07-12 · 7 dimensões · 75+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos (55 Corey+Kim + 27 ESC)*
+*Base-Matriz adsentice v1.0.4 · 2026-07-12 · 7 dimensões · 85+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · 5 camadas de enriquecimento · 8 produtos mapeados*
 
 ## Changelog
 
@@ -311,3 +335,4 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v002 | 2026-07-11 | montar-ecossistema-completo-adsentice-com-mcp-servers-kg-ood | `HANDOFF-2026-07-11-v002-montar-ecossistema-completo-adsentice-com-mcp-serv.md` | ✅ vivo |
 | v003 | 2026-07-12 | ingestar-vocabulario-marketing-corey-haines-kim-barrett | `docs/spec/adsentice-marketing-vocab.md` (commit 2e7ad8e) | ✅ vivo |
 | v004 | 2026-07-12 | pain-criteria-v1.2-schwartz-esc-lead-scoring | `docs/spec/adsentice-pain-criteria-v1.md` (commit cd6bc68) | ✅ vivo |
+| v005 | 2026-07-12 | enrichment-layers-5-camadas-gmb-ate-diagnostico | `docs/spec/adsentice-enrichment-layers.md` | ✅ vivo |
