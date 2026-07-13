@@ -337,6 +337,10 @@ const DiscoveryPage = () => {
   const [minScore, setMinScore] = useState(0)
   const [schwartzFilter, setSchwartzFilter] = useState<number[]>([])
   const [sortBy, setSortBy] = useState<SortField>('score')
+  const [searchOrderBy, setSearchOrderBy] = useState('rating_value,desc')
+  const [searchOffset, setSearchOffset] = useState(0)
+  const [regionalTotal, setRegionalTotal] = useState(0)
+  const [extractedTotal, setExtractedTotal] = useState(0)
 
   // ── Results ──
   const [loading, setLoading] = useState(false)
@@ -360,9 +364,11 @@ const DiscoveryPage = () => {
   const estimatedCost = selected.length * 0.015
 
   // ═══ Search ═══
-  const doSearch = useCallback(async (force = false) => {
+  const doSearch = useCallback(async (force = false, offsetOverride?: number) => {
     if (!selected.length) return
     setLoading(true); setError('')
+
+    if (offsetOverride !== undefined) setSearchOffset(offsetOverride)
 
     try {
       const city = STATES[stateKey]?.cities[cityKey]
@@ -374,6 +380,8 @@ const DiscoveryPage = () => {
         body: JSON.stringify({
           categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
           limit: 50, force, enrich: force ? 5 : 0,
+          order_by: searchOrderBy ? [searchOrderBy] : undefined,
+          offset: searchOffset,
         }),
       })
 
@@ -388,6 +396,8 @@ const DiscoveryPage = () => {
       setFromCache(data.fromCache || false)
       setCostToday(data.costToday || 0)
       setCostTotal(data.costTotal || 0)
+      setRegionalTotal(data.total_count || 0)
+      setExtractedTotal((prev: number) => prev + (data.listings?.length || 0))
       setPage(0)
       setSortBy('score')
       setSortDir('desc')
@@ -666,6 +676,38 @@ return (
               </Box>
             </Grid>
           </Grid>
+          {/* DataForSEO Order + Offset */}
+          <Grid container spacing={2} alignItems='center' sx={{ mt: 1 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                📋 Ordem da busca (DataForSEO):
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {[
+                  { value: 'rating_value,desc', label: '⭐ Melhor Rating' },
+                  { value: 'rating_votes,desc', label: '📝 Mais Reviews' },
+                  { value: 'rating_value,asc', label: '⬇ Pior Rating' },
+                ].map((o: { value: string; label: string }) => (
+                  <Chip key={o.value} label={o.label} clickable size='small'
+                    color={searchOrderBy === o.value ? 'warning' : 'default'}
+                    variant={searchOrderBy === o.value ? 'filled' : 'outlined'}
+                    onClick={() => { setSearchOrderBy(o.value); setSearchOffset(0); setExtractedTotal(0); }} />
+                ))}
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                📄 Próxima página (DataForSEO):
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={`Offset: ${searchOffset}`} size='small' variant='outlined' />
+                {searchOffset > 0 && (
+                  <Chip label='↺ Reset' size='small' color='error' variant='outlined'
+                    onClick={() => { setSearchOffset(0); setExtractedTotal(0); }} />
+                )}
+              </Box>
+            </Grid>
+          </Grid>
           {/* Filter status */}
           {(minScore > 0 || schwartzFilter.length > 0) && (
             <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -784,6 +826,14 @@ return (
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
             <Card><CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant='h5' fontWeight={800} color={regionalTotal > 0 ? 'success.main' : 'text.secondary'}>
+                {regionalTotal > 0 ? `${((extractedTotal / regionalTotal) * 100).toFixed(1)}%` : '—'}
+              </Typography>
+              <Typography variant='caption' color='text.secondary'>Mercado Coberto</Typography>
+            </CardContent></Card>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 2.4 }}>
+            <Card><CardContent sx={{ textAlign: 'center' }}>
               <Typography variant='h5' fontWeight={800} color='primary.main'>
                 {distribution ? `${distribution.productAware + distribution.mostAware}` : '—'}
               </Typography>
@@ -800,6 +850,14 @@ return (
             <Card><CardContent sx={{ textAlign: 'center' }}>
               <Typography variant='h5' fontWeight={800}>{fromCache ? '📦' : '🆕'}</Typography>
               <Typography variant='caption' color='text.secondary'>{fromCache ? 'Do Cache' : 'Ao Vivo'}</Typography>
+            </CardContent></Card>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 2.4 }}>
+            <Card><CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant='h5' fontWeight={800} color='info.main'>
+                {extractedTotal}/{regionalTotal}
+              </Typography>
+              <Typography variant='caption' color='text.secondary'>Extraídos/Total</Typography>
             </CardContent></Card>
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>

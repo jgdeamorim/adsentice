@@ -111,7 +111,7 @@ async function enrichTopLeads(
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, order_by, offset, filters } = body
 
   if (!categories?.length) {
     return NextResponse.json({ error: "categories required" }, { status: 400 })
@@ -136,6 +136,9 @@ export async function POST(request: NextRequest) {
       lng: lng || -46.6333,
       radiusKm: radiusKm || 10,
       limit: limit || 50,
+      offset: offset || undefined,
+      order_by: order_by || undefined,
+      filters: filters || undefined,
     })
 
     const searchCost = result.cost_usd || 0

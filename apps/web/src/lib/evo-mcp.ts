@@ -173,6 +173,9 @@ export async function businessListingsSearch(params: {
   lng: number
   radiusKm: number
   limit?: number
+  offset?: number
+  order_by?: string[]
+  filters?: any[]
 }): Promise<ListingsResult> {
   // 1. Initialize
   const init = await mcpRequest("initialize", {
@@ -198,20 +201,35 @@ export async function businessListingsSearch(params: {
     signal: AbortSignal.timeout(5000),
   })
 
+  // 3. Build arguments with optional order_by, offset, filters
+  const args: Record<string, unknown> = {
+    categories: params.categories,
+    location_coordinate: `${params.lat},${params.lng},${params.radiusKm}`,
+    language_code: "pt",
+    limit: params.limit || 10,
+    mode: "live",
+    tenancy_id: "adsentice-dev",
+    spend_cap_usd: 0.05,
+  }
+
+  if (params.offset && params.offset > 0) {
+    args.offset = params.offset
+  }
+
+  if (params.order_by && params.order_by.length > 0) {
+    args.order_by = params.order_by
+  }
+
+  if (params.filters && params.filters.length > 0) {
+    args.filters = params.filters
+  }
+
   // 3. Call business_listings_search
   const call = await mcpRequest(
     "tools/call",
     {
       name: "business_listings_search",
-      arguments: {
-        categories: params.categories,
-        location_coordinate: `${params.lat},${params.lng},${params.radiusKm}`,
-        language_code: "pt",
-        limit: params.limit || 10,
-        mode: "live",
-        tenancy_id: "adsentice-dev",
-        spend_cap_usd: 0.05,
-      },
+      arguments: args,
     },
     sid || undefined
   )
