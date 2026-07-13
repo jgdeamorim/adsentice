@@ -181,8 +181,42 @@ export function detectDomainType(website: string | null | undefined): "proprio" 
   if (url.includes("linktr.ee") || url.includes("linktree")) return "linktree"
   if (url.includes("facebook.com") || url.includes("fb.com") || url.includes("instagram.com")) return "facebook"
   if (url.includes("sites.google.com")) return "google_sites"
-  
+
 return "proprio"
+}
+
+/** Classify CMS/platform risk level for W6 scoring. Considers both URL pattern (L0) and detected CMS (L2). */
+export function classifyCMSRisk(cms: string | null | undefined, website: string | null | undefined): {
+  level: "none" | "low" | "medium" | "high"
+  label: string
+  points: number
+} {
+  const domainType = detectDomainType(website)
+
+  // ── HIGH pain: not a real website ──
+  if (domainType === "linktree") return { level: "high", label: "Linktree — não é site, é link page", points: 8 }
+  if (domainType === "facebook") return { level: "high", label: "Rede Social como site — sem domínio próprio", points: 8 }
+  if (domainType === "google_sites") return { level: "high", label: "Google Sites — site gratuito básico", points: 5 }
+
+  // ── MEDIUM pain: builder platforms with limited SEO ──
+  if (domainType === "wix") return { level: "medium", label: "Wix — SEO limitado, difícil migrar", points: 4 }
+
+  // ── Own domain — check L2 CMS data ──
+  if (cms) {
+    const c = cms.toLowerCase()
+    if (c.includes("wordpress")) return { level: "medium", label: "WordPress — risco de plugins desatualizados", points: 5 }
+    if (c.includes("wix")) return { level: "medium", label: "Wix (domínio próprio) — SEO limitado", points: 4 }
+    if (c.includes("joomla") || c.includes("drupal")) return { level: "low", label: `${cms} — CMS legado`, points: 3 }
+    if (c.includes("shopify") || c.includes("squarespace") || c.includes("webflow")) return { level: "none", label: `${cms} — plataforma moderna`, points: 0 }
+    // Unknown CMS detected
+    return { level: "low", label: `${cms} — CMS não identificado`, points: 2 }
+  }
+
+  // Own domain, no CMS detected (L2 not available)
+  if (domainType === "proprio") return { level: "low", label: "Domínio próprio — CMS desconhecido", points: 2 }
+
+  // No website at all
+  return { level: "none", label: "Sem site", points: 0 }
 }
 
 export function evaluateDescriptionQuality(desc: string | null | undefined): { score: number; checks: string[] } {
@@ -395,11 +429,12 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
       missing.push("W5:tem_analytics")
     } else { missing.push("W5:sem_dados") }
 
-    // W6: CMS Desatualizado — WordPress detected (5pts)
-    if (input.l2_cms && input.l2_cms.toLowerCase().includes("wordpress")) {
-      raw += 5; detected.push("W6:wordpress")
-    } else if (input.l2_cms) {
-      missing.push(`W6:cms_${input.l2_cms}`)
+    // W6: CMS/Plataforma de Risco — detecta Linktree, Wix, WP, etc. (5-8pts)
+    const cmsRisk = classifyCMSRisk(input.l2_cms, input.website)
+    if (cmsRisk.points > 0) {
+      raw += cmsRisk.points; detected.push(`W6:${cmsRisk.level}_${cmsRisk.label.replace(/[^a-z0-9]/gi, '_').substring(0, 20)}`)
+    } else if (cmsRisk.level === "none" && input.l2_cms) {
+      missing.push(`W6:plataforma_moderna_${input.l2_cms}`)
     } else { missing.push("W6:sem_dados") }
 
     // W8: Sem Schema Markup — JSON-LD LocalBusiness missing (5pts)

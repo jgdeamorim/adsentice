@@ -61,7 +61,7 @@ const WEBSITE_SIGNALS: PainSignal[] = [
   { id: 'W3', name: 'Mobile Ruim', condition: 'lighthouse_perf < 0.4 (proxy mobile)', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Experiência mobile quebrada', impact: '70%+ do tráfego BR é mobile. Site quebrado = venda perdida.' },
   { id: 'W4', name: 'Sem Meta Tags', condition: '!l2_has_title OU !l2_has_description', points: 8, dimension: 'Engagement', layer: 'L2', description: 'SEO on-page básico ausente', impact: 'Google não sabe do que se trata a página. Ranqueia mal.' },
   { id: 'W5', name: 'Sem Analytics', condition: '!l2_has_analytics (domain_technologies)', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Não mede tráfego — decisões no escuro', impact: 'Dono não sabe quantas pessoas visitam o site. Fácil de instalar.' },
-  { id: 'W6', name: 'CMS Desatualizado', condition: 'cms = WordPress (domain_technologies)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Risco de segurança', impact: 'Vender auditoria técnica + atualização. Porta de entrada.' },
+  { id: 'W6', name: 'CMS/Plataforma de Risco', condition: 'Wix, Linktree, WP, Joomla, Google Sites (domain_technologies + URL)', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Plataforma limitada ou desatualizada', impact: 'Linktree não é site. Wix tem SEO fraco. WordPress desatualizado = risco.' },
   { id: 'W7', name: 'Sem Blog/Conteúdo', condition: 'l2_word_count < 300 (Instant Audit)', points: 5, dimension: 'Fit', layer: 'L2', description: 'Sem estratégia de conteúdo', impact: 'Conteúdo é o que ranqueia. Lead não investe nisso.' },
   { id: 'W8', name: 'Sem Schema Markup', condition: '!l2_has_schema (Instant Audit)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
 ]
@@ -333,7 +333,7 @@ return (
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
           <Chip label='WEBSITE · L2' color='info' size='small' sx={{ mr: 1 }} />
-          Enriquecimento Website+SEO · 8 sinais · +73pts distribuídos
+          Enriquecimento Website+SEO · 8 sinais · +76pts distribuídos
           <Chip label='v0.3 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
         </Typography>
         <Grid container spacing={3}>
