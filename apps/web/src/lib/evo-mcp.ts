@@ -259,6 +259,68 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
   }
 }
 
+// ── L3 Competitive + VOC Functions ─────────────────────────────
+
+/** Domain Competitors: TOP 20 competing domains ($0.02/call). */
+export async function domainCompetitors(target: string): Promise<{ domain: string; rank: number; intersections: number }[]> {
+  const init = await mcpRequest("initialize", {
+    protocolVersion: "2024-11-05", capabilities: {},
+    clientInfo: { name: "adsentice-engine", version: "1.0" },
+  })
+  const sid = init.sessionId
+  await fetch(MCP, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Session-Id": sid! },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    signal: AbortSignal.timeout(5000),
+  })
+  const call = await mcpRequest("tools/call", {
+    name: "backlinks_competitors",
+    arguments: { target, mode: "live", tenancy_id: "adsentice-dev", spend_cap_usd: 0.05 },
+  }, sid || undefined)
+  const content = (call.result as any)?.content?.[0]?.text
+  if (!content) return []
+  const data = JSON.parse(content)
+  const output = data.canonical_output || {}
+  return (output.competitors || output.items || []).map((c: any) => ({
+    domain: c.domain || c.target || "?",
+    rank: c.rank ?? c.domain_rank ?? 0,
+    intersections: c.intersections ?? c.backlinks ?? 0,
+  }))
+}
+
+/** Google Reviews via business_reviews_google ($0.005/call). */
+export async function businessReviewsGoogle(placeId: string): Promise<{ reviews: { rating: number; text: string; time: string }[]; totalCount: number; avgRating: number }> {
+  const init = await mcpRequest("initialize", {
+    protocolVersion: "2024-11-05", capabilities: {},
+    clientInfo: { name: "adsentice-engine", version: "1.0" },
+  })
+  const sid = init.sessionId
+  await fetch(MCP, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Session-Id": sid! },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    signal: AbortSignal.timeout(5000),
+  })
+  const call = await mcpRequest("tools/call", {
+    name: "business_reviews_google",
+    arguments: { place_id: placeId, mode: "live", tenancy_id: "adsentice-dev", spend_cap_usd: 0.05 },
+  }, sid || undefined)
+  const content = (call.result as any)?.content?.[0]?.text
+  if (!content) return { reviews: [], totalCount: 0, avgRating: 0 }
+  const data = JSON.parse(content)
+  const output = data.canonical_output || {}
+  return {
+    reviews: (output.reviews || output.items || []).map((r: any) => ({
+      rating: r.rating ?? r.rating_value ?? 0,
+      text: r.text || r.review_text || "",
+      time: r.time || r.date || "",
+    })),
+    totalCount: output.total_count ?? output.reviews_count ?? 0,
+    avgRating: output.avg_rating ?? output.average_rating ?? 0,
+  }
+}
+
 export async function businessProfileGmb(params: {
   keyword: string
   location_code?: number

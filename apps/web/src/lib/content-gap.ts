@@ -28,6 +28,9 @@ export interface ContentGapResult {
     c3_poor_architecture: boolean
     c4_technology_gap: boolean
     c5_no_content_strategy: boolean
+    c6_buyer_journey_gap?: boolean
+    c7_low_content_diversity?: boolean
+    c8_content_freshness?: boolean
   }
   gapsDetected: string[]         // signal IDs that fired (C1, C2, ...)
   gapsAbsent: string[]           // signal IDs that did NOT fire
@@ -80,7 +83,7 @@ export const CONTENT_MATURITY_LEVELS: Record<number, Omit<ContentMaturityLevel, 
 }
 
 /** Content pain max raw = 10+8+8+5+8 = 39 */
-const MAX_CONTENT_PAIN = 39
+const MAX_CONTENT_PAIN = 55
 
 // ── SEO Checks Parser ─────────────────────────────────────────
 
@@ -117,7 +120,8 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
   if (input.l2_onpage_score == null) return null
 
   const signals = { c1_thin_content: false, c2_missing_metadata: false,
-    c3_poor_architecture: false, c4_technology_gap: false, c5_no_content_strategy: false }
+    c3_poor_architecture: false, c4_technology_gap: false, c5_no_content_strategy: false,
+    c6_buyer_journey_gap: false, c7_low_content_diversity: false, c8_content_freshness: false }
   const gapsDetected: string[] = []
   const gapsAbsent: string[] = []
   let painRaw = 0
@@ -152,6 +156,22 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
   if (infrastructureGaps >= 2) {
     painRaw += 8; signals.c5_no_content_strategy = true; gapsDetected.push("C5")
   } else { gapsAbsent.push("C5") }
+
+  // ── C6: Buyer Journey Gap — no phone AND no website (8pts) ──
+  if (!input.phone && !input.website) {
+    painRaw += 8; signals.c6_buyer_journey_gap = true; gapsDetected.push("C6")
+  } else { gapsAbsent.push("C6") }
+
+  // ── C7: Content Diversity — text only, no images (5pts) ──
+  const imageCount = input.l2_images_count ?? 0
+  if (input.l2_word_count != null && input.l2_word_count >= 300 && imageCount < 2) {
+    painRaw += 5; signals.c7_low_content_diversity = true; gapsDetected.push("C7")
+  } else { gapsAbsent.push("C7") }
+
+  // ── C8: Content Freshness — very thin content proxy (6pts) ──
+  if (input.l2_word_count != null && input.l2_word_count < 100) {
+    painRaw += 6; signals.c8_content_freshness = true; gapsDetected.push("C8")
+  } else { gapsAbsent.push("C8") }
 
   const painScore = Math.round((painRaw / MAX_CONTENT_PAIN) * 100)
   const maturityScore = 100 - painScore

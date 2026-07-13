@@ -8,6 +8,10 @@ import "server-only"
 
 import type { ContentGapResult } from "./content-gap"
 import { scoreContentGap } from "./content-gap"
+import type { ArchitectureResult } from "./site-architecture"
+import { scoreArchitecture } from "./site-architecture"
+import type { SchemaResult } from "./schema-scoring"
+import { scoreSchema } from "./schema-scoring"
 
 // ── Input Types ──────────────────────────────────────────────
 
@@ -44,6 +48,8 @@ export interface ScoringInput {
   l2_has_schema?: boolean | null
   l2_internal_links_count?: number | null
   l2_external_links_count?: number | null
+  l2_images_count?: number | null
+  l2_domain_rank?: number | null
   l2_seo_checks?: Record<string, boolean | null> | null  // ~60 boolean SEO flags from on_page_instant_audit
 }
 
@@ -75,6 +81,8 @@ export interface ScoreData {
   signalsTotal: number         // total signals that could be evaluated
   antiFpFlags: string[]        // anti-false-positive rules that fired
   contentGap?: ContentGapResult | null  // v0.5: content maturity (null when no L2 data)
+  architecture?: ArchitectureResult | null  // v0.4: site architecture (null when no L2 data)
+  schema?: SchemaResult | null  // v0.4: schema validation (null when no L2 data)
 }
 
 // ── Constants ────────────────────────────────────────────────
@@ -450,9 +458,41 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
     } else if (input.l2_has_schema === true) {
       missing.push("W8:tem_schema")
     } else { missing.push("W8:sem_dados") }
+
+    // ── W9-W12 (v0.4): Expanded SEO signals from L2 data ──
+    // W9: Backlink Gap — domain_rank < 100 (10pts)
+    if (input.l2_domain_rank != null && input.l2_domain_rank < 100) {
+      raw += 10; detected.push("W9:backlink_gap")
+    } else if (input.l2_domain_rank != null) {
+      missing.push(`W9:rank_${input.l2_domain_rank}`)
+    } else { missing.push("W9:sem_domain_rank") }
+
+    // W10: Content Readability — low readability from seo_checks (8pts)
+    const seoChecks2 = input.l2_seo_checks || {}
+    const hasReadabilityIssue = Object.entries(seoChecks2).some(([k, v]) =>
+      (k.includes("readability") || k.includes("readable")) && v === true)
+    if (hasReadabilityIssue) {
+      raw += 8; detected.push("W10:baixa_leiturabilidade")
+    } else if (Object.keys(seoChecks2).length > 0) {
+      missing.push("W10:leiturabilidade_ok")
+    } else { missing.push("W10:sem_dados") }
+
+    // W11: Orphaned Content — has content but very few internal links (7pts)
+    if (input.l2_word_count != null && input.l2_word_count >= 500 && (input.l2_internal_links_count ?? 0) < 5) {
+      raw += 7; detected.push("W11:conteudo_orfao")
+    } else if (input.l2_word_count != null && input.l2_word_count >= 500) {
+      missing.push("W11:conteudo_linkado")
+    } else { missing.push("W11:sem_dados") }
+
+    // W12: Core Web Vitals activated — lighthouse_perf < 0.4 (10pts)
+    if (input.l2_lighthouse_performance != null && input.l2_lighthouse_performance < 0.4) {
+      raw += 10; detected.push("W12:cwv_pobre")
+    } else if (input.l2_lighthouse_performance != null) {
+      missing.push("W12:cwv_ok")
+    } else { missing.push("W12:sem_lighthouse") }
   }
 
-  const maxRaw = hasL2 ? 78 : 70
+  const maxRaw = hasL2 ? 88 : 70
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -580,9 +620,12 @@ export function scoreLead(input: ScoringInput): ScoreData {
 
   // v0.5 Content Gap Analysis (only for L2-enriched leads)
   const contentGap = scoreContentGap(input)
+  // v0.4 Site Architecture + Schema (only for L2-enriched leads)
+  const architecture = scoreArchitecture(input)
+  const schema = scoreSchema(input)
 
   const score: ScoreData = {
-    compound, fit, engagement, intent, schwartz, contentGap,
+    compound, fit, engagement, intent, schwartz, contentGap, architecture, schema,
     confidence: computeConfidence(fit, engagement, intent),
     signalsTotal: fit.signalsDetected.length + engagement.signalsDetected.length + intent.signalsDetected.length,
     antiFpFlags: [],
