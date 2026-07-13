@@ -66,6 +66,107 @@ export interface ListingsResult {
   cost_usd: number
 }
 
+/** Full 27-field GMB profile from DataForSEO my_business_info/live ($0.0054/call). */
+export interface GMBProfile {
+  title: string
+  category: string | null
+  categories: string[] | null
+  address: string | null
+  city: string | null
+  district: string | null
+  country_code: string | null
+  postal_code: string | null
+  phone: string | null
+  rating_value: number | null
+  rating_votes: number | null
+  is_claimed: boolean | null
+  place_id: string | null
+  cid: string | null
+  website: string | null
+  main_image: string | null
+  total_photos: number | null
+  description: string | null
+  latitude: number | null
+  longitude: number | null
+  business_status: string | null
+  price_level: number | null
+  types: string[] | null
+}
+
+export async function businessProfileGmb(params: {
+  keyword: string
+  location_code?: number
+  language_code?: string
+}): Promise<GMBProfile | null> {
+  const init = await mcpRequest("initialize", {
+    protocolVersion: "2024-11-05",
+    capabilities: {},
+    clientInfo: { name: "adsentice-engine", version: "1.0" },
+  })
+
+  const sid = init.sessionId
+
+  await fetch(MCP, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "Mcp-Session-Id": sid!,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    signal: AbortSignal.timeout(5000),
+  })
+
+  const call = await mcpRequest(
+    "tools/call",
+    {
+      name: "business_profile_gmb",
+      arguments: {
+        keyword: params.keyword,
+        location_code: params.location_code || 2076, // Brazil
+        language_code: params.language_code || "pt",
+        mode: "live",
+        tenancy_id: "adsentice-dev",
+        spend_cap_usd: 0.01,
+      },
+    },
+    sid || undefined
+  )
+
+  const content = (call.result as any)?.content?.[0]?.text
+
+  if (!content) return null
+
+  const data = JSON.parse(content)
+  const output = data.canonical_output || {}
+
+  return {
+    title: output.title || "?",
+    category: output.category || null,
+    categories: output.categories || null,
+    address: output.address || null,
+    city: output.city || null,
+    district: output.district || null,
+    country_code: output.country_code || null,
+    postal_code: output.postal_code || null,
+    phone: output.phone || null,
+    rating_value: output.rating_value ?? null,
+    rating_votes: output.rating_votes ?? null,
+    is_claimed: output.is_claimed ?? null,
+    place_id: output.place_id || null,
+    cid: output.cid || null,
+    website: output.website || null,
+    main_image: output.main_image || null,
+    total_photos: output.total_photos ?? null,
+    description: output.description || null,
+    latitude: output.latitude ?? null,
+    longitude: output.longitude ?? null,
+    business_status: output.business_status || null,
+    price_level: output.price_level ?? null,
+    types: output.types || null,
+  }
+}
+
 export async function businessListingsSearch(params: {
   categories: string[]
   lat: number

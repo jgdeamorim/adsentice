@@ -279,7 +279,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
-          limit: 50, force,
+          limit: 50, force, enrich: force ? 5 : 0,
         }),
       })
 
