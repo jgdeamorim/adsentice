@@ -66,6 +66,14 @@ const WEBSITE_SIGNALS: PainSignal[] = [
   { id: 'W8', name: 'Sem Schema Markup', condition: '!l2_has_schema (Instant Audit)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
 ]
 
+const CONTENT_GAP_SIGNALS: PainSignal[] = [
+  { id: 'C1', name: 'Conteudo Raso', condition: 'l2_word_count < 300', points: 10, dimension: 'Fit', layer: 'L2', description: 'Pagina com menos de 300 palavras', impact: 'Conteudo e o que ranqueia. Menos de 300 palavras = Google nao entende o negocio.' },
+  { id: 'C2', name: 'Metadata Ausente', condition: '!l2_meta_title OU !l2_meta_description', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Meta title ou description nao preenchidos', impact: 'Meta tags sao o anuncio gratuito no Google. Sem elas = perde clique.' },
+  { id: 'C3', name: 'Arquitetura Pobre', condition: 'links internos < 5 E externos < 3', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Sem estrutura de navegacao entre paginas', impact: 'Orphaned pages nao rankeiam. Estrutura de links = Google entende o site.' },
+  { id: 'C4', name: 'Gap Tecnologico', condition: 'sem CMS detectado OU sem analytics', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Falta plataforma de conteudo ou medicao', impact: 'Sem CMS = dificil atualizar conteudo. Sem analytics = decisoes no escuro.' },
+  { id: 'C5', name: 'Sem Estrategia de Conteudo', condition: 'falta 2+ de {sitemap, robots, schema}', points: 8, dimension: 'Fit', layer: 'L2', description: 'Infraestrutura basica de SEO ausente', impact: 'Sem sitemap/robots/schema = Google nao consegue indexar e apresentar o site corretamente.' },
+]
+
 const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
@@ -350,6 +358,42 @@ return (
                   </Box>
                   <Typography variant='subtitle2' fontWeight={700} gutterBottom>{sig.name}</Typography>
                   <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1 }}>
+                    {sig.condition}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── C1-C5 Content Gap Signals ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='CONTENT GAP · L2' color='secondary' size='small' sx={{ mr: 1 }} />
+          Analise de Maturidade de Conteudo · 5 sinais · +39pts distribuidos
+          <Chip label='v0.5 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+          Baseado no framework content-strategy (Corey Haines). Classifica a maturidade de conteudo do site
+          em 5 niveis: Invisivel → Basico → Presente → Estruturado → Maduro.
+          Dados 100% do L2 (on_page_instant_audit + domain_technologies) — zero novas chamadas de API.
+        </Typography>
+        <Grid container spacing={3}>
+          {CONTENT_GAP_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'secondary.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={sig.id} size='small' color='secondary' variant='tonal' sx={{ fontWeight: 700 }} />
+                    <Chip label={sig.dimension} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                    <Chip label={`+${sig.points}pts`} size='small' color='secondary' variant='tonal' />
+                    <Chip label={sig.layer} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' color='text.secondary' component='div'>{sig.description}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>
                     {sig.condition}
                   </Typography>
                   <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>

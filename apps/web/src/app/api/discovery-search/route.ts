@@ -17,6 +17,7 @@ import {
 import type { ScoringInput, ScoreData, ScoreDistribution } from "@/lib/scoring"
 import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/scoring"
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
+import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -355,7 +356,7 @@ export async function POST(request: NextRequest) {
     } catch { /* Redis offline — degrade gracefully */ }
 
     // ═══ SUPABASE PERSISTENCE (durável — dados pagos NUNCA perdidos) ═══
-    // Compute contact_methods for ALL listings before saving
+    // Compute contact_methods + content gap for ALL listings before saving
     const enrichedListings = listings.map((l: any, i: number) => {
       const input: ScoringInput = {
         title: l.title, category: l.category, address: l.address,
@@ -364,16 +365,41 @@ export async function POST(request: NextRequest) {
         is_claimed: l.is_claimed, phone: l.phone, website: l.website,
         total_photos: l.total_photos, description: l.description,
         business_status: l.business_status,
+        // L2 fields for content gap analysis
+        l2_onpage_score: l.l2_onpage_score,
+        l2_https: l.website?.startsWith("https") ?? null,
+        l2_has_title: !!l.l2_meta_title,
+        l2_has_description: !!l.l2_meta_description,
+        l2_has_analytics: l.l2_has_analytics ?? null,
+        l2_cms: l.l2_cms || null,
+        l2_word_count: l.l2_word_count ?? null,
+        l2_internal_links_count: l.l2_internal_links_count ?? null,
+        l2_external_links_count: l.l2_external_links_count ?? null,
+        l2_seo_checks: l.l2_seo_checks || null,
       }
 
       const enrichLevel = l.enrichment_level >= 2 ? 2
         : (l.website || l.phone || l.total_photos != null) ? 1 : 0
+
+      // Compute content gap for L2-enriched leads
+      const contentGap = l.enrichment_level >= 2 ? scoreContentGap(input) : null
+      const l2_content_maturity = contentGap?.maturity?.level ?? null
+      const l2_content_gaps = contentGap ? {
+        maturity_score: contentGap.maturityScore,
+        pain_score: contentGap.painScore,
+        level: contentGap.maturity.level,
+        label: contentGap.maturity.label,
+        gaps: contentGap.gapsDetected,
+        recommendations: generateContentGapRecommendations(input, contentGap),
+      } : null
 
       return {
         ...l,
         score: scores[i],
         contact_methods: detectContactMethods(input),
         enrichment_level: enrichLevel,
+        l2_content_maturity,
+        l2_content_gaps,
       }
     })
 
@@ -387,6 +413,13 @@ export async function POST(request: NextRequest) {
       listings: enrichedListings,
       distribution,
     }).then((saved) => {
+
+      // Also add content gap to response listings array (listings was modified in-place)
+      for (let i = 0; i < enrichedListings.length; i++) {
+        (listings[i] as any).l2_content_maturity = enrichedListings[i].l2_content_maturity
+        ;(listings[i] as any).l2_content_gaps = enrichedListings[i].l2_content_gaps
+      }
+
       if (saved) console.log(`[discovery-persistence] Saved ${saved.savedCount} listings to Supabase (search ${saved.searchId})`)
     }).catch((err) => {
       console.error("[discovery-persistence] Supabase save failed (data preserved in Redis):", err.message)

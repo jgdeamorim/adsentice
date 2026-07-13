@@ -39,6 +39,8 @@ interface LeadRow {
   l2_images_count?: number | null; l2_cms?: string | null
   l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
   l2_country_iso_code?: string | null; l2_enriched_at?: string | null
+  // Content Gap (v0.5)
+  l2_content_maturity?: number | null; l2_content_gaps?: Record<string, unknown> | null
 }
 
 interface Props {
@@ -183,6 +185,36 @@ export default function LeadTable({ leads }: Props) {
                         </Box>
                       </Grid>
                     ))}
+                  </Grid>
+                </>
+              )}
+
+              {/* ═══ CONTENT GAP (v0.5) ═══ */}
+              {selected.l2_content_maturity != null && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='secondary.main'>
+                    📝 Content Gap · Maturidade {selected.l2_content_maturity}/4
+                  </Typography>
+                  <Grid container spacing={1} sx={{ mb: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Typography variant='caption' color='text.secondary'>Maturidade</Typography>
+                      <Box sx={{ mt: 0.3 }}>
+                        <Chip label={(selected.l2_content_gaps as any)?.label || 'Desconhecido'} size='small'
+                          sx={{ bgcolor: ['#9e9e9e', '#42a5f5', '#ffa726', '#ef5350', '#4caf50'][selected.l2_content_maturity] || '#9e9e9e', color: '#fff', fontWeight: 700 }} />
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Typography variant='caption' color='text.secondary'>Score</Typography>
+                      <Typography variant='body2' fontWeight={700}>{(selected.l2_content_gaps as any)?.maturity_score ?? '?'}/100</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Typography variant='caption' color='text.secondary'>Gaps</Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
+                        {((selected.l2_content_gaps as any)?.gaps || []).map((g: string) => (
+                          <Chip key={g} label={g} size='small' color='error' variant='tonal' sx={{ fontSize: '0.65rem', height: 20 }} />
+                        ))}
+                      </Box>
+                    </Grid>
                   </Grid>
                 </>
               )}

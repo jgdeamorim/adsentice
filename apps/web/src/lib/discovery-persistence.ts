@@ -109,8 +109,9 @@ export async function saveDiscoverySearch(params: {
             l2_domain_rank, l2_country_iso_code,
             l2_lighthouse_performance, l2_lighthouse_accessibility,
             l2_lighthouse_best_practices, l2_lighthouse_seo, l2_lighthouse_pwa,
-            l2_enriched_at, l2_cost_usd)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50)
+            l2_enriched_at, l2_cost_usd,
+            l2_content_maturity, l2_content_gaps)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
            ON CONFLICT (search_id, place_id) DO UPDATE SET
             score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
             score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
@@ -132,8 +133,8 @@ export async function saveDiscoverySearch(params: {
             l2_lighthouse_performance=EXCLUDED.l2_lighthouse_performance,
             l2_lighthouse_accessibility=EXCLUDED.l2_lighthouse_accessibility,
             l2_lighthouse_best_practices=EXCLUDED.l2_lighthouse_best_practices,
-            l2_lighthouse_seo=EXCLUDED.l2_lighthouse_seo, l2_lighthouse_pwa=EXCLUDED.l2_lighthouse_pwa,
-            l2_enriched_at=EXCLUDED.l2_enriched_at, l2_cost_usd=EXCLUDED.l2_cost_usd`,
+            l2_enriched_at=EXCLUDED.l2_enriched_at, l2_cost_usd=EXCLUDED.l2_cost_usd,
+            l2_content_maturity=EXCLUDED.l2_content_maturity, l2_content_gaps=EXCLUDED.l2_content_gaps`,
           [
             searchId,
             l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
@@ -176,6 +177,8 @@ export async function saveDiscoverySearch(params: {
             (l as any).l2_lighthouse_pwa || null,
             (l as any).l2_enriched_at || null,
             (l as any).l2_cost_usd || 0,
+            (l as any).l2_content_maturity ?? null,
+            (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
           ]
         )
         savedCount++

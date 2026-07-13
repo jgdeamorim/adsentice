@@ -6,6 +6,9 @@
 
 import "server-only"
 
+import type { ContentGapResult } from "./content-gap"
+import { scoreContentGap } from "./content-gap"
+
 // ── Input Types ──────────────────────────────────────────────
 
 /** Input data from GMB search results or full profile. Fields null when unavailable. */
@@ -39,6 +42,9 @@ export interface ScoringInput {
   l2_word_count?: number | null
   l2_lighthouse_performance?: number | null
   l2_has_schema?: boolean | null
+  l2_internal_links_count?: number | null
+  l2_external_links_count?: number | null
+  l2_seo_checks?: Record<string, boolean | null> | null  // ~60 boolean SEO flags from on_page_instant_audit
 }
 
 // ── Output Types ─────────────────────────────────────────────
@@ -68,6 +74,7 @@ export interface ScoreData {
   confidence: number           // 0-1, fraction of signals with data available
   signalsTotal: number         // total signals that could be evaluated
   antiFpFlags: string[]        // anti-false-positive rules that fired
+  contentGap?: ContentGapResult | null  // v0.5: content maturity (null when no L2 data)
 }
 
 // ── Constants ────────────────────────────────────────────────
@@ -571,8 +578,11 @@ export function scoreLead(input: ScoringInput): ScoreData {
   const compound = computeCompoundScore(fit, engagement, intent)
   const schwartz = classifySchwartz(compound)
 
+  // v0.5 Content Gap Analysis (only for L2-enriched leads)
+  const contentGap = scoreContentGap(input)
+
   const score: ScoreData = {
-    compound, fit, engagement, intent, schwartz,
+    compound, fit, engagement, intent, schwartz, contentGap,
     confidence: computeConfidence(fit, engagement, intent),
     signalsTotal: fit.signalsDetected.length + engagement.signalsDetected.length + intent.signalsDetected.length,
     antiFpFlags: [],

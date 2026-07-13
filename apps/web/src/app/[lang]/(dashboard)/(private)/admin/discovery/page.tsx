@@ -328,6 +328,9 @@ interface Listing {
   l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
   l2_country_iso_code?: string | null; l2_enriched_at?: string | null
   enrichment_level?: number | null
+
+  // Content Gap (v0.5)
+  l2_content_maturity?: number | null; l2_content_gaps?: Record<string, unknown> | null
 }
 
 type SortField = 'score' | 'title' | 'category' | 'rating_value' | 'rating_votes'
@@ -504,6 +507,11 @@ return arr
 
   const isEnriched = (l: Listing) => !!(l.phone || l.website || l.total_photos != null || l.description)
   const isL2Enriched = (l: Listing) => !!(l.l2_onpage_score != null)
+
+  const contentMaturityColor = (level: number | null | undefined) => {
+    const colors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#4caf50"]
+    return colors[level ?? 0] || colors[0]
+  }
 
   const detectWApp = (ph: string | null | undefined) => ph ? /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(ph) : null
 
@@ -1077,6 +1085,58 @@ return (
                         </Box>
                       </Grid>
                     ))}
+                  </Grid>
+                </>
+              )}
+
+              {/* ═══ CONTENT GAP (v0.5) ═══ */}
+              {selectedLead.l2_content_maturity != null && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='secondary.main'>📝 Content Gap · Maturidade {selectedLead.l2_content_maturity}/4</Typography>
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant='caption' color='text.secondary'>Nivel de Maturidade de Conteudo</Typography>
+                      <Box sx={{ mt: 0.3 }}>
+                        <Chip label={(selectedLead.l2_content_gaps as any)?.label || 'Desconhecido'} size='small'
+                          sx={{ bgcolor: contentMaturityColor(selectedLead.l2_content_maturity), color: '#fff', fontWeight: 700 }} />
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant='caption' color='text.secondary'>Maturity Score</Typography>
+                      <Typography variant='h6' fontWeight={800}>{(selectedLead.l2_content_gaps as any)?.maturity_score ?? '?'}/100</Typography>
+                    </Grid>
+                    {(selectedLead.l2_content_gaps as any)?.gaps?.length > 0 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant='caption' color='text.secondary' gutterBottom component='div'>Gaps Detectados</Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                          {(selectedLead.l2_content_gaps as any).gaps.map((g: string) => (
+                            <Chip key={g} label={g} size='small' color='error' variant='tonal' sx={{ fontSize: '0.7rem' }} />
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
+                    {(selectedLead.l2_content_gaps as any)?.recommendations?.length > 0 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant='caption' color='text.secondary' gutterBottom component='div'>
+                          Recomendacoes ({(selectedLead.l2_content_gaps as any).recommendations.length})
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {(selectedLead.l2_content_gaps as any).recommendations.slice(0, 3).map((r: any, ri: number) => (
+                            <Box key={ri} sx={{ p: 1.5, bgcolor: '#faf5ff', borderRadius: 1, borderLeft: 3, borderColor: r.priority === 'alta' ? '#ef5350' : r.priority === 'media' ? '#ffa726' : '#42a5f5' }}>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+                                <Chip label={r.priority.toUpperCase()} size='small' color={r.priority === 'alta' ? 'error' : r.priority === 'media' ? 'warning' : 'info'} variant='tonal' sx={{ fontSize: '0.6rem', height: 18 }} />
+                                <Typography variant='body2' fontWeight={700}>{r.title}</Typography>
+                              </Box>
+                              <Typography variant='caption' color='text.secondary'>{r.description}</Typography>
+                              <Box sx={{ mt: 0.5, display: 'flex', gap: 1 }}>
+                                <Chip label={`Esforco: ${r.effort}`} size='small' variant='outlined' sx={{ fontSize: '0.6rem', height: 18 }} />
+                                <Chip label={r.category} size='small' variant='outlined' sx={{ fontSize: '0.6rem', height: 18 }} />
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
                   </Grid>
                 </>
               )}
