@@ -379,7 +379,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
-          limit: 50, force, enrich: 5, // always enrich top 5 leads (L1: $0.027)
+          limit: 50, force, enrich: 50, // todos os leads com L1 (27 campos, contato)
           order_by: searchOrderBy ? [searchOrderBy] : undefined,
           offset: searchOffset,
         }),
@@ -587,13 +587,13 @@ return arr
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={`~$${(estimatedCost + 0.027).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip label={`~$${(estimatedCost + 0.27).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
             </Typography>
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(estimatedCost + 0.027).toFixed(4)} L0+L1)`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(estimatedCost + 0.27).toFixed(4)} L0+L1)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -770,10 +770,10 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
             <Typography variant='body2'>📍 <strong>{STATES[stateKey]?.cities[cityKey]?.label || stateKey}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
-              💰 Custo estimado: <strong>${(estimatedCost + 0.027).toFixed(4)}</strong> (R${((estimatedCost + 0.027) * 5.5).toFixed(2)})
+              💰 Custo estimado: <strong>${(estimatedCost + 0.27).toFixed(4)}</strong> (R${((estimatedCost + 0.27) * 5.5).toFixed(2)})
             </Typography>
             <Typography variant='caption' color='text.secondary'>
-              L0 Search: ${estimatedCost.toFixed(4)} + L1 Enrichment (5 leads × $0.0054): $0.027
+              L0 Search: ${estimatedCost.toFixed(4)} + L1 Enrichment (50 leads × $0.0054): $0.27
             </Typography>
           </Box>
           <Typography variant='caption' color='text.secondary'>
@@ -783,7 +783,7 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
           <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(true); }}>
-            Sim, buscar (${(estimatedCost + 0.027).toFixed(4)} — L0+L1)
+            Sim, buscar (${(estimatedCost + 0.27).toFixed(4)} — L0+L1)
           </Button>
         </DialogActions>
       </Dialog>
@@ -877,7 +877,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo top 5 leads (L1) · Custo: ${(estimatedCost + 0.027).toFixed(4)} (L0+L1)</Typography>
+            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo 50 leads (L1) · Custo: ${(estimatedCost + 0.27).toFixed(4)} (L0+L1)</Typography>
           </CardContent></Card>
         </Grid>
       )}
