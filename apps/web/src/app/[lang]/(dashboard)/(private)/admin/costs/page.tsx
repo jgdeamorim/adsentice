@@ -8,6 +8,7 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
+import Alert from '@mui/material/Alert'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -37,6 +38,50 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const user = await getSessionUser()
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
+
+  // ═══ DataForSEO Rate Limits (API real-time) ═══
+  let dfsLogin = ''
+  let dfsRateLimits: { capability: string; dailyUsed: number; dailyLimit: number; monthlyUsed: number }[] = []
+
+  try {
+    const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64')
+
+    const res = await fetch('https://api.dataforseo.com/v3/appendix/user_data', {
+      method: 'POST', headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([{}]), signal: AbortSignal.timeout(5000),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      const result = (data?.tasks?.[0]?.result || [{}])[0]
+
+      dfsLogin = result.login || ''
+      const limits = result?.rates?.limits
+      const monthly = result?.rates?.month || result?.rates?.limits_month || {}
+
+      if (limits) {
+        const businessDay = limits?.day?.business_data || {}
+        const businessMonth = monthly?.business_data || {}
+        const profileDay = businessDay?.my_business_info || {}
+        const profileMonth = businessMonth?.my_business_info || {}
+
+        dfsRateLimits = [
+          {
+            capability: 'business_listings_search',
+            dailyUsed: (businessDay?.business_listings_search || businessDay?.business_listings || {}).task_post || 0,
+            dailyLimit: (businessDay?.business_listings_search || businessDay?.business_listings || {}).task_post_limit || 2000,
+            monthlyUsed: (businessMonth?.business_listings_search || businessMonth?.business_listings || {}).task_post || 0,
+          },
+          {
+            capability: 'business_profile_gmb',
+            dailyUsed: profileDay?.task_post || 0,
+            dailyLimit: profileDay?.task_post_limit || 2000,
+            monthlyUsed: profileMonth?.task_post || 0,
+          },
+        ]
+      }
+    }
+  } catch { /* API offline */ }
 
   // ═══ Dados REAIS do Supabase ═══
   let totalCost = 0
@@ -123,6 +168,53 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
           subtitle={`${totalL1} leads enriquecidos (27 campos)`}
           avatarColor='primary' avatarIcon='ri-sparkling-line'
           trendNumber={String(l1Calls)} trend='positive' />
+      </Grid>
+
+      {/* Rate Limits (API real-time) */}
+      {dfsRateLimits.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant='h6'>📊 Rate Limits DataForSEO (tempo real)</Typography>
+                <Chip label={`Conta: ${dfsLogin}`} size='small' variant='outlined' />
+              </Box>
+              <Grid container spacing={3}>
+                {dfsRateLimits.map((rl) => (
+                  <Grid key={rl.capability} size={{ xs: 12, sm: 6 }}>
+                    <Typography variant='subtitle2' fontWeight={600} sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }} gutterBottom>
+                      {rl.capability}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 3 }}>
+                      <Box>
+                        <Typography variant='caption' color='text.secondary'>Diário</Typography>
+                        <Typography variant='h6' fontWeight={800} color={rl.dailyUsed > rl.dailyLimit * 0.8 ? 'error.main' : 'success.main'}>
+                          {rl.dailyUsed.toLocaleString('pt-BR')}/{rl.dailyLimit.toLocaleString('pt-BR')}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {((rl.dailyUsed / Math.max(rl.dailyLimit, 1)) * 100).toFixed(1)}% usado
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+
+      {/* Balance Note */}
+      <Grid size={{ xs: 12 }}>
+        <Alert severity='info'>
+          <Typography variant='body2'>
+            💰 <strong>Balance financeiro:</strong> disponível apenas no{' '}
+            <a href='https://app.dataforseo.com/billing' target='_blank' rel='noopener noreferrer' style={{ fontWeight: 600 }}>
+              Dashboard DataForSEO → Billing
+            </a>. A API REST não expõe saldo em dólar.
+            O adsentice rastreia o gasto real via Supabase (<strong>${totalCost.toFixed(4)} total</strong> em {totalSearches} buscas).
+          </Typography>
+        </Alert>
       </Grid>
 
       {/* Preços DataForSEO */}
