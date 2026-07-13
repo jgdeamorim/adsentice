@@ -43,6 +43,21 @@ CREATE TABLE IF NOT EXISTS discovery_listings (
   schwartz_level  INTEGER NOT NULL DEFAULT 1,
   schwartz_label  TEXT NOT NULL DEFAULT 'Unaware',
   signals_detected TEXT[] DEFAULT '{}',
+  -- L1 enrichment fields (27 canonical GMB fields from business_profile_gmb)
+  website         TEXT,
+  phone           TEXT,
+  total_photos    INTEGER,
+  description     TEXT,
+  business_status TEXT,
+  categories_arr  TEXT[],
+  price_level     INTEGER,
+  city            TEXT,
+  district        TEXT,
+  postal_code     TEXT,
+  country_code    TEXT,
+  -- Contact strategy
+  contact_methods TEXT[] DEFAULT '{}',
+  enrichment_level INTEGER DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(search_id, place_id)
 );

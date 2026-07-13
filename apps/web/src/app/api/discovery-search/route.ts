@@ -15,7 +15,7 @@ import {
   getCostToday, getCostTotal, getCostLast,
 } from "@/lib/discovery-cache"
 import type { ScoringInput, ScoreData, ScoreDistribution } from "@/lib/scoring"
-import { scoreLeads, computeDistribution } from "@/lib/scoring"
+import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/scoring"
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 
 export const runtime = "nodejs"
@@ -91,6 +91,10 @@ async function enrichTopLeads(
         }
 
         const newScores = scoreLeads([input])
+
+        // Detect contact methods for communication strategy
+        enriched.contact_methods = detectContactMethods(input)
+        enriched.enrichment_level = 1
 
         enrichedListings[index] = enriched
         enrichedScores[index] = newScores[0]
@@ -196,7 +200,19 @@ export async function POST(request: NextRequest) {
     } catch { /* Redis offline — degrade gracefully */ }
 
     // ═══ SUPABASE PERSISTENCE (durável — dados pagos NUNCA perdidos) ═══
-    const enrichedListings = listings.map((l: any, i: number) => ({ ...l, score: scores[i] }))
+    // Compute contact_methods for ALL listings before saving
+    const enrichedListings = listings.map((l: any, i: number) => {
+      const input: ScoringInput = {
+        title: l.title, category: l.category, address: l.address,
+        rating_value: l.rating_value, rating_votes: l.rating_votes,
+        place_id: l.place_id, cid: l.cid, latitude: l.latitude, longitude: l.longitude,
+        is_claimed: l.is_claimed, phone: l.phone, website: l.website,
+        total_photos: l.total_photos, description: l.description,
+        business_status: l.business_status,
+      }
+
+      return { ...l, score: scores[i], contact_methods: detectContactMethods(input), enrichment_level: (l.website || l.phone || l.total_photos != null) ? 1 : 0 }
+    })
 
     saveDiscoverySearch({
       categories,

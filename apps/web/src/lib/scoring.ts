@@ -497,6 +497,72 @@ return Math.min(1, evaluated / totalSignals)
 
 // ── Score Distribution Stats ──────────────────────────────────
 
+
+// ── Contact Method Detection ─────────────────────────────────
+
+/** Detect all available contact methods for a lead and classify communication channels. */
+export function detectContactMethods(input: ScoringInput): string[] {
+  const methods: string[] = []
+  
+  // WhatsApp detection
+  if (input.phone && detectWhatsApp(input.phone)) {
+    methods.push('whatsapp')
+  }
+  
+  // Regular phone (not WhatsApp)
+  if (input.phone && !detectWhatsApp(input.phone)) {
+    methods.push('phone_fixo')
+  }
+  
+  // Website with form potential
+  if (input.website) {
+    const dt = detectDomainType(input.website)
+
+    if (dt === 'proprio') methods.push('website_proprio')
+    else if (dt) methods.push('website_' + dt)
+    else methods.push('website')
+  }
+  
+  // GMB profile (sempre presente se o lead veio do Discovery)
+  if (input.place_id) {
+    methods.push('gmb_profile')
+  }
+  
+  // No digital contact at all
+  if (methods.length === 0 || (methods.length === 1 && methods[0] === 'gmb_profile')) {
+    methods.push('apenas_gmb')
+  }
+  
+  return methods
+}
+
+/** Classify lead by best contact strategy based on available channels. */
+export function contactStrategy(methods: string[]): {
+  strategy: 'whatsapp_direct' | 'phone_call' | 'website_form' | 'gmb_only' | 'offline'
+  label: string
+  action: string
+  cost: 'zero' | 'low' | 'medium'
+} {
+  if (methods.includes('whatsapp')) {
+    return { strategy: 'whatsapp_direct', label: 'WhatsApp Direto', action: 'Abordar via WhatsApp Business. Script: diagnóstico + oferta Raio-X.', cost: 'zero' }
+  }
+
+  if (methods.includes('phone_fixo')) {
+    return { strategy: 'phone_call', label: 'Ligação Telefônica', action: 'URA/ligação com script de diagnóstico. Melhor horário: fora do pico GMB.', cost: 'low' }
+  }
+
+  if (methods.includes('website_proprio')) {
+    return { strategy: 'website_form', label: 'Formulário do Site', action: 'Preencher formulário de contato do site. Email follow-up.', cost: 'low' }
+  }
+
+  if (methods.includes('apenas_gmb')) {
+    return { strategy: 'gmb_only', label: 'Apenas GMB', action: 'Único canal é o perfil GMB. Reivindicar + otimizar antes de abordar.', cost: 'medium' }
+  }
+
+  
+return { strategy: 'offline', label: 'Offline Total', action: 'Sem canais digitais. Precisa de prospecção física ou telefone público.', cost: 'medium' }
+}
+
 export interface ScoreDistribution {
   unaware: number; problemAware: number; solutionAware: number
   productAware: number; mostAware: number; total: number; avgScore: number

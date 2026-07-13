@@ -99,12 +99,18 @@ export async function saveDiscoverySearch(params: {
           `INSERT INTO discovery_listings (search_id, place_id, title, category, address,
             rating_value, rating_votes, is_claimed, latitude, longitude,
             score_compound, score_fit, score_engagement, score_intent,
-            schwartz_level, schwartz_label, signals_detected)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+            schwartz_level, schwartz_label, signals_detected,
+            website, phone, total_photos, description, business_status,
+            contact_methods, enrichment_level)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
            ON CONFLICT (search_id, place_id) DO UPDATE SET
             score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
             score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
-            schwartz_level=EXCLUDED.schwartz_level, schwartz_label=EXCLUDED.schwartz_label`,
+            schwartz_level=EXCLUDED.schwartz_level, schwartz_label=EXCLUDED.schwartz_label,
+            website=EXCLUDED.website, phone=EXCLUDED.phone,
+            total_photos=EXCLUDED.total_photos, description=EXCLUDED.description,
+            business_status=EXCLUDED.business_status,
+            contact_methods=EXCLUDED.contact_methods, enrichment_level=EXCLUDED.enrichment_level`,
           [
             searchId,
             l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
@@ -113,6 +119,13 @@ export async function saveDiscoverySearch(params: {
             l.score.compound, l.score.fit.normalized, l.score.engagement.normalized, l.score.intent.normalized,
             l.score.schwartz.level, l.score.schwartz.label,
             [...l.score.fit.signalsDetected, ...l.score.engagement.signalsDetected, ...l.score.intent.signalsDetected],
+            (l as any).website || null,
+            (l as any).phone || null,
+            (l as any).total_photos || null,
+            (l as any).description || null,
+            (l as any).business_status || null,
+            (l as any).contact_methods || null,
+            (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0,
           ]
         )
         savedCount++
