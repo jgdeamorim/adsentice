@@ -331,10 +331,10 @@ return (
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <Card>
           <CardContent className='flex flex-col gap-2'>
-            <i className='ri-settings-3-line text-[24px] text-warning' />
-            <Typography variant='h6'>Infra & MCP</Typography>
-            <Typography variant='body2'>Servidores, health, configuração</Typography>
-            <Button size='small' variant='outlined' href={`/${lang}/admin/settings`} sx={{ mt: 1 }}>Monitorar</Button>
+            <i className='ri-pie-chart-2-line text-[24px] text-error' />
+            <Typography variant='h6'>Market Intelligence</Typography>
+            <Typography variant='body2'>Inteligencia de nicho por categoria</Typography>
+            <Button size='small' variant='outlined' href={`/${lang}/admin/market`} sx={{ mt: 1 }}>Ver mercado</Button>
           </CardContent>
         </Card>
       </Grid>
