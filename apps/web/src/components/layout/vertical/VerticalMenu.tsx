@@ -119,6 +119,10 @@ const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
               <i className='ri-equalizer-line' style={{ marginRight: 8 }} />
               Critérios
             </MenuItem>
+            <MenuItem href={`/${locale}/admin/market`}>
+              <i className='ri-pie-chart-2-line' style={{ marginRight: 8 }} />
+              Market Intel
+            </MenuItem>
             <MenuItem href={`/${locale}/admin/settings`}>
               <i className='ri-settings-3-line' style={{ marginRight: 8 }} />
               Settings
