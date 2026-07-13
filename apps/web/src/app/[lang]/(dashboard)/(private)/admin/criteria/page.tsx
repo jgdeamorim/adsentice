@@ -66,6 +66,32 @@ const WEBSITE_SIGNALS: PainSignal[] = [
   { id: 'W8', name: 'Sem Schema Markup', condition: '!l2_has_schema (Instant Audit)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
 ]
 
+const SEO_EXPANDED_SIGNALS: PainSignal[] = [
+  { id: 'W9', name: 'Backlink Gap', condition: 'domain_rank < 100', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Domain authority muito baixo', impact: 'Sem backlinks = Google nao confia no site. Precisa de link building local.' },
+  { id: 'W10', name: 'Baixa Leiturabilidade', condition: 'low_readability_rate = true (SEO checks)', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Texto dificil de ler — nivel muito alto', impact: 'Conteudo precisa ser acessivel. Leiturabilidade afeta rankeamento.' },
+  { id: 'W11', name: 'Conteudo Orfao', condition: 'word_count >= 500 E links internos < 5', points: 7, dimension: 'Engagement', layer: 'L2', description: 'Tem conteudo mas sem links internos', impact: 'Google trata como pagina isolada. Links internos distribuem autoridade.' },
+  { id: 'W12', name: 'Core Web Vitals Pobre', condition: 'lighthouse_perf < 0.4', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Performance abaixo do aceitavel', impact: 'Google penaliza sites lentos. Core Web Vitals e fator de rankeamento.' },
+]
+
+const ARCHITECTURE_SIGNALS: PainSignal[] = [
+  { id: 'A1', name: 'Estrutura Plana', condition: 'links internos < 3', points: 8, dimension: 'Fit', layer: 'L2', description: 'Site de pagina unica — sem arquitetura', impact: 'Google precisa de multiplas paginas para entender o negocio.' },
+  { id: 'A2', name: 'Risco de Orfa', condition: 'word_count >= 500 E links internos < 5', points: 7, dimension: 'Engagement', layer: 'L2', description: 'Conteudo existe mas nao esta linkado', impact: 'Paginas orfas nao recebem autoridade. Ninguem clica no que nao encontra.' },
+  { id: 'A3', name: 'Sem Navegacao', condition: 'zero links internos E poucos externos', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Site sem menu ou estrutura de navegacao', impact: 'Usuario nao encontra outras paginas. Taxa de rejeicao altissima.' },
+  { id: 'A4', name: 'Layout So-Texto', condition: 'word_count >= 300 E imagens < 3', points: 5, dimension: 'Fit', layer: 'L2', description: 'Pagina sem elementos visuais', impact: 'Conteudo visual aumenta engajamento. So texto = baixa conversao.' },
+]
+
+const SCHEMA_SIGNALS: PainSignal[] = [
+  { id: 'S1', name: 'Sem LocalBusiness', condition: 'schema JSON-LD ausente', points: 15, dimension: 'Intent', layer: 'L2', description: 'Schema LocalBusiness nao encontrado', impact: 'Sem schema = sem rich results no Google. Perde estrelas, endereco e telefone na SERP.' },
+  { id: 'S2', name: 'Sem Organization', condition: 'schema Organization ausente', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Schema Organization nao encontrado', impact: 'Google nao consegue identificar a entidade do negocio nos dados estruturados.' },
+  { id: 'S3', name: 'Schema Invalido', condition: 'schema com erros detectados', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Schema presente mas com erros', impact: 'Schema quebrado e pior que sem schema. Google pode ignorar completamente.' },
+]
+
+const CONTENT_EXPANDED_SIGNALS: PainSignal[] = [
+  { id: 'C6', name: 'Buyer Journey Gap', condition: 'sem telefone E sem website', points: 8, dimension: 'Intent', layer: 'L2', description: 'Cliente nao tem como converter', impact: 'Sem canais de contato = sem conversao. Todo lead precisa de um caminho para comprar.' },
+  { id: 'C7', name: 'Baixa Diversidade', condition: 'word_count >= 300 E imagens < 2', points: 5, dimension: 'Engagement', layer: 'L2', description: 'So texto, sem midia visual', impact: 'Conteudo multimidia rankeia melhor. Imagens, videos e infograficos aumentam tempo na pagina.' },
+  { id: 'C8', name: 'Conteudo Estagnado', condition: 'word_count < 100', points: 6, dimension: 'Fit', layer: 'L2', description: 'Conteudo extremamente raso', impact: 'Conteudo precisa ser atualizado regularmente. Google favorece sites com conteudo fresco.' },
+]
+
 const CONTENT_GAP_SIGNALS: PainSignal[] = [
   { id: 'C1', name: 'Conteudo Raso', condition: 'l2_word_count < 300', points: 10, dimension: 'Fit', layer: 'L2', description: 'Pagina com menos de 300 palavras', impact: 'Conteudo e o que ranqueia. Menos de 300 palavras = Google nao entende o negocio.' },
   { id: 'C2', name: 'Metadata Ausente', condition: '!l2_meta_title OU !l2_meta_description', points: 8, dimension: 'Engagement', layer: 'L2', description: 'Meta title ou description nao preenchidos', impact: 'Meta tags sao o anuncio gratuito no Google. Sem elas = perde clique.' },
@@ -396,6 +422,122 @@ return (
                   <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>
                     {sig.condition}
                   </Typography>
+                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── W9-W12 SEO Expanded (v0.4) ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='SEO EXPANDIDO · L2' color='primary' size='small' sx={{ mr: 1 }} />
+          Expansao W9-W12 · 4 sinais · +35pts
+          <Chip label='v0.4 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Grid container spacing={3}>
+          {SEO_EXPANDED_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'primary.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={sig.id} size='small' color='primary' variant='tonal' sx={{ fontWeight: 700 }} />
+                    <Chip label={sig.dimension} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                    <Chip label={`+${sig.points}pts`} size='small' color='primary' variant='tonal' />
+                    <Chip label={sig.layer} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' color='text.secondary' component='div'>{sig.description}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>{sig.condition}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── A1-A4 Site Architecture (v0.4) ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='ARQUITETURA · L2' color='warning' size='small' sx={{ mr: 1 }} />
+          Site Architecture Analyzer · 4 sinais · +25pts
+          <Chip label='v0.4 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Grid container spacing={3}>
+          {ARCHITECTURE_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'warning.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={sig.id} size='small' color='warning' variant='tonal' sx={{ fontWeight: 700 }} />
+                    <Chip label={sig.dimension} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                    <Chip label={`+${sig.points}pts`} size='small' color='warning' variant='tonal' />
+                    <Chip label={sig.layer} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' color='text.secondary' component='div'>{sig.description}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>{sig.condition}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── S1-S3 Schema Validator (v0.4) ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='SCHEMA · L2' color='error' size='small' sx={{ mr: 1 }} />
+          Schema Validator + Auto-Generator · 3 sinais · +33pts
+          <Chip label='v0.4 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Grid container spacing={3}>
+          {SCHEMA_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'error.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={sig.id} size='small' color='error' variant='tonal' sx={{ fontWeight: 700 }} />
+                    <Chip label={sig.dimension} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                    <Chip label={`+${sig.points}pts`} size='small' color='error' variant='tonal' />
+                    <Chip label={sig.layer} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' color='text.secondary' component='div'>{sig.description}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>{sig.condition}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Grid>
+
+      {/* ── C6-C8 Content Expanded (v0.4) ── */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h6' gutterBottom>
+          <Chip label='CONTENT EXPANDIDO · L2' color='secondary' size='small' sx={{ mr: 1 }} />
+          Content Strategy Extension · 3 sinais · +19pts
+          <Chip label='v0.4 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
+        </Typography>
+        <Grid container spacing={3}>
+          {CONTENT_EXPANDED_SIGNALS.map((sig) => (
+            <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'secondary.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={sig.id} size='small' color='secondary' variant='tonal' sx={{ fontWeight: 700 }} />
+                    <Chip label={sig.dimension} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                    <Chip label={`+${sig.points}pts`} size='small' color='secondary' variant='tonal' />
+                    <Chip label={sig.layer} size='small' variant='outlined' sx={{ fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant='subtitle2' fontWeight={600} gutterBottom>{sig.name}</Typography>
+                  <Typography variant='caption' color='text.secondary' component='div'>{sig.description}</Typography>
+                  <Typography variant='caption' component='div' sx={{ fontFamily: 'monospace', bgcolor: 'grey.50', p: 0.5, borderRadius: 1, mb: 1, mt: 1 }}>{sig.condition}</Typography>
                   <Typography variant='caption' color='text.secondary'>{sig.impact}</Typography>
                 </CardContent>
               </Card>
