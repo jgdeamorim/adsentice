@@ -33,8 +33,15 @@ interface LeadRow {
   created_at: string
 }
 
-const LeadsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
+const LeadsPage = async ({ params, searchParams }: {
+  params: Promise<{ lang: string }>
+  searchParams: Promise<{ category?: string; schwartz?: string }>
+}) => {
   const { lang } = await params
+  const sp = await searchParams
+  const filterCategory = sp.category || ''
+  const filterSchwartz = parseInt(sp.schwartz || '0') || 0
+
   const user = await getSessionUser()
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
@@ -45,6 +52,15 @@ const LeadsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   let withWebsite = 0
   let withPhone = 0
   let withWhatsApp = 0
+
+  // Build WHERE clause from filters
+  const conditions: string[] = []
+  const params_vals: any[] = []
+  let paramIdx = 1
+
+  if (filterCategory) { conditions.push(`category = $${paramIdx++}`); params_vals.push(filterCategory) }
+  if (filterSchwartz > 0) { conditions.push(`schwartz_level = $${paramIdx++}`); params_vals.push(filterSchwartz) }
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
   try {
     const pool = new Pool({
@@ -60,8 +76,10 @@ const LeadsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
               score_compound, score_fit, score_engagement, score_intent,
               schwartz_label, schwartz_level, enrichment_level, contact_methods, created_at
        FROM discovery_listings
+       ${whereClause}
        ORDER BY place_id, enrichment_level DESC, score_compound DESC, created_at DESC
-       LIMIT 200`
+       LIMIT 200`,
+      params_vals
     )
 
     leads = rows as LeadRow[]
@@ -103,9 +121,21 @@ return <Chip label={`${label} · ${level}`} size='small' sx={{ bgcolor: colors[l
         <Typography variant='h4'>📋 Leads · Base Real</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            {leads.length} leads do Supabase · discovery_listings · Score Composto (Pain Criteria v1.2)
+            {leads.length} leads do Supabase · discovery_listings
           </Typography>
           <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
+          {filterCategory && (
+            <Chip label={`Categoria: ${filterCategory}`} size='small' color='primary' variant='tonal'
+              onDelete={() => {}} component='a' href={`/${lang}/admin/leads${filterSchwartz ? `?schwartz=${filterSchwartz}` : ''}`} clickable />
+          )}
+          {filterSchwartz > 0 && (
+            <Chip label={`Schwartz: L${filterSchwartz}`} size='small' color='warning' variant='tonal'
+              onDelete={() => {}} component='a' href={`/${lang}/admin/leads${filterCategory ? `?category=${filterCategory}` : ''}`} clickable />
+          )}
+          {(filterCategory || filterSchwartz > 0) && (
+            <Chip label='Limpar filtros' size='small' color='error' variant='outlined'
+              component='a' href={`/${lang}/admin/leads`} clickable />
+          )}
         </Box>
       </Grid>
 
