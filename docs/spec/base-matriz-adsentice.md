@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.0.8"
+version: "1.0.9"
 date: 2026-07-11
-updated: 2026-07-13T01:45:00-03:00
+updated: 2026-07-13T02:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -57,7 +57,8 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.docs.marketing_vocab` | Mapeamento vocabulário marketing (55 skills Corey+Kim → adsentice) | `docs/spec/adsentice-marketing-vocab.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.esc_skills_analysis` | Análise ESC gui.marketing (27 skills) → Dashboard adsentice | `docs/spec/adsentice-esc-skills-analysis.md` | ✅ v1.0.0 |
 | `ADS.COR.docs.enrichment_layers` | Anatomia completa GMB 27 campos canônicos + 5 camadas de enriquecimento | `docs/spec/adsentice-enrichment-layers.md` | ✅ v2.0.0 |
-| `ADS.COR.docs.architecture_flow` | Arquitetura completa — fluxo operacional técnico com diagrama ASCII + 12 seções | `docs/spec/adsentice-architecture-flow.md` | ✅ v1.0.0 |
+| `ADS.COR.docs.architecture_flow` | Arquitetura completa — fluxo operacional técnico com diagrama ASCII + 12 seções | `docs/spec/adsentice-architecture-flow.md` | ✅ v1.0.1 |
+| `ADS.COR.docs.enrichment_capabilities` | Matriz completa de capacidades EVO-API por camada L0-L4 (76 caps → 29+ sinais de scoring) | `docs/spec/adsentice-lead-enrichment-capabilities.md` | ✅ v1.0.0 |
 
 ### ADS.COR.vendor — Referências Externas
 
@@ -334,7 +335,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.8 · 2026-07-13 · 7 dimensões · 100+ rotas estáveis · medido=verdade · ISOLADO do EVO-API · 82 skills ingeridos · Pipeline Discovery LIVE testado ($0.0156) · Supabase pg Pool · 3 camadas persistência · 6 integrações · zero hardcoded · 671 corpus chunks*
+*Base-Matriz adsentice v1.0.9 · 2026-07-13 · 7 dimensões · 100+ rotas · medido=verdade · ISOLADO do EVO-API · L1 Enrichment ATIVO (27 campos GMB) · 76 capabilities mapeadas (L0-L4) · 4 estratégias de nutrição por perfil · 5 camadas de enriquecimento (Search→Profile→SEO+Social→Keywords→AI) · Supabase LIVE · Cloudflare R2 configurado*
 
 ## Changelog
 
@@ -351,3 +352,4 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v009 | 2026-07-12 | auditoria-hardcoded-removidos-engine-redis-real | `apps/web/src/lib/engine.ts` (commit 0eb6dc7) | ✅ vivo |
 | v010 | 2026-07-12 | arquitetura-completa-fluxo-operacional-tecnico | `docs/spec/adsentice-architecture-flow.md` | ✅ vivo |
 | v011 | 2026-07-13 | pipeline-discovery-testado-supabase-live-pg-pool | `apps/web/src/lib/discovery-persistence.ts` (commit baf9591) | ✅ vivo |
+| v012 | 2026-07-13 | l1-enrichment-27-campos-gmb + matriz-capacidades-evo-api | `apps/web/src/lib/evo-mcp.ts` (commit 1a8c77e) + `docs/spec/adsentice-lead-enrichment-capabilities.md` | ✅ vivo |
