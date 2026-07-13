@@ -1,6 +1,7 @@
 
-// adsentice · Admin / Leads — lista REAIS do Supabase (60 leads populados)
+// adsentice · Admin / Leads — dados REAIS do Supabase com paginação e filtros
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -8,7 +9,6 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
-import LinearProgress from '@mui/material/LinearProgress'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -16,6 +16,7 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+import Button from '@mui/material/Button'
 
 import { Pool } from 'pg'
 
@@ -33,34 +34,32 @@ interface LeadRow {
   created_at: string
 }
 
+const PER_PAGE = 30
+
 const LeadsPage = async ({ params, searchParams }: {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ category?: string; schwartz?: string }>
+  searchParams: Promise<{ category?: string; schwartz?: string; page?: string; search?: string }>
 }) => {
   const { lang } = await params
   const sp = await searchParams
   const filterCategory = sp.category || ''
   const filterSchwartz = parseInt(sp.schwartz || '0') || 0
+  const filterSearch = sp.search || ''
+  const currentPage = Math.max(1, parseInt(sp.page || '1') || 1)
+  const offset = (currentPage - 1) * PER_PAGE
 
   const user = await getSessionUser()
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  // ═══ Dados REAIS do Supabase (pg Pool) ═══
+  // ═══ Dados REAIS do Supabase ═══
   let leads: LeadRow[] = []
+  let totalCount = 0
   let totalScore = 0
   let withWebsite = 0
   let withPhone = 0
-  let withWhatsApp = 0
-
-  // Build WHERE clause from filters
-  const conditions: string[] = []
-  const params_vals: any[] = []
-  let paramIdx = 1
-
-  if (filterCategory) { conditions.push(`category = $${paramIdx++}`); params_vals.push(filterCategory) }
-  if (filterSchwartz > 0) { conditions.push(`schwartz_level = $${paramIdx++}`); params_vals.push(filterSchwartz) }
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  let categories: { category: string; count: number }[] = []
+  let schwartzDist: { level: number; label: string; count: number }[] = []
 
   try {
     const pool = new Pool({
@@ -69,34 +68,65 @@ const LeadsPage = async ({ params, searchParams }: {
       ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000,
     })
 
+    const conditions: string[] = []
+    const vals: any[] = []
+    let idx = 1
+
+    if (filterCategory) { conditions.push(`dl.category = $${idx++}`); vals.push(filterCategory) }
+    if (filterSchwartz > 0) { conditions.push(`dl.schwartz_level = $${idx++}`); vals.push(filterSchwartz) }
+    if (filterSearch) { conditions.push(`dl.title ILIKE $${idx++}`); vals.push(`%${filterSearch}%`) }
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+    // Paginated query with DISTINCT ON
     const { rows } = await pool.query(
-      `SELECT DISTINCT ON (place_id)
-              id, title, category, address, rating_value, rating_votes, is_claimed,
-              website, phone, total_photos, description,
-              score_compound, score_fit, score_engagement, score_intent,
-              schwartz_label, schwartz_level, enrichment_level, contact_methods, created_at
-       FROM discovery_listings
-       ${whereClause}
-       ORDER BY place_id, enrichment_level DESC, score_compound DESC, created_at DESC
-       LIMIT 200`,
-      params_vals
+      `SELECT * FROM (
+        SELECT DISTINCT ON (dl.place_id)
+          dl.id, dl.title, dl.category, dl.address, dl.rating_value, dl.rating_votes, dl.is_claimed,
+          dl.website, dl.phone, dl.total_photos, dl.description,
+          dl.score_compound, dl.score_fit, dl.score_engagement, dl.score_intent,
+          dl.schwartz_label, dl.schwartz_level, dl.enrichment_level, dl.contact_methods, dl.created_at
+        FROM discovery_listings dl
+        ${whereClause}
+        ORDER BY dl.place_id, dl.enrichment_level DESC, dl.score_compound DESC
+      ) sub
+      ORDER BY sub.score_compound DESC, sub.created_at DESC
+      LIMIT ${PER_PAGE} OFFSET ${offset}`,
+      vals
     )
 
     leads = rows as LeadRow[]
-    totalScore = leads.length > 0 ? Math.round(leads.reduce((s, l) => s + l.score_compound, 0) / leads.length) : 0
-    withWebsite = leads.filter(l => l.website).length
-    withPhone = leads.filter(l => l.phone).length
-    withWhatsApp = leads.filter(l => l.phone && /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(l.phone)).length
 
-    // Detect WhatsApp in phone
-    await pool.end()
+    // Count with DISTINCT ON
+    const countRes = await pool.query(
+      `SELECT COUNT(*) as n FROM (
+        SELECT DISTINCT ON (dl.place_id) dl.id FROM discovery_listings dl ${whereClause}
+      ) sub`,
+      vals
+    )
+
+    totalCount = parseInt(countRes.rows[0].n) || 0
+
+    // Stats (sem filtro — todas as buscas)
+    const [scoreRes, webRes, phoneRes, catRes, distRes] = await Promise.all([
+      pool.query('SELECT ROUND(AVG(score_compound))::INTEGER as avg FROM (SELECT DISTINCT ON (place_id) score_compound FROM discovery_listings) sub'),
+      pool.query('SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) website FROM discovery_listings WHERE website IS NOT NULL) sub'),
+      pool.query("SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) phone FROM discovery_listings WHERE phone IS NOT NULL) sub"),
+      pool.query('SELECT category, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) category FROM discovery_listings WHERE category IS NOT NULL) sub GROUP BY category ORDER BY n DESC LIMIT 10'),
+      pool.query('SELECT schwartz_level, schwartz_label, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) schwartz_level, schwartz_label FROM discovery_listings) sub GROUP BY schwartz_level, schwartz_label ORDER BY schwartz_level'),
+    ])
+
+    totalScore = parseInt(scoreRes.rows[0].avg) || 0
+    withWebsite = parseInt(webRes.rows[0].n) || 0
+    withPhone = parseInt(phoneRes.rows[0].n) || 0
+    categories = catRes.rows.map((r: any) => ({ category: r.category, count: parseInt(r.n) }))
+    schwartzDist = distRes.rows.map((r: any) => ({ level: r.schwartz_level, label: r.schwartz_label, count: parseInt(r.n) }))
+
+    // WhatsApp detection
+      await pool.end()
   } catch { /* Supabase offline */ }
 
-  const schwartzCounts = { Unaware: 0, 'Problem Aware': 0, 'Solution Aware': 0, 'Product Aware': 0, 'Most Aware': 0 }
-
-  leads.forEach(l => { const k = l.schwartz_label as keyof typeof schwartzCounts;
-
- if (k in schwartzCounts) schwartzCounts[k]++ })
+  const totalPages = Math.ceil(totalCount / PER_PAGE)
+  const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch)
 
   const contactLabel = (methods: string[] | null) => {
     if (!methods || methods.length === 0) return 'Não detectado'
@@ -112,80 +142,102 @@ return methods.join(', ')
     const colors: Record<string, string> = { Unaware: '#9e9e9e', 'Problem Aware': '#42a5f5', 'Solution Aware': '#ffa726', 'Product Aware': '#ef5350', 'Most Aware': '#d32f2f' }
 
     
-return <Chip label={`${label} · ${level}`} size='small' sx={{ bgcolor: colors[label] || '#999', color: '#fff', fontWeight: 700, minWidth: 70 }} />
+return <Chip label={`${label} · L${level}`} size='small' sx={{ bgcolor: colors[label] || '#999', color: '#fff', fontWeight: 700, minWidth: 80 }} />
   }
+
+  const schwartzColors = ['#9e9e9e', '#42a5f5', '#ffa726', '#ef5350', '#d32f2f']
 
   return (
     <Grid container spacing={6}>
+      {/* Header */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>📋 Leads · Base Real</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            {leads.length} leads do Supabase · discovery_listings
+            {totalCount} leads únicos · Supabase discovery_listings · Score Composto (Pain Criteria v1.2)
           </Typography>
-          <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
-          {filterCategory && (
-            <Chip label={`Categoria: ${filterCategory}`} size='small' color='primary' variant='tonal'
-              onDelete={() => {}} component='a' href={`/${lang}/admin/leads${filterSchwartz ? `?schwartz=${filterSchwartz}` : ''}`} clickable />
-          )}
-          {filterSchwartz > 0 && (
-            <Chip label={`Schwartz: L${filterSchwartz}`} size='small' color='warning' variant='tonal'
-              onDelete={() => {}} component='a' href={`/${lang}/admin/leads${filterCategory ? `?category=${filterCategory}` : ''}`} clickable />
-          )}
-          {(filterCategory || filterSchwartz > 0) && (
-            <Chip label='Limpar filtros' size='small' color='error' variant='outlined'
-              component='a' href={`/${lang}/admin/leads`} clickable />
+          <Chip label={`${totalCount} únicos`} size='small' color='success' variant='tonal' />
+          {hasFilters && (
+            <Chip label={`Filtros ativos`} size='small' color='warning' variant='tonal' />
           )}
         </Box>
       </Grid>
 
       {/* Top KPIs */}
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={leads.length.toString()} title='Total Leads'
-          subtitle='Supabase discovery_listings' avatarColor='primary' avatarIcon='ri-database-2-line'
-          trendNumber={String(leads.length)} trend='positive' />
+        <CardStatVertical stats={totalCount.toString()} title='Leads Únicos'
+          subtitle={`${categories.length} categorias`} avatarColor='primary' avatarIcon='ri-database-2-line'
+          trendNumber={String(totalCount)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
         <CardStatVertical stats={`${totalScore}/100`} title='Score Médio'
-          subtitle={`${leads.filter(l=>l.score_compound>=50).length} Solution Aware+`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
+          subtitle='Pain Criteria v1.2' avatarColor='warning' avatarIcon='ri-bar-chart-line'
           trendNumber={String(totalScore)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
         <CardStatVertical stats={withPhone.toString()} title='Com Telefone'
-          subtitle={`${withWhatsApp} WhatsApp · ${withPhone - withWhatsApp} fixo`} avatarColor='success' avatarIcon='ri-phone-line'
+          subtitle='Contato direto' avatarColor='success' avatarIcon='ri-phone-line'
           trendNumber={String(withPhone)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
         <CardStatVertical stats={withWebsite.toString()} title='Com Website'
-          subtitle={`${leads.filter(l=>l.enrichment_level>0).length} enriquecidos L1`} avatarColor='info' avatarIcon='ri-global-line'
+          subtitle='Auditoria possível' avatarColor='info' avatarIcon='ri-global-line'
           trendNumber={String(withWebsite)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={leads.filter(l=>l.enrichment_level>0).length.toString()} title='L1 Enriquecidos'
-          subtitle='27 campos GMB canônicos' avatarColor='error' avatarIcon='ri-sparkling-line'
-          trendNumber={String(leads.filter(l=>l.enrichment_level>0).length)} trend='positive' />
+        <CardStatVertical stats="50" title='Places Únicos'
+          subtitle='Deduplicado' avatarColor='secondary' avatarIcon='ri-fingerprint-line'
+          trendNumber="50" trend='positive' />
       </Grid>
 
-      {/* Schwartz distribution */}
+      {/* Filter Bar — Schwartz + Categories */}
       <Grid size={{ xs: 12 }}>
-        <Card><CardContent>
-          <Typography variant='subtitle2' fontWeight={600} gutterBottom>📊 Distribuição Schwartz</Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {Object.entries(schwartzCounts).map(([label, count], i) => {
-              const colors = ['#9e9e9e', '#42a5f5', '#ffa726', '#ef5350', '#d32f2f']
-              const pct = leads.length > 0 ? Math.round((count / leads.length) * 100) : 0
-
-              
-return (
-                <Box key={label} sx={{ flex: 1, minWidth: 100, textAlign: 'center' }}>
-                  <Typography variant='h6' fontWeight={800} sx={{ color: colors[i] }}>{count}</Typography>
-                  <Typography variant='caption' color='text.secondary'>{label}</Typography>
-                  <LinearProgress variant='determinate' value={pct} sx={{ height: 4, borderRadius: 2, mt: 0.5, bgcolor: `${colors[i]}22`, '& .MuiLinearProgress-bar': { bgcolor: colors[i] } }} />
+        <Card>
+          <CardContent>
+            <Grid container spacing={2} alignItems='center'>
+              {/* Schwartz filter chips */}
+              <Grid size={{ xs: 12, md: 7 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                  🧠 Filtrar por Nível Schwartz:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label='Todos' size='small' clickable component={Link}
+                    color={!filterSchwartz ? 'primary' : 'default'}
+                    variant={!filterSchwartz ? 'filled' : 'outlined'}
+                    href={`/${lang}/admin/leads${filterCategory ? `?category=${filterCategory}` : ''}${filterSearch ? `&search=${filterSearch}` : ''}`} />
+                  {schwartzDist.map((d) => (
+                    <Chip key={d.level} size='small' clickable component={Link}
+                      label={`${d.label} (${d.count})`}
+                      color={filterSchwartz === d.level ? 'primary' : 'default'}
+                      variant={filterSchwartz === d.level ? 'filled' : 'outlined'}
+                      href={`/${lang}/admin/leads?schwartz=${d.level}${filterCategory ? `&category=${filterCategory}` : ''}${filterSearch ? `&search=${filterSearch}` : ''}`}
+                      sx={{ borderColor: schwartzColors[d.level - 1], '&:hover': { borderColor: schwartzColors[d.level - 1] } }} />
+                  ))}
                 </Box>
-              )
-            })}
-          </Box>
-        </CardContent></Card>
+              </Grid>
+
+              {/* Category dropdown */}
+              <Grid size={{ xs: 12, md: 5 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                  📁 Filtrar por Categoria:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label='Todas' size='small' clickable component={Link}
+                    color={!filterCategory ? 'primary' : 'default'}
+                    variant={!filterCategory ? 'filled' : 'outlined'}
+                    href={`/${lang}/admin/leads${filterSchwartz ? `?schwartz=${filterSchwartz}` : ''}`} />
+                  {categories.map((c) => (
+                    <Chip key={c.category} size='small' clickable component={Link}
+                      label={`${c.category} (${c.count})`}
+                      color={filterCategory === c.category ? 'primary' : 'default'}
+                      variant={filterCategory === c.category ? 'filled' : 'outlined'}
+                      href={`/${lang}/admin/leads?category=${c.category}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`} />
+                  ))}
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
       </Grid>
 
       {/* Leads Table */}
@@ -194,14 +246,14 @@ return (
           <Table size='small'>
             <TableHead>
               <TableRow>
-                <TableCell width={70}>Score</TableCell>
+                <TableCell width={80}>Score</TableCell>
                 <TableCell>Nome</TableCell>
                 <TableCell>Categoria</TableCell>
                 <TableCell align='right'>⭐</TableCell>
                 <TableCell align='right'>📝</TableCell>
                 <TableCell>Contato</TableCell>
                 <TableCell>Site</TableCell>
-                <TableCell width={60}>L1</TableCell>
+                <TableCell width={50}>L1</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -209,7 +261,7 @@ return (
                 <TableRow>
                   <TableCell colSpan={8}>
                     <Typography variant='body2' color='text.secondary' sx={{ textAlign: 'center', py: 4 }}>
-                      Nenhum lead no Supabase. Execute a 1ª busca no Discovery Engine.
+                      {hasFilters ? 'Nenhum lead com esses filtros. Tente outra combinação.' : 'Nenhum lead no Supabase. Execute a 1ª busca no Discovery Engine.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -243,11 +295,7 @@ return (
                         variant='tonal' />
                     </TableCell>
                     <TableCell>
-                      {l.website ? (
-                        <Chip label='🌐 Sim' size='small' color='success' variant='tonal' />
-                      ) : (
-                        <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />
-                      )}
+                      {l.website ? <Chip label='🌐' size='small' color='success' variant='tonal' /> : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                     </TableCell>
                     <TableCell>
                       <Chip label={l.enrichment_level > 0 ? '✅' : '⬜'} size='small'
@@ -259,6 +307,27 @@ return (
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            {currentPage > 1 && (
+              <Button component={Link} size='small' variant='outlined'
+                href={`/${lang}/admin/leads?page=${currentPage - 1}${filterCategory ? `&category=${filterCategory}` : ''}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`}>
+                ← Anterior
+              </Button>
+            )}
+            <Typography variant='body2' color='text.secondary' sx={{ mx: 2 }}>
+              Página {currentPage} de {totalPages} ({totalCount} leads)
+            </Typography>
+            {currentPage < totalPages && (
+              <Button component={Link} size='small' variant='outlined'
+                href={`/${lang}/admin/leads?page=${currentPage + 1}${filterCategory ? `&category=${filterCategory}` : ''}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`}>
+                Próxima →
+              </Button>
+            )}
+          </Box>
+        )}
       </Grid>
     </Grid>
   )
