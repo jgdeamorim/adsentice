@@ -20,6 +20,7 @@ import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
+import { getCategoryAnalytics } from '@/lib/discovery-persistence'
 
 // ═══ Mapeamento: código GMB → label Discovery ═══
 const CATEGORY_LABELS: Record<string, string> = {
@@ -55,36 +56,44 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  // ═══ Fetch real data from discovery-data API ═══
+  // ═══ Dados REAIS: Supabase (primário) → Redis (fallback) ═══
   let categories: CategoryRow[] = []
   let dataSource: 'supabase' | 'redis' | 'none' = 'none'
   let redisStats: { total: number; avgScore: number } | null = null
 
+  // 1. Try Supabase directly (pg Pool — no auth needed)
   try {
-    // Internal fetch to our own API route (same process, no network cost)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/discovery-data`, { cache: 'no-store' })
-    const json = await res.json()
+    const analytics = await getCategoryAnalytics()
 
-    dataSource = json.source
-
-    if (json.source === 'supabase' && json.categories) {
-      categories = json.categories.map((c: any) => ({
+    if (analytics.length > 0) {
+      dataSource = 'supabase'
+      categories = analytics.map((c) => ({
         category: c.category,
         label: CATEGORY_LABELS[c.category] || c.category,
-        total_listings: Number(c.total_listings) || 0,
-        unique_businesses: Number(c.unique_businesses) || 0,
-        avg_score: Number(c.avg_score) || 0,
-        pain_pct: Number(c.pain_pct) || 0,
-        solution_aware_plus: Number(c.solution_aware_plus) || 0,
-        product_aware_plus: Number(c.product_aware_plus) || 0,
-        most_aware: Number(c.most_aware) || 0,
+        total_listings: c.total_listings,
+        unique_businesses: c.unique_businesses,
+        avg_score: c.avg_score,
+        pain_pct: c.pain_pct,
+        solution_aware_plus: c.solution_aware_plus,
+        product_aware_plus: c.product_aware_plus,
+        most_aware: c.most_aware,
       }))
-    } else if (json.source === 'redis' && json.scoreStats) {
-      redisStats = json.scoreStats
     }
-  } catch {
-    dataSource = 'none'
+  } catch { /* Supabase offline */ }
+
+  // 2. Fallback: Redis cache
+  if (dataSource === 'none') {
+    try {
+      const { execSync } = await import("child_process")
+      const raw = execSync("redis-cli -p 6396 --no-auth-warning GET adsentice:discovery:last_score_stats", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+
+      if (raw) {
+        const stats = JSON.parse(raw)
+
+        redisStats = { total: stats.total || 0, avgScore: stats.avgScore || 0 }
+        dataSource = 'redis'
+      }
+    } catch { /* Redis offline */ }
   }
 
   const hasData = categories.length > 0
