@@ -276,6 +276,39 @@ const CATS = [
   { id: 'hotel', label: '🏨 Pousadas/Hotéis', market: '~30K', tier: 3 },
 ]
 
+// ── Category Market Reference (estimativas de mercado — IBGE/CEMPRE 2024) ──
+const CAT_INFO: Record<string, { market: string; tier: number; segment: string; why: string }> = {
+  dentist: { market: '~400K', tier: 1, segment: 'Saúde', why: 'Alta rotatividade de pacientes. Ticket R\$150-500. Convênio + particular.' },
+  orthodontist: { market: '~25K', tier: 1, segment: 'Saúde', why: 'Nicho premium. Ticket R\$3K-15K. Aparelho/Invisalign.' },
+  medical_aesthetic_clinic: { market: '~80K', tier: 1, segment: 'Saúde', why: 'Harmonização facial, botox. Crescimento 40\%/ano. Ticket R\$500-3K.' },
+  medical_clinic: { market: '~200K', tier: 1, segment: 'Saúde', why: 'Clínico geral. Convênio + particular. Ticket R\$100-300.' },
+  veterinarian: { market: '~60K', tier: 1, segment: 'Saúde', why: '2º mercado pet mundial. Urgência = busca imediata. Ticket R\$100-500.' },
+  psychologist: { market: '~350K', tier: 1, segment: 'Saúde', why: 'Crescimento pós-pandemia. Online + presencial. R\$100-300/sessão.' },
+  physical_therapist: { market: '~150K', tier: 1, segment: 'Saúde', why: 'Pilates, RPG, reabilitação. Convênio + particular. Ticket R\$80-200.' },
+  ophthalmologist: { market: '~30K', tier: 1, segment: 'Saúde', why: 'Cirurgia refrativa. Ticket alto (R\$2K-10K). Google = pacientes.' },
+  cardiologist: { market: '~25K', tier: 1, segment: 'Saúde', why: 'Check-up, exames. Público 40+. R\$300-800. Google = agendamento.' },
+  beauty_salon: { market: '~600K', tier: 1, segment: 'Beleza', why: 'MAIOR categoria SMB BR. Manicure, cabeleireiro. Instagram + GMB vitais.' },
+  barber_shop: { market: '~400K', tier: 1, segment: 'Beleza', why: 'Público masculino. WhatsApp + GMB. Ticket R\$40-80.' },
+  gym: { market: '~35K', tier: 2, segment: 'Beleza', why: 'Mensalidade recorrente. GMB + Instagram. R\$80-200/mês.' },
+  lawyer: { market: '~300K', tier: 1, segment: 'Serviços', why: '1M+ advogados no BR. Competem por Google. Ticket R\$1K-10K.' },
+  accountant: { market: '~300K', tier: 1, segment: 'Serviços', why: 'MEI, LTDA. Todo negócio precisa. Ticket R\$200-800/mês.' },
+  architect: { market: '~180K', tier: 2, segment: 'Serviços', why: 'Portfólio visual. Instagram + site. Ticket R\$3K-30K.' },
+  interior_designer: { market: '~120K', tier: 2, segment: 'Serviços', why: 'Portfólio visual. Instagram #1. Ticket R\$1K-15K.' },
+  real_estate_agency: { market: '~70K', tier: 2, segment: 'Serviços', why: 'Comissão alta. GMB + portal + Ads. R\$5K-50K comissão.' },
+  restaurant: { market: '~1M', tier: 2, segment: 'Alimentação', why: 'Maior categoria. Cardápio, fotos, reviews. R\$30-100.' },
+  pizza_restaurant: { market: '~60K', tier: 2, segment: 'Alimentação', why: 'Delivery + presencial. GMB + iFood + Instagram. R\$40-80.' },
+  bakery: { market: '~70K', tier: 3, segment: 'Alimentação', why: 'Negócio de bairro. Alta frequência. Ticket R\$5-30.' },
+  pet_store: { market: '~200K', tier: 1, segment: 'Comércio', why: 'SMB puro. Banho/tosa. GMB essencial. R\$50-200.' },
+  car_repair: { market: '~150K', tier: 2, segment: 'Comércio', why: 'Urgência = Google. GMB com fotos, avaliações. R\$100-2K.' },
+  pharmacy: { market: '~90K', tier: 3, segment: 'Comércio', why: 'Redes dominam. SMB compete por conveniência local.' },
+  electrician: { market: '~200K', tier: 2, segment: 'Comércio', why: 'Profissional liberal. Só GMB. Urgência = 1º do Google ganha.' },
+  plumber: { market: '~250K', tier: 2, segment: 'Comércio', why: 'Urgência máxima. Google = ganha o serviço. R\$100-500.' },
+  cleaning_service: { market: '~300K', tier: 2, segment: 'Comércio', why: 'Terceirização. Google = principal canal. R\$200-800/mês.' },
+  school: { market: '~40K', tier: 3, segment: 'Educação', why: 'Ticket alto (R\$500-3K/mês). Matrícula = pico de busca.' },
+  driving_school: { market: '~15K', tier: 3, segment: 'Educação', why: '1ª CNH = Google. Ticket R\$1.5K-2.5K.' },
+  hotel: { market: '~30K', tier: 3, segment: 'Hospitalidade', why: 'Booking/Decolar. Fotos + reviews = reserva. R\$150-500/diária.' },
+};
+
 interface Listing {
   title: string | null; category: string | null; address: string | null
   rating_value: number | null; rating_votes: number | null; place_id: string | null
@@ -887,6 +920,22 @@ return (
               <IconButton onClick={() => { setSelectedLead(null); setSelectedScore(null); setCompetitorData(null); }} size='small'><i className='ri-close-line' /></IconButton>
             </DialogTitle>
             <DialogContent dividers>
+              {/* ═══ MARKET CONTEXT ═══ */}
+              {selectedLead.category && CAT_INFO[selectedLead.category] && (
+                <Box sx={{ mb: 2, p: 2, bgcolor: '#f0fdf4', borderRadius: 1, border: '1px solid', borderColor: '#bbf7d0' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant='subtitle2' fontWeight={700} color='#16a34a'>
+                      📊 Mercado: {CAT_INFO[selectedLead.category].market} negócios · {CAT_INFO[selectedLead.category].segment}
+                    </Typography>
+                    <Chip label={'Tier ' + CAT_INFO[selectedLead.category].tier} size='small'
+                      color={CAT_INFO[selectedLead.category].tier === 1 ? 'error' : CAT_INFO[selectedLead.category].tier === 2 ? 'warning' : 'info'} variant='tonal' />
+                  </Box>
+                  <Typography variant='caption' color='text.secondary'>
+                    {CAT_INFO[selectedLead.category].why}
+                  </Typography>
+                </Box>
+              )}
+
               {/* ═══ IDENTITY + LOCATION ═══ */}
               <Typography variant='overline' fontWeight={700} color='primary.main'>🏢 Perfil GMB</Typography>
               <Grid container spacing={1.5} sx={{ mb: 2 }}>
