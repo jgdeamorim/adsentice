@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.1.7"
+version: "1.2.0"
 date: 2026-07-11
-updated: 2026-07-13T06:00:00-03:00
+updated: 2026-07-13T14:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -362,7 +362,10 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v019 | 2026-07-13 | auditoria-flow-operacional-correcao-3-bugs | `discovery-persistence.ts` + `discovery-search/route.ts` (commit be84a35) — city/district/categories persistidos, L1 batch parallel 5x, order_by+offset+cobertura mercado | ✅ vivo |
 | v020 | 2026-07-13 | pipeline-supabase-real-leads-filtros-navegacao-conectada | `pipeline/page.tsx` + `leads/page.tsx` (commit 8ee0f71) — Pipeline do Supabase (50 leads unicos), filtros query params, navegacao entre paginas | ✅ vivo |
 | v021 | 2026-07-13 | consistencia-4-paginas-50-leads-unicos-DISTINCT-ON | `category_analytics` view + `get_score_distribution()` RPC (commit f48fd3a) — Views refeitas com CTE dedup, todas as paginas 50 leads | ✅ vivo |
+| v022 | 2026-07-13 | busca-rj-confirmada-city-district-l1-enriquecimento | `discovery-search/route.ts` (commit 66808eb) — 50 listings RJ Capital, 32 L1 (64%), 25 bairros, city/district ✅, 100 leads totais | ✅ vivo |
+| v023 | 2026-07-13 | lead-detail-modal-popup-32-campos-6-secoes | `leads/LeadTable.tsx` (commit 66808eb) — Client component com Dialog, identidade/localizacao/contato/reputacao/score/sinais | ✅ vivo |
+| v024 | 2026-07-13 | costs-page-dados-reais-supabase-rate-limits-dataforseo | `costs/page.tsx` (commit bcaf8f0) — Custos do Supabase ($0.60 total), rate limits API real-time, precos verificados | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.1.7 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · 50 leads unicos (4 paginas consistentes) · 210 registros historicos · 696 corpus · 723 conversation · 21 changelog · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.2.0 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · 100 leads unicos (SP+RJ) · $0.60 DataForSEO (R$3.30) · R$0.03/lead (860× mais barato que Google Ads) · Lead modal detail (32 campos) · Rate limits API · 696 corpus · 726 conversation · 24 changelog · Supabase pg Pool · Cloudflare R2*
