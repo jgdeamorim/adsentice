@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.1.5"
+version: "1.1.6"
 date: 2026-07-11
-updated: 2026-07-13T05:30:00-03:00
+updated: 2026-07-13T05:45:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -360,7 +360,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v017 | 2026-07-13 | contact-method-detection + L1-persistence-fix | `apps/web/src/lib/scoring.ts` + `discovery-persistence.ts` (commit c24fb44) — detectContactMethods(), contactStrategy(), 12 colunas L1 no Supabase, fluxos de comunicação mapeados | ✅ vivo |
 | v018 | 2026-07-13 | /admin/leads — pagina real com 60 leads do Supabase | `apps/web/src/app/.../leads/page.tsx` (commit f550ec0) — tabela completa, KPIs, Schwartz distribution, contact methods | ✅ vivo |
 | v019 | 2026-07-13 | auditoria-flow-operacional-correcao-3-bugs | `discovery-persistence.ts` + `discovery-search/route.ts` (commit be84a35) — city/district/categories persistidos, L1 batch parallel 5x, order_by+offset+cobertura mercado | ✅ vivo |
+| v020 | 2026-07-13 | pipeline-supabase-real-leads-filtros-navegacao-conectada | `pipeline/page.tsx` + `leads/page.tsx` (commit 8ee0f71) — Pipeline do Supabase (210 leads estaveis), filtros query params, navegacao entre paginas | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.1.5 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · L1 todos os 50 leads ($0.285/busca) · Batch parallel 5x · 29 categorias · 696 corpus chunks · 19 changelog entries · 721 conversation chunks · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.1.6 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · 210 leads Supabase · Pipeline+Leads conectados com filtros · L1 50 leads ($0.285/busca) · 696 corpus chunks · 722 conversation chunks · 20 changelog entries · Supabase pg Pool · Cloudflare R2*
