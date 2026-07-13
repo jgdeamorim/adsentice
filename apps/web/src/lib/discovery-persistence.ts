@@ -1,11 +1,12 @@
 // ══════════════════════════════════════════════════════════════════
-// ADSENTICE · Discovery Persistence — Supabase (durável) + Redis (cache)
+// ADSENTICE · Discovery Persistence — Supabase Postgres (durável)
+// Usa o Pooler direto (pg) — bypass RLS, permissão garantida.
 // Dados PAGOS do DataForSEO NUNCA são perdidos.
 // Fluxo: EVO-API → Supabase (permanente) + Redis (cache 24h) + Memory (30min)
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
-import { createClient } from "@supabase/supabase-js"
+import { Pool } from "pg"
 
 import type { ScoreData } from "./scoring"
 import type { GMBListing } from "./evo-mcp"
@@ -25,17 +26,31 @@ export interface CategoryAnalytics {
   last_seen: string
 }
 
-// ── Supabase Admin Client (service_role — server-side only) ──
+// ── Postgres Pool (singleton) ─────────────────────────────────
 
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+let _pool: Pool | null = null
 
-  if (!url || !key) return null
+function getPool(): Pool | null {
+  if (_pool) return _pool
 
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  try {
+    _pool = new Pool({
+      host: "aws-0-ca-central-1.pooler.supabase.com",
+      port: 6543,
+      database: "postgres",
+      user: "postgres.tdigauruusdhnpvppixb",
+      password: process.env.SUPABASE_DB_PASSWORD || "pmaxnpmiJ6WfcX46",
+      ssl: { rejectUnauthorized: false },
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    })
+
+    return _pool
+  } catch {
+
+    return null
+  }
 }
 
 // ── Save Search ─────────────────────────────────────────────
@@ -50,171 +65,101 @@ export async function saveDiscoverySearch(params: {
   listings: (GMBListing & { score: ScoreData })[]
   distribution: { unaware: number; problemAware: number; solutionAware: number; productAware: number; mostAware: number; avgScore: number }
 }): Promise<{ searchId: string; savedCount: number } | null> {
-  const supabase = getAdminClient()
+  const pool = getPool()
 
-  if (!supabase) return null // service_role key not configured
+  if (!pool) return null
 
-  const avgScore = params.distribution.avgScore
+  const client = await pool.connect()
 
-  // 1 — Insert search record
-  const { data: search, error: searchErr } = await supabase
-    .from("discovery_searches")
-    .insert({
-      categories: params.categories,
-      lat: params.lat,
-      lng: params.lng,
-      radius_km: params.radiusKm,
-      total_count: params.totalCount,
-      cost_usd: params.costUsd,
-      avg_score: avgScore,
-      unaware: params.distribution.unaware,
-      problem_aware: params.distribution.problemAware,
-      solution_aware: params.distribution.solutionAware,
-      product_aware: params.distribution.productAware,
-      most_aware: params.distribution.mostAware,
-    })
-    .select("id")
-    .single()
+  try {
+    const avgScore = params.distribution.avgScore
 
-  if (searchErr || !search) {
-    console.error("Failed to save discovery search:", searchErr)
+    // 1 — Insert search record
+    const searchRes = await client.query(
+      `INSERT INTO discovery_searches (categories, lat, lng, radius_km, total_count, cost_usd, avg_score, unaware, problem_aware, solution_aware, product_aware, most_aware)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id`,
+      [
+        params.categories, params.lat, params.lng, params.radiusKm,
+        params.totalCount, params.costUsd, avgScore,
+        params.distribution.unaware, params.distribution.problemAware,
+        params.distribution.solutionAware, params.distribution.productAware,
+        params.distribution.mostAware,
+      ]
+    )
+
+    const searchId = searchRes.rows[0].id
+
+    // 2 — Insert listings with scores (batch via prepared statement + loop)
+    let savedCount = 0
+
+    for (const l of params.listings) {
+      try {
+        await client.query(
+          `INSERT INTO discovery_listings (search_id, place_id, title, category, address,
+            rating_value, rating_votes, is_claimed, latitude, longitude,
+            score_compound, score_fit, score_engagement, score_intent,
+            schwartz_level, schwartz_label, signals_detected)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+           ON CONFLICT (search_id, place_id) DO UPDATE SET
+            score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
+            score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
+            schwartz_level=EXCLUDED.schwartz_level, schwartz_label=EXCLUDED.schwartz_label`,
+          [
+            searchId,
+            l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
+            l.title, l.category, l.address,
+            l.rating_value, l.rating_votes, l.is_claimed, l.latitude, l.longitude,
+            l.score.compound, l.score.fit.normalized, l.score.engagement.normalized, l.score.intent.normalized,
+            l.score.schwartz.level, l.score.schwartz.label,
+            [...l.score.fit.signalsDetected, ...l.score.engagement.signalsDetected, ...l.score.intent.signalsDetected],
+          ]
+        )
+        savedCount++
+      } catch { /* individual row errors don't block the batch */ }
+    }
+
+    return { searchId, savedCount }
+  } catch (err: any) {
+    console.error("[discovery-persistence] Save failed:", err.message)
 
     return null
+  } finally {
+    client.release()
   }
-
-  const searchId = search.id
-
-  // 2 — Insert listings with scores (batch upsert)
-  const rows = params.listings.map((l) => ({
-    search_id: searchId,
-    place_id: l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
-    title: l.title,
-    category: l.category,
-    address: l.address,
-    rating_value: l.rating_value,
-    rating_votes: l.rating_votes,
-    is_claimed: l.is_claimed,
-    latitude: l.latitude,
-    longitude: l.longitude,
-    score_compound: l.score.compound,
-    score_fit: l.score.fit.normalized,
-    score_engagement: l.score.engagement.normalized,
-    score_intent: l.score.intent.normalized,
-    schwartz_level: l.score.schwartz.level,
-    schwartz_label: l.score.schwartz.label,
-    signals_detected: [
-      ...l.score.fit.signalsDetected,
-      ...l.score.engagement.signalsDetected,
-      ...l.score.intent.signalsDetected,
-    ],
-  }))
-
-  // Upsert in batches of 25
-  let savedCount = 0
-
-  for (let i = 0; i < rows.length; i += 25) {
-    const batch = rows.slice(i, i + 25)
-
-    const { error } = await supabase
-      .from("discovery_listings")
-      .upsert(batch, { onConflict: "search_id,place_id", ignoreDuplicates: false })
-
-    if (error) {
-      console.error(`Failed to save batch ${i}:`, error)
-    } else {
-      savedCount += batch.length
-    }
-  }
-
-  return { searchId, savedCount }
 }
 
 // ── Read Category Analytics ──────────────────────────────────
 
 export async function getCategoryAnalytics(): Promise<CategoryAnalytics[]> {
-  const supabase = getAdminClient()
+  const pool = getPool()
 
-  if (!supabase) {
-    // Fallback: try reading from the view with anon client
-    return getCategoryAnalyticsFromView()
-  }
+  if (!pool) return []
 
-  const { data, error } = await supabase
-    .from("category_analytics")
-    .select("*")
-    .order("pain_pct", { ascending: false })
-
-  if (error) {
-    console.error("Failed to read category analytics:", error)
-
-    return []
-  }
-
-  return data || []
-}
-
-/** Fallback: direct aggregation query without the view. */
-async function getCategoryAnalyticsFromView(): Promise<CategoryAnalytics[]> {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } }
+    const { rows } = await pool.query(
+      `SELECT * FROM category_analytics ORDER BY pain_pct DESC`
     )
 
-    const { data, error } = await supabase
-      .from("discovery_listings")
-      .select("category, score_compound, schwartz_level, place_id, created_at")
-
-    if (error || !data) return []
-
-    // Aggregate in-memory
-    const byCategory = new Map<string, {
-      total: number; places: Set<string>; scores: number[]
-      problemAware: number; solutionAware: number; productAware: number; mostAware: number
-      lastSeen: string
-    }>()
-
-    for (const row of data) {
-      const cat = row.category || "unknown"
-      let agg = byCategory.get(cat)
-
-      if (!agg) {
-        agg = { total: 0, places: new Set(), scores: [], problemAware: 0, solutionAware: 0, productAware: 0, mostAware: 0, lastSeen: row.created_at }
-        byCategory.set(cat, agg)
-      }
-
-      agg.total++
-      if (row.place_id) agg.places.add(row.place_id)
-      if (row.score_compound != null) agg.scores.push(row.score_compound)
-      if (row.schwartz_level >= 2) agg.problemAware++
-      if (row.schwartz_level >= 3) agg.solutionAware++
-      if (row.schwartz_level >= 4) agg.productAware++
-      if (row.schwartz_level >= 5) agg.mostAware++
-      if (row.created_at > agg.lastSeen) agg.lastSeen = row.created_at
-    }
-
-    return [...byCategory.entries()]
-      .map(([category, agg]) => ({
-        category,
-        total_listings: agg.total,
-        unique_businesses: agg.places.size,
-        avg_score: agg.scores.length > 0 ? Math.round(agg.scores.reduce((a, b) => a + b, 0) / agg.scores.length) : 0,
-        problem_aware_plus: agg.problemAware,
-        solution_aware_plus: agg.solutionAware,
-        product_aware_plus: agg.productAware,
-        most_aware: agg.mostAware,
-        pain_pct: agg.total > 0 ? Math.round((agg.problemAware / agg.total) * 100 * 10) / 10 : 0,
-        last_seen: agg.lastSeen,
-      }))
-      .sort((a, b) => b.pain_pct - a.pain_pct)
+    return rows.map((r: any) => ({
+      category: r.category,
+      total_listings: Number(r.total_listings) || 0,
+      unique_businesses: Number(r.unique_businesses) || 0,
+      avg_score: Number(r.avg_score) || 0,
+      problem_aware_plus: Number(r.problem_aware_plus) || 0,
+      solution_aware_plus: Number(r.solution_aware_plus) || 0,
+      product_aware_plus: Number(r.product_aware_plus) || 0,
+      most_aware: Number(r.most_aware) || 0,
+      pain_pct: Number(r.pain_pct) || 0,
+      last_seen: r.last_seen || "",
+    }))
   } catch {
 
     return []
   }
 }
 
-// ── Get Score Distribution (for admin dashboard) ─────────────
+// ── Get Score Distribution ──────────────────────────────────
 
 export async function getScoreDistribution(): Promise<{
   total: number
@@ -225,16 +170,13 @@ export async function getScoreDistribution(): Promise<{
   productAware: number
   mostAware: number
 } | null> {
-  const supabase = getAdminClient()
+  const pool = getPool()
 
-  if (!supabase) return null
+  if (!pool) return null
 
   try {
-    const { data, error } = await supabase.rpc("get_score_distribution")
-
-    if (error || !data) return null
-
-    const d = data as any
+    const { rows } = await pool.query("SELECT * FROM get_score_distribution()")
+    const d = rows[0] as any
 
     return {
       total: Number(d.total || 0),
