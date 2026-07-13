@@ -22,13 +22,12 @@ const MarketPage = async ({ params, searchParams }: {
 }) => {
   const { lang } = await params
   const sp = await searchParams
-  const filterCategory = sp.category || 'dentist'
-  const filterCity = sp.city || ''
-
   const user = await getSessionUser()
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const categories = await listMarketCategories()
+  const filterCategory = sp.category || (categories.length > 0 ? categories[0].category : '')
+  const filterCity = sp.city || ''
   const intel = await nicheIntelligence(filterCategory, filterCity || null)
 
   const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]

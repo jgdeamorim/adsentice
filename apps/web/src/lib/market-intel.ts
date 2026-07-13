@@ -172,8 +172,11 @@ export async function marketGapAnalysis(cat: string, city?: string | null): Prom
       for (const sig of signals) { const pfx = sig.split(":")[0]; if(!seen.has(pfx)){seen.add(pfx); signalCounts[pfx]=(signalCounts[pfx]||0)+1} }
     }
 
-    // Explicit checks
-    const schemaR = await pool.query(`SELECT COUNT(DISTINCT CASE WHEN s.l2_has_schema IS FALSE THEN s.place_id END) as n FROM ${dedup("l2_has_schema, place_id",clause)}`, params)
+    // Explicit checks using only REAL columns from DB
+    // Schema: check l2_seo_checks JSONB for schema-related flags
+    const schemaR = await pool.query(
+      `SELECT COUNT(DISTINCT s.place_id) as n FROM ${dedup("l2_seo_checks, place_id",clause)}
+       WHERE (s.l2_seo_checks->>'no_jsonld_schema' = 'true' OR s.l2_seo_checks->>'no_schema_org' = 'true' OR s.l2_seo_checks IS NULL)`, params)
     const claimedR = await pool.query(`SELECT COUNT(DISTINCT CASE WHEN s.is_claimed IS FALSE THEN s.place_id END) as n FROM ${dedup("is_claimed, place_id",clause)}`, params)
     const analyticsR = await pool.query(`SELECT COUNT(DISTINCT CASE WHEN s.l2_has_analytics IS FALSE THEN s.place_id END) as n FROM ${dedup("l2_has_analytics, place_id",clause,"x.l2_has_analytics IS NOT NULL")}`, params)
 
