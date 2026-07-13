@@ -9,19 +9,13 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
 import Button from '@mui/material/Button'
 
 import { Pool } from 'pg'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
+import LeadTable from './LeadTable'
 
 interface LeadRow {
   id: string; title: string | null; category: string | null
@@ -31,7 +25,12 @@ interface LeadRow {
   score_compound: number; score_fit: number; score_engagement: number; score_intent: number
   schwartz_label: string; schwartz_level: number
   enrichment_level: number; contact_methods: string[] | null
-  created_at: string
+  signals_detected?: string[] | null; created_at?: string
+  place_id?: string | null
+  business_status?: string | null; categories_arr?: string[] | null
+  price_level?: number | null; city?: string | null; district?: string | null
+  postal_code?: string | null; country_code?: string | null
+  latitude?: number | null; longitude?: number | null
 }
 
 const PER_PAGE = 30
@@ -83,8 +82,11 @@ const LeadsPage = async ({ params, searchParams }: {
         SELECT DISTINCT ON (dl.place_id)
           dl.id, dl.title, dl.category, dl.address, dl.rating_value, dl.rating_votes, dl.is_claimed,
           dl.website, dl.phone, dl.total_photos, dl.description,
-          dl.score_compound, dl.score_fit, dl.score_engagement, dl.score_intent,
-          dl.schwartz_label, dl.schwartz_level, dl.enrichment_level, dl.contact_methods, dl.created_at
+          dl.business_status, dl.categories_arr, dl.price_level,
+          dl.city, dl.district, dl.postal_code, dl.country_code,
+          dl.place_id, dl.latitude, dl.longitude,
+          dl.schwartz_label, dl.schwartz_level, dl.enrichment_level,
+          dl.contact_methods, dl.signals_detected, dl.created_at
         FROM discovery_listings dl
         ${whereClause}
         ORDER BY dl.place_id, dl.enrichment_level DESC, dl.score_compound DESC
@@ -128,24 +130,7 @@ const LeadsPage = async ({ params, searchParams }: {
   const totalPages = Math.ceil(totalCount / PER_PAGE)
   const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch)
 
-  const contactLabel = (methods: string[] | null) => {
-    if (!methods || methods.length === 0) return 'Não detectado'
-    if (methods.includes('whatsapp')) return '💬 WhatsApp'
-    if (methods.includes('phone_fixo')) return '📞 Telefone'
-    if (methods.includes('website_proprio')) return '🌐 Site'
-    if (methods.includes('apenas_gmb')) return '📍 Apenas GMB'
-    
-return methods.join(', ')
-  }
-
-  const scoreBadge = (level: number, label: string) => {
-    const colors: Record<string, string> = { Unaware: '#9e9e9e', 'Problem Aware': '#42a5f5', 'Solution Aware': '#ffa726', 'Product Aware': '#ef5350', 'Most Aware': '#d32f2f' }
-
-    
-return <Chip label={`${label} · L${level}`} size='small' sx={{ bgcolor: colors[label] || '#999', color: '#fff', fontWeight: 700, minWidth: 80 }} />
-  }
-
-  const schwartzColors = ['#9e9e9e', '#42a5f5', '#ffa726', '#ef5350', '#d32f2f']
+  const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]
 
   return (
     <Grid container spacing={6}>
@@ -240,73 +225,9 @@ return <Chip label={`${label} · L${level}`} size='small' sx={{ bgcolor: colors[
         </Card>
       </Grid>
 
-      {/* Leads Table */}
+      {/* Leads Table with Modal */}
       <Grid size={{ xs: 12 }}>
-        <TableContainer component={Paper}>
-          <Table size='small'>
-            <TableHead>
-              <TableRow>
-                <TableCell width={80}>Score</TableCell>
-                <TableCell>Nome</TableCell>
-                <TableCell>Categoria</TableCell>
-                <TableCell align='right'>⭐</TableCell>
-                <TableCell align='right'>📝</TableCell>
-                <TableCell>Contato</TableCell>
-                <TableCell>Site</TableCell>
-                <TableCell width={50}>L1</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {leads.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8}>
-                    <Typography variant='body2' color='text.secondary' sx={{ textAlign: 'center', py: 4 }}>
-                      {hasFilters ? 'Nenhum lead com esses filtros. Tente outra combinação.' : 'Nenhum lead no Supabase. Execute a 1ª busca no Discovery Engine.'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                leads.map((l) => (
-                  <TableRow key={l.id} hover>
-                    <TableCell>
-                      {scoreBadge(l.schwartz_level, l.schwartz_label)}
-                      <Typography variant='caption' sx={{ display: 'block', mt: 0.3, textAlign: 'center' }}>
-                        {l.score_compound}/100
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight={600} fontSize='0.85rem' noWrap sx={{ maxWidth: 250 }}>{l.title || '—'}</Typography>
-                      <Typography variant='caption' color='text.secondary' noWrap sx={{ maxWidth: 250 }}>
-                        {l.address?.substring(0, 50)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={l.category || '?'} size='small' variant='outlined' />
-                    </TableCell>
-                    <TableCell align='right'>
-                      <Typography variant='body2' fontWeight={600}>{l.rating_value?.toFixed(1) || '—'}★</Typography>
-                    </TableCell>
-                    <TableCell align='right'>
-                      <Typography variant='body2'>{l.rating_votes || 0}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={contactLabel(l.contact_methods)} size='small'
-                        color={l.contact_methods?.includes('whatsapp') ? 'success' : l.contact_methods?.includes('phone_fixo') ? 'warning' : 'default'}
-                        variant='tonal' />
-                    </TableCell>
-                    <TableCell>
-                      {l.website ? <Chip label='🌐' size='small' color='success' variant='tonal' /> : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={l.enrichment_level > 0 ? '✅' : '⬜'} size='small'
-                        color={l.enrichment_level > 0 ? 'success' : 'default'} variant='tonal' />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <LeadTable leads={leads} />
 
         {/* Pagination */}
         {totalPages > 1 && (
