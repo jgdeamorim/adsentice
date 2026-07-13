@@ -40,10 +40,10 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
     })
 
     const [totalRes, distRes, catRes, scoreRes] = await Promise.all([
-      pool.query('SELECT COUNT(*) as n FROM discovery_listings'),
-      pool.query('SELECT schwartz_level, schwartz_label, COUNT(*) as n FROM discovery_listings GROUP BY schwartz_level, schwartz_label ORDER BY schwartz_level'),
-      pool.query('SELECT category, COUNT(*) as n FROM discovery_listings WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC LIMIT 10'),
-      pool.query('SELECT ROUND(AVG(score_compound))::INTEGER as avg FROM discovery_listings'),
+      pool.query(`SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) id FROM discovery_listings) dedup`),
+      pool.query(`SELECT schwartz_level, schwartz_label, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) schwartz_level, schwartz_label FROM discovery_listings ORDER BY place_id, enrichment_level DESC) dedup GROUP BY schwartz_level, schwartz_label ORDER BY schwartz_level`),
+      pool.query(`SELECT category, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) category FROM discovery_listings WHERE category IS NOT NULL ORDER BY place_id, enrichment_level DESC) dedup GROUP BY category ORDER BY n DESC LIMIT 10`),
+      pool.query(`SELECT ROUND(AVG(score_compound))::INTEGER as avg FROM (SELECT DISTINCT ON (place_id) score_compound FROM discovery_listings ORDER BY place_id, enrichment_level DESC) dedup`),
     ])
 
     supabaseTotal = parseInt(totalRes.rows[0].n) || 0
