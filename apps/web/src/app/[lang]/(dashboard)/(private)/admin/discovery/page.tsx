@@ -234,18 +234,46 @@ const STATES: Record<string, { label: string; cities: Record<string, { lat: numb
 }
 
 const CATS = [
-  { id: 'dentist', label: '🦷 Dentistas' },
-  { id: 'medical_aesthetic_clinic', label: '💉 Clínicas Estéticas' },
-  { id: 'medical_clinic', label: '🏥 Clínicas Médicas' },
-  { id: 'restaurant', label: '🍽️ Restaurantes' },
-  { id: 'gym', label: '🏋️ Academias' },
-  { id: 'lawyer', label: '⚖️ Advogados' },
-  { id: 'barber_shop', label: '💈 Barbearias' },
-  { id: 'pharmacy', label: '💊 Farmácias' },
-  { id: 'veterinarian', label: '🐾 Veterinários' },
-  { id: 'real_estate_agency', label: '🏠 Imobiliárias' },
-  { id: 'accountant', label: '📊 Contadores' },
-  { id: 'car_repair', label: '🔧 Oficinas' },
+  // ═══ Saúde (nicho primário adsentice) ═══
+  { id: 'dentist', label: '🦷 Dentistas', market: '~400K', tier: 1 },
+  { id: 'orthodontist', label: '🦷 Ortodontistas', market: '~25K', tier: 1 },
+  { id: 'medical_aesthetic_clinic', label: '💉 Clínicas Estéticas', market: '~80K', tier: 1 },
+  { id: 'medical_clinic', label: '🏥 Clínicas Médicas', market: '~200K', tier: 1 },
+  { id: 'veterinarian', label: '🐾 Veterinários', market: '~60K', tier: 1 },
+  { id: 'psychologist', label: '🧠 Psicólogos', market: '~350K', tier: 1 },
+  { id: 'physical_therapist', label: '🦴 Fisioterapeutas', market: '~150K', tier: 1 },
+  { id: 'ophthalmologist', label: '👁️ Oftalmologistas', market: '~30K', tier: 1 },
+  { id: 'cardiologist', label: '🫀 Cardiologistas', market: '~25K', tier: 1 },
+
+  // ═══ Beleza & Bem-Estar ═══
+  { id: 'beauty_salon', label: '💇 Salões de Beleza', market: '~600K', tier: 1 },
+  { id: 'barber_shop', label: '💈 Barbearias', market: '~400K', tier: 1 },
+  { id: 'gym', label: '🏋️ Academias', market: '~35K', tier: 2 },
+
+  // ═══ Serviços Profissionais ═══
+  { id: 'lawyer', label: '⚖️ Advogados', market: '~300K', tier: 1 },
+  { id: 'accountant', label: '📊 Contadores', market: '~300K', tier: 1 },
+  { id: 'architect', label: '🏗️ Arquitetos', market: '~180K', tier: 2 },
+  { id: 'interior_designer', label: '🎨 Designers de Interiores', market: '~120K', tier: 2 },
+  { id: 'real_estate_agency', label: '🏠 Imobiliárias', market: '~70K', tier: 2 },
+
+  // ═══ Alimentação ═══
+  { id: 'restaurant', label: '🍽️ Restaurantes', market: '~1M', tier: 2 },
+  { id: 'pizza_restaurant', label: '🍕 Pizzarias', market: '~60K', tier: 2 },
+  { id: 'bakery', label: '🥖 Padarias', market: '~70K', tier: 3 },
+
+  // ═══ Comércio & Serviços Locais ═══
+  { id: 'pet_store', label: '🐶 Pet Shops', market: '~200K', tier: 1 },
+  { id: 'car_repair', label: '🔧 Oficinas Mecânicas', market: '~150K', tier: 2 },
+  { id: 'pharmacy', label: '💊 Farmácias', market: '~90K', tier: 3 },
+  { id: 'electrician', label: '🔌 Eletricistas', market: '~200K', tier: 2 },
+  { id: 'plumber', label: '🔧 Encanadores', market: '~250K', tier: 2 },
+  { id: 'cleaning_service', label: '🧹 Serviços de Limpeza', market: '~300K', tier: 2 },
+
+  // ═══ Educação & Hospitalidade ═══
+  { id: 'school', label: '📚 Escolas Particulares', market: '~40K', tier: 3 },
+  { id: 'driving_school', label: '🚗 Autoescolas', market: '~15K', tier: 3 },
+  { id: 'hotel', label: '🏨 Pousadas/Hotéis', market: '~30K', tier: 3 },
 ]
 
 interface Listing {
@@ -428,12 +456,22 @@ return arr
 
   const photosRef = (cat: string | null) => {
     const bm: Record<string, { min: number; good: number }> = {
-      dentist: { min: 15, good: 30 }, medical_aesthetic_clinic: { min: 20, good: 40 },
-      medical_clinic: { min: 15, good: 30 }, restaurant: { min: 25, good: 50 },
-      gym: { min: 20, good: 40 }, lawyer: { min: 5, good: 15 },
-      barber_shop: { min: 15, good: 30 }, pharmacy: { min: 10, good: 20 },
-      veterinarian: { min: 15, good: 30 }, real_estate_agency: { min: 20, good: 50 },
-      accountant: { min: 5, good: 10 }, car_repair: { min: 10, good: 20 },
+      dentist: { min: 15, good: 30 }, orthodontist: { min: 15, good: 30 },
+      medical_aesthetic_clinic: { min: 20, good: 40 }, medical_clinic: { min: 15, good: 30 },
+      restaurant: { min: 25, good: 50 }, pizza_restaurant: { min: 25, good: 50 },
+      bakery: { min: 15, good: 30 }, gym: { min: 20, good: 40 },
+      lawyer: { min: 5, good: 15 }, barber_shop: { min: 15, good: 30 },
+      beauty_salon: { min: 15, good: 30 }, pharmacy: { min: 10, good: 20 },
+      veterinarian: { min: 15, good: 30 }, pet_store: { min: 10, good: 20 },
+      real_estate_agency: { min: 20, good: 50 }, accountant: { min: 5, good: 10 },
+      car_repair: { min: 10, good: 20 },
+      psychologist: { min: 5, good: 15 }, physical_therapist: { min: 10, good: 20 },
+      ophthalmologist: { min: 10, good: 20 }, cardiologist: { min: 10, good: 20 },
+      architect: { min: 15, good: 30 }, interior_designer: { min: 15, good: 30 },
+      electrician: { min: 5, good: 12 }, plumber: { min: 5, good: 12 },
+      cleaning_service: { min: 5, good: 12 },
+      school: { min: 10, good: 20 }, driving_school: { min: 5, good: 12 },
+      hotel: { min: 20, good: 40 },
     }
 
     return bm[(cat || '').toLowerCase().replace(/\s+/g, '_')] || { min: 10, good: 20 }
