@@ -127,7 +127,7 @@ export async function businessProfileGmb(params: {
         language_code: params.language_code || "pt",
         mode: "live",
         tenancy_id: "adsentice-dev",
-        spend_cap_usd: 0.01,
+        spend_cap_usd: 0.05,
       },
     },
     sid || undefined
