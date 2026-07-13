@@ -54,12 +54,13 @@ const LeadsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
     })
 
     const { rows } = await pool.query(
-      `SELECT id, title, category, address, rating_value, rating_votes, is_claimed,
+      `SELECT DISTINCT ON (place_id)
+              id, title, category, address, rating_value, rating_votes, is_claimed,
               website, phone, total_photos, description,
               score_compound, score_fit, score_engagement, score_intent,
               schwartz_label, schwartz_level, enrichment_level, contact_methods, created_at
        FROM discovery_listings
-       ORDER BY score_compound DESC, created_at DESC
+       ORDER BY place_id, enrichment_level DESC, score_compound DESC, created_at DESC
        LIMIT 200`
     )
 
