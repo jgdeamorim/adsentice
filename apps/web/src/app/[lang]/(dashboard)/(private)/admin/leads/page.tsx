@@ -82,6 +82,7 @@ const LeadsPage = async ({ params, searchParams }: {
         SELECT DISTINCT ON (dl.place_id)
           dl.id, dl.title, dl.category, dl.address, dl.rating_value, dl.rating_votes, dl.is_claimed,
           dl.website, dl.phone, dl.total_photos, dl.description,
+          dl.score_compound, dl.score_fit, dl.score_engagement, dl.score_intent,
           dl.business_status, dl.categories_arr, dl.price_level,
           dl.city, dl.district, dl.postal_code, dl.country_code,
           dl.place_id, dl.latitude, dl.longitude,
