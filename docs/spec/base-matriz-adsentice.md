@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.1.3"
+version: "1.1.4"
 date: 2026-07-11
-updated: 2026-07-13T04:30:00-03:00
+updated: 2026-07-13T05:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -358,7 +358,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v015 | 2026-07-13 | categorias-12→29-schwartz-explainer-market-analysis | `apps/web/src/app/.../discovery/page.tsx` + `scoring.ts` (commit 4bf3b75) — 29 categorias, 7 segmentos, 5.1M+ negocios mapeaveis | ✅ vivo |
 | v016 | 2026-07-13 | market-context-card-discovery + data-flywheel-architecture | `apps/web/src/app/.../discovery/page.tsx` (commit 46c31fb) — CAT_INFO conectado ao modal do lead, flywheel: cada busca alimenta Supabase sem duplicar | ✅ vivo |
 | v017 | 2026-07-13 | contact-method-detection + L1-persistence-fix | `apps/web/src/lib/scoring.ts` + `discovery-persistence.ts` (commit c24fb44) — detectContactMethods(), contactStrategy(), 12 colunas L1 no Supabase, fluxos de comunicação mapeados | ✅ vivo |
+| v018 | 2026-07-13 | /admin/leads — pagina real com 60 leads do Supabase | `apps/web/src/app/.../leads/page.tsx` (commit f550ec0) — tabela completa, KPIs, Schwartz distribution, contact methods | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.1.3 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · L1 Enrichment LIVE · Contact method detection (WhatsApp/Phone/Website/GMB) · 29 categorias · 696 corpus chunks · 17 changelog entries · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.1.4 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · /admin/leads com 60 leads reais · L1 Enrichment LIVE · Contact detection · 29 categorias · 696 corpus chunks · 18 changelog entries · Supabase pg Pool · Cloudflare R2*
