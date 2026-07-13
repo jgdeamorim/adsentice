@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.1.1"
+version: "1.1.2"
 date: 2026-07-11
-updated: 2026-07-13T03:45:00-03:00
+updated: 2026-07-13T04:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -356,7 +356,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v013 | 2026-07-13 | lead-detail-modal-27-campos-enriquecimento-visivel | `apps/web/src/app/.../discovery/page.tsx` (commit 45afb6c) | ✅ vivo |
 | v014 | 2026-07-13 | l1-enrichment-testado-live-roi-validado | `apps/web/src/lib/evo-mcp.ts` (commit a96c4f9) — ROI 21210% vs Google Ads (R$28.40→R$0.004/lead) | ✅ vivo |
 | v015 | 2026-07-13 | categorias-12→29-schwartz-explainer-market-analysis | `apps/web/src/app/.../discovery/page.tsx` + `scoring.ts` (commit 4bf3b75) — 29 categorias, 7 segmentos, 5.1M+ negocios mapeaveis | ✅ vivo |
+| v016 | 2026-07-13 | market-context-card-discovery + data-flywheel-architecture | `apps/web/src/app/.../discovery/page.tsx` (commit 46c31fb) — CAT_INFO conectado ao modal do lead, flywheel: cada busca alimenta Supabase sem duplicar | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.1.1 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · L1 Enrichment LIVE testado · 29 categorias SMB (7 segmentos, 5.1M+ negocios) · Schwartz explainer tooltips · 696 corpus chunks · 15 changelog entries · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.1.2 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · L1 Enrichment LIVE · 29 categorias (7 segmentos, 5.1M+ negocios) · Market context no modal · Data flywheel ativo · 696 corpus chunks · 16 changelog entries · Supabase pg Pool · Cloudflare R2*
