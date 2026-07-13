@@ -32,6 +32,13 @@ interface LeadRow {
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
   place_id?: string | null
+  // L2 fields (v0.3)
+  l2_onpage_score?: number | null; l2_meta_title?: string | null
+  l2_meta_description?: string | null; l2_word_count?: number | null
+  l2_internal_links_count?: number | null; l2_external_links_count?: number | null
+  l2_images_count?: number | null; l2_cms?: string | null
+  l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
+  l2_country_iso_code?: string | null; l2_enriched_at?: string | null
 }
 
 interface Props {
@@ -66,7 +73,7 @@ export default function LeadTable({ leads }: Props) {
               <TableCell align='right'>📝</TableCell>
               <TableCell>Contato</TableCell>
               <TableCell>Site</TableCell>
-              <TableCell width={50}>L1</TableCell>
+              <TableCell width={50}>Level</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -92,7 +99,8 @@ export default function LeadTable({ leads }: Props) {
                   {l.website ? <Chip label='🌐' size='small' color='success' variant='tonal' /> : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                 </TableCell>
                 <TableCell>
-                  <Chip label={l.enrichment_level > 0 ? '✅' : '⬜'} size='small' color={l.enrichment_level > 0 ? 'success' : 'default'} variant='tonal' />
+                  <Chip label={`L${l.enrichment_level || 0}`} size='small'
+                    color={l.enrichment_level >= 2 ? 'info' : l.enrichment_level >= 1 ? 'success' : 'default'} variant='tonal' />
                 </TableCell>
               </TableRow>
             ))}
@@ -110,7 +118,9 @@ export default function LeadTable({ leads }: Props) {
                 <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                   <Chip label={`${selected.schwartz_label} · Score ${selected.score_compound}/100`} size='small'
                     sx={{ bgcolor: SCHWARTZ_COLORS[selected.schwartz_label] || '#999', color: '#fff', fontWeight: 700 }} />
-                  {selected.enrichment_level > 0 ? (
+                  {(selected.enrichment_level ?? 0) >= 2 ? (
+                    <Chip label='🌐 L2 Website+SEO' size='small' color='info' variant='tonal' />
+                  ) : selected.enrichment_level > 0 ? (
                     <Chip label='🔬 L1 Enriquecido (27 campos)' size='small' color='success' variant='tonal' />
                   ) : (
                     <Chip label='📡 L0 Básico (11 campos)' size='small' color='default' variant='tonal' />
@@ -170,6 +180,38 @@ export default function LeadTable({ leads }: Props) {
                           {typeof value === 'string' && value.startsWith('✅') ? <Chip label={value} size='small' color='success' variant='tonal' /> :
                            typeof value === 'string' && value.startsWith('❌') ? <Chip label={value} size='small' color='error' variant='tonal' /> :
                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>}
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+
+              {/* ═══ WEBSITE & SEO (L2) ═══ */}
+              {(selected.enrichment_level ?? 0) >= 2 && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='info.main'>🌐 Website & SEO (L2 Enriquecido · v0.3)</Typography>
+                  <Grid container spacing={1} sx={{ mb: 2 }}>
+                    {[
+                      ['📊 OnPage Score', selected.l2_onpage_score != null ? `${selected.l2_onpage_score}/100` : null],
+                      ['🏷️ Meta Title', selected.l2_meta_title],
+                      ['📝 Meta Description', selected.l2_meta_description],
+                      ['📖 Palavras', selected.l2_word_count != null ? selected.l2_word_count.toLocaleString('pt-BR') : null],
+                      ['🔗 Links Internos', selected.l2_internal_links_count != null ? String(selected.l2_internal_links_count) : null],
+                      ['🔗 Links Externos', selected.l2_external_links_count != null ? String(selected.l2_external_links_count) : null],
+                      ['🖼️ Imagens', selected.l2_images_count != null ? String(selected.l2_images_count) : null],
+                      ['🏗️ CMS', selected.l2_cms],
+                      ['📊 Analytics', selected.l2_has_analytics === true ? '✅ Detectado' : selected.l2_has_analytics === false ? '❌ Ausente' : null],
+                      ['📈 Domain Rank', selected.l2_domain_rank != null ? String(selected.l2_domain_rank) : null],
+                      ['🌍 País', selected.l2_country_iso_code],
+                    ].filter(([, v]) => v).map(([label, value]) => (
+                      <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                        <Typography variant='caption' color='text.secondary'>{label}</Typography>
+                        <Box sx={{ mt: 0.3 }}>
+                          {typeof value === 'string' && value.startsWith('✅') ? <Chip label={value} size='small' color='success' variant='tonal' /> :
+                           typeof value === 'string' && value.startsWith('❌') ? <Chip label={value} size='small' color='error' variant='tonal' /> :
+                           typeof value === 'string' && value.includes('/100') ? <Chip label={value} size='small' color={selected.l2_onpage_score! >= 80 ? 'success' : selected.l2_onpage_score! >= 50 ? 'warning' : 'error'} variant='tonal' /> :
+                           <Typography variant='body2' fontWeight={600}>{value}</Typography>}
                         </Box>
                       </Grid>
                     ))}

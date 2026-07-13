@@ -102,8 +102,15 @@ export async function saveDiscoverySearch(params: {
             schwartz_level, schwartz_label, signals_detected,
             website, phone, total_photos, description, business_status,
             city, district, postal_code, country_code, categories_arr, price_level,
-            contact_methods, enrichment_level)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+            contact_methods, enrichment_level,
+            l2_onpage_score, l2_meta_title, l2_meta_description, l2_word_count,
+            l2_internal_links_count, l2_external_links_count, l2_images_count,
+            l2_seo_checks, l2_cms, l2_has_analytics, l2_technology_categories,
+            l2_domain_rank, l2_country_iso_code,
+            l2_lighthouse_performance, l2_lighthouse_accessibility,
+            l2_lighthouse_best_practices, l2_lighthouse_seo, l2_lighthouse_pwa,
+            l2_enriched_at, l2_cost_usd)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50)
            ON CONFLICT (search_id, place_id) DO UPDATE SET
             score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
             score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
@@ -114,7 +121,19 @@ export async function saveDiscoverySearch(params: {
             city=EXCLUDED.city, district=EXCLUDED.district,
             postal_code=EXCLUDED.postal_code, country_code=EXCLUDED.country_code,
             categories_arr=EXCLUDED.categories_arr, price_level=EXCLUDED.price_level,
-            contact_methods=EXCLUDED.contact_methods, enrichment_level=EXCLUDED.enrichment_level`,
+            contact_methods=EXCLUDED.contact_methods, enrichment_level=EXCLUDED.enrichment_level,
+            l2_onpage_score=EXCLUDED.l2_onpage_score, l2_meta_title=EXCLUDED.l2_meta_title,
+            l2_meta_description=EXCLUDED.l2_meta_description, l2_word_count=EXCLUDED.l2_word_count,
+            l2_internal_links_count=EXCLUDED.l2_internal_links_count, l2_external_links_count=EXCLUDED.l2_external_links_count,
+            l2_images_count=EXCLUDED.l2_images_count, l2_seo_checks=EXCLUDED.l2_seo_checks,
+            l2_cms=EXCLUDED.l2_cms, l2_has_analytics=EXCLUDED.l2_has_analytics,
+            l2_technology_categories=EXCLUDED.l2_technology_categories,
+            l2_domain_rank=EXCLUDED.l2_domain_rank, l2_country_iso_code=EXCLUDED.l2_country_iso_code,
+            l2_lighthouse_performance=EXCLUDED.l2_lighthouse_performance,
+            l2_lighthouse_accessibility=EXCLUDED.l2_lighthouse_accessibility,
+            l2_lighthouse_best_practices=EXCLUDED.l2_lighthouse_best_practices,
+            l2_lighthouse_seo=EXCLUDED.l2_lighthouse_seo, l2_lighthouse_pwa=EXCLUDED.l2_lighthouse_pwa,
+            l2_enriched_at=EXCLUDED.l2_enriched_at, l2_cost_usd=EXCLUDED.l2_cost_usd`,
           [
             searchId,
             l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
@@ -135,7 +154,28 @@ export async function saveDiscoverySearch(params: {
             (l as any).categories || null,
             (l as any).price_level || null,
             (l as any).contact_methods || null,
-            (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0,
+            (l as any).enrichment_level ?? ((l as any).l2_onpage_score ? 2 : (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0),
+            // L2 fields ($31-$50)
+            (l as any).l2_onpage_score || null,
+            (l as any).l2_meta_title || null,
+            (l as any).l2_meta_description || null,
+            (l as any).l2_word_count || null,
+            (l as any).l2_internal_links_count || null,
+            (l as any).l2_external_links_count || null,
+            (l as any).l2_images_count || null,
+            (l as any).l2_seo_checks ? JSON.stringify((l as any).l2_seo_checks) : null,
+            (l as any).l2_cms || null,
+            (l as any).l2_has_analytics ?? null,
+            (l as any).l2_technology_categories || null,
+            (l as any).l2_domain_rank || null,
+            (l as any).l2_country_iso_code || null,
+            (l as any).l2_lighthouse_performance || null,
+            (l as any).l2_lighthouse_accessibility || null,
+            (l as any).l2_lighthouse_best_practices || null,
+            (l as any).l2_lighthouse_seo || null,
+            (l as any).l2_lighthouse_pwa || null,
+            (l as any).l2_enriched_at || null,
+            (l as any).l2_cost_usd || 0,
           ]
         )
         savedCount++

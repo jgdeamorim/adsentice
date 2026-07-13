@@ -28,6 +28,17 @@ export interface ScoringInput {
   total_photos?: number | null
   description?: string | null
   business_status?: string | null
+
+  // L2 Website+SEO signals (v0.3 — may be null if not enriched)
+  l2_onpage_score?: number | null
+  l2_https?: boolean | null
+  l2_has_title?: boolean | null
+  l2_has_description?: boolean | null
+  l2_has_analytics?: boolean | null
+  l2_cms?: string | null
+  l2_word_count?: number | null
+  l2_lighthouse_performance?: number | null
+  l2_has_schema?: boolean | null
 }
 
 // ── Output Types ─────────────────────────────────────────────
@@ -280,7 +291,15 @@ export function scoreFit(input: ScoringInput): DimensionScore {
   else if (input.business_status) { missing.push(`F10:${input.business_status}`) }
   else { missing.push("F10:sem_status") }
 
-  const maxRaw = 70
+  // ── W7 (L2): Sem Blog/Conteúdo — proxy: word_count < 300 (5pts) ──
+  const hasL2 = input.l2_onpage_score != null
+  if (hasL2) {
+    if (input.l2_word_count != null && input.l2_word_count < 300) { raw += 5; detected.push("W7:sem_blog") }
+    else if (input.l2_word_count != null) { missing.push("W7:tem_conteudo") }
+    else { missing.push("W7:sem_dados") }
+  }
+
+  const maxRaw = hasL2 ? 75 : 70
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -345,7 +364,53 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
     raw += 5; detected.push("E7:proxy_desc+claimed")
   } else { missing.push("E7:proxy_insuficiente") }
 
-  const maxRaw = 70
+  // ── W2-W6, W8 (L2): Website+SEO engagement signals ──
+  const hasL2 = input.l2_onpage_score != null
+  if (hasL2) {
+    // W2: Core Web Vitals Ruins — lighthouse_perf < 0.4 (10pts)
+    if (input.l2_lighthouse_performance != null && input.l2_lighthouse_performance < 0.4) {
+      raw += 10; detected.push("W2:cwv_ruins")
+    } else if (input.l2_lighthouse_performance != null) {
+      missing.push("W2:cwv_ok")
+    } else { missing.push("W2:sem_lighthouse") }
+
+    // W3: Mobile Ruim — lighthouse_perf < 0.4 (proxy, 10pts)
+    if (input.l2_lighthouse_performance != null && input.l2_lighthouse_performance < 0.4) {
+      raw += 10; detected.push("W3:mobile_ruim")
+    } else if (input.l2_lighthouse_performance != null) {
+      missing.push("W3:mobile_ok")
+    } else { missing.push("W3:sem_dados") }
+
+    // W4: Sem Meta Tags — title or description missing (8pts)
+    if (input.l2_has_title === false || input.l2_has_description === false) {
+      raw += 8; detected.push("W4:sem_meta_tags")
+    } else if (input.l2_has_title === true && input.l2_has_description === true) {
+      missing.push("W4:meta_ok")
+    } else { missing.push("W4:sem_dados") }
+
+    // W5: Sem Analytics — no GA4/GTM/Pixel detected (10pts)
+    if (input.l2_has_analytics === false) {
+      raw += 10; detected.push("W5:sem_analytics")
+    } else if (input.l2_has_analytics === true) {
+      missing.push("W5:tem_analytics")
+    } else { missing.push("W5:sem_dados") }
+
+    // W6: CMS Desatualizado — WordPress detected (5pts)
+    if (input.l2_cms && input.l2_cms.toLowerCase().includes("wordpress")) {
+      raw += 5; detected.push("W6:wordpress")
+    } else if (input.l2_cms) {
+      missing.push(`W6:cms_${input.l2_cms}`)
+    } else { missing.push("W6:sem_dados") }
+
+    // W8: Sem Schema Markup — JSON-LD LocalBusiness missing (5pts)
+    if (input.l2_has_schema === false) {
+      raw += 5; detected.push("W8:sem_schema")
+    } else if (input.l2_has_schema === true) {
+      missing.push("W8:tem_schema")
+    } else { missing.push("W8:sem_dados") }
+  }
+
+  const maxRaw = hasL2 ? 78 : 70
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -384,7 +449,15 @@ export function scoreIntent(input: ScoringInput): DimensionScore {
     } else { missing.push("I3:sem_dados") }
   }
 
-  const maxRaw = 60
+  // ── W1 (L2): Sem HTTPS — HTTP apenas (20pts) ──
+  const hasL2 = input.l2_onpage_score != null
+  if (hasL2) {
+    if (input.l2_https === false) { raw += 20; detected.push("W1:sem_https") }
+    else if (input.l2_https === true) { missing.push("W1:tem_https") }
+    else { missing.push("W1:sem_dados") }
+  }
+
+  const maxRaw = hasL2 ? 80 : 60
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -485,7 +558,14 @@ export function scoreLeads(inputs: ScoringInput[]): ScoreData[] {
 }
 
 function computeConfidence(fit: DimensionScore, engagement: DimensionScore, intent: DimensionScore): number {
-  const totalSignals = 10 + 7 + 3 // F1-F10 + E1-E7 + I1-I3 = 20
+  // L2 leads have 8 additional W signals (W1-W8) on top of 20 F+E+I signals
+  const hasL2Signals = fit.signalsDetected.some(s => s.startsWith("W")) ||
+    engagement.signalsDetected.some(s => s.startsWith("W")) ||
+    intent.signalsDetected.some(s => s.startsWith("W")) ||
+    fit.signalsMissing.some(s => s.startsWith("W")) ||
+    engagement.signalsMissing.some(s => s.startsWith("W")) ||
+    intent.signalsMissing.some(s => s.startsWith("W"))
+  const totalSignals = hasL2Signals ? 28 : 20 // F1-F10(10) + E1-E7(7) + I1-I3(3) + W1-W8(8)
 
   const evaluated = fit.signalsDetected.length + fit.signalsMissing.length +
     engagement.signalsDetected.length + engagement.signalsMissing.length +

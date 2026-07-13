@@ -26,6 +26,13 @@ interface LeadRow {
   schwartz_label: string; schwartz_level: number
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
+  // L2 fields (v0.3)
+  l2_onpage_score?: number | null; l2_meta_title?: string | null
+  l2_meta_description?: string | null; l2_word_count?: number | null
+  l2_internal_links_count?: number | null; l2_external_links_count?: number | null
+  l2_images_count?: number | null; l2_cms?: string | null
+  l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
+  l2_country_iso_code?: string | null; l2_enriched_at?: string | null
   place_id?: string | null
   business_status?: string | null; categories_arr?: string[] | null
   price_level?: number | null; city?: string | null; district?: string | null
@@ -87,7 +94,11 @@ const LeadsPage = async ({ params, searchParams }: {
           dl.city, dl.district, dl.postal_code, dl.country_code,
           dl.place_id, dl.latitude, dl.longitude,
           dl.schwartz_label, dl.schwartz_level, dl.enrichment_level,
-          dl.contact_methods, dl.signals_detected, dl.created_at
+          dl.contact_methods, dl.signals_detected, dl.created_at,
+          dl.l2_onpage_score, dl.l2_meta_title, dl.l2_meta_description,
+          dl.l2_word_count, dl.l2_internal_links_count, dl.l2_external_links_count,
+          dl.l2_images_count, dl.l2_cms, dl.l2_has_analytics,
+          dl.l2_domain_rank, dl.l2_country_iso_code, dl.l2_enriched_at
         FROM discovery_listings dl
         ${whereClause}
         ORDER BY dl.place_id, dl.enrichment_level DESC, dl.score_compound DESC

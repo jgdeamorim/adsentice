@@ -56,14 +56,14 @@ const INTENT_SIGNALS: PainSignal[] = [
 ]
 
 const WEBSITE_SIGNALS: PainSignal[] = [
-  { id: 'W1', name: 'Sem HTTPS', condition: 'HTTP apenas (Lighthouse)', points: 20, dimension: 'Intent', layer: 'L1', description: 'Site sem segurança — Chrome mostra "Não seguro"', impact: 'Risco de segurança real. Perde cliente imediatamente.' },
-  { id: 'W2', name: 'Core Web Vitals Ruins', condition: 'LCP > 4s OU CLS > 0.25', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Performance abaixo do aceitável', impact: '70% dos usuários abandonam site que demora > 3s.' },
-  { id: 'W3', name: 'Mobile Ruim', condition: 'Mobile score < 40', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Experiência mobile quebrada', impact: '70%+ do tráfego BR é mobile. Site quebrado = venda perdida.' },
-  { id: 'W4', name: 'Sem Meta Tags', condition: 'Title OU description ausente', points: 8, dimension: 'Engagement', layer: 'L1', description: 'SEO on-page básico ausente', impact: 'Google não sabe do que se trata a página. Ranqueia mal.' },
-  { id: 'W5', name: 'Sem Analytics', condition: 'Nenhum GA4/GTM/Pixel detectado', points: 10, dimension: 'Engagement', layer: 'L1', description: 'Não mede tráfego — decisões no escuro', impact: 'Dono não sabe quantas pessoas visitam o site. Fácil de instalar.' },
-  { id: 'W6', name: 'CMS Desatualizado', condition: 'WordPress sem updates > 6 meses', points: 5, dimension: 'Engagement', layer: 'L1', description: 'Risco de segurança', impact: 'Vender auditoria técnica + atualização. Porta de entrada.' },
-  { id: 'W7', name: 'Sem Blog/Conteúdo', condition: 'Último post > 90 dias', points: 5, dimension: 'Fit', layer: 'L1', description: 'Sem estratégia de conteúdo', impact: 'Conteúdo é o que ranqueia. Lead não investe nisso.' },
-  { id: 'W8', name: 'Sem Schema Markup', condition: 'JSON-LD LocalBusiness ausente', points: 5, dimension: 'Engagement', layer: 'L1', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
+  { id: 'W1', name: 'Sem HTTPS', condition: 'l2_https = false (Instant Audit)', points: 20, dimension: 'Intent', layer: 'L2', description: 'Site sem segurança — Chrome mostra "Não seguro"', impact: 'Risco de segurança real. Perde cliente imediatamente.' },
+  { id: 'W2', name: 'Core Web Vitals Ruins', condition: 'lighthouse_perf < 0.4', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Performance abaixo do aceitável', impact: '70% dos usuários abandonam site que demora > 3s.' },
+  { id: 'W3', name: 'Mobile Ruim', condition: 'lighthouse_perf < 0.4 (proxy mobile)', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Experiência mobile quebrada', impact: '70%+ do tráfego BR é mobile. Site quebrado = venda perdida.' },
+  { id: 'W4', name: 'Sem Meta Tags', condition: '!l2_has_title OU !l2_has_description', points: 8, dimension: 'Engagement', layer: 'L2', description: 'SEO on-page básico ausente', impact: 'Google não sabe do que se trata a página. Ranqueia mal.' },
+  { id: 'W5', name: 'Sem Analytics', condition: '!l2_has_analytics (domain_technologies)', points: 10, dimension: 'Engagement', layer: 'L2', description: 'Não mede tráfego — decisões no escuro', impact: 'Dono não sabe quantas pessoas visitam o site. Fácil de instalar.' },
+  { id: 'W6', name: 'CMS Desatualizado', condition: 'cms = WordPress (domain_technologies)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Risco de segurança', impact: 'Vender auditoria técnica + atualização. Porta de entrada.' },
+  { id: 'W7', name: 'Sem Blog/Conteúdo', condition: 'l2_word_count < 300 (Instant Audit)', points: 5, dimension: 'Fit', layer: 'L2', description: 'Sem estratégia de conteúdo', impact: 'Conteúdo é o que ranqueia. Lead não investe nisso.' },
+  { id: 'W8', name: 'Sem Schema Markup', condition: '!l2_has_schema (Instant Audit)', points: 5, dimension: 'Engagement', layer: 'L2', description: 'Dados estruturados ausentes', impact: 'Google não entende o negócio. Perde rich results.' },
 ]
 
 const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
@@ -332,14 +332,14 @@ return (
       {/* ── Website Signals (Tier 3 · Lighthouse) ── */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
-          <Chip label='WEBSITE · TIER 3' color='info' size='small' sx={{ mr: 1 }} />
-          Enriquecimento Lighthouse · 8 sinais · +73pts distribuídos
-          <Chip label='Simulado até v0.3' size='small' color='default' variant='tonal' sx={{ ml: 2 }} />
+          <Chip label='WEBSITE · L2' color='info' size='small' sx={{ mr: 1 }} />
+          Enriquecimento Website+SEO · 8 sinais · +73pts distribuídos
+          <Chip label='v0.3 · ATIVO' size='small' color='success' variant='tonal' sx={{ ml: 2 }} />
         </Typography>
         <Grid container spacing={3}>
           {WEBSITE_SIGNALS.map((sig) => (
             <Grid key={sig.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card sx={{ borderTop: 3, borderColor: 'info.main', opacity: 0.8 }}>
+              <Card sx={{ borderTop: 3, borderColor: 'info.main' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Chip label={sig.id} size='small' color='info' variant='tonal' />

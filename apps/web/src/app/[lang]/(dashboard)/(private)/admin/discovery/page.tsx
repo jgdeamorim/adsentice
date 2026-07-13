@@ -319,6 +319,15 @@ interface Listing {
   description?: string | null; business_status?: string | null; main_image?: string | null
   city?: string | null; categories?: string[] | null; price_level?: number | null
   district?: string | null; postal_code?: string | null; country_code?: string | null; types?: string[] | null
+
+  // L2 enriched fields (from on_page_instant_audit + domain_technologies — v0.3)
+  l2_onpage_score?: number | null; l2_meta_title?: string | null
+  l2_meta_description?: string | null; l2_word_count?: number | null
+  l2_internal_links_count?: number | null; l2_external_links_count?: number | null
+  l2_images_count?: number | null; l2_cms?: string | null
+  l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
+  l2_country_iso_code?: string | null; l2_enriched_at?: string | null
+  enrichment_level?: number | null
 }
 
 type SortField = 'score' | 'title' | 'category' | 'rating_value' | 'rating_votes'
@@ -494,6 +503,7 @@ return arr
   }
 
   const isEnriched = (l: Listing) => !!(l.phone || l.website || l.total_photos != null || l.description)
+  const isL2Enriched = (l: Listing) => !!(l.l2_onpage_score != null)
 
   const detectWApp = (ph: string | null | undefined) => ph ? /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(ph) : null
 
@@ -968,7 +978,9 @@ return (
                     <Chip label={`${selectedScore.schwartz.label} · Score ${selectedScore.compound}/100`}
                       size='small' sx={{ bgcolor: scoreColor(selectedScore.schwartz.level), color: '#fff', fontWeight: 700 }} />
                   )}
-                  {isEnriched(selectedLead) ? (
+                  {isL2Enriched(selectedLead) ? (
+                    <Chip label='🌐 L2 Website+SEO' size='small' color='info' variant='tonal' />
+                  ) : isEnriched(selectedLead) ? (
                     <Chip label='🔬 L1 Enriquecido (27 campos)' size='small' color='success' variant='tonal' />
                   ) : (
                     <Chip label='📡 L0 Básico (11 campos)' size='small' color='default' variant='tonal' />
@@ -1028,6 +1040,39 @@ return (
                         <Box sx={{ mt: 0.3 }}>
                           {typeof value === 'string' && value.startsWith('✅') ? <Chip label={value} size='small' color='success' variant='tonal' /> :
                            typeof value === 'string' && value.startsWith('❌') ? <Chip label={value} size='small' color='error' variant='tonal' /> :
+                           <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>}
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+
+              {/* ═══ L2 WEBSITE+SEO (v0.3) ═══ */}
+              {isL2Enriched(selectedLead) && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='info.main'>🌐 Website & SEO (L2 Enriquecido · v0.3)</Typography>
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    {[
+                      ['📊 OnPage Score', selectedLead.l2_onpage_score != null ? `${selectedLead.l2_onpage_score}/100` : null],
+                      ['🏷️ Meta Title', selectedLead.l2_meta_title],
+                      ['📝 Meta Description', selectedLead.l2_meta_description],
+                      ['📖 Palavras', selectedLead.l2_word_count != null ? selectedLead.l2_word_count.toLocaleString('pt-BR') : null],
+                      ['🔗 Links Internos', selectedLead.l2_internal_links_count != null ? String(selectedLead.l2_internal_links_count) : null],
+                      ['🔗 Links Externos', selectedLead.l2_external_links_count != null ? String(selectedLead.l2_external_links_count) : null],
+                      ['🖼️ Imagens', selectedLead.l2_images_count != null ? String(selectedLead.l2_images_count) : null],
+                      ['🏗️ CMS', selectedLead.l2_cms],
+                      ['📊 Analytics', selectedLead.l2_has_analytics === true ? '✅ Detectado' : selectedLead.l2_has_analytics === false ? '❌ Não detectado' : null],
+                      ['📈 Domain Rank', selectedLead.l2_domain_rank != null ? String(selectedLead.l2_domain_rank) : null],
+                      ['🌍 País', selectedLead.l2_country_iso_code],
+                      ['🕐 Enriquecido em', selectedLead.l2_enriched_at ? new Date(selectedLead.l2_enriched_at).toLocaleString('pt-BR') : null],
+                    ].filter(([, v]) => v).map(([label, value]) => (
+                      <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                        <Typography variant='caption' color='text.secondary'>{label}</Typography>
+                        <Box sx={{ mt: 0.3 }}>
+                          {typeof value === 'string' && value.startsWith('✅') ? <Chip label={value} size='small' color='success' variant='tonal' /> :
+                           typeof value === 'string' && value.startsWith('❌') ? <Chip label={value} size='small' color='error' variant='tonal' /> :
+                           typeof value === 'string' && value.includes('/100') ? <Chip label={value} size='small' color={selectedLead.l2_onpage_score! >= 80 ? 'success' : selectedLead.l2_onpage_score! >= 50 ? 'warning' : 'error'} variant='tonal' /> :
                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>}
                         </Box>
                       </Grid>

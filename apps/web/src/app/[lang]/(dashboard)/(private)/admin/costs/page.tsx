@@ -26,8 +26,10 @@ import { getSessionUser } from '@/libs/supabase/server'
 const CAPABILITIES = [
   { capability: 'business_listings_search', costPerCall: 0.015, endpoint: 'business_data/business_listings/search/live', used: true },
   { capability: 'business_profile_gmb', costPerCall: 0.0054, endpoint: 'business_data/google/my_business_info/live', used: true },
+  { capability: 'on_page_instant_audit', costPerCall: 0.000125, endpoint: 'on_page/instant_pages/live', used: true },
+  { capability: 'domain_technologies', costPerCall: 0.01, endpoint: 'domain_analytics/technologies/domain_technologies/live', used: true },
   { capability: 'keyword_research', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/keyword_overview/live', used: false },
-  { capability: 'on_page_lighthouse', costPerCall: 0.0001, endpoint: 'on_page/lighthouse/live', used: false },
+  { capability: 'on_page_lighthouse', costPerCall: 0.00425, endpoint: 'on_page/lighthouse/live', used: false },
   { capability: 'domain_competitors', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/competitors_domain/live', used: false },
   { capability: 'serp_organic', costPerCall: 0.01, endpoint: 'serp/google/organic/live/advanced', used: false },
   { capability: 'backlinks_summary', costPerCall: 0.02, endpoint: 'backlinks/summary/live', used: false },
@@ -88,10 +90,12 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   let totalSearches = 0
   let totalLeads = 0
   let totalL1 = 0
+  let totalL2 = 0
   let avgCost = 0
   let l0Calls = 0
   let l1Calls = 0
-  let searches: { id: string; cats: string; lat: number; total: number; cost: number; at: string; listings: number; l1: number }[] = []
+  let l2Calls = 0
+  let searches: { id: string; cats: string; lat: number; total: number; cost: number; at: string; listings: number; l1: number; l2: number }[] = []
 
   try {
     const pool = new Pool({
@@ -102,8 +106,8 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
 
     const [costRes, detailRes, listingsRes] = await Promise.all([
       pool.query('SELECT SUM(cost_usd) as total, COUNT(*) as n, AVG(cost_usd) as avg FROM discovery_searches'),
-      pool.query('SELECT ds.id, ds.categories, ds.lat, ds.total_count, ds.cost_usd, ds.created_at, COUNT(dl.id) as listings, SUM(CASE WHEN dl.enrichment_level>0 THEN 1 ELSE 0 END) as l1 FROM discovery_searches ds LEFT JOIN discovery_listings dl ON dl.search_id=ds.id GROUP BY ds.id ORDER BY ds.created_at DESC'),
-      pool.query('SELECT COUNT(DISTINCT place_id) as uniq, COUNT(*) FILTER (WHERE enrichment_level>0) as l1 FROM (SELECT DISTINCT ON (place_id) place_id, enrichment_level FROM discovery_listings ORDER BY place_id, enrichment_level DESC) sub'),
+      pool.query('SELECT ds.id, ds.categories, ds.lat, ds.total_count, ds.cost_usd, ds.created_at, COUNT(dl.id) as listings, SUM(CASE WHEN dl.enrichment_level>0 THEN 1 ELSE 0 END) as l1, SUM(CASE WHEN dl.enrichment_level>=2 THEN 1 ELSE 0 END) as l2 FROM discovery_searches ds LEFT JOIN discovery_listings dl ON dl.search_id=ds.id GROUP BY ds.id ORDER BY ds.created_at DESC'),
+      pool.query('SELECT COUNT(DISTINCT place_id) as uniq, COUNT(*) FILTER (WHERE enrichment_level>0) as l1, COUNT(*) FILTER (WHERE enrichment_level>=2) as l2 FROM (SELECT DISTINCT ON (place_id) place_id, enrichment_level FROM discovery_listings ORDER BY place_id, enrichment_level DESC) sub'),
     ])
 
     totalCost = parseFloat(costRes.rows[0].total) || 0
@@ -111,6 +115,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
     avgCost = parseFloat(costRes.rows[0].avg) || 0
     totalLeads = parseInt(listingsRes.rows[0].uniq) || 0
     totalL1 = parseInt(listingsRes.rows[0].l1) || 0
+    totalL2 = parseInt(listingsRes.rows[0].l2) || 0
 
     searches = detailRes.rows.map((r: any) => ({
       id: r.id.substring(0, 8),
@@ -121,11 +126,13 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
       at: r.created_at ? new Date(r.created_at).toISOString().substring(0, 16) : '?',
       listings: parseInt(r.listings) || 0,
       l1: parseInt(r.l1) || 0,
+      l2: parseInt(r.l2) || 0,
     }))
 
-    // Count L0 vs L1 calls
+    // Count L0 vs L1 vs L2 calls
     l0Calls = totalSearches
     l1Calls = searches.reduce((s, r) => s + r.l1, 0)
+    l2Calls = searches.reduce((s, r) => s + r.l2, 0)
 
     await pool.end()
   } catch { /* Supabase offline */ }
@@ -168,6 +175,12 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
           subtitle={`${totalL1} leads enriquecidos (27 campos)`}
           avatarColor='primary' avatarIcon='ri-sparkling-line'
           trendNumber={String(l1Calls)} trend='positive' />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3 }}>
+        <CardStatVertical stats={`${totalL2}`} title='Leads L2'
+          subtitle='Website+SEO enriquecido'
+          avatarColor='info' avatarIcon='ri-global-line'
+          trendNumber={String(totalL2)} trend='positive' />
       </Grid>
 
       {/* Rate Limits (API real-time) */}
@@ -247,6 +260,12 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
                       {item.capability === 'business_profile_gmb' && (
                         <Chip label={`${l1Calls} chamadas · $${(l1Calls * 0.0054).toFixed(4)}`} size='small' color='warning' variant='tonal' />
                       )}
+                      {item.capability === 'on_page_instant_audit' && (
+                        <Chip label={`${l2Calls} chamadas · $${(l2Calls * 0.000125).toFixed(6)}`} size='small' color='info' variant='tonal' />
+                      )}
+                      {item.capability === 'domain_technologies' && (
+                        <Chip label={`${l2Calls} chamadas · $${(l2Calls * 0.01).toFixed(4)}`} size='small' color='info' variant='tonal' />
+                      )}
                     </Box>
                   )}
                 </CardContent>
@@ -269,6 +288,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
                 <TableCell align='right'>DataForSEO</TableCell>
                 <TableCell align='right'>Listings</TableCell>
                 <TableCell align='right'>L1</TableCell>
+                <TableCell align='right'>L2</TableCell>
                 <TableCell align='right'>Custo</TableCell>
                 <TableCell>Data</TableCell>
               </TableRow>
@@ -287,6 +307,10 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
                   <TableCell align='right'>
                     <Chip label={s.l1 > 0 ? `${s.l1} ✅` : '0'} size='small'
                       color={s.l1 > 20 ? 'success' : s.l1 > 0 ? 'warning' : 'default'} variant='tonal' />
+                  </TableCell>
+                  <TableCell align='right'>
+                    <Chip label={s.l2 > 0 ? `${s.l2} 🌐` : '0'} size='small'
+                      color={s.l2 > 0 ? 'info' : 'default'} variant='tonal' />
                   </TableCell>
                   <TableCell align='right'><Typography variant='body2' fontWeight={700} color='warning.main'>${s.cost.toFixed(4)}</Typography></TableCell>
                   <TableCell><Typography variant='caption'>{s.at}</Typography></TableCell>

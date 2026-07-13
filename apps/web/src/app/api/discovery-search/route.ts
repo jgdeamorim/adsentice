@@ -9,7 +9,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch, businessProfileGmb } from "@/lib/evo-mcp"
+import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain } from "@/lib/evo-mcp"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
@@ -108,6 +108,135 @@ async function enrichTopLeads(
   return { enrichedListings, enrichedScores, enrichmentCost }
 }
 
+/** L2 Website+SEO enrichment: on_page_instant_audit + domain_technologies ($0.010125/lead). */
+async function enrichTopLeadsL2(
+  listings: any[],
+  scores: ScoreData[],
+  maxEnrich: number = 3
+): Promise<{ l2EnrichedListings: any[]; l2EnrichedScores: ScoreData[]; l2Cost: number }> {
+  const l2EnrichedListings = [...listings]
+  const l2EnrichedScores = [...scores]
+
+  // Filter: leads with website + L1 enriched + score >= 30 (ADR-0008 spending rule)
+  const toEnrich = listings
+    .map((l, i) => ({ listing: l, score: scores[i], index: i }))
+    .filter(({ listing, score }) =>
+      !!listing.website &&
+      (listing.enrichment_level >= 1 || listing.phone || listing.total_photos != null) &&
+      score.compound >= 30
+    )
+    .sort((a, b) => b.score.compound - a.score.compound)
+    .slice(0, maxEnrich)
+
+  if (toEnrich.length === 0) return { l2EnrichedListings, l2EnrichedScores, l2Cost: 0 }
+
+  // Batch in groups of 3 (domain_technologies is $0.01/call — conservative)
+  const BATCH_SIZE = 3
+  let l2Cost = 0
+
+  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
+    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
+
+    const results = await Promise.allSettled(
+      batchItems.map(async ({ listing, index }) => {
+        const domain = extractDomain(listing.website)
+        const [audit, tech] = await Promise.allSettled([
+          onPageInstantAudit(listing.website),
+          domain ? domainTechnologies(domain) : Promise.resolve(null),
+        ])
+
+        return {
+          audit: audit.status === "fulfilled" ? audit.value : null,
+          tech: tech.status === "fulfilled" ? tech.value : null,
+          listing,
+          index,
+          domain,
+        }
+      })
+    )
+
+    for (const r of results) {
+      if (r.status === "rejected") {
+        console.error("[enrichment-l2] Batch item failed:", (r.reason as any)?.message)
+        continue
+      }
+
+      const { audit, tech, listing, index } = r.value
+
+      // Require at least audit to succeed (tech is bonus)
+      if (!audit) continue
+
+      const costPerLead = 0.000125 + (tech ? 0.01 : 0)
+      l2Cost += costPerLead
+
+      // Extract L2 signals from audit
+      const l2_https = listing.website?.startsWith("https") ?? false
+      const hasAnalytics = tech
+        ? !!(tech.technologies?.marketing?.analytics?.length || tech.technologies?.advertising?.analytics?.length)
+        : null
+      const cmsName: string | null = (() => {
+        const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms
+        return Array.isArray(cms) && cms.length > 0 ? cms[0] : null
+      })()
+      const techCategories = tech
+        ? Object.keys(tech.technologies || {}).filter(k => Object.keys(tech.technologies[k] || {}).length > 0)
+        : null
+
+      // Build L2-enriched listing
+      const enriched: any = {
+        ...listing,
+        l2_onpage_score: audit.onpage_score,
+        l2_meta_title: audit.meta?.title || null,
+        l2_meta_description: audit.meta?.description || null,
+        l2_word_count: audit.content?.word_count || 0,
+        l2_internal_links_count: audit.content?.internal_links_count || 0,
+        l2_external_links_count: audit.content?.external_links_count || 0,
+        l2_images_count: audit.content?.images_count || 0,
+        l2_seo_checks: audit.checks,
+        l2_cms: cmsName,
+        l2_has_analytics: hasAnalytics,
+        l2_technology_categories: techCategories,
+        l2_domain_rank: tech?.domain_rank || null,
+        l2_country_iso_code: tech?.country_iso_code || null,
+        l2_enriched_at: new Date().toISOString(),
+        l2_cost_usd: costPerLead,
+        enrichment_level: 2,
+      }
+
+      // Re-score with full L2 data
+      const input: ScoringInput = {
+        title: enriched.title, category: enriched.category,
+        categories: enriched.categories || enriched.categories_arr,
+        address: enriched.address,
+        rating_value: enriched.rating_value, rating_votes: enriched.rating_votes,
+        place_id: enriched.place_id, cid: enriched.cid,
+        latitude: enriched.latitude, longitude: enriched.longitude,
+        is_claimed: enriched.is_claimed,
+        phone: enriched.phone, website: enriched.website,
+        total_photos: enriched.total_photos, description: enriched.description,
+        business_status: enriched.business_status,
+        // L2 signals
+        l2_onpage_score: audit.onpage_score,
+        l2_https,
+        l2_has_title: !!audit.meta?.title,
+        l2_has_description: !!audit.meta?.description,
+        l2_has_analytics: hasAnalytics,
+        l2_cms: cmsName,
+        l2_word_count: audit.content?.word_count || 0,
+        l2_lighthouse_performance: null, // reserved for future lighthouse batch
+        l2_has_schema: audit.checks?.no_jsonld_schema === true ? false : null,
+      }
+
+      const newScores = scoreLeads([input])
+
+      l2EnrichedListings[index] = enriched
+      l2EnrichedScores[index] = newScores[0]
+    }
+  }
+
+  return { l2EnrichedListings, l2EnrichedScores, l2Cost }
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { categories, lat, lng, radiusKm, limit, force, enrich, order_by, offset, filters } = body
@@ -153,6 +282,7 @@ export async function POST(request: NextRequest) {
     let listings = result.listings
     let enrichmentCost = 0
     let enrichedCount = 0
+    let l2Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field profiles, $0.0054/lead) ═══
     // Always enrich top N leads — dados pagos precisam de contexto para valer
@@ -178,6 +308,27 @@ export async function POST(request: NextRequest) {
           totalCount: maxEnrich,
         })
       }
+
+      // ═══ L2: WEBSITE+SEO ENRICHMENT ($0.010125/lead) ═══
+      // Only for leads that passed L1 and have websites + score >= 30
+      if (enrichedCount > 0) {
+        const l2Result = await enrichTopLeadsL2(listings, scores, Math.min(typeof enrich === 'number' ? enrich : 3, 3))
+
+        listings = l2Result.l2EnrichedListings
+        scores = l2Result.l2EnrichedScores
+        l2Cost = l2Result.l2Cost
+
+        if (l2Cost > 0) {
+          trackCost({
+            categories: [...categories, "L2_enrichment"],
+            lat: lat || -23.55,
+            lng: lng || -46.63,
+            radiusKm: radiusKm || 10,
+            costUsd: l2Cost,
+            totalCount: Math.min(typeof enrich === 'number' ? enrich : 3, 3),
+          })
+        }
+      }
     }
 
     // ═══ FINAL SCORING + DISTRIBUTION ═══
@@ -192,6 +343,8 @@ export async function POST(request: NextRequest) {
         regionalTotal: result.total_count,
         enrichedCount,
         enrichmentCost,
+        l2Cost,
+        l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
         avgScore: distribution.avgScore,
         unaware: distribution.unaware, problemAware: distribution.problemAware,
         solutionAware: distribution.solutionAware, productAware: distribution.productAware,
@@ -213,7 +366,15 @@ export async function POST(request: NextRequest) {
         business_status: l.business_status,
       }
 
-      return { ...l, score: scores[i], contact_methods: detectContactMethods(input), enrichment_level: (l.website || l.phone || l.total_photos != null) ? 1 : 0 }
+      const enrichLevel = l.enrichment_level >= 2 ? 2
+        : (l.website || l.phone || l.total_photos != null) ? 1 : 0
+
+      return {
+        ...l,
+        score: scores[i],
+        contact_methods: detectContactMethods(input),
+        enrichment_level: enrichLevel,
+      }
     })
 
     saveDiscoverySearch({
@@ -222,7 +383,7 @@ export async function POST(request: NextRequest) {
       lng: lng || -46.63,
       radiusKm: radiusKm || 10,
       totalCount: result.total_count,
-      costUsd: searchCost + enrichmentCost,
+      costUsd: searchCost + enrichmentCost + l2Cost,
       listings: enrichedListings,
       distribution,
     }).then((saved) => {
@@ -234,8 +395,9 @@ export async function POST(request: NextRequest) {
     // Persist + cache (Redis + memory)
     const payload = {
       ...result, scores, distribution,
-      enrichedCount, enrichmentCost,
-      totalCost: searchCost + enrichmentCost,
+      enrichedCount, enrichmentCost, l2Cost,
+      l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
+      totalCost: searchCost + enrichmentCost + l2Cost,
       fromCache: false,
       costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
     }

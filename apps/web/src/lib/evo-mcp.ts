@@ -93,6 +93,172 @@ export interface GMBProfile {
   types: string[] | null
 }
 
+// ═══ L2 Website+SEO Interfaces (v0.3) ═══
+
+/** OnPage Instant Audit — single-page SEO audit ($0.000125/call). */
+export interface SEOInstantAudit {
+  onpage_score: number            // 0-100 composite SEO score
+  total_count: number             // number of SEO checks evaluated
+  checks: Record<string, boolean | null>  // e.g. "no_h1_tag": true
+  meta: {
+    title: string | null
+    description: string | null
+    charset: string | null
+  }
+  content: {
+    word_count: number
+    internal_links_count: number
+    external_links_count: number
+    images_count: number
+    plain_text_length: number
+    ratio: Record<string, number>
+  }
+}
+
+/** Domain Technologies — technology stack detection ($0.01/call). */
+export interface DomainTechnologies {
+  domain: string
+  technologies: Record<string, Record<string, string[]>>
+  phone_numbers: string[]
+  emails: string[]
+  domain_rank: number
+  last_visited: string
+  country_iso_code: string
+}
+
+/** Lighthouse category scores (0.0-1.0). Reserved for future batch. */
+export interface LighthouseScores {
+  performance: number
+  accessibility: number
+  best_practices: number
+  seo: number
+  pwa: number
+}
+
+/** Extract domain from URL (without protocol). */
+export function extractDomain(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`)
+    return u.hostname.replace(/^www\./, "")
+  } catch { return null }
+}
+
+// ── L2 MCP Client Functions ──────────────────────────────────
+
+/** OnPage Instant Audit: single-page SEO audit via EVO-API ($0.000125/call). */
+export async function onPageInstantAudit(url: string): Promise<SEOInstantAudit | null> {
+  const init = await mcpRequest("initialize", {
+    protocolVersion: "2024-11-05",
+    capabilities: {},
+    clientInfo: { name: "adsentice-engine", version: "1.0" },
+  })
+
+  const sid = init.sessionId
+
+  await fetch(MCP, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "Mcp-Session-Id": sid!,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    signal: AbortSignal.timeout(5000),
+  })
+
+  const call = await mcpRequest(
+    "tools/call",
+    {
+      name: "on_page_instant_pages",
+      arguments: {
+        url,
+        mode: "live",
+        tenancy_id: "adsentice-dev",
+        spend_cap_usd: 0.05,
+      },
+    },
+    sid || undefined
+  )
+
+  const content = (call.result as any)?.content?.[0]?.text
+  if (!content) return null
+
+  const data = JSON.parse(content)
+  const output = data.canonical_output || {}
+
+  return {
+    onpage_score: output.onpage_score ?? 0,
+    total_count: output.total_count ?? 0,
+    checks: output.checks || {},
+    meta: {
+      title: output.meta?.title || output.title || null,
+      description: output.meta?.description || output.description || null,
+      charset: output.meta?.charset || null,
+    },
+    content: {
+      word_count: output.content?.word_count || output.word_count || output.plain_text_word_count || 0,
+      internal_links_count: output.content?.internal_links_count || output.internal_links_count || 0,
+      external_links_count: output.content?.external_links_count || output.external_links_count || 0,
+      images_count: output.content?.images_count || output.images_count || 0,
+      plain_text_length: output.content?.plain_text_length || 0,
+      ratio: output.content?.ratio || {},
+    },
+  }
+}
+
+/** Domain Technologies: detect CMS, analytics, CDN, JS frameworks ($0.01/call). */
+export async function domainTechnologies(domain: string): Promise<DomainTechnologies | null> {
+  const init = await mcpRequest("initialize", {
+    protocolVersion: "2024-11-05",
+    capabilities: {},
+    clientInfo: { name: "adsentice-engine", version: "1.0" },
+  })
+
+  const sid = init.sessionId
+
+  await fetch(MCP, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "Mcp-Session-Id": sid!,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    signal: AbortSignal.timeout(5000),
+  })
+
+  const call = await mcpRequest(
+    "tools/call",
+    {
+      name: "domain_analytics_technologies_domain_technologies",
+      arguments: {
+        target: domain,
+        mode: "live",
+        tenancy_id: "adsentice-dev",
+        spend_cap_usd: 0.05,
+      },
+    },
+    sid || undefined
+  )
+
+  const content = (call.result as any)?.content?.[0]?.text
+  if (!content) return null
+
+  const data = JSON.parse(content)
+  const output = data.canonical_output || {}
+
+  return {
+    domain: output.domain || domain,
+    technologies: output.technologies || {},
+    phone_numbers: output.phone_numbers || [],
+    emails: output.emails || [],
+    domain_rank: output.domain_rank ?? 0,
+    last_visited: output.last_visited || "",
+    country_iso_code: output.country_iso_code || "",
+  }
+}
+
 export async function businessProfileGmb(params: {
   keyword: string
   location_code?: number
