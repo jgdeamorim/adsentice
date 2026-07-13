@@ -225,6 +225,12 @@ interface Listing {
   title: string | null; category: string | null; address: string | null
   rating_value: number | null; rating_votes: number | null; place_id: string | null
   cid: string | null; latitude: number | null; longitude: number | null; is_claimed: boolean | null
+
+  // L1 enriched fields (from business_profile_gmb)
+  phone?: string | null; website?: string | null; total_photos?: number | null
+  description?: string | null; business_status?: string | null; main_image?: string | null
+  city?: string | null; categories?: string[] | null; price_level?: number | null
+  district?: string | null; postal_code?: string | null; country_code?: string | null; types?: string[] | null
 }
 
 type SortField = 'score' | 'title' | 'category' | 'rating_value' | 'rating_votes'
@@ -386,8 +392,36 @@ return arr
   const scoreColor = (level: number) => {
     const colors: Record<number, string> = { 1: '#9e9e9e', 2: '#42a5f5', 3: '#ffa726', 4: '#ef5350', 5: '#d32f2f' }
 
-    
-return colors[level] || '#9e9e9e'
+    return colors[level] || '#9e9e9e'
+  }
+
+  const isEnriched = (l: Listing) => !!(l.phone || l.website || l.total_photos != null || l.description)
+
+  const detectWApp = (ph: string | null | undefined) => ph ? /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(ph) : null
+
+  const photosRef = (cat: string | null) => {
+    const bm: Record<string, { min: number; good: number }> = {
+      dentist: { min: 15, good: 30 }, medical_aesthetic_clinic: { min: 20, good: 40 },
+      medical_clinic: { min: 15, good: 30 }, restaurant: { min: 25, good: 50 },
+      gym: { min: 20, good: 40 }, lawyer: { min: 5, good: 15 },
+      barber_shop: { min: 15, good: 30 }, pharmacy: { min: 10, good: 20 },
+      veterinarian: { min: 15, good: 30 }, real_estate_agency: { min: 20, good: 50 },
+      accountant: { min: 5, good: 10 }, car_repair: { min: 10, good: 20 },
+    }
+
+    return bm[(cat || '').toLowerCase().replace(/\s+/g, '_')] || { min: 10, good: 20 }
+  }
+
+  const siteKind = (url: string | null | undefined) => {
+    if (!url) return null
+    const u = url.toLowerCase()
+
+    if (u.includes('wixsite.com') || u.includes('wix.com')) return 'Wix'
+    if (u.includes('linktr.ee') || u.includes('linktree')) return 'Linktree'
+    if (u.includes('facebook.com') || u.includes('instagram.com')) return 'Rede Social'
+    if (u.includes('sites.google.com')) return 'Google Sites'
+
+    return 'Domínio Próprio'
   }
 
   return (
@@ -562,7 +596,10 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
             <Typography variant='body2'>📍 <strong>{STATES[stateKey]?.cities[cityKey]?.label || stateKey}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
-              💰 Custo estimado: <strong>${estimatedCost.toFixed(4)}</strong> (R${(estimatedCost * 5.5).toFixed(2)})
+              💰 Custo estimado: <strong>${(estimatedCost + 0.027).toFixed(4)}</strong> (R${((estimatedCost + 0.027) * 5.5).toFixed(2)})
+            </Typography>
+            <Typography variant='caption' color='text.secondary'>
+              L0 Search: ${estimatedCost.toFixed(4)} + L1 Enrichment (5 leads × $0.0054): $0.027
             </Typography>
           </Box>
           <Typography variant='caption' color='text.secondary'>
@@ -650,7 +687,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Computando Score Composto · Custo: ${estimatedCost.toFixed(4)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo top 5 leads (L1) · Custo: ${estimatedCost.toFixed(4)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
@@ -730,40 +767,95 @@ return (
       )}
 
       {/* ═══ LEAD DETAIL MODAL (v0.2 — Score + Benchmark) ═══ */}
-      <Dialog open={!!selectedLead} onClose={() => { setSelectedLead(null); setSelectedScore(null); setCompetitorData(null); }} maxWidth='md' fullWidth>
+      <Dialog open={!!selectedLead} onClose={() => { setSelectedLead(null); setSelectedScore(null); setCompetitorData(null); }} maxWidth='lg' fullWidth>
         {selectedLead && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant='h6'>{selectedLead.title || 'Sem nome'}</Typography>
-                {selectedScore && (
-                  <Chip
-                    label={`${selectedScore.schwartz.label} · Score ${selectedScore.compound}/100`}
-                    size='small'
-                    sx={{ bgcolor: scoreColor(selectedScore.schwartz.level), color: '#fff', fontWeight: 700, mt: 0.5 }}
-                  />
-                )}
+                <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                  {selectedScore && (
+                    <Chip label={`${selectedScore.schwartz.label} · Score ${selectedScore.compound}/100`}
+                      size='small' sx={{ bgcolor: scoreColor(selectedScore.schwartz.level), color: '#fff', fontWeight: 700 }} />
+                  )}
+                  {isEnriched(selectedLead) ? (
+                    <Chip label='🔬 L1 Enriquecido (27 campos)' size='small' color='success' variant='tonal' />
+                  ) : (
+                    <Chip label='📡 L0 Básico (11 campos)' size='small' color='default' variant='tonal' />
+                  )}
+                </Box>
               </Box>
               <IconButton onClick={() => { setSelectedLead(null); setSelectedScore(null); setCompetitorData(null); }} size='small'><i className='ri-close-line' /></IconButton>
             </DialogTitle>
             <DialogContent dividers>
-              {/* ── GMB Fields ── */}
-              <Grid container spacing={2}>
+              {/* ═══ IDENTITY + LOCATION ═══ */}
+              <Typography variant='overline' fontWeight={700} color='primary.main'>🏢 Perfil GMB</Typography>
+              <Grid container spacing={1.5} sx={{ mb: 2 }}>
                 {[
-                  ['🏢 Nome', selectedLead.title],
-                  ['📂 Categoria', selectedLead.category],
-                  ['📍 Endereço', selectedLead.address],
-                  ['⭐ Rating', selectedLead.rating_value ? `${selectedLead.rating_value}★` : '—'],
-                  ['📝 Reviews', String(selectedLead.rating_votes || 0)],
-                  ['🔑 Place ID', selectedLead.place_id],
-                  ['✅ Reivindicado', selectedLead.is_claimed ? 'Sim' : '⚠️ Não'],
-                  ['📐 Coordenadas', selectedLead.latitude ? `${selectedLead.latitude.toFixed(4)}, ${selectedLead.longitude?.toFixed(4)}` : '—'],
-                ].map(([label, value], i) => (
-                  <Grid key={i} size={{ xs: 12, sm: 6 }}>
+                  ['Nome', selectedLead.title], ['Categoria', selectedLead.category],
+                  ['Categorias', selectedLead.categories?.join(', ') || null],
+                  ['Status', selectedLead.business_status], ['Tipos', selectedLead.types?.join(', ') || null],
+                  ['Endereço', selectedLead.address], ['Cidade', selectedLead.city],
+                  ['Bairro', selectedLead.district], ['CEP', selectedLead.postal_code],
+                  ['Coordenadas', selectedLead.latitude ? `${selectedLead.latitude.toFixed(4)}, ${selectedLead.longitude?.toFixed(4)}` : null],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <Grid key={label} size={{ xs: 12, sm: 6 }}>
                     <Typography variant='caption' color='text.secondary'>{label}</Typography>
-                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value || '—'}</Typography>
+                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>
                   </Grid>
                 ))}
+              </Grid>
+
+              {/* ═══ L1 ENRICHED CONTACT + WEBSITE ═══ */}
+              {isEnriched(selectedLead) && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='success.main'>📞 Contato & Website (L1 Enriquecido)</Typography>
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    {[
+                      ['📱 Telefone', selectedLead.phone],
+                      ['💬 WhatsApp', detectWApp(selectedLead.phone) === true ? '✅ WhatsApp detectado' : detectWApp(selectedLead.phone) === false ? '❌ Não é WhatsApp' : null],
+                      ['🌐 Website', selectedLead.website],
+                      ['🏗️ Tipo de Site', siteKind(selectedLead.website)],
+                    ].filter(([, v]) => v).map(([label, value]) => (
+                      <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                        <Typography variant='caption' color='text.secondary'>{label}</Typography>
+                        <Box sx={{ mt: 0.3 }}>
+                          {typeof value === 'string' && value.startsWith('✅') ? <Chip label={value} size='small' color='success' variant='tonal' /> :
+                           typeof value === 'string' && value.startsWith('❌') ? <Chip label={value} size='small' color='error' variant='tonal' /> :
+                           <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>}
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+
+              {/* ═══ REPUTATION + PHOTOS ═══ */}
+              <Typography variant='overline' fontWeight={700} color='warning.main'>⭐ Reputação & Engajamento</Typography>
+              <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                {[
+                  ['Rating', selectedLead.rating_value ? `${selectedLead.rating_value}★` : null],
+                  ['Reviews', String(selectedLead.rating_votes || 0)],
+                  ['Reivindicado', selectedLead.is_claimed ? '✅ Sim' : '⚠️ Não — maior sinal de urgência!'],
+                  ['Place ID', selectedLead.place_id], ['CID', selectedLead.cid],
+                  ['Nível Preço', selectedLead.price_level != null ? '💰'.repeat(Math.max(1, selectedLead.price_level)) + ` (${selectedLead.price_level}/4)` : null],
+                  ['Descrição', selectedLead.description ? (selectedLead.description.length > 120 ? selectedLead.description.substring(0, 120) + '...' : selectedLead.description) : null],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                    <Typography variant='caption' color='text.secondary'>{label}</Typography>
+                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-all' }}>{value}</Typography>
+                  </Grid>
+                ))}
+                {selectedLead.total_photos != null && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant='caption' color='text.secondary'>📸 Fotos no GMB</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
+                      <Typography variant='body2' fontWeight={700}>{selectedLead.total_photos}</Typography>
+                      <Chip label={selectedLead.total_photos >= photosRef(selectedLead.category).good ? `${selectedLead.total_photos} — acima do ideal` : selectedLead.total_photos >= photosRef(selectedLead.category).min ? `${selectedLead.total_photos}/${photosRef(selectedLead.category).min} — dentro do mínimo` : `${selectedLead.total_photos}/${photosRef(selectedLead.category).min} — abaixo do mínimo`} size='small'
+                        color={selectedLead.total_photos >= photosRef(selectedLead.category).good ? 'success' : selectedLead.total_photos >= photosRef(selectedLead.category).min ? 'warning' : 'error'} variant='tonal' />
+                    </Box>
+                  </Grid>
+                )}
               </Grid>
 
               {/* ── Score Breakdown ── */}
@@ -862,10 +954,13 @@ return (
               )}
 
               {/* ── Actions ── */}
-              <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+              <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Button variant='outlined' size='small' onClick={() => {
                   if (selectedLead.place_id) window.open(`https://www.google.com/maps/place/?q=place_id:${selectedLead.place_id}`, '_blank')
                 }} startIcon={<i className='ri-map-pin-line' />}>Google Maps</Button>
+                {selectedLead.website && (
+                  <Button variant='outlined' size='small' color='info' onClick={() => { window.open(selectedLead.website!, '_blank') }} startIcon={<i className='ri-global-line' />}>Visitar Site</Button>
+                )}
                 <Button variant='outlined' size='small' color='warning' startIcon={<i className='ri-file-chart-line' />}
                   onClick={() => { setSelectedLead(null); setSelectedScore(null); }}>Diagnóstico</Button>
               </Box>
