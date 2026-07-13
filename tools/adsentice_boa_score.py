@@ -197,70 +197,176 @@ def compute_error_free() -> dict:
     }
 
 
+def count_claude_memory_decisions() -> int:
+    """
+    Conta decisoes/insights/facts persistidos no Qdrant claude-memory (tag=adsentice).
+    Este e o CANONICO — o /dag e o hook lembram aqui. O Redis OODA e cache volátil.
+    """
+    try:
+        # Qdrant count com filtro por tag
+        body = json.dumps({
+            "filter": {
+                "must": [
+                    {"key": "tag", "match": {"value": "adsentice"}}
+                ]
+            }
+        }).encode()
+        req = Request(
+            f"{QDRANT_URL}/collections/claude-memory/points/count",
+            data=body, headers={"Content-Type": "application/json"}
+        )
+        resp = urlopen(req, timeout=5)
+        count = json.loads(resp.read()).get("result", {}).get("count", 0)
+        return int(count)
+    except Exception:
+        return 0
+
+
+def list_recent_claude_memories(limit: int = 5) -> list[dict]:
+    """Recupera as memorias mais recentes do claude-memory para auditoria."""
+    try:
+        body = json.dumps({
+            "filter": {
+                "must": [
+                    {"key": "tag", "match": {"value": "adsentice"}}
+                ]
+            },
+            "limit": limit,
+            "with_payload": True,
+            "with_vector": False,
+        }).encode()
+        req = Request(
+            f"{QDRANT_URL}/collections/claude-memory/points/scroll",
+            data=body, headers={"Content-Type": "application/json"}
+        )
+        resp = urlopen(req, timeout=5)
+        result = json.loads(resp.read()).get("result", {})
+        points = result.get("points", [])
+        memories = []
+        for p in points:
+            payload = p.get("payload", {})
+            source = payload.get("source", payload.get("session_id", "?"))
+            memories.append({
+                "id": p.get("id", "?")[:8],
+                "source": source[:50],
+                "kind": payload.get("kind", "?"),
+                "ts": payload.get("ts", 0),
+            })
+        return memories
+    except Exception:
+        return []
+
+
 def compute_founder_signal() -> dict:
     """
     founder_signal ∈ [0,1]: o peso mais alto (0.35) — o founder decide.
 
-    Fontes:
-      ExplicitApproval     = 1.0  (commits com 'accepted' ou push)
-      Implicit(silence>10s)= 0.8  (sessao ativa sem objecao)
-      Implicit(silence<10s)= 0.6  (sessao curta)
-      Override             = 0.3  (reverter decisao)
-      ExplicitDisapproval  = 0.0  (rejeitado)
-      None (no data)       = 0.7  (default inicial)
+    Fontes CANONICAS (em ordem de precedencia):
+      1. claude-memory (Qdrant, tag=adsentice) — decisoes persistidas pelo /dag e remember
+      2. Redis OODA — estado volatil da sessao atual
+      3. Git log — commits com 'accepted'/'feat' nos ultimos 30 dias
 
-    Lê do Redis OODA: decisoes capturadas, founder gates, handoff quality.
+    Heuristicas:
+      ExplicitApproval     = 1.0  (ADR accepted ou decisao com kind=decision)
+      Implicit(silence>10s)= 0.8  (sessao ativa com decisoes no claude-memory)
+      Implicit(silence<10s)= 0.6  (sessao ativa sem decisoes)
+      None (no data)       = 0.5  (default frio — sem claude-memory, sem Redis, sem commits)
     """
     try:
         import redis
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_connect_timeout=1)
         r.ping()
+        redis_ok = True
+    except Exception:
+        redis_ok = False
 
-        ooda_ns = "adsentice:ooda"
-        current = (r.get(f"{ooda_ns}:current_session_id") or b"unknown").decode()
-        act = (r.get(f"{ooda_ns}:stage:act") or b"").decode()
-        decide = (r.get(f"{ooda_ns}:stage:decide") or b"").decode()
+    # ── Fonte 1: claude-memory (CANONICA — Qdrant) ──
+    memory_count = count_claude_memory_decisions()
+    recent_memories = list_recent_claude_memories(5)
 
-        # Verifica se ha decisoes capturadas em algum compact
-        keys = r.keys(f"{ooda_ns}:session:*:decisions")
-        total_decisions = sum(
-            len(json.loads(r.get(k) or b"[]"))
-            for k in keys
+    # ── Fonte 2: Redis OODA (volatil — session-scoped) ──
+    ooda_decisions = 0
+    act = ""
+    decide = ""
+    current = "unknown"
+
+    if redis_ok:
+        try:
+            ooda_ns = "adsentice:ooda"
+            current = (r.get(f"{ooda_ns}:current_session_id") or b"unknown").decode()
+            act = (r.get(f"{ooda_ns}:stage:act") or b"").decode()
+            decide = (r.get(f"{ooda_ns}:stage:decide") or b"").decode()
+
+            keys = r.keys(f"{ooda_ns}:session:*:decisions")
+            ooda_decisions = sum(
+                len(json.loads(r.get(k) or b"[]"))
+                for k in keys
+            )
+        except Exception:
+            pass
+
+    # ── Fonte 3: Git log (commits com decisoes nos ultimos 30 dias) ──
+    git_decisions = 0
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "log", "--since=30.days", "--oneline"],
+            capture_output=True, text=True, timeout=5
         )
+        # Cada commit com 'feat:', 'fix:', 'docs:' ou 'accepted' conta como decisao
+        decision_keywords = ["feat:", "fix:", "docs:", "accepted", "ADR-"]
+        for line in result.stdout.strip().split("\n"):
+            if any(kw in line for kw in decision_keywords):
+                git_decisions += 1
+    except Exception:
+        pass
 
-        # Founder signal heuristic:
-        # - ADR accepted = 1.0
-        # - Sessao ativa com decisoes = 0.8
-        # - Sessao ativa sem decisoes = 0.6
-        # - Default (primeira sessao) = 0.7
-        if "accepted" in act.lower() or "accepted" in decide.lower():
-            base_signal = 1.0
-        elif total_decisions > 0:
-            base_signal = 0.8
-        elif current != "unknown":
-            base_signal = 0.6
-        else:
-            base_signal = 0.7
+    # ── Total combinado: claude-memory (peso 0.6) + OODA (peso 0.2) + git (peso 0.2) ──
+    total_decisions = memory_count + ooda_decisions  # canonical count
+    combined_signal = (
+        0.60 * min(memory_count / 15.0, 1.0) +   # 15+ memorias = full score nesta dimensao
+        0.20 * min(ooda_decisions / 5.0, 1.0) +  # 5+ decisoes OODA = full
+        0.20 * min(git_decisions / 20.0, 1.0)     # 20+ commits com decisao = full
+    )
 
-        # Boost: numero de decisoes acumuladas
-        decision_boost = min(total_decisions / 20.0, 0.15)
-        signal = min(base_signal + decision_boost, 1.0)
+    # ── Base signal ──
+    if "accepted" in act.lower() or "accepted" in decide.lower():
+        base_signal = 1.0
+    elif memory_count >= 10:
+        base_signal = 0.9
+    elif memory_count >= 5:
+        base_signal = 0.8
+    elif memory_count >= 1:
+        base_signal = 0.7
+    elif current != "unknown":
+        base_signal = 0.6
+    else:
+        base_signal = 0.5
 
-        return {
-            "score": round(signal, 4),
-            "weight": W_FOUNDER_SIGNAL,
-            "weighted": round(signal * W_FOUNDER_SIGNAL, 4),
-            "components": {
-                "session": current,
-                "total_decisions_captured": total_decisions,
-                "base_signal": round(base_signal, 4),
-                "decision_boost": round(decision_boost, 4),
-                "act_stage": act[:100],
-                "decide_stage": decide[:100],
-            }
+    # ── Decision boost: o combined_signal ja captura a densidade ──
+    # ── Bonus extra para memorias com kind=decision (explicitas) ──
+    decision_kinds = sum(1 for m in recent_memories if m.get("kind") == "decision")
+    explicit_boost = min(decision_kinds / 10.0, 0.10)  # ate +0.10 para decisoes explicitas
+
+    signal = min(base_signal * 0.70 + combined_signal * 0.30 + explicit_boost, 1.0)
+
+    return {
+        "score": round(signal, 4),
+        "weight": W_FOUNDER_SIGNAL,
+        "weighted": round(signal * W_FOUNDER_SIGNAL, 4),
+        "components": {
+            "session": current,
+            "total_decisions_captured": total_decisions,
+            "claude_memory_count": memory_count,
+            "ooda_decisions": ooda_decisions,
+            "git_decisions_30d": git_decisions,
+            "combined_signal": round(combined_signal, 4),
+            "base_signal": round(base_signal, 4),
+            "explicit_boost": round(explicit_boost, 4),
+            "act_stage": act[:100],
+            "decide_stage": decide[:100],
+            "recent_memories": [m["source"] for m in recent_memories[:3]],
         }
-    except Exception as e:
-        return {"score": 0.7, "weight": W_FOUNDER_SIGNAL, "weighted": 0.245, "error": str(e)}
+    }
 
 
 def compute_boa() -> dict:
