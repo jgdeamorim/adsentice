@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.1.4"
+version: "1.1.5"
 date: 2026-07-11
-updated: 2026-07-13T05:00:00-03:00
+updated: 2026-07-13T05:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -359,7 +359,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v016 | 2026-07-13 | market-context-card-discovery + data-flywheel-architecture | `apps/web/src/app/.../discovery/page.tsx` (commit 46c31fb) — CAT_INFO conectado ao modal do lead, flywheel: cada busca alimenta Supabase sem duplicar | ✅ vivo |
 | v017 | 2026-07-13 | contact-method-detection + L1-persistence-fix | `apps/web/src/lib/scoring.ts` + `discovery-persistence.ts` (commit c24fb44) — detectContactMethods(), contactStrategy(), 12 colunas L1 no Supabase, fluxos de comunicação mapeados | ✅ vivo |
 | v018 | 2026-07-13 | /admin/leads — pagina real com 60 leads do Supabase | `apps/web/src/app/.../leads/page.tsx` (commit f550ec0) — tabela completa, KPIs, Schwartz distribution, contact methods | ✅ vivo |
+| v019 | 2026-07-13 | auditoria-flow-operacional-correcao-3-bugs | `discovery-persistence.ts` + `discovery-search/route.ts` (commit be84a35) — city/district/categories persistidos, L1 batch parallel 5x, order_by+offset+cobertura mercado | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.1.4 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · /admin/leads com 60 leads reais · L1 Enrichment LIVE · Contact detection · 29 categorias · 696 corpus chunks · 18 changelog entries · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.1.5 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · L1 todos os 50 leads ($0.285/busca) · Batch parallel 5x · 29 categorias · 696 corpus chunks · 19 changelog entries · 721 conversation chunks · Supabase pg Pool · Cloudflare R2*
