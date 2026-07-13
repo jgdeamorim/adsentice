@@ -101,8 +101,9 @@ export async function saveDiscoverySearch(params: {
             score_compound, score_fit, score_engagement, score_intent,
             schwartz_level, schwartz_label, signals_detected,
             website, phone, total_photos, description, business_status,
+            city, district, postal_code, country_code, categories_arr, price_level,
             contact_methods, enrichment_level)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
            ON CONFLICT (search_id, place_id) DO UPDATE SET
             score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
             score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
@@ -110,6 +111,9 @@ export async function saveDiscoverySearch(params: {
             website=EXCLUDED.website, phone=EXCLUDED.phone,
             total_photos=EXCLUDED.total_photos, description=EXCLUDED.description,
             business_status=EXCLUDED.business_status,
+            city=EXCLUDED.city, district=EXCLUDED.district,
+            postal_code=EXCLUDED.postal_code, country_code=EXCLUDED.country_code,
+            categories_arr=EXCLUDED.categories_arr, price_level=EXCLUDED.price_level,
             contact_methods=EXCLUDED.contact_methods, enrichment_level=EXCLUDED.enrichment_level`,
           [
             searchId,
@@ -124,6 +128,12 @@ export async function saveDiscoverySearch(params: {
             (l as any).total_photos || null,
             (l as any).description || null,
             (l as any).business_status || null,
+            (l as any).city || null,
+            (l as any).district || null,
+            (l as any).postal_code || null,
+            (l as any).country_code || null,
+            (l as any).categories || null,
+            (l as any).price_level || null,
             (l as any).contact_methods || null,
             (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0,
           ]

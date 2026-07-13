@@ -21,88 +21,87 @@ import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-/** Enrich up to N leads with full 27-field GMB profiles ($0.0054/lead). */
+/** Enrich leads with full 27-field GMB profiles in parallel ($0.0054/lead each). */
 async function enrichTopLeads(
   listings: any[],
   scores: ScoreData[],
   maxEnrich: number = 5
 ): Promise<{ enrichedListings: any[]; enrichedScores: ScoreData[]; enrichmentCost: number }> {
-  let enrichmentCost = 0
   const enrichedListings = [...listings]
   const enrichedScores = [...scores]
 
-  // Enrich top N by compound score (those with highest potential)
-  const ranked = listings
+  // Rank by compound score and take top N
+  const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
+    .filter(({ listing }) => !!listing.title)
     .sort((a, b) => b.score.compound - a.score.compound)
+    .slice(0, maxEnrich)
 
-  for (let rank = 0; rank < Math.min(maxEnrich, ranked.length); rank++) {
-    const { listing, index } = ranked[rank]
+  // Enrich in parallel batches of 5 (EVO-API rate limit friendly)
+  const BATCH_SIZE = 5
+  let enrichmentCost = 0
 
-    // Skip if listing has no title to search by
-    if (!listing.title) continue
+  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
+    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
 
-    try {
-      const profile = await businessProfileGmb({
-        keyword: listing.title,
-        location_code: 2076, // Brazil
-        language_code: "pt",
+    const results = await Promise.allSettled(
+      batchItems.map(async ({ listing, index }) => {
+        const profile = await businessProfileGmb({
+          keyword: listing.title,
+          location_code: 2076,
+          language_code: "pt",
+        })
+
+        return { profile, listing, index }
       })
+    )
 
-      if (profile && profile.place_id) {
-        enrichmentCost += 0.0054
-
-        // Merge full profile fields into the listing
-        const enriched: any = {
-          ...listing,
-          phone: profile.phone || listing.phone,
-          website: profile.website,
-          total_photos: profile.total_photos,
-          description: profile.description,
-          business_status: profile.business_status,
-          main_image: profile.main_image,
-          city: profile.city || listing.city,
-          categories: profile.categories,
-          price_level: profile.price_level,
-          district: profile.district,
-          postal_code: profile.postal_code,
-          country_code: profile.country_code,
-          types: profile.types,
-        }
-
-        // Re-score with full 27-field data
-        const input: ScoringInput = {
-          title: enriched.title,
-          category: enriched.category,
-          categories: enriched.categories,
-          address: enriched.address,
-          rating_value: enriched.rating_value,
-          rating_votes: enriched.rating_votes,
-          place_id: enriched.place_id,
-          cid: enriched.cid,
-          latitude: enriched.latitude,
-          longitude: enriched.longitude,
-          is_claimed: enriched.is_claimed,
-          phone: enriched.phone,
-          website: enriched.website,
-          total_photos: enriched.total_photos,
-          description: enriched.description,
-          business_status: enriched.business_status,
-        }
-
-        const newScores = scoreLeads([input])
-
-        // Detect contact methods for communication strategy
-        enriched.contact_methods = detectContactMethods(input)
-        enriched.enrichment_level = 1
-
-        enrichedListings[index] = enriched
-        enrichedScores[index] = newScores[0]
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        console.error('[enrichment] Batch item failed:', (r.reason as any)?.message)
+        continue
       }
-    } catch (err: any) {
-      console.error(`[enrichment] Failed to enrich ${listing.title}:`, err.message)
 
-      // Continue with original data — enrichment is best-effort
+      const { profile, listing, index } = r.value
+
+      if (!profile || !profile.place_id) continue
+
+      enrichmentCost += 0.0054
+
+      const enriched: any = {
+        ...listing,
+        phone: profile.phone || listing.phone,
+        website: profile.website,
+        total_photos: profile.total_photos,
+        description: profile.description,
+        business_status: profile.business_status,
+        main_image: profile.main_image,
+        city: profile.city || listing.city,
+        categories: profile.categories,
+        price_level: profile.price_level,
+        district: profile.district,
+        postal_code: profile.postal_code,
+        country_code: profile.country_code,
+        types: profile.types,
+      }
+
+      const input: ScoringInput = {
+        title: enriched.title, category: enriched.category,
+        categories: enriched.categories, address: enriched.address,
+        rating_value: enriched.rating_value, rating_votes: enriched.rating_votes,
+        place_id: enriched.place_id, cid: enriched.cid,
+        latitude: enriched.latitude, longitude: enriched.longitude,
+        is_claimed: enriched.is_claimed, phone: enriched.phone,
+        website: enriched.website, total_photos: enriched.total_photos,
+        description: enriched.description, business_status: enriched.business_status,
+      }
+
+      const newScores = scoreLeads([input])
+
+      enriched.contact_methods = detectContactMethods(input)
+      enriched.enrichment_level = 1
+      enrichedListings[index] = enriched
+      enrichedScores[index] = newScores[0]
     }
   }
 
