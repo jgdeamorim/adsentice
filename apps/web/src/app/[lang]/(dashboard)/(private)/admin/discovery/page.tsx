@@ -46,12 +46,39 @@ interface ScoreDistribution { unaware: number; problemAware: number; solutionAwa
 interface CompetitiveData { lead_rank: number; lead_metrics: Record<string, number>; market_avg: Record<string, number>; top_competitors: { title: string | null; rating_value: number | null; rating_votes: number | null; score?: number; schwartz_label?: string; is_claimed?: boolean | null }[]; gaps: string[] }
 
 // ── Schwartz chip config ──
+// 5 níveis de consciência do comprador (Eugene Schwartz, 1966)
+// Cada nível define COMO abordar o lead, não só o score
 const SCHWARTZ_CHIPS = [
-  { level: 1, label: 'Unaware', color: '#9e9e9e' },
-  { level: 2, label: 'Problem Aware', color: '#42a5f5' },
-  { level: 3, label: 'Solution Aware', color: '#ffa726' },
-  { level: 4, label: 'Product Aware', color: '#ef5350' },
-  { level: 5, label: 'Most Aware', color: '#d32f2f' },
+  {
+    level: 1, label: 'Unaware', color: '#9e9e9e',
+    description: 'Não sabe que tem problema digital. Ex: dentista que não sabe que aparece sem foto no Google.',
+    action: 'Educar com conteúdo gratuito. NUNCA vender.',
+    example: '"Você sabia que 70% dos pacientes pesquisam no Google antes de escolher um dentista?"',
+  },
+  {
+    level: 2, label: 'Problem Aware', color: '#42a5f5',
+    description: 'Sabe que tem dor mas não conhece solução. Ex: dentista que percebeu que tem poucos pacientes novos.',
+    action: 'Agitar a dor. Mostrar que EXISTE solução.',
+    example: '"Sua clínica recebe menos de 10 pacientes novos por mês? Isso tem solução."',
+  },
+  {
+    level: 3, label: 'Solution Aware', color: '#ffa726',
+    description: 'Sabe que existem soluções de marketing mas não conhece a adsentice. Ex: já ouviu falar de SEO/Google Ads.',
+    action: 'Comparar. Mostrar por que adsentice é diferente e mais barato.',
+    example: '"Agências de marketing custam R$2.000/mês. Nosso diagnóstico é gratuito e automatizado."',
+  },
+  {
+    level: 4, label: 'Product Aware', color: '#ef5350',
+    description: 'Conhece a adsentice ou produto similar. Ex: já fez o Raio-X gratuito, está considerando.',
+    action: 'Prova social + Garantia + Oferta.',
+    example: '"237 clínicas em SP já usam o Sentinela. Resultado em 7 dias ou devolvemos seu dinheiro."',
+  },
+  {
+    level: 5, label: 'Most Aware', color: '#d32f2f',
+    description: 'Já decidiu, só precisa fechar. Ex: pediu orçamento, perguntou preço, quer começar.',
+    action: 'CTA direto. Urgência. Fechar.',
+    example: '"Comece agora. Primeiro mês por R$47. Cancele quando quiser."',
+  },
 ] as const
 
 // ── Geo Data ──
@@ -532,16 +559,17 @@ return (
                 {SCHWARTZ_CHIPS.map(s => {
                   const active = schwartzFilter.includes(s.level)
 
-                  
-return (
-                    <Chip key={s.level} label={s.label} clickable size='small'
-                      color={active ? 'primary' : 'default'}
-                      variant={active ? 'filled' : 'outlined'}
-                      onClick={() => setSchwartzFilter(prev =>
-                        prev.includes(s.level) ? prev.filter(x => x !== s.level) : [...prev, s.level]
-                      )}
-                      sx={active ? {} : { opacity: 0.7 }}
-                    />
+                  return (
+                    <Tooltip key={s.level} title={`${s.description}\n\n🚫 Regra: ${s.action}`} arrow>
+                      <Chip label={s.label} clickable size='small'
+                        color={active ? 'primary' : 'default'}
+                        variant={active ? 'filled' : 'outlined'}
+                        onClick={() => setSchwartzFilter(prev =>
+                          prev.includes(s.level) ? prev.filter(x => x !== s.level) : [...prev, s.level]
+                        )}
+                        sx={active ? {} : { opacity: 0.7 }}
+                      />
+                    </Tooltip>
                   )
                 })}
               </Box>
@@ -584,6 +612,39 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
           )}
         </CardContent></Card>
       </Grid>
+
+      {/* ═══ SCHWARTZ EXPLAINER ═══ */}
+      {results.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
+            <CardContent>
+              <Typography variant='subtitle2' fontWeight={600} gutterBottom>
+                🧠 O que cada nível significa?
+              </Typography>
+              <Grid container spacing={2}>
+                {SCHWARTZ_CHIPS.map((s) => (
+                  <Grid key={s.level} size={{ xs: 12, sm: 6, md: 2.4 }}>
+                    <Box sx={{ borderLeft: 3, borderColor: s.color, pl: 1.5 }}>
+                      <Typography variant='caption' fontWeight={700} sx={{ color: s.color }}>
+                        {s.label} ({s.level === 1 ? '0-29' : s.level === 2 ? '30-49' : s.level === 3 ? '50-69' : s.level === 4 ? '70-84' : '85-100'})
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary' sx={{ display: 'block' }}>
+                        {s.description}
+                      </Typography>
+                      <Typography variant='caption' color='error.main' fontWeight={600} sx={{ display: 'block', mt: 0.5 }}>
+                        🎯 Ação: {s.action}
+                      </Typography>
+                      <Typography variant='caption' sx={{ fontStyle: 'italic', display: 'block', mt: 0.3 }}>
+                        💬 {s.example}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
