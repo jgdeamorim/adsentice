@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.2.0"
+version: "1.2.1"
 date: 2026-07-11
-updated: 2026-07-13T14:00:00-03:00
+updated: 2026-07-13T14:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -79,6 +79,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0005` | Lead Funnel & CRM Strategy | ✅ accepted (2026-07-11) |
 | `ADS.COR.adr.0006` | EVO-API as Data Engine | ✅ accepted (2026-07-11) |
 | `ADS.COR.adr.0007` | MVP Simplification | ✅ accepted (2026-07-11) |
+| `ADS.COR.adr.0008` | EVO-API como Motor de Enriquecimento Completo (76 caps → L0-L4) | ✅ accepted (2026-07-13) |
 
 ### ADS.COR.code — Código
 
@@ -365,7 +366,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v022 | 2026-07-13 | busca-rj-confirmada-city-district-l1-enriquecimento | `discovery-search/route.ts` (commit 66808eb) — 50 listings RJ Capital, 32 L1 (64%), 25 bairros, city/district ✅, 100 leads totais | ✅ vivo |
 | v023 | 2026-07-13 | lead-detail-modal-popup-32-campos-6-secoes | `leads/LeadTable.tsx` (commit 66808eb) — Client component com Dialog, identidade/localizacao/contato/reputacao/score/sinais | ✅ vivo |
 | v024 | 2026-07-13 | costs-page-dados-reais-supabase-rate-limits-dataforseo | `costs/page.tsx` (commit bcaf8f0) — Custos do Supabase ($0.60 total), rate limits API real-time, precos verificados | ✅ vivo |
+| v025 | 2026-07-13 | adr-0008-evo-api-enriquecimento-completo-l0-l4-76-capabilities | `docs/adr/0008-evo-api-enriquecimento-completo-l0-l4.md` — Decisao arquitetural: EVO-API como motor L0-L4, 76 caps mapeadas, roadmap v0.3→v0.5 | ✅ accepted |
 
 ---
 
-*Base-Matriz adsentice v1.2.0 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · 100 leads unicos (SP+RJ) · $0.60 DataForSEO (R$3.30) · R$0.03/lead (860× mais barato que Google Ads) · Lead modal detail (32 campos) · Rate limits API · 696 corpus · 726 conversation · 24 changelog · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.2.1 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · ADR-0008 (76 caps L0-L4) · 100 leads (SP+RJ) · $0.60 DataForSEO · 704 corpus · 727 conversation · 25 changelog · 8 ADRs · Supabase pg Pool · Cloudflare R2*
