@@ -379,7 +379,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
-          limit: 50, force, enrich: force ? 5 : 0,
+          limit: 50, force, enrich: 5, // always enrich top 5 leads (L1: $0.027)
           order_by: searchOrderBy ? [searchOrderBy] : undefined,
           offset: searchOffset,
         }),
@@ -587,13 +587,13 @@ return arr
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={`~$${estimatedCost.toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip label={`~$${(estimatedCost + 0.027).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
             </Typography>
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${estimatedCost.toFixed(4)})`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(estimatedCost + 0.027).toFixed(4)} L0+L1)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -783,7 +783,7 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
           <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(true); }}>
-            Sim, buscar (${estimatedCost.toFixed(4)})
+            Sim, buscar (${(estimatedCost + 0.027).toFixed(4)} — L0+L1)
           </Button>
         </DialogActions>
       </Dialog>
@@ -877,7 +877,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo top 5 leads (L1) · Custo: ${estimatedCost.toFixed(4)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo top 5 leads (L1) · Custo: ${(estimatedCost + 0.027).toFixed(4)} (L0+L1)</Typography>
           </CardContent></Card>
         </Grid>
       )}

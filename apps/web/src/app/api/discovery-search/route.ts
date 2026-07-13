@@ -156,11 +156,11 @@ export async function POST(request: NextRequest) {
     let enrichedCount = 0
 
     // ═══ L1: ENRICHMENT (27-field profiles, $0.0054/lead) ═══
-    // Only enrich if explicitly requested or if results are few (to save money)
-    const shouldEnrich = enrich === true || force === true
+    // Always enrich top N leads — dados pagos precisam de contexto para valer
+    const shouldEnrich = enrich || force
+    const maxEnrich = typeof enrich === 'number' ? enrich : 5
 
     if (shouldEnrich) {
-      const maxEnrich = typeof enrich === 'number' ? enrich : 5
       const enriched = await enrichTopLeads(listings, scores, maxEnrich)
 
       listings = enriched.enrichedListings
