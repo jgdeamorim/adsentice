@@ -18,6 +18,7 @@ import type { ScoringInput, ScoreData, ScoreDistribution } from "@/lib/scoring"
 import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/scoring"
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
+import { vaultWriteBatch } from "@/lib/r2-vault"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -402,6 +403,12 @@ export async function POST(request: NextRequest) {
         l2_content_gaps,
       }
     })
+
+    // ═══ R2 VAULT (write-ahead — dados pagos salvos ANTES do Supabase) ═══
+    const searchIdForVault = `search_${Date.now().toString(36)}`
+    vaultWriteBatch(searchIdForVault, enrichedListings).then(r => {
+      if (r.succeeded > 0) console.log(`[r2-vault] ${r.succeeded}/${r.attempted} blobs saved`)
+    }).catch(() => {})
 
     saveDiscoverySearch({
       categories,
