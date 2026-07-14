@@ -321,10 +321,10 @@ return (
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <Card>
           <CardContent className='flex flex-col gap-2'>
-            <i className='ri-user-settings-line text-[24px] text-info' />
-            <Typography variant='h6'>Settings</Typography>
-            <Typography variant='body2'>Integrações, APIs, credenciais</Typography>
-            <Button size='small' variant='outlined' href={`/${lang}/admin/settings`} sx={{ mt: 1 }}>Configurar</Button>
+            <i className='ri-stack-line text-[24px] text-error' />
+            <Typography variant='h6'>Soluções</Typography>
+            <Typography variant='body2'>Nossos planos: Raio-X → Escala</Typography>
+            <Button size='small' variant='outlined' href={`/${lang}/admin/solutions`} sx={{ mt: 1 }}>Ver planos</Button>
           </CardContent>
         </Card>
       </Grid>
