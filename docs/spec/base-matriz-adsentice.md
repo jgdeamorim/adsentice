@@ -87,6 +87,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0013` | Build vs Buy — Estrategia de Integracao de APIs (8 gaps SGA) | ⬜ proposed (2026-07-14) |
 | `ADS.COR.adr.0014` | Arquitetura DevOps Cloud — Cloudflare + Railway + Supabase + Qdrant | ⬜ proposed (2026-07-14) |
 | `ADS.COR.adr.0016` | Adsentice Soberano — inteligencia EVO-API/rsxt absorvida em TypeScript (supercede 0014, 0015) | ⬜ proposed (2026-07-14) |
+| `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ⬜ proposed (2026-07-14) |
 
 ### ADS.COR.code — Código
 
