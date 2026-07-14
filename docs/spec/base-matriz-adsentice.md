@@ -3,9 +3,9 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.2.1"
+version: "1.3.0"
 date: 2026-07-11
-updated: 2026-07-13T14:30:00-03:00
+updated: 2026-07-14T20:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -87,14 +87,25 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0013` | Build vs Buy — Estrategia de Integracao de APIs (8 gaps SGA) | ⬜ proposed (2026-07-14) |
 | `ADS.COR.adr.0014` | Arquitetura DevOps Cloud — Cloudflare + Railway + Supabase + Qdrant | ⬜ proposed (2026-07-14) |
 | `ADS.COR.adr.0016` | Adsentice Soberano — inteligencia EVO-API/rsxt absorvida em TypeScript (supercede 0014, 0015) | ⬜ proposed (2026-07-14) |
-| `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ⬜ proposed (2026-07-14) |
-| `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (7 modulos) | ⬜ proposed (2026-07-14) |
+| `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ✅ accepted (2026-07-14) |
+| `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (7 modulos) | ✅ accepted (2026-07-14) |
+| `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
+
+### ADS.COR.design — Corpus de Design (embedado no Qdrant)
+
+| Rota | Descrição | Source Qdrant | Pontos | Status |
+|---|---|---|---|---|
+| `ADS.COR.design.open_design` | 150 estilos de design system (Apple, Stripe, Vercel, Tesla, Supabase, etc.) | `open-design/*` | ~600 | ✅ embedado |
+| `ADS.COR.design.magic_ui` | 247 componentes Magic UI (21st) — 77 exemplos + 23 componentes + 147 variações | `21st-magic-ui` | 247 | ✅ embedado |
+| `ADS.COR.design.total` | Total do corpus de design (open-design + 21st) | — | ~847 (36% do corpus) | ✅ vivo |
+
+Estes pontos estão no Qdrant `adsentice-self` (total: 2,364 pontos). Permitem query semântica cross-design: "quero um card com efeito spotlight e tema dark" → Magic Card + open-design/dark theme.
 
 ### ADS.COR.code — Código
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.COR.code.web` | Dashboard Next.js + Chat UI | `apps/web/` | ✅ vivo (80+ commits) |
+| `ADS.COR.code.web` | Dashboard admin (Next.js → migrando para Vite+React 19, ADR-0017) | `apps/web/` | ✅ vivo (80+ commits, migração pendente) |
 | `ADS.COR.code.scoring` | Scoring Engine — Fit×0.40+Engagement×0.35+Intent×0.25 · Schwartz classifier | `apps/web/src/lib/scoring.ts` | ✅ v1.0 · 480 linhas |
 | `ADS.COR.code.engine` | Admin dashboard data bridge (Redis :6396 · Qdrant :6352 · EVO-API :7700) | `apps/web/src/lib/engine.ts` | ✅ vivo · zero hardcoded |
 | `ADS.COR.code.discovery_page` | Discovery Engine UI — score composto + Schwartz chips + benchmark competitivo | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/discovery/page.tsx` | ✅ v0.2 |
@@ -117,7 +128,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 |---|---|---|---|
 | `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks lean, 3 skills) |
 | `ADS.COR.config.claudemd` | CLAUDE.md canônico | `CLAUDE.md` | ✅ vivo (recuperação pós-compact) |
-| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (7 servidores) |
+| `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (8 servidores: 4 Python + 2 npx ativos + 1 firecrawl + 1 disabled 21st) |
 | `ADS.COR.config.docker` | Infra local | `docker-compose.yml` | ✅ vivo (Redis :6396 + Qdrant :6352) |
 | `ADS.COR.config.pipeline` | Pipeline auto-compact (6 passos canônicos) | `tools/adsentice_pipeline_auto_compact.sh` | ✅ vivo (EVO-API pattern) |
 

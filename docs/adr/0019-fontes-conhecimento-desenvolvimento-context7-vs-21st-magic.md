@@ -108,10 +108,17 @@ Fonte: github.com/vercel/next.js/blob/canary/docs/... (atribuição exata)
 **Prós:** Zero dependência de MCP externos.
 **Contras:** Quebra o fluxo no terminal. Claude Code não tem acesso a docs atualizadas sem MCP. Latência maior (alternar terminal ↔ browser). Docs oficiais não são indexadas semanticamente.
 
-### C) Embedar componentes 21st no Qdrant (rejeitada)
+### C) Embedar componentes 21st no Qdrant ✅ (executada — 247 pontos embedados)
 
-**Prós:** Acesso offline, sem custo por chamada.
-**Contras:** Já embedamos 150 componentes open-design (624 chunks, corpus foi de 1,493 → 2,117). Adicionar mais 77 componentes do 21st diluiria o corpus sem ganho proporcional — os componentes são acessíveis sob demanda via MCP. Além disso, embedar código-fonte proprietário (Magic UI é pago) levanta questão de licenciamento.
+**Prós:** Acesso offline, sem custo por chamada. Query semântica cross-componente.
+**O que foi feito:** Na sessão de 2026-07-14 (pré-`/clear`), foram embedados **247 pontos** com source `21st-magic-ui` no `adsentice-self`:
+- **77 exemplos** (component_kind=example) — demos e variações dos componentes
+- **23 componentes** (component_kind=component) — código-fonte TypeScript dos componentes principais
+- **147 exemplos adicionais** — variações e combinações de componentes
+
+**Evidência:** Qdrant scroll com filtro `source=21st-magic-ui` retorna 100 pontos na primeira página. Total de 2,364 pontos no corpus, sendo 247 do 21st-magic (10.5% do corpus).
+
+**Risco de licenciamento:** Código-fonte de componentes embedados é de um produto comercial (Magic UI). Uso como referência/inspiração para design, não como código copiado diretamente em produção. Os componentes originais são instaláveis via `npx shadcn@latest add` para uso legítimo.
 
 ### D) Substituir 21st-magic por open-design MCP (avaliada, não implementada)
 
@@ -136,8 +143,9 @@ O open-design já tem 150 componentes embedados no Qdrant (commit `8c2ac71`). Um
 
 ### Neutras
 
-1. **open-design embedado no Qdrant** (150 componentes, 624 chunks) cobre design system patterns — complementa mas não substitui context7
-2. **21st-magic pode ser reabilitado** a qualquer momento editando `disabled: false` no `.mcp.json`
+1. **open-design embedado no Qdrant** (150 estilos, ~600 chunks) cobre design system patterns — complementa mas não substitui context7
+2. **21st-magic embedado no Qdrant** (247 pontos, source `21st-magic-ui`) — 77 exemplos + 23 componentes + 147 variações. Cobre animações, cards, botões, backgrounds. Acesso offline sem MCP
+3. **21st-magic MCP pode ser reabilitado** a qualquer momento editando `disabled: false` no `.mcp.json` para buscar novos componentes não embedados
 
 ## Matriz de uso por caso
 
@@ -145,13 +153,15 @@ O open-design já tem 150 componentes embedados no Qdrant (commit `8c2ac71`). Um
 |--------------------------|------------|---------------|
 | Criar dashboard com grid responsivo | **context7** | Tailwind docs — grid, responsive, sidebar |
 | Criar formulário de discovery (GMB URL input) | **context7** | shadcn/ui Form + React Hook Form patterns |
-| Integrar Supabase Auth (login SMB) | **context7** | Supabase SSR + Next.js 15 patterns |
+| Integrar Supabase Auth (login SMB) | **context7** | Supabase SSR + Auth patterns |
 | Criar tabela de leads/keywords | **context7** | shadcn/ui Table + TanStack Table docs |
-| Animar card de resultado de análise | **21st-magic** | Magic Card — spotlight effect |
-| Tela de loading/waiting (análise em progresso) | **21st-magic** | Particles, Meteors, Orbiting Circles |
-| Hero section da landing page | **21st-magic** | Animated Gradient Text, Bento Grid |
-| Server Actions para mutations | **context7** | Next.js 15 Server Actions + Zod + revalidatePath |
+| Animar card de resultado de análise | **21st-magic** | Magic Card — spotlight effect (247 pontos embedados) |
+| Tela de loading/waiting (análise em progresso) | **21st-magic** | Particles, Meteors, Orbiting Circles (embedados) |
+| Hero section da landing page | **21st-magic** | Animated Gradient Text, Bento Grid (embedados) |
+| API handlers e mutations | **context7** | Hono + Cloudflare Workers patterns |
 | Design tokens e tema Warp | **context7** | Tailwind CSS v4 + CSS custom properties |
+
+> **Nota:** Embora context7 retorne padrões Next.js (Server Actions, App Router), o frontend adsentice usa **Vite + React 19** (ADR-0017). Next.js é referência de padrões, não runtime. Backend usa Hono no Cloudflare Workers.
 
 ## Verificação (medido=verdade)
 
@@ -162,7 +172,10 @@ O open-design já tem 150 componentes embedados no Qdrant (commit `8c2ac71`). Um
 | 21st-magic tem 77 componentes | `listRegistryItems` retornou `total: 77` em 2026-07-14 |
 | 21st-magic não tem componentes de dados | `searchRegistryItems("form input table data")` retornou 4 resultados irrelevantes |
 | 21st-magic é pago | Documentado como "Magic e pago" no commit `8c2ac71` |
-| open-design tem 150 componentes embedados | Corpus adsentice-self: 1,493 → 2,117 (+624 chunks), commit `8c2ac71` |
+| **247 pontos 21st-magic embedados no Qdrant** | `adsentice-self` scroll com filtro `source=21st-magic-ui`: 100 pontos (1ª página). 77 exemplos + 23 componentes + 147 variações |
+| open-design tem 150 estilos embedados | Corpus adsentice-self: ~600 chunks com source `open-design/*` |
+| Corpus total adsentice-self: 2,364 pontos | `GET /collections/adsentice-self`: `points_count: 2364` |
+| Stack frontend é Vite, não Next.js (ADR-0017) | ADR-0017: "Adotamos React 19 + Vite + Tailwind CSS v4 + shadcn/ui. Next.js + MUI/Materio são removidos." |
 
 ---
 
