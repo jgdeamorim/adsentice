@@ -32,6 +32,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import Slider from '@mui/material/Slider'
 
+import { BR_CAPITALS, suggestRadiusByPop } from '@/lib/geo-data'
 
 // ── Scoring types (client-safe) ──
 interface ScoreData {
@@ -80,158 +81,6 @@ const SCHWARTZ_CHIPS = [
     example: '"Comece agora. Primeiro mês por R$47. Cancele quando quiser."',
   },
 ] as const
-
-// ── Geo Data ──
-// Top 3-5 cities per Brazilian state by population (IBGE 2024 estimates).
-// Real lat/lng coordinates for DataForSEO business_listings_search.
-const STATES: Record<string, { label: string; cities: Record<string, { lat: number; lng: number; label: string }> }> = {
-  'SP': { label: 'SP', cities: {
-    'sp-capital': { lat: -23.5505, lng: -46.6333, label: 'São Paulo (Capital)' },
-    'sp-guarulhos': { lat: -23.4538, lng: -46.5333, label: 'Guarulhos' },
-    'sp-campinas': { lat: -22.9056, lng: -47.0608, label: 'Campinas' },
-    'sp-sorocaba': { lat: -23.5015, lng: -47.4526, label: 'Sorocaba' },
-    'sp-ribeirao': { lat: -21.1767, lng: -47.8202, label: 'Ribeirão Preto' },
-    'sp-sjcampos': { lat: -23.1791, lng: -45.8872, label: 'São José dos Campos' },
-  }},
-  'RJ': { label: 'RJ', cities: {
-    'rj-capital': { lat: -22.9068, lng: -43.1729, label: 'Rio de Janeiro (Capital)' },
-    'rj-sgoncalo': { lat: -22.8269, lng: -43.0540, label: 'São Gonçalo' },
-    'rj-duquecaxias': { lat: -22.7858, lng: -43.3119, label: 'Duque de Caxias' },
-    'rj-novaiguacu': { lat: -22.7592, lng: -43.4509, label: 'Nova Iguaçu' },
-    'rj-niteroi': { lat: -22.8832, lng: -43.1034, label: 'Niterói' },
-  }},
-  'MG': { label: 'MG', cities: {
-    'mg-bh': { lat: -19.9167, lng: -43.9345, label: 'Belo Horizonte' },
-    'mg-uberlandia': { lat: -18.9186, lng: -48.2772, label: 'Uberlândia' },
-    'mg-contagem': { lat: -19.9317, lng: -44.0539, label: 'Contagem' },
-    'mg-juizdefora': { lat: -21.7642, lng: -43.3501, label: 'Juiz de Fora' },
-    'mg-montesclaros': { lat: -16.7350, lng: -43.8614, label: 'Montes Claros' },
-  }},
-  'PR': { label: 'PR', cities: {
-    'pr-curitiba': { lat: -25.4284, lng: -49.2733, label: 'Curitiba' },
-    'pr-londrina': { lat: -23.3103, lng: -51.1628, label: 'Londrina' },
-    'pr-maringa': { lat: -23.4253, lng: -51.9386, label: 'Maringá' },
-    'pr-pontagrossa': { lat: -25.0945, lng: -50.1633, label: 'Ponta Grossa' },
-    'pr-cascavel': { lat: -24.9555, lng: -53.4553, label: 'Cascavel' },
-  }},
-  'RS': { label: 'RS', cities: {
-    'rs-poa': { lat: -30.0346, lng: -51.2177, label: 'Porto Alegre' },
-    'rs-caxias': { lat: -29.1685, lng: -51.1794, label: 'Caxias do Sul' },
-    'rs-canoas': { lat: -29.9175, lng: -51.1833, label: 'Canoas' },
-    'rs-pelotas': { lat: -31.7719, lng: -52.3422, label: 'Pelotas' },
-    'rs-santamaria': { lat: -29.6842, lng: -53.8069, label: 'Santa Maria' },
-  }},
-  'SC': { label: 'SC', cities: {
-    'sc-floripa': { lat: -27.5969, lng: -48.5495, label: 'Florianópolis' },
-    'sc-joinville': { lat: -26.3045, lng: -48.8487, label: 'Joinville' },
-    'sc-blumenau': { lat: -26.9194, lng: -49.0661, label: 'Blumenau' },
-    'sc-chapeco': { lat: -27.0963, lng: -52.6186, label: 'Chapecó' },
-    'sc-itajai': { lat: -26.9078, lng: -48.6619, label: 'Itajaí' },
-  }},
-  'BA': { label: 'BA', cities: {
-    'ba-salvador': { lat: -12.9714, lng: -38.5014, label: 'Salvador' },
-    'ba-feiradesantana': { lat: -12.2520, lng: -38.9500, label: 'Feira de Santana' },
-    'ba-vitoriadaconquista': { lat: -14.8658, lng: -40.8391, label: 'Vitória da Conquista' },
-    'ba-camacari': { lat: -12.6974, lng: -38.3237, label: 'Camaçari' },
-    'ba-juazeiro': { lat: -9.4138, lng: -40.5031, label: 'Juazeiro' },
-  }},
-  'PE': { label: 'PE', cities: {
-    'pe-recife': { lat: -8.0476, lng: -34.8770, label: 'Recife' },
-    'pe-jaboatao': { lat: -8.1803, lng: -34.9814, label: 'Jaboatão dos Guararapes' },
-    'pe-olinda': { lat: -7.9940, lng: -34.8553, label: 'Olinda' },
-    'pe-caruaru': { lat: -8.2822, lng: -35.9759, label: 'Caruaru' },
-    'pe-petrolina': { lat: -9.3938, lng: -40.5078, label: 'Petrolina' },
-  }},
-  'CE': { label: 'CE', cities: {
-    'ce-fortaleza': { lat: -3.7172, lng: -38.5434, label: 'Fortaleza' },
-    'ce-caucaia': { lat: -3.7364, lng: -38.6531, label: 'Caucaia' },
-    'ce-juazeirodonorte': { lat: -7.2125, lng: -39.3150, label: 'Juazeiro do Norte' },
-    'ce-maracanau': { lat: -3.8761, lng: -38.6257, label: 'Maracanaú' },
-    'ce-sobral': { lat: -3.6875, lng: -40.3482, label: 'Sobral' },
-  }},
-  'DF': { label: 'DF', cities: {
-    'df-brasilia': { lat: -15.8267, lng: -47.9218, label: 'Brasília (Plano Piloto)' },
-    'df-taguatinga': { lat: -15.8333, lng: -48.0667, label: 'Taguatinga' },
-    'df-ceilandia': { lat: -15.8167, lng: -48.1167, label: 'Ceilândia' },
-    'df-samambaia': { lat: -15.8667, lng: -48.0833, label: 'Samambaia' },
-    'df-aguasclaras': { lat: -15.8500, lng: -48.0500, label: 'Águas Claras' },
-  }},
-  'GO': { label: 'GO', cities: {
-    'go-goiania': { lat: -16.6869, lng: -49.2648, label: 'Goiânia' },
-    'go-aparecida': { lat: -16.8233, lng: -49.2442, label: 'Aparecida de Goiânia' },
-    'go-anapolis': { lat: -16.3267, lng: -48.9528, label: 'Anápolis' },
-    'go-rioverde': { lat: -17.7950, lng: -50.9192, label: 'Rio Verde' },
-    'go-luziania': { lat: -16.2528, lng: -47.9500, label: 'Luziânia' },
-  }},
-  'AM': { label: 'AM', cities: {
-    'am-manaus': { lat: -3.1190, lng: -60.0217, label: 'Manaus' },
-    'am-parintins': { lat: -2.6278, lng: -56.7358, label: 'Parintins' },
-    'am-itacoatiara': { lat: -3.1428, lng: -58.4439, label: 'Itacoatiara' },
-    'am-manacapuru': { lat: -3.3000, lng: -60.6206, label: 'Manacapuru' },
-  }},
-  'PA': { label: 'PA', cities: {
-    'pa-belem': { lat: -1.4550, lng: -48.5024, label: 'Belém' },
-    'pa-ananindeua': { lat: -1.3661, lng: -48.3722, label: 'Ananindeua' },
-    'pa-santarem': { lat: -2.4431, lng: -54.7083, label: 'Santarém' },
-    'pa-maraba': { lat: -5.3686, lng: -49.1175, label: 'Marabá' },
-  }},
-  'ES': { label: 'ES', cities: {
-    'es-vitoria': { lat: -20.3155, lng: -40.3128, label: 'Vitória' },
-    'es-vilavelha': { lat: -20.3297, lng: -40.2925, label: 'Vila Velha' },
-    'es-serra': { lat: -20.1286, lng: -40.3078, label: 'Serra' },
-    'es-cariacica': { lat: -20.2642, lng: -40.4199, label: 'Cariacica' },
-    'es-cachoeiro': { lat: -20.8475, lng: -41.1133, label: 'Cachoeiro de Itapemirim' },
-  }},
-  'MT': { label: 'MT', cities: {
-    'mt-cuiaba': { lat: -15.6010, lng: -56.0974, label: 'Cuiabá' },
-    'mt-varzeagrande': { lat: -15.6458, lng: -56.1325, label: 'Várzea Grande' },
-    'mt-rondonopolis': { lat: -16.4692, lng: -54.6358, label: 'Rondonópolis' },
-    'mt-sinop': { lat: -11.8603, lng: -55.5027, label: 'Sinop' },
-  }},
-  'MS': { label: 'MS', cities: {
-    'ms-cg': { lat: -20.4697, lng: -54.6201, label: 'Campo Grande' },
-    'ms-dourados': { lat: -22.2211, lng: -54.8056, label: 'Dourados' },
-    'ms-treslagoas': { lat: -20.7511, lng: -51.6781, label: 'Três Lagoas' },
-    'ms-corumba': { lat: -19.0092, lng: -57.6540, label: 'Corumbá' },
-  }},
-  'RN': { label: 'RN', cities: {
-    'rn-natal': { lat: -5.7793, lng: -35.2009, label: 'Natal' },
-    'rn-mossoro': { lat: -5.1875, lng: -37.3444, label: 'Mossoró' },
-    'rn-parnamirim': { lat: -5.9158, lng: -35.2628, label: 'Parnamirim' },
-    'rn-sgoncalo': { lat: -5.7922, lng: -35.3294, label: 'São Gonçalo do Amarante' },
-  }},
-  'PB': { label: 'PB', cities: {
-    'pb-joaopessoa': { lat: -7.1195, lng: -34.8450, label: 'João Pessoa' },
-    'pb-campinagrande': { lat: -7.2300, lng: -35.8811, label: 'Campina Grande' },
-    'pb-santarita': { lat: -7.1322, lng: -34.9758, label: 'Santa Rita' },
-    'pb-patos': { lat: -7.0236, lng: -37.2797, label: 'Patos' },
-  }},
-  'AL': { label: 'AL', cities: {
-    'al-maceio': { lat: -9.6658, lng: -35.7353, label: 'Maceió' },
-    'al-arapiraca': { lat: -9.7525, lng: -36.6611, label: 'Arapiraca' },
-    'al-riolargo': { lat: -9.4826, lng: -35.8531, label: 'Rio Largo' },
-    'al-palmeiradosindios': { lat: -9.4069, lng: -36.6281, label: 'Palmeira dos Índios' },
-  }},
-  'SE': { label: 'SE', cities: {
-    'se-aracaju': { lat: -10.9472, lng: -37.0731, label: 'Aracaju' },
-    'se-nossasenhora': { lat: -10.9333, lng: -37.1000, label: 'Nossa Senhora do Socorro' },
-    'se-lagarto': { lat: -10.9133, lng: -37.6689, label: 'Lagarto' },
-    'se-itabaiana': { lat: -10.6839, lng: -37.4306, label: 'Itabaiana' },
-  }},
-  'MA': { label: 'MA', cities: {
-    'ma-saoluis': { lat: -2.5307, lng: -44.3068, label: 'São Luís' },
-    'ma-imperatriz': { lat: -5.5264, lng: -47.4781, label: 'Imperatriz' },
-    'ma-sjribamar': { lat: -2.5608, lng: -44.0603, label: 'São José de Ribamar' },
-    'ma-timon': { lat: -5.0942, lng: -42.8375, label: 'Timon' },
-    'ma-caxias': { lat: -4.8652, lng: -43.3560, label: 'Caxias' },
-  }},
-  'PI': { label: 'PI', cities: {
-    'pi-teresina': { lat: -5.0892, lng: -42.8016, label: 'Teresina' },
-    'pi-parnaiba': { lat: -2.9047, lng: -41.7767, label: 'Parnaíba' },
-    'pi-picos': { lat: -7.0764, lng: -41.4667, label: 'Picos' },
-    'pi-piripiri': { lat: -4.2733, lng: -41.7769, label: 'Piripiri' },
-  }},
-}
 
 const CATS = [
   // ═══ Saúde (nicho primário adsentice) ═══
@@ -339,10 +188,12 @@ const DiscoveryPage = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { lang: _lang } = useParams() as { lang: string }
 
-  // ── Geo ──
+  // ── Geo (dinâmico: 27 capitais BR + raio adaptável por população) ──
   const [stateKey, setStateKey] = useState('SP')
-  const [cityKey, setCityKey] = useState('sp-capital')
-  const [radius, setRadius] = useState(10)
+  const [cityLat, setCityLat] = useState(-23.5505)
+  const [cityLng, setCityLng] = useState(-46.6333)
+  const [cityLabel, setCityLabel] = useState('São Paulo (SP)')
+  const [radius, setRadius] = useState(25)
   const [selected, setSelected] = useState<string[]>([])
 
   // ── Score Filters (v0.2) ──
@@ -383,14 +234,10 @@ const DiscoveryPage = () => {
     if (offsetOverride !== undefined) setSearchOffset(offsetOverride)
 
     try {
-      const city = STATES[stateKey]?.cities[cityKey]
-
-      if (!city) return
-
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          categories: selected, lat: city.lat, lng: city.lng, radiusKm: radius,
+          categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
           limit: 50, force, enrich: 50, // todos os leads com L1 (27 campos, contato)
           order_by: searchOrderBy ? [searchOrderBy] : undefined,
           offset: searchOffset,
@@ -415,20 +262,21 @@ const DiscoveryPage = () => {
       setSortDir('desc')
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
-  }, [selected, stateKey, cityKey, radius])
+  }, [selected, stateKey, cityLat, cityLng, radius])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
 
-  const changeState = (s: string) => {
-    setStateKey(s)
-    const firstCity = Object.keys(STATES[s].cities)[0]
-
-    setCityKey(firstCity)
+  const changeCapital = (c: typeof BR_CAPITALS[0]) => {
+    setStateKey(c.uf)
+    setCityLat(c.lat)
+    setCityLng(c.lng)
+    setCityLabel(`${c.label} (${c.uf})`)
+    const r = suggestRadiusByPop(c.pop)
+    setRadius(r.radiusKm)
   }
 
-  const changeCity = (c: string) => { setCityKey(c) }
   const changeRadius = (r: number) => { setRadius(r) }
 
   // ═══ Score-based sorting + filtering ═══
@@ -567,29 +415,30 @@ return arr
         </Box>
       </Grid>
 
-      {/* ═══ GEO ═══ */}
+      {/* ═══ GEO (27 capitais BR · raio adaptável por população) ═══ */}
       <Grid size={{ xs: 12 }}>
         <Card><CardContent>
-          <Typography variant='subtitle2' fontWeight={600} gutterBottom>🌎 Localização</Typography>
-          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Estado:</Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-            {Object.keys(STATES).map(k => (
-              <Chip key={k} label={STATES[k].label} clickable size='small'
-                color={stateKey === k ? 'primary' : 'default'}
-                variant={stateKey === k ? 'filled' : 'outlined'} onClick={() => changeState(k)} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant='subtitle2' fontWeight={600}>🌎 {cityLabel}</Typography>
+            <Chip label={`${radius}km raio`} size='small' color='warning' variant='tonal' />
+          </Box>
+          <Typography variant='caption' color='text.secondary' sx={{ mb: 1, display: 'block' }}>
+            27 capitais · Raio automático por população · Cidades grandes = raio maior
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
+            {BR_CAPITALS.map(c => (
+              <Chip key={c.uf} label={c.uf} clickable size='small'
+                color={stateKey === c.uf ? 'primary' : 'default'}
+                variant={stateKey === c.uf ? 'filled' : 'outlined'}
+                onClick={() => changeCapital(c)}
+                sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400 }} />
             ))}
           </Box>
-          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Cidade:</Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-            {Object.entries(STATES[stateKey]?.cities || {}).map(([k, v]) => (
-              <Chip key={k} label={v.label} clickable size='small'
-                color={cityKey === k ? 'primary' : 'default'}
-                variant={cityKey === k ? 'filled' : 'outlined'} onClick={() => changeCity(k)} />
-            ))}
-          </Box>
-          <Typography variant='caption' color='text.secondary' gutterBottom component='div' sx={{ mb: 0.5 }}>Raio (km):</Typography>
+          <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
+            Raio: {suggestRadiusByPop(BR_CAPITALS.find(c => c.uf === stateKey)?.pop || 0).label}
+          </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            {[1, 3, 5, 10, 15, 25].map(r => (
+            {[5, 10, 15, 20, 25, 30].map(r => (
               <Chip key={r} label={`${r}km`} clickable size='small'
                 color={radius === r ? 'primary' : 'default'}
                 variant={radius === r ? 'filled' : 'outlined'} onClick={() => changeRadius(r)} />
@@ -785,7 +634,7 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
             Você está prestes a fazer uma chamada <strong>LIVE</strong> ao DataForSEO.
           </Typography>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
-            <Typography variant='body2'>📍 <strong>{STATES[stateKey]?.cities[cityKey]?.label || stateKey}</strong> · {radius}km raio</Typography>
+            <Typography variant='body2'>📍 <strong>{cityLabel}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
               💰 Custo estimado: <strong>${(estimatedCost + 0.27).toFixed(4)}</strong> (R${((estimatedCost + 0.27) * 5.5).toFixed(2)})
