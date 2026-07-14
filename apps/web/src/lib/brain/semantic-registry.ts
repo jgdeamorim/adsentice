@@ -185,3 +185,9 @@ export async function registryResolve(query: RegistryQuery): Promise<RegistryRes
 }
 
 export function ensureSeeded() { if (!_seeded) { seedRegistry(); _seeded = true } }
+
+/** Export all nodes for SGA health scoring. */
+export function getAllNodes(): SemanticNode[] {
+  ensureSeeded()
+  return [...NODE_DB.values()]
+}
