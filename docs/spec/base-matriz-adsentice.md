@@ -80,6 +80,8 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0006` | EVO-API as Data Engine | ✅ accepted (2026-07-11) |
 | `ADS.COR.adr.0007` | MVP Simplification | ✅ accepted (2026-07-11) |
 | `ADS.COR.adr.0008` | EVO-API como Motor de Enriquecimento Completo (76 caps → L0-L4) | ✅ accepted (2026-07-13) |
+| `ADS.COR.adr.0009` | Market Intelligence Engine (lead-level → market-level) | ✅ accepted (2026-07-13) |
+| `ADS.COR.adr.0010` | Cloudflare Free Tier como Plataforma Enterprise (Workers+D1+Queues+R2) | ✅ accepted (2026-07-13) |
 
 ### ADS.COR.code — Código
 
@@ -367,7 +369,9 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v023 | 2026-07-13 | lead-detail-modal-popup-32-campos-6-secoes | `leads/LeadTable.tsx` (commit 66808eb) — Client component com Dialog, identidade/localizacao/contato/reputacao/score/sinais | ✅ vivo |
 | v024 | 2026-07-13 | costs-page-dados-reais-supabase-rate-limits-dataforseo | `costs/page.tsx` (commit bcaf8f0) — Custos do Supabase ($0.60 total), rate limits API real-time, precos verificados | ✅ vivo |
 | v025 | 2026-07-13 | adr-0008-evo-api-enriquecimento-completo-l0-l4-76-capabilities | `docs/adr/0008-evo-api-enriquecimento-completo-l0-l4.md` — Decisao arquitetural: EVO-API como motor L0-L4, 76 caps mapeadas, roadmap v0.3→v0.5 | ✅ accepted |
+| v026 | 2026-07-13 | adr-0009-market-intelligence-engine | `docs/adr/0009-market-intelligence-engine.md` — lead-level → market-level, agregacao por categoria×regiao (ZERO APIs) | ✅ accepted |
+| v027 | 2026-07-13 | adr-0010-cloudflare-free-tier-enterprise | `docs/adr/0010-cloudflare-free-tier-enterprise.md` — Workers+D1+Queues+R2+KV como plataforma enterprise ($0) | ✅ accepted |
 
 ---
 
-*Base-Matriz adsentice v1.2.1 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · ADR-0008 (76 caps L0-L4) · 100 leads (SP+RJ) · $0.60 DataForSEO · 704 corpus · 727 conversation · 25 changelog · 8 ADRs · Supabase pg Pool · Cloudflare R2*
+*Base-Matriz adsentice v1.3.0 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · ADR-0008/0009/0010 (3 novos) · Enrichment Engine v0.4 (37 sinais, 9 dimensoes) · Market Intelligence v0.6 · Geo Resolver (27 capitais) · R2 Vault wireado · Cron semanal · 723 corpus · 740 conversation · 27 changelog · 10 ADRs · Supabase pg Pool · Cloudflare R2+Workers+D1+Queues*
