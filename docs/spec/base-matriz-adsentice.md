@@ -86,6 +86,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0012` | Estrategia por Categoria/Nicho — cada segmento tem seu proprio ecossistema | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0013` | Build vs Buy — Estrategia de Integracao de APIs (8 gaps SGA) | ⬜ proposed (2026-07-14) |
 | `ADS.COR.adr.0014` | Arquitetura DevOps Cloud — Cloudflare + Railway + Supabase + Qdrant | ⬜ proposed (2026-07-14) |
+| `ADS.COR.adr.0015` | Arquitetura Real Rust — EVO-API (Axum) + rsxt + Cloudflare + Railway (supercede 0014) | ⬜ proposed (2026-07-14) |
 
 ### ADS.COR.code — Código
 
