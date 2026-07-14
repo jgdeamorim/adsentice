@@ -1,0 +1,542 @@
+/* ═══════════════════════════════════════════════════════════════════
+   ADSENTICE · TOKENS.CSS v1.0
+   Design System Warp — Fonte única da verdade visual
+
+   Compatibilidade: Tailwind CSS v4 + shadcn/ui v4
+   Formato: oklch() — perceptual uniformity, P3 gamut, dark mode nativo
+   Referências:
+     - shadcn/ui v4 theming spec (40 tokens semânticos)
+     - Materio design tokens (36 tokens, 6 categorias)
+     - open-design: Stripe (shadow layers), Intercom (4px geometry),
+       Vercel (shadow-as-border), Linear (dark precision),
+       Supabase (emerald accent), PostHog (warm sage)
+     - Tailwind CSS v4 @theme inline pattern
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 0 · OKLCH PALETTE (primitives)
+   Escalas completas de cor em oklch — gera utilitários Tailwind nativos
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* ── Coral (identidade adsentice) ── */
+  --color-coral-50:  oklch(0.97 0.015 28);
+  --color-coral-100: oklch(0.94 0.035 28);
+  --color-coral-200: oklch(0.89 0.065 28);
+  --color-coral-300: oklch(0.82 0.105 28);
+  --color-coral-400: oklch(0.74 0.148 28);
+  --color-coral-500: oklch(0.67 0.185 28);   /* #f9603f · brand */
+  --color-coral-600: oklch(0.58 0.175 28);
+  --color-coral-700: oklch(0.48 0.148 28);
+  --color-coral-800: oklch(0.38 0.115 28);
+  --color-coral-900: oklch(0.28 0.078 28);
+  --color-coral-950: oklch(0.19 0.042 28);
+
+  /* ── Stone (neutro quente · Materio) ── */
+  --color-stone-50:  oklch(0.985 0.001 106);
+  --color-stone-100: oklch(0.97 0.001 106);
+  --color-stone-200: oklch(0.923 0.003 48);
+  --color-stone-300: oklch(0.869 0.005 56);
+  --color-stone-400: oklch(0.709 0.01 56);
+  --color-stone-500: oklch(0.553 0.013 58);
+  --color-stone-600: oklch(0.444 0.011 73);
+  --color-stone-700: oklch(0.374 0.01 67);
+  --color-stone-800: oklch(0.268 0.007 34);
+  --color-stone-900: oklch(0.216 0.006 56);
+  --color-stone-950: oklch(0.147 0.004 49);
+
+  /* ── Sage (pastel verde · Materio + PostHog) ── */
+  --color-sage-50:  oklch(0.985 0.005 155);
+  --color-sage-100: oklch(0.96 0.012 155);
+  --color-sage-200: oklch(0.93 0.02 155);
+  --color-sage-300: oklch(0.88 0.03 155);
+  --color-sage-400: oklch(0.78 0.04 155);
+  --color-sage-500: oklch(0.65 0.055 155);
+  --color-sage-600: oklch(0.52 0.045 155);
+  --color-sage-700: oklch(0.42 0.035 155);
+  --color-sage-800: oklch(0.30 0.022 155);
+  --color-sage-900: oklch(0.22 0.015 155);
+  --color-sage-950: oklch(0.14 0.008 155);
+
+  /* ── Amber (pastel quente · Materio) ── */
+  --color-amber-50:  oklch(0.987 0.015 85);
+  --color-amber-100: oklch(0.97 0.035 85);
+  --color-amber-200: oklch(0.94 0.06 85);
+  --color-amber-300: oklch(0.89 0.09 85);
+  --color-amber-400: oklch(0.82 0.12 80);
+  --color-amber-500: oklch(0.75 0.14 78);
+  --color-amber-600: oklch(0.63 0.12 70);
+  --color-amber-700: oklch(0.50 0.10 62);
+  --color-amber-800: oklch(0.38 0.07 55);
+  --color-amber-900: oklch(0.27 0.05 48);
+  --color-amber-950: oklch(0.17 0.03 42);
+
+  /* ── Mint (pastel verde-azulado · Materio) ── */
+  --color-mint-50:  oklch(0.985 0.008 170);
+  --color-mint-100: oklch(0.96 0.02 170);
+  --color-mint-200: oklch(0.93 0.035 170);
+  --color-mint-300: oklch(0.88 0.05 170);
+  --color-mint-400: oklch(0.78 0.065 170);
+  --color-mint-500: oklch(0.66 0.075 170);
+  --color-mint-600: oklch(0.53 0.06 170);
+  --color-mint-700: oklch(0.43 0.048 170);
+  --color-mint-800: oklch(0.31 0.032 170);
+  --color-mint-900: oklch(0.23 0.022 170);
+  --color-mint-950: oklch(0.15 0.012 170);
+
+  /* ── Navy (profundidade · Stripe + Intercom) ── */
+  --color-navy-50:  oklch(0.98 0.005 260);
+  --color-navy-100: oklch(0.95 0.012 260);
+  --color-navy-200: oklch(0.90 0.025 260);
+  --color-navy-300: oklch(0.83 0.04 260);
+  --color-navy-400: oklch(0.70 0.06 260);
+  --color-navy-500: oklch(0.55 0.08 260);
+  --color-navy-600: oklch(0.44 0.07 260);
+  --color-navy-700: oklch(0.33 0.055 260);
+  --color-navy-800: oklch(0.22 0.038 260);
+  --color-navy-900: oklch(0.15 0.025 260);
+  --color-navy-950: oklch(0.09 0.015 260);
+
+  /* ── Chart palette (5 data colors · shadcn spec) ── */
+  --color-chart-1: oklch(0.646 0.222 41);     /* coral data */
+  --color-chart-2: oklch(0.60 0.118 184);      /* teal data */
+  --color-chart-3: oklch(0.398 0.07 227);      /* navy data */
+  --color-chart-4: oklch(0.828 0.189 84);      /* amber data */
+  --color-chart-5: oklch(0.769 0.188 70);      /* warm data */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 1 · SEMANTIC TOKENS (shadcn/ui v4 spec)
+   Mapeamento semântico → primitivas. Light + Dark mode.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surface system ── */
+  --background: oklch(0.985 0.001 106);           /* stone-50 */
+  --foreground: oklch(0.147 0.004 49);            /* stone-950 */
+  --card: oklch(1 0 0);                            /* white */
+  --card-foreground: oklch(0.147 0.004 49);       /* stone-950 */
+  --popover: oklch(1 0 0);                         /* white */
+  --popover-foreground: oklch(0.147 0.004 49);    /* stone-950 */
+
+  /* ── Brand / Primary ── */
+  --primary: oklch(0.67 0.185 28);                /* coral-500 */
+  --primary-foreground: oklch(0.985 0.001 106);   /* stone-50 */
+
+  /* ── Surface variations ── */
+  --secondary: oklch(0.96 0.005 155);             /* sage-100 */
+  --secondary-foreground: oklch(0.22 0.015 155);  /* sage-900 */
+  --muted: oklch(0.97 0.001 106);                 /* stone-100 */
+  --muted-foreground: oklch(0.553 0.013 58);      /* stone-500 */
+
+  /* ── Accent (interactive) ── */
+  --accent: oklch(0.97 0.035 85);                 /* amber-100 */
+  --accent-foreground: oklch(0.27 0.05 48);       /* amber-900 */
+
+  /* ── Feedback ── */
+  --destructive: oklch(0.577 0.245 27);           /* red */
+  --destructive-foreground: oklch(0.985 0.001 106);
+  --success: oklch(0.65 0.055 155);               /* sage-500 */
+  --success-foreground: oklch(0.985 0.001 106);
+  --warning: oklch(0.75 0.14 78);                 /* amber-500 */
+  --warning-foreground: oklch(0.17 0.03 42);      /* amber-950 */
+  --info: oklch(0.55 0.08 260);                   /* navy-500 */
+  --info-foreground: oklch(0.985 0.001 106);
+
+  /* ── Borders & Inputs ── */
+  --border: oklch(0.923 0.003 48);                /* stone-200 */
+  --input: oklch(0.923 0.003 48);                 /* stone-200 */
+  --ring: oklch(0.67 0.185 28);                   /* coral-500 */
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(0.985 0.001 106);              /* stone-50 */
+  --sidebar-foreground: oklch(0.147 0.004 49);    /* stone-950 */
+  --sidebar-primary: oklch(0.67 0.185 28);        /* coral-500 */
+  --sidebar-primary-foreground: oklch(0.985 0.001 106);
+  --sidebar-accent: oklch(0.97 0.001 106);        /* stone-100 */
+  --sidebar-accent-foreground: oklch(0.147 0.004 49);
+  --sidebar-border: oklch(0.923 0.003 48);        /* stone-200 */
+  --sidebar-ring: oklch(0.67 0.185 28);           /* coral-500 */
+
+  /* ── Base radius (Stripe 12px · Intercom 4px) ── */
+  --radius: 0.5rem;                               /* 8px — profissional sem ser agressivo */
+
+  /* ── Shadows (Stripe multi-layer philosophy) ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.05), 0 4px 6px rgba(0,0,0,0.03);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.06), 0 8px 10px rgba(0,0,0,0.03);
+  --shadow-2xl: 0 25px 50px rgba(0,0,0,0.08);
+  --shadow-card: 0 0 0 1px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 1b · DARK MODE (Linear + Supabase precision)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.dark {
+  /* ── Surface system ── */
+  --background: oklch(0.09 0.015 260);            /* navy-950 — deep, não preto puro */
+  --foreground: oklch(0.97 0.001 106);            /* stone-100 */
+  --card: oklch(0.13 0.018 260);                  /* entre navy-900 e 950 */
+  --card-foreground: oklch(0.97 0.001 106);
+  --popover: oklch(0.15 0.025 260);               /* navy-900 */
+  --popover-foreground: oklch(0.97 0.001 106);
+
+  /* ── Brand / Primary ── */
+  --primary: oklch(0.74 0.148 28);                /* coral-400 — mais claro no dark */
+  --primary-foreground: oklch(0.09 0.015 260);    /* navy-950 */
+
+  /* ── Surface variations ── */
+  --secondary: oklch(0.22 0.038 260);             /* navy-800 */
+  --secondary-foreground: oklch(0.97 0.001 106);
+  --muted: oklch(0.22 0.038 260);                 /* navy-800 */
+  --muted-foreground: oklch(0.709 0.01 56);       /* stone-400 */
+
+  /* ── Accent (interactive) ── */
+  --accent: oklch(0.22 0.038 260);                /* navy-800 */
+  --accent-foreground: oklch(0.97 0.001 106);
+
+  /* ── Feedback ── */
+  --destructive: oklch(0.40 0.18 22);             /* red dim */
+  --destructive-foreground: oklch(0.97 0.001 106);
+  --success: oklch(0.42 0.035 155);               /* sage-700 */
+  --success-foreground: oklch(0.97 0.001 106);
+  --warning: oklch(0.50 0.10 62);                 /* amber-700 */
+  --warning-foreground: oklch(0.987 0.015 85);    /* amber-50 */
+  --info: oklch(0.70 0.06 260);                   /* navy-400 */
+  --info-foreground: oklch(0.09 0.015 260);
+
+  /* ── Borders & Inputs ── */
+  --border: oklch(1 0 0 / 0.08);                 /* white 8% — Linear pattern */
+  --input: oklch(1 0 0 / 0.10);
+  --ring: oklch(0.74 0.148 28);                   /* coral-400 */
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(0.09 0.015 260);               /* navy-950 */
+  --sidebar-foreground: oklch(0.97 0.001 106);
+  --sidebar-primary: oklch(0.74 0.148 28);        /* coral-400 */
+  --sidebar-primary-foreground: oklch(0.09 0.015 260);
+  --sidebar-accent: oklch(0.22 0.038 260);        /* navy-800 */
+  --sidebar-accent-foreground: oklch(0.97 0.001 106);
+  --sidebar-border: oklch(1 0 0 / 0.08);
+  --sidebar-ring: oklch(0.74 0.148 28);           /* coral-400 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 2 · RADIUS SCALE (derivado de --radius)
+   shadcn/ui v4 spec
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --radius-sm:  calc(var(--radius) * 0.6);       /* 4.8px — chips, badges */
+  --radius-md:  calc(var(--radius) * 0.8);       /* 6.4px — inputs, selects */
+  --radius-lg:  var(--radius);                    /* 8px — cards, dialogs */
+  --radius-xl:  calc(var(--radius) * 1.4);       /* 11.2px — modals */
+  --radius-2xl: calc(var(--radius) * 1.8);       /* 14.4px — sheets */
+  --radius-3xl: calc(var(--radius) * 2.2);       /* 17.6px — large containers */
+  --radius-4xl: calc(var(--radius) * 2.6);       /* 20.8px — full-screen */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 3 · TIPOGRAFIA (escala modular · 4 fontes)
+   Materio + Intercom (Saans) + Vercel (Geist) + Supabase (mono)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* ── Font families ── */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* ── Font sizes (escala modular 1.25) ── */
+  --text-xs:    0.75rem;     /* 12px · caption */
+  --text-sm:    0.875rem;    /* 14px · body small */
+  --text-base:  1rem;        /* 16px · body */
+  --text-lg:    1.125rem;    /* 18px · body large */
+  --text-xl:    1.25rem;     /* 20px · subhead */
+  --text-2xl:   1.5rem;      /* 24px · h4 */
+  --text-3xl:   1.875rem;    /* 30px · h3 */
+  --text-4xl:   2.25rem;     /* 36px · h2 */
+  --text-5xl:   3rem;        /* 48px · h1 */
+  --text-6xl:   3.75rem;     /* 60px · hero */
+  --text-7xl:   4.5rem;      /* 72px · hero display */
+
+  /* ── Font weights (Inter variable) ── */
+  --font-weight-light:    300;
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --font-weight-extrabold:800;
+
+  /* ── Line heights ── */
+  --leading-none:    1;
+  --leading-tight:   1.25;
+  --leading-snug:    1.375;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose:   2;
+
+  /* ── Letter spacing ── */
+  --tracking-tighter: -0.05em;
+  --tracking-tight:   -0.025em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.025em;
+  --tracking-wider:   0.05em;
+  --tracking-widest:  0.1em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 4 · SPACING SCALE
+   Base 4px (Materio) com escala consistente
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --spacing-0:  0;
+  --spacing-px: 1px;
+  --spacing-0_5: 0.125rem;  /* 2px */
+  --spacing-1:  0.25rem;    /* 4px */
+  --spacing-1_5: 0.375rem;  /* 6px */
+  --spacing-2:  0.5rem;     /* 8px */
+  --spacing-2_5: 0.625rem;  /* 10px */
+  --spacing-3:  0.75rem;    /* 12px */
+  --spacing-3_5: 0.875rem;  /* 14px */
+  --spacing-4:  1rem;       /* 16px · card padding */
+  --spacing-5:  1.25rem;    /* 20px */
+  --spacing-6:  1.5rem;     /* 24px */
+  --spacing-7:  1.75rem;    /* 28px */
+  --spacing-8:  2rem;       /* 32px · section padding */
+  --spacing-9:  2.25rem;    /* 36px */
+  --spacing-10: 2.5rem;     /* 40px */
+  --spacing-11: 2.75rem;    /* 44px */
+  --spacing-12: 3rem;       /* 48px */
+  --spacing-14: 3.5rem;     /* 56px */
+  --spacing-16: 4rem;       /* 64px */
+  --spacing-20: 5rem;       /* 80px */
+  --spacing-24: 6rem;       /* 96px */
+  --spacing-28: 7rem;       /* 112px */
+  --spacing-32: 8rem;       /* 128px */
+  --spacing-36: 9rem;       /* 144px */
+  --spacing-40: 10rem;      /* 160px */
+  --spacing-44: 11rem;      /* 176px */
+  --spacing-48: 12rem;      /* 192px */
+  --spacing-52: 13rem;      /* 208px */
+  --spacing-56: 14rem;      /* 224px */
+  --spacing-60: 15rem;      /* 240px */
+  --spacing-64: 16rem;      /* 256px */
+  --spacing-72: 18rem;      /* 288px */
+  --spacing-80: 20rem;      /* 320px */
+  --spacing-96: 24rem;      /* 384px */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 5 · SHADOWS (Stripe multi-layer philosophy)
+   7 níveis de elevação + shadow-as-border (Vercel pattern)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* via shadow-* Tailwind utilities */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 6 · ANIMATION & EASING
+   Motion One (5 KB) + CSS native
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* ── Duration ── */
+  --duration-fast:    150ms;
+  --duration-normal:  250ms;
+  --duration-slow:    350ms;
+  --duration-slower:  500ms;
+  --duration-slowest: 800ms;
+
+  /* ── Easing curves (Tailwind v4 spec) ── */
+  --ease-fluid:  cubic-bezier(0.3, 0, 0, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* bounce suave */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Animation keyframes ── */
+  --animate-fade-in:      fade-in      var(--duration-normal) var(--ease-snappy);
+  --animate-fade-out:     fade-out     var(--duration-normal) var(--ease-snappy);
+  --animate-scale-in:     scale-in     var(--duration-normal) var(--ease-spring);
+  --animate-slide-up:     slide-up     var(--duration-normal) var(--ease-snappy);
+  --animate-slide-down:   slide-down   var(--duration-normal) var(--ease-snappy);
+  --animate-slide-left:   slide-left   var(--duration-normal) var(--ease-snappy);
+  --animate-slide-right:  slide-right  var(--duration-normal) var(--ease-snappy);
+
+  /* ── Reduced motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    --duration-fast:    0ms;
+    --duration-normal:  0ms;
+    --duration-slow:    0ms;
+    --duration-slower:  0ms;
+    --duration-slowest: 0ms;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 7 · BREAKPOINTS (mobile-first)
+   Tailwind v4 defaults + 3xl extra
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --breakpoint-sm:  40rem;   /* 640px  · mobile landscape */
+  --breakpoint-md:  48rem;   /* 768px  · tablet */
+  --breakpoint-lg:  64rem;   /* 1024px · desktop */
+  --breakpoint-xl:  80rem;   /* 1280px · desktop wide */
+  --breakpoint-2xl: 96rem;   /* 1536px · desktop HD */
+  --breakpoint-3xl: 120rem;  /* 1920px · desktop 4K */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 8 · Z-INDEX SCALE
+   Sistema previsível de camadas
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --z-0:     0;
+  --z-base:  1;
+  --z-dropdown:  100;
+  --z-sticky:    200;
+  --z-overlay:   300;
+  --z-modal:     400;
+  --z-popover:   500;
+  --z-tooltip:   600;
+  --z-toast:     700;
+  --z-max:       999;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CAMADA 9 · SEMÂNTICA ADSENTICE (tokens de domínio)
+   Mapeamento negócio → design
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Scoring engine ── */
+  --score-excellent: oklch(0.65 0.055 155);       /* sage-500 · 80-100 */
+  --score-good:      oklch(0.55 0.08 260);        /* navy-500 · 60-79 */
+  --score-fair:      oklch(0.75 0.14 78);         /* amber-500 · 40-59 */
+  --score-poor:      oklch(0.577 0.245 27);       /* red · 0-39 */
+  --score-null:      oklch(0.709 0.01 56);        /* stone-400 · sem dados */
+
+  /* ── Schwartz awareness levels ── */
+  --schwartz-unaware:     oklch(0.869 0.005 56);  /* stone-300 · cinza */
+  --schwartz-aware:       oklch(0.55 0.08 260);   /* navy-500 · azul */
+  --schwartz-solution:    oklch(0.66 0.075 170);  /* mint-500 · verde */
+  --schwartz-most-aware:  oklch(0.67 0.185 28);   /* coral-500 · laranja */
+  --schwartz-urgent:      oklch(0.577 0.245 27);  /* red · vermelho */
+
+  /* ── Lead status ── */
+  --lead-new:       oklch(0.55 0.08 260);         /* navy */
+  --lead-qualified: oklch(0.66 0.075 170);        /* mint */
+  --lead-hot:       oklch(0.67 0.185 28);         /* coral */
+  --lead-won:       oklch(0.65 0.055 155);        /* sage */
+  --lead-lost:      oklch(0.709 0.01 56);         /* stone */
+
+  /* ── GMB signal strength ── */
+  --signal-strong:  oklch(0.65 0.055 155);        /* sage · presente/ótimo */
+  --signal-medium:  oklch(0.75 0.14 78);          /* amber · parcial */
+  --signal-weak:    oklch(0.577 0.245 27);        /* red · ausente */
+  --signal-unknown: oklch(0.869 0.005 56);        /* stone-300 · não verificado */
+
+  /* ── Ticket / Pricing ── */
+  --tier-free:     oklch(0.709 0.01 56);          /* stone-400 */
+  --tier-starter:  oklch(0.66 0.075 170);         /* mint-500 · R$47 */
+  --tier-pro:      oklch(0.55 0.08 260);          /* navy-500 · R$197 */
+  --tier-escala:   oklch(0.67 0.185 28);          /* coral-500 · R$497 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TAILWIND CSS v4 EXPORTS
+   Expor todos os tokens semânticos como utilitários
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* Surface */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Brand */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Feedback */
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Structure */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASE LAYER (shadcn/ui v4 spec)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Scrollbar sutil ── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.709 0.01 56 / 0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.709 0.01 56 / 0.5);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FIM · ADSENTICE TOKENS.CSS v1.0
+   Fontes: shadcn/ui v4 + Materio + open-design (Stripe, Intercom,
+   Vercel, Linear, Supabase, PostHog, Apple) + Tailwind CSS v4
+   medido=verdade · 2026-07-14
+   ═══════════════════════════════════════════════════════════════════ */
