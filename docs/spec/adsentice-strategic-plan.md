@@ -3,17 +3,22 @@ id: adsentice-strategic-plan
 title: "Ads​entice Strategic Plan — Aplicando nossa própria inteligência ao nosso negócio"
 status: living
 type: strategy
-version: "1.0.0"
+version: "2.0.0"
 date: 2026-07-13
 sources:
   - Supabase discovery_listings (100 leads, SP+RJ)
   - ADR-0008 (EVO-API L0-L4)
   - ADR-0009 (Market Intelligence Engine)
   - ADR-0010 (Cloudflare Enterprise)
+  - ADR-0011 (Brain OODA)
+  - ADR-0012 (Category Strategy Matrix)
   - 14 skills Corey Haines implementados
   - 47 skills Corey Haines ingeridos no KG
   - marketingskills-main (Corey Haines)
   - advertising-skills (Kim Barrett)
+  - Sugestão para análise para soluções adicionais.txt
+  - EVO-API Founder-Panel-Copilot-Rail-Wave-K
+  - adsentice-category-strategy-matrix.md
 ---
 
 # Adsentice Strategic Plan — Do Diagnóstico à Receita
@@ -233,7 +238,205 @@ sources:
 
 ---
 
-## 9. O QUE NÃO FAZER (Anti-estratégia)
+## 9. HUBS DE INTEGRAÇÃO (Social Media · Marketplaces · Cockpit TOP-K)
+
+### 9.1 Social Media Hub — Presença em Redes Sociais
+
+**Fontes de dados:** Instagram, Facebook, YouTube, TikTok, LinkedIn, Pinterest, X/Twitter.
+
+**Status adsentice:** Detecção de links no site (L2 `on_page_instant_pages` extrai URLs externas). NÃO analisamos presença, engajamento, frequência de postagem, nem qualidade de conteúdo.
+
+**O que este hub entrega:**
+
+| Métrica | Fonte | Como extrair |
+|---------|-------|-------------|
+| **Perfis detectados** | Links no site + GMB | `l2_external_links_count` + filtrar por domínio (instagram.com, facebook.com...) |
+| **Última postagem** | API pública ou scraping básico | Verificar data do último post visível |
+| **Frequência de postagem** | API Instagram/Facebook Graph | Requer token do cliente |
+| **Engajamento médio** | API Instagram/Facebook Graph | Curtidas + comentários / seguidores |
+| **Seguidores** | API pública (limitado) | Dados agregados |
+| **Conteúdo postado** | API Instagram/Facebook Graph | Fotos, vídeos, stories |
+| **Link na bio** | Scraping básico | Verificar se tem link para site próprio ou Linktree |
+
+**Scores que habilita:**
+
+| Score | O que mede | Peso no compound |
+|-------|-----------|:---------------:|
+| **Social Presence** | Perfis ativos vs abandonados | 10pts |
+| **Social Engagement** | Taxa de engajamento vs benchmark da categoria | 15pts |
+| **Social Consistency** | Frequência de postagem (ideal: 3-5x/semana) | 10pts |
+| **Social Commerce** | Tem link de compra/agendamento na bio? | 5pts |
+
+**Integração com os planos:**
+
+| Plano | Social Hub |
+|-------|-----------|
+| Raio-X | Detecta presença social (sim/não) + última postagem |
+| Sentinela | Monitora frequência + engajamento + alertas de abandono |
+| Domínio | Compara engajamento com TOP 5 concorrentes locais |
+| Escala | Estratégia de conteúdo: calendário editorial + sugestão de posts |
+
+### 9.2 Marketplaces Hub — Além do iFood
+
+O iFood é o marketplace dominante no Brasil, mas não é o único. Dependendo do segmento, o negócio opera em múltiplos marketplaces.
+
+**Marketplaces por segmento:**
+
+| Segmento | Marketplaces relevantes | Status adsentice |
+|----------|------------------------|:---------------:|
+| **Alimentação** | iFood, Rappi, Uber Eats, 99Food, AiQFome, delivery próprio | ❌ Nenhum integrado |
+| **Beleza** | iFood (beleza), Booksy, Treatwell | ❌ |
+| **Hospitalidade** | Booking, Decolar, Hoteis.com, Airbnb, TripAdvisor, Expedia | ❌ |
+| **Serviços Profissionais** | GetNinjas, Habitissimo, VintePila, Workana | ❌ |
+| **Comércio** | Mercado Livre, Shopee, Amazon, Magalu, Americanas Marketplace | ❌ |
+| **Saúde** | Doctoralia, BoaConsulta, Zenklub, Vittude | ❌ |
+
+**O que este hub entrega:**
+
+| Métrica | Como extrair | Aplica a |
+|---------|-------------|---------|
+| **Volume de pedidos por marketplace** | API / webhook do marketplace | Alimentação, Comércio |
+| **Taxa de comissão por canal** | Configuração manual + API | Todos |
+| **Ticket médio por marketplace** | API de pedidos | Alimentação, Comércio |
+| **Recorrência por canal** | CRM + API de pedidos | Todos |
+| **Avaliações no marketplace** | API do marketplace | Alimentação, Hospitalidade |
+| **Tempo de resposta no marketplace** | API | Alimentação |
+| **Ranking no marketplace** | Scraping ou API | Alimentação, Comércio |
+
+**Scores que habilita:**
+
+| Score | O que mede | Segmentos |
+|-------|-----------|-----------|
+| **Customer Independence Score** | % de pedidos que NÃO vêm do marketplace dominante. Quanto menor a dependência, melhor. | Alimentação, Hospitalidade, Comércio |
+| **Channel Health Score** | CAC × Ticket × Recorrência POR marketplace. Qual canal gera o melhor cliente? | Alimentação, Comércio |
+| **Marketplace Reputation** | Nota agregada em todos os marketplaces | Alimentação, Hospitalidade |
+| **Commission Burden** | % do faturamento pago em comissões de marketplace | Alimentação, Hospitalidade |
+
+**Exemplo de Channel Health Matrix (restaurante):**
+
+| Canal | Pedidos/mês | CAC | Ticket Médio | Recorrência | Margem Líquida |
+|-------|:----------:|:---:|:------------:|:-----------:|:-------------:|
+| iFood | 420 | Alto (23%) | R$62 | Média | R$47 |
+| Google (site próprio) | 95 | Baixo (3%) | R$81 | Alta | R$78 |
+| WhatsApp | 140 | Muito baixo | R$88 | Muito alta | R$85 |
+| Site próprio | 75 | Baixo (5%) | R$92 | Alta | R$87 |
+| Rappi | 60 | Alto (25%) | R$58 | Baixa | R$43 |
+
+**Insight acionável:** "Google gera clientes com ticket 32% maior que o iFood e custa 7× menos. Você deveria aumentar o investimento em SEO Local."
+
+### 9.3 Cockpit TOP-K — Dashboard Executivo Diário
+
+Inspirado no **Founder Panel** do EVO-API (CopilotRail + NarrativeCard + AlertLane + PatchCard), adaptado para negócios locais.
+
+**Arquitetura do Cockpit:**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  COCKPIT TOP-K  —  [Nome do Negócio]  ·  [Data]             │
+│                                                              │
+│  ════════════ STATUS DO NEGÓCIO ═══════════════════════════ │
+│                                                              │
+│  🟢 Saúde Digital: 82/100      🟡 iFood: Alta dependência   │
+│  🟢 Google: Excelente (4.7★)   🔴 18 avaliações pendentes   │
+│                                                              │
+│  ════════════ PRIORIDADES DO DIA ══════════════════════════ │
+│                                                              │
+│  TOP 3 ações que mais aumentam seu resultado HOJE:          │
+│  1. Responder 12 avaliações pendentes (⚠️ urgente)           │
+│  2. Publicar 1 foto nova no Google (📸 engajamento)         │
+│  3. Ativar resposta automática no WhatsApp (💬 conversão)    │
+│                                                              │
+│  ════════════ RADAR DE MERCADO ════════════════════════════ │
+│                                                              │
+│  📊 Você era o 18º no seu bairro. Agora é o 14º.            │
+│  ⚠️ Seu concorrente "X" respondeu 84 avaliações esta semana  │
+│  📈 Restaurantes do bairro cresceram 12% em buscas           │
+│                                                              │
+│  ════════════ CO-PILOTO IA ════════════════════════════════ │
+│                                                              │
+│  💬 "O que eu faço hoje?"                                    │
+│  🤖 "Responda as 12 avaliações pendentes. Depois publique    │
+│      uma foto nova no Google. Seu concorrente ganhou 84      │
+│      avaliações esta semana — não deixe ele te ultrapassar." │
+│                                                              │
+│  [Aplicar recomendação]  [Agendar para amanhã]  [Ignorar]   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Componentes (inspirados no EVO-API Founder Panel):**
+
+| Componente | Equivalente EVO-API | Função adsentice |
+|-----------|--------------------|------------------|
+| **NarrativeCard** | `NarrativeCard.jsx` | Explica O QUE está acontecendo em linguagem natural, não números frios |
+| **AlertLane** | `AlertLane.jsx` | Faixa de alertas: 🔴 crítico → 🟡 atenção → 🟢 info |
+| **Co-piloto IA** | `CopilotRail.jsx` | Chat lateral: "O que eu faço hoje?" → IA responde com dados reais |
+| **PatchCard** | `PatchCard.jsx` | Ação recomendada com 1 clique: "Aplicar esta correção" → executa/agenda |
+
+### 9.4 Growth OS · Team — Para Agências e Negócios Estruturados
+
+**Público-alvo:** Agências de marketing, franquias, redes com múltiplas unidades, negócios com gerente de marketing dedicado.
+
+**O que o plano Growth OS inclui (além do Escala):**
+
+| Feature | Descrição | Por que para agências |
+|---------|-----------|----------------------|
+| **Multi-user** | 3-10 usuários com roles (admin, analista, cliente) | Agência gerencia múltiplos clientes |
+| **White-label** | Dashboard com logo e cores do cliente | Agência entrega como se fosse próprio |
+| **Client Portal** | Cada cliente acessa SEU cockpit (não vê outros) | Cliente final tem autonomia |
+| **Team Analytics** | Produtividade da equipe: quem respondeu mais reviews, quem fechou mais leads | Gestão de equipe de marketing |
+| **Approval Workflow** | Recomendações passam por aprovação antes de executar | Cliente aprova antes da agência executar |
+| **Bulk Operations** | Aplicar ação em TODOS os clientes de uma vez | Agência com 20+ clientes |
+| **API Access** | REST API para integrar com sistemas próprios da agência | Automação avançada |
+| **Custom Reports** | Relatórios personalizados com marca do cliente (PDF, email) | Apresentação profissional |
+| **Multi-unit Dashboard** | Visão consolidada de todas as unidades (ex: rede de 10 clínicas) | Franquias e redes |
+| **SLA Tracking** | Tempo de resposta, taxa de conclusão de tarefas | Contrato de nível de serviço com cliente |
+| **Revenue Attribution** | Qual ação gerou qual lead/cliente? | ROI comprovado para o cliente |
+| **Client Health Score** | Score de saúde do cliente (risco de churn) | Agência antecipa cancelamento |
+
+**Estrutura de roles (RBAC):**
+
+| Role | Permissões |
+|------|-----------|
+| **Admin** (agência) | Gerencia todos os clientes, usuários, billing e white-label |
+| **Analista** (agência) | Executa diagnósticos, responde reviews, aplica recomendações |
+| **Cliente** (negócio) | Acesso somente ao seu cockpit, aprova/rejeita recomendações |
+| **Somente Leitura** (cliente) | Visualiza dashboard, não interage |
+
+**Precificação Growth OS:**
+
+| Tier | Usuários | Clientes | Preço |
+|------|:-------:|:--------:|:-----:|
+| **Growth OS Solo** | 1 | 1 (próprio negócio) | R$997/mês |
+| **Growth OS Team** | 5 | até 10 | **R$1.497/mês** |
+| **Growth OS Agency** | 20 | até 50 | **R$2.997/mês** |
+| **Growth OS Enterprise** | ilimitado | ilimitado | **R$4.997/mês** |
+
+**Integração com o restante do ecossistema:**
+
+```
+Growth OS Team
+├── Discovery Engine (prospecção para agência achar leads)
+├── Cockpit TOP-K (dashboard unificado)
+│   ├── Visão por cliente
+│   ├── Visão consolidada (todos os clientes)
+│   └── White-label por cliente
+├── Team Analytics
+│   ├── Produtividade individual
+│   ├── SLA tracking
+│   └── Revenue attribution
+├── Client Health
+│   ├── Score de retenção
+│   ├── Alertas de churn
+│   └── Relatórios de valor entregue
+└── Billing & Invoicing (futuro)
+    ├── Faturamento por cliente
+    ├── Comissões de marketplace
+    └── ROI report automático
+```
+
+---
+
+## 10. O QUE NÃO FAZER (Anti-estratégia)
 
 | Não fazer | Por que |
 |-----------|--------|

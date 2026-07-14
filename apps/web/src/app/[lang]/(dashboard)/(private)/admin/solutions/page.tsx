@@ -1,6 +1,6 @@
 
-// adsentice · Admin / Solutions — Nossos Planos Estrategicos (ADR-0008 + Strategic Plan)
-// Pipeline L0-L4 → Produtos → Personas → Projecao financeira
+// adsentice · Admin / Solutions — Planos Estrategicos v2.0 (Strategic Plan + Cockpit TOP-K)
+// Pipeline L0-L4 → Produtos → Personas → Projecao · Social · Marketplaces · Team
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -16,14 +16,14 @@ import Divider from '@mui/material/Divider'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
-// ═══ Nossos 4 Planos Estrategicos (fonte: docs/spec/adsentice-strategic-plan.md) ═══
+// ═══ Planos v2.0 (atualizado com Social Media, Marketplaces, Cockpit TOP-K, Growth OS Team) ═══
 const PLANS = [
   {
     tier: 'free', name: 'Raio-X', price: 'R$0', priceLabel: 'Gratuito',
     cost: '$0.0305/lead', margin: 'Lead magnet',
     pipeline: 'L0+L1+L2', signals: 37,
-    description: 'Diagnostico de 1 pagina com score composto, nivel Schwartz, TOP 3 gaps detectados e 1 recomendacao acionavel.',
-    delivers: ['Score composto (Fit/Engagement/Intent)', 'Nivel Schwartz com explicacao', 'TOP 3 gaps detectados', '1 recomendacao gratuita'],
+    description: 'Diagnostico de 1 pagina com score composto, nivel Schwartz, TOP 3 gaps detectados e 1 recomendacao acionavel. Inclui deteccao de presenca em redes sociais (sim/nao).',
+    delivers: ['Score composto (Fit/Engagement/Intent)', 'Nivel Schwartz com explicacao', 'TOP 3 gaps detectados', 'Detecao de redes sociais (tem Instagram/Facebook?)', '1 recomendacao gratuita'],
     channels: ['Google Maps (buscar <4.0★)', 'WhatsApp (script 3 linhas)', 'Blog SEO organico', 'Instagram adsentice'],
     persona: '100% do mercado — lead magnet universal',
     color: 'success' as const, icon: 'ri-search-eye-line',
@@ -32,8 +32,8 @@ const PLANS = [
     tier: 'starter', name: 'Sentinela', price: 'R$197/mes', priceLabel: 'Starter',
     cost: '~$0.10/mes', margin: '95%',
     pipeline: 'Raio-X + recorrencia mensal', signals: 37,
-    description: 'Monitoramento mensal do score, relatorio de evolucao, alertas de concorrencia e 3 recomendacoes priorizadas por mes.',
-    delivers: ['Relatorio mensal de evolucao', 'Alertas: concorrente abriu, score caiu', '3 recomendacoes/mes priorizadas', 'Dashboard com dados do mercado local', 'Acesso ao Market Intelligence do nicho'],
+    description: 'Cockpit TOP-K diario com 3 prioridades do dia. Monitoramento mensal do score, AlertLane de problemas criticos, frequencia de postagem em redes sociais e alertas de abandono.',
+    delivers: ['Cockpit TOP-K diario (3 prioridades)', 'AlertLane: criticos → atencao → info', 'Relatorio mensal de evolucao', 'Monitoramento de redes sociais (frequencia, engajamento)', 'Alertas: concorrente abriu, score caiu, rede social abandonada', '3 recomendacoes/mes priorizadas', 'Dashboard com dados do mercado local'],
     channels: ['Email (D+1, D+3, D+7 pos Raio-X)', 'WhatsApp (follow-up)', 'Indicacao de clientes'],
     persona: 'Problem Aware (63% do mercado) — "Tenho menos pacientes, nao sei por que"',
     color: 'primary' as const, icon: 'ri-shield-check-line',
@@ -42,8 +42,8 @@ const PLANS = [
     tier: 'pro', name: 'Dominio', price: 'R$497/mes', priceLabel: 'Pro',
     cost: '~$0.15/mes', margin: '95%',
     pipeline: 'Sentinela + L3 (domain_competitors, keyword_research)', signals: 41,
-    description: 'TUDO do Sentinela + analise competitiva: TOP 5 concorrentes, keyword gap, relatorio de inteligencia de nicho e battle card de vendas.',
-    delivers: ['TOP 5 concorrentes com comparison table', 'Keyword gap: o que o concorrente rankeia e voce nao', 'Relatorio de Inteligencia de Nicho (TAM + gaps)', 'Battle card: objecoes + ROI + script WhatsApp', 'Market plan 13 secoes (flagship)'],
+    description: 'TUDO do Sentinela + Radar de Mercado continuo + Channel Health Matrix + Marketplaces (deteccao de presenca em iFood/Rappi/Booking/etc) + Benchmark comparativo.',
+    delivers: ['TOP 5 concorrentes com comparison table', 'Radar de Mercado: sua posicao vs concorrentes', 'Channel Health Matrix (CAC × Ticket × Recorrencia por canal)', 'Marketplaces: presenca em iFood, Rappi, Booking, Mercado Livre...', 'Customer Independence Score', 'Relatorio de Inteligencia de Nicho (TAM + gaps)'],
     channels: ['Ligacao pessoal (founder)', 'Email com dados REAIS do concorrente', 'WhatsApp com comparison table'],
     persona: 'Solution Aware (12% do mercado) — "Ja ouvi falar de SEO/Google Ads"',
     color: 'warning' as const, icon: 'ri-trophy-line',
@@ -52,11 +52,27 @@ const PLANS = [
     tier: 'scale', name: 'Escala', price: 'R$997/mes', priceLabel: 'Scale',
     cost: '~$0.20/mes', margin: '95%',
     pipeline: 'Dominio + L4 (ai_llm_mentions, content_sentiment, keyword_trends)', signals: 47,
-    description: 'TUDO do Dominio + brand monitoring, content strategy 12 meses, marketing plan completo e consultoria mensal com founder.',
-    delivers: ['Brand monitoring: ChatGPT menciona seu negocio?', 'Content strategy: plano editorial 12 meses', 'Marketing plan 13 secoes completo', 'Programmatic SEO playbook', 'Consultoria mensal 30min com founder'],
+    description: 'TUDO do Dominio + AI Daily Briefing via WhatsApp + Copilot IA + Social Media Strategy + Marketplace Intelligence + Brand monitoring + Consultoria mensal com founder.',
+    delivers: ['AI Daily Briefing via WhatsApp (todo dia 07:00)', 'Copilot IA: "O que eu faco hoje?" → resposta com dados reais', 'Social Media Strategy: calendario editorial + sugestoes de posts', 'Marketplace Intelligence: dados agregados de marketplaces', 'Brand monitoring + Content Strategy 12 meses', 'Marketing plan 13 secoes (flagship)', 'Consultoria mensal 30min com founder'],
     channels: ['Consultoria pessoal', 'Relatorio executivo trimestral', 'Acesso prioritario'],
     persona: 'Clientes que escalam — "Quero dominar o mercado da minha regiao"',
     color: 'error' as const, icon: 'ri-rocket-2-line',
+  },
+  {
+    tier: 'enterprise', name: 'Growth OS', price: 'a partir de R$1.497/mes', priceLabel: 'Enterprise',
+    cost: '~$0.30/mes', margin: '90%',
+    pipeline: 'Todos os hubs + Multi-user + White-label', signals: 47,
+    description: 'Para agencias de marketing, franquias e negocios com equipe. TUDO do Escala + Multi-user (3-10 usuarios) + White-label + Team Analytics + Client Portal + Approval Workflow + API Access.',
+    delivers: [
+      'Multi-user: 3-10 usuarios com roles (admin, analista, cliente)', 'White-label: dashboard com logo e cores do cliente',
+      'Client Portal: cada cliente acessa SEU cockpit', 'Team Analytics: produtividade da equipe',
+      'Approval Workflow: recomendacoes passam por aprovacao', 'Bulk Operations: aplicar acao em TODOS os clientes',
+      'API Access: REST API para sistemas proprios', 'SLA Tracking + Revenue Attribution',
+      'Client Health Score: risco de churn por cliente', 'Multi-unit Dashboard: visao consolidada de franquias/redes',
+    ],
+    channels: ['Demo personalizada', 'Onboarding dedicado', 'Suporte prioritario'],
+    persona: 'Agencias de marketing, franquias, redes multi-unidades, negocios com equipe de marketing',
+    color: 'info' as const, icon: 'ri-building-2-line',
   },
 ]
 
@@ -117,8 +133,8 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
       </Grid>
 
       {/* ═══ TOP METRICS ═══ */}
-      <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats='4' title='Planos' subtitle='Free → R$997/mes' avatarColor='primary' avatarIcon='ri-stack-line' trendNumber='4' trend='positive' />
+      <Grid size={{ xs: 6, sm: 2 }}>
+        <CardStatVertical stats='5' title='Planos' subtitle='Free → R$1.497/mes' avatarColor='primary' avatarIcon='ri-stack-line' trendNumber='5' trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
         <CardStatVertical stats='R$17.8K' title='MRR Projetado' subtitle='12 meses, cenario conservador' avatarColor='success' avatarIcon='ri-money-dollar-circle-line' trendNumber='17784' trend='positive' />
@@ -250,6 +266,209 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
                       sx={{ flex: 1, height: 8, borderRadius: 4 }} />
                     <Typography variant='body2' fontWeight={700} color='success.main'>R${m.mrr.toLocaleString('pt-BR')}</Typography>
                   </Box>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ═══ SOCIAL MEDIA HUB ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h5' gutterBottom sx={{ mt: 2 }}>
+          <Chip label='HUBS' size='medium' color='info' sx={{ mr: 1, fontWeight: 700 }} />
+          Social Media · Marketplaces · Cockpit TOP-K
+        </Typography>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <i className='ri-instagram-line' style={{ fontSize: '1.5rem', color: '#e1306c' }} />
+              <Typography variant='h6'>📱 Social Media Hub</Typography>
+            </Box>
+            <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+              Detecta presenca em Instagram, Facebook, YouTube, TikTok, LinkedIn. Monitora frequencia de postagem,
+              engajamento, link na bio e ultimo post. Compara com concorrentes locais.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+              <Chip label='Instagram' size='small' variant='outlined' />
+              <Chip label='Facebook' size='small' variant='outlined' />
+              <Chip label='TikTok' size='small' variant='outlined' />
+              <Chip label='YouTube' size='small' variant='outlined' />
+              <Chip label='LinkedIn' size='small' variant='outlined' />
+            </Box>
+            <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>Scores que habilita:</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label='Social Presence (+10)' size='small' color='info' variant='tonal' />
+              <Chip label='Social Engagement (+15)' size='small' color='info' variant='tonal' />
+              <Chip label='Social Consistency (+10)' size='small' color='info' variant='tonal' />
+              <Chip label='Social Commerce (+5)' size='small' color='info' variant='tonal' />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <i className='ri-shopping-bag-3-line' style={{ fontSize: '1.5rem', color: '#f59e0b' }} />
+              <Typography variant='h6'>🛒 Marketplaces Hub</Typography>
+            </Box>
+            <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+              Detecta presenca em marketplaces por segmento: iFood/Rappi/Uber Eats (alimentacao), Booking/Decolar (hoteis),
+              Mercado Livre/Shopee (comercio), GetNinjas (servicos), Doctoralia (saude). Calcula Customer Independence Score.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+              <Chip label='iFood' size='small' variant='outlined' color='error' />
+              <Chip label='Rappi' size='small' variant='outlined' />
+              <Chip label='Uber Eats' size='small' variant='outlined' />
+              <Chip label='Booking' size='small' variant='outlined' color='primary' />
+              <Chip label='Mercado Livre' size='small' variant='outlined' color='warning' />
+              <Chip label='Shopee' size='small' variant='outlined' color='error' />
+              <Chip label='GetNinjas' size='small' variant='outlined' />
+              <Chip label='Doctoralia' size='small' variant='outlined' color='info' />
+            </Box>
+            <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>Scores que habilita:</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label='Customer Independence' size='small' color='warning' variant='tonal' />
+              <Chip label='Channel Health' size='small' color='warning' variant='tonal' />
+              <Chip label='Marketplace Reputation' size='small' color='warning' variant='tonal' />
+              <Chip label='Commission Burden' size='small' color='warning' variant='tonal' />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ═══ COCKPIT TOP-K ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <Card sx={{ bgcolor: '#0a0a0a', color: '#fafafa' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', background: 'linear-gradient(135deg, #0070f3, #0050a3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff' }}>FP</span>
+                </Box>
+                <Typography variant='h6' color='#fafafa'>🕹️ Cockpit TOP-K</Typography>
+                <Chip label='Inspirado no EVO-API Founder Panel' size='small' variant='outlined' sx={{ color: '#a1a1aa', borderColor: '#27272a' }} />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Chip label='Sentinela+' size='small' color='primary' variant='tonal' />
+                <Chip label='Dominio+' size='small' color='warning' variant='tonal' />
+                <Chip label='Escala+' size='small' color='error' variant='tonal' />
+              </Box>
+            </Box>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
+                  <Typography variant='caption' color='#71717a' component='div'>NarrativeCard</Typography>
+                  <Typography variant='body2' color='#fafafa' fontWeight={600} sx={{ mt: 0.5 }}>"Sua clinica esta invisivel para 5.000 pessoas"</Typography>
+                  <Typography variant='caption' color='#a1a1aa'>Explica O QUE acontece, nao apenas numeros</Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
+                  <Typography variant='caption' color='#71717a' component='div'>AlertLane</Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                    <Chip label='🔴 18 avaliacoes' size='small' sx={{ bgcolor: '#f43f5e22', color: '#f43f5e', fontSize: '0.6rem', height: 18 }} />
+                    <Chip label='🟡 Score caindo' size='small' sx={{ bgcolor: '#f59e0b22', color: '#f59e0b', fontSize: '0.6rem', height: 18 }} />
+                    <Chip label='🟢 Site +rapido' size='small' sx={{ bgcolor: '#10b98122', color: '#10b981', fontSize: '0.6rem', height: 18 }} />
+                  </Box>
+                  <Typography variant='caption' color='#a1a1aa'>Prioridades: critico → atencao → info</Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
+                  <Typography variant='caption' color='#71717a' component='div'>Copilot IA</Typography>
+                  <Typography variant='body2' color='#0070f3' fontWeight={600} sx={{ mt: 0.5, fontFamily: 'monospace', fontSize: '0.75rem' }}>"O que eu faco hoje?"</Typography>
+                  <Typography variant='caption' color='#a1a1aa'>Chat lateral com IA ancorada em dados reais</Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
+                  <Typography variant='caption' color='#71717a' component='div'>PatchCard</Typography>
+                  <Chip label='Aplicar recomendacao →' size='small' color='info' variant='tonal' sx={{ mt: 0.5 }} />
+                  <Typography variant='caption' color='#a1a1aa'>1 clique = executa ou agenda acao</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ═══ GROWTH OS TEAM ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant='h5' gutterBottom sx={{ mt: 2 }}>
+          <Chip label='GROWTH OS · TEAM' size='medium' color='info' sx={{ mr: 1, fontWeight: 700 }} />
+          Para Agencias · Franquias · Equipes
+        </Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+          Plano enterprise com multi-user, white-label, client portal e API access.
+          Projetado para agencias de marketing que gerenciam multiplos clientes.
+        </Typography>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>🏢 Funcionalidades Team</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {[
+                { feat: 'Multi-user (3-10)', desc: 'Admin, Analista, Cliente, Somente Leitura', color: 'primary' },
+                { feat: 'White-label', desc: 'Dashboard com logo e cores do cliente final', color: 'info' },
+                { feat: 'Client Portal', desc: 'Cada cliente acessa SEU cockpit (nao ve outros)', color: 'success' },
+                { feat: 'Team Analytics', desc: 'Produtividade: quem respondeu mais? Quem fechou mais?', color: 'warning' },
+                { feat: 'Approval Workflow', desc: 'Recomendacoes passam por aprovacao antes de executar', color: 'secondary' },
+                { feat: 'Bulk Operations', desc: 'Aplicar acao em TODOS os clientes de uma vez', color: 'error' },
+              ].map((t) => (
+                <Box key={t.feat} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Chip label={t.feat} size='small' color={t.color as any} variant='tonal' />
+                  <Typography variant='caption' color='text.secondary'>{t.desc}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>🔐 Roles & Permissoes (RBAC)</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {[
+                { role: 'Admin (agencia)', perms: 'Gerencia todos os clientes, usuarios, billing, white-label', color: 'error' },
+                { role: 'Analista (agencia)', perms: 'Executa diagnosticos, responde reviews, aplica recomendacoes', color: 'warning' },
+                { role: 'Cliente (negocio)', perms: 'Acesso somente ao seu cockpit, aprova/rejeita recomendacoes', color: 'primary' },
+                { role: 'Somente Leitura', perms: 'Visualiza dashboard, nao interage', color: 'info' },
+              ].map((r) => (
+                <Box key={r.role}>
+                  <Chip label={r.role} size='small' color={r.color as any} variant='tonal' sx={{ mb: 0.5 }} />
+                  <Typography variant='caption' color='text.secondary' component='div'>{r.perms}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ mt: 2 }}>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>💰 Precificacao Growth OS</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {[
+                { tier: 'Solo', users: 1, clients: 1, price: 'R$997' },
+                { tier: 'Team', users: 5, clients: 10, price: 'R$1.497' },
+                { tier: 'Agency', users: 20, clients: 50, price: 'R$2.997' },
+                { tier: 'Enterprise', users: 'ilimitado', clients: 'ilimitado', price: 'R$4.997' },
+              ].map((p) => (
+                <Box key={p.tier} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Typography variant='body2' fontWeight={600}>{p.tier}</Typography>
+                    <Chip label={`${p.users} users · ${p.clients} clientes`} size='small' variant='outlined' sx={{ fontSize: '0.6rem' }} />
+                  </Box>
+                  <Typography variant='body2' fontWeight={700} color='primary.main'>{p.price}/mes</Typography>
                 </Box>
               ))}
             </Box>
