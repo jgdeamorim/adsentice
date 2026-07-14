@@ -35,6 +35,46 @@ related: [ADR-0017, ADR-0018, ADR-0019]
 
 ---
 
+| **Warp implementado** | **0%** | **Nenhum código do target** |
+
+---
+
+## 0. DECISÃO DEVOPS — Timeline (corrigida via DAG)
+
+A arquitetura DevOps teve 3 iterações em 1 dia (2026-07-14):
+
+```
+ADR-0014 (proposed)           ADR-0015 (proposed)          ADR-0016 (ACCEPTED)
+Cloudflare+Railway+Supabase   EVO-API Rust + rsxt          Adsentice Soberano
+        │                            │                            │
+        └── superseded by ──────────┘                            │
+        └────────────── superseded by ───────────────────────────┘
+                                                         │
+                                                    HETZNER CAX11
+                                                    ($5.39/mês fixo)
+                                                    Docker Compose
+                                                    NÃO Railway
+```
+
+**Decisão final (ADR-0016 + commit `d31da6f`):**
+
+| Camada | Provedor | Custo |
+|--------|----------|:-----:|
+| **COMPUTE** | Hetzner CAX11 (ARM64, 2 vCPU, 4 GB, 40 GB) | R$30/mês |
+| **EDGE** | Cloudflare Free (Pages, Workers, KV, R2, Queues) | R$0 |
+| **DADOS** | Supabase Free (PostgreSQL, Auth, Storage) | R$0 |
+| **INTELIGÊNCIA** | TypeScript nativa (13 padrões EVO-API absorvidos) | R$0 |
+| **TOTAL** | | **~R$130/mês** |
+
+**Railway foi DESCARTADO por 3 motivos (ADR-0016):**
+1. Custo real: $47.50/mês vs Hetzner $5.39/mês (**9.5× mais caro**)
+2. Bug documentado: Tokio MPSC descarta mensagens em Railway Metal
+3. Limite SSE: 15 minutos max, 5 min timeout sem dados
+
+**Fonte:** ADR-0016 seções 2.1, 2.2, 2.3 · commit `d31da6f` · `docs/spec/adsentice-infrastructure-architecture.md`
+
+---
+
 ## 1. DOCUMENTAÇÃO — 19 ADRs + 18 Specs
 
 ### 1.1 ADRs (Architecture Decision Records)
@@ -54,14 +94,14 @@ related: [ADR-0017, ADR-0018, ADR-0019]
 | ADR-0011 | Brain OODA — 12 containers cognitivos | ✅ accepted | 2026-07-13 |
 | ADR-0012 | Estrategia por Categoria/Nicho | ✅ accepted | 2026-07-13 |
 | ADR-0013 | Build vs Buy — Integração de APIs | ⬜ proposed | 2026-07-14 |
-| ADR-0014 | Arquitetura DevOps Cloud | ⬜ proposed | 2026-07-14 |
-| ADR-0015 | Arquitetura Real Rust (supercede 0014) | ⬜ proposed | 2026-07-14 |
-| ADR-0016 | Adsentice Soberano | ✅ accepted | 2026-07-14 |
+| ADR-0014 | Arquitetura DevOps Cloud (Railway) | ❌ superseded (por ADR-0016) | 2026-07-14 |
+| ADR-0015 | Arquitetura Real Rust (EVO-API) | ❌ superseded (por ADR-0016) | 2026-07-14 |
+| ADR-0016 | Adsentice Soberano (Hetzner, nao Railway) | ✅ accepted | 2026-07-14 |
 | ADR-0017 | Frontend Enterprise (Vite + shadcn/ui) | ✅ accepted | 2026-07-14 |
 | ADR-0018 | Família Warp — Design System Vivo | ✅ accepted | 2026-07-14 |
 | ADR-0019 | context7 vs 21st-magic | ✅ accepted | 2026-07-14 |
 
-**Total: 19 ADRs · 13 accepted · 6 proposed**  
+**Total: 19 ADRs · 13 accepted · 2 superseded · 4 proposed**  
 **Fonte:** `docs/adr/` — 19 arquivos .md
 
 ### 1.2 Specs
@@ -90,8 +130,9 @@ related: [ADR-0017, ADR-0018, ADR-0019]
 
 | Gap | Severidade | Ação |
 |-----|:----------:|------|
-| ADR-0013 a 0015 ainda `proposed` | 🟡 Média | Revisar e aceitar ou depreciar |
-| Sem spec de deploy/CI/CD | 🔴 Alta | Criar spec de CI/CD |
+| ADR-0013, ADR-0017, ADR-0018 ainda `proposed` | 🟡 Média | Revisar e aceitar (ADR-0016 já é o final) |
+| ADR-0014 e ADR-0015 como `superseded` mas arquivos ainda `proposed` | 🟡 Média | Atualizar frontmatter para `superseded` |
+| Sem spec de CI/CD | 🔴 Alta | Criar spec de CI/CD (GitHub Actions → Hetzner) |
 | Sem spec de testes | 🟡 Média | Criar spec de quality assurance |
 
 ---
@@ -420,16 +461,20 @@ TOTAL: 0 linhas implementadas do target
 | `firecrawl` | URL externa | ✅ ativo |
 | `21st-magic` | npx | ⬜ disabled |
 
+> **Nota:** Não usamos Railway MCP — Railway foi descartado na ADR-0016. Deploy é Hetzner VPS com Docker Compose + GitHub Actions.
+
 ### 5.4 Gaps de Infra
 
 | Gap | Severidade | Ação |
 |-----|:----------:|------|
-| Sem backend Railway (`apps/api/`) | 🔴 CRÍTICA | Criar Hono + Cloudflare Workers |
-| Sem Supabase configurado | 🔴 ALTA | Criar projeto, schemas, RLS |
-| Sem Cloudflare R2 configurado | 🔴 ALTA | Bucket para vault blobs |
-| Sem CI/CD | 🟡 Média | GitHub Actions → Cloudflare Pages |
+| **Sem VPS Hetzner provisionado** | 🔴 CRÍTICA | CAX11 ARM64 $5.39/mês + Docker Compose prod |
+| Sem Cloudflare Workers configurados | 🔴 ALTA | 5 Hono workers (webhooks, cache, rate-limit, health) |
+| Sem Supabase project configurado | 🔴 ALTA | Criar projeto, schemas, RLS |
+| Sem CI/CD | 🟡 Média | GitHub Actions → SSH deploy no Hetzner |
 | open-design container parado | 🟡 Baixa | Avaliar reativação ou depreciação |
-| EVO-API :7700 desconhecido | 🟡 Baixa | Verificar status |
+| EVO-API :7700 status desconhecido | 🟡 Baixa | Verificar status (não vai a produção, mas útil local) |
+
+> **Nota:** Railway foi DESCARTADO na ADR-0016 (custo 9.5× maior, bug Tokio MPSC, limite SSE 15min). Backend no Hetzner VPS com Docker Compose, não Railway.
 
 ---
 
@@ -510,9 +555,9 @@ TOTAL: 16 ferramentas · 4,053 linhas Python
 |---|-----|-----|------|
 | 1 | **Vite project setup** | ADR-0017 | `npm create vite@latest` + Tailwind + shadcn/ui |
 | 2 | **tokens.css** | ADR-0017, 0018 | 4 camadas de design tokens |
-| 3 | **Backend Railway (`apps/api/`)** | ADR-0010, 0014 | Hono + Cloudflare Workers |
+| 3 | **Hetzner CAX11 provision** | ADR-0016 | VPS ARM64 $5.39/mês + Docker Compose prod |
 | 4 | **Supabase project** | ADR-0001 | Criar projeto, schemas, RLS |
-| 5 | **Cloudflare R2** | ADR-0010 | Bucket vault + credenciais |
+| 5 | **Cloudflare Workers + Pages** | ADR-0010, 0016 | Hono webhooks + cache KV + Pages static deploy |
 
 ### 🔴 ALTO (essencial para qualidade)
 

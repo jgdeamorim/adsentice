@@ -85,8 +85,9 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0011` | adsentice Brain OODA — 12 containers cognitivos (c0-c4 + B2-B3 + D1 + A3) | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0012` | Estrategia por Categoria/Nicho — cada segmento tem seu proprio ecossistema | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0013` | Build vs Buy — Estrategia de Integracao de APIs (8 gaps SGA) | ⬜ proposed (2026-07-14) |
-| `ADS.COR.adr.0014` | Arquitetura DevOps Cloud — Cloudflare + Railway + Supabase + Qdrant | ⬜ proposed (2026-07-14) |
-| `ADS.COR.adr.0016` | Adsentice Soberano — inteligencia EVO-API/rsxt absorvida em TypeScript (supercede 0014, 0015) | ⬜ proposed (2026-07-14) |
+| `ADS.COR.adr.0014` | Arquitetura DevOps Cloud — Cloudflare + Railway + Supabase + Qdrant | ❌ superseded (por ADR-0016) |
+| `ADS.COR.adr.0015` | Arquitetura Real Rust — EVO-API + rsxt como backend | ❌ superseded (por ADR-0016) |
+| `ADS.COR.adr.0016` | Adsentice Soberano — Hetzner CAX11, nao Railway, TypeScript nativo | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (7 modulos) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |

@@ -1,7 +1,7 @@
 ---
 id: adr-0014
 title: Arquitetura DevOps Completa — Cloudflare + Railway + Supabase + Qdrant
-status: proposed
+status: superseded
 date: 2026-07-14
 deciders: founder, claude
 extends: [adr-0008, adr-0010, adr-0011, adr-0013]

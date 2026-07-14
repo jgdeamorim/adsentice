@@ -1,7 +1,7 @@
 ---
 id: adr-0016
 title: Adsentice Soberano — Inteligência herdada do EVO-API/rsxt, implementada em TypeScript
-status: proposed
+status: accepted
 date: 2026-07-14
 deciders: founder, claude
 supersedes: [adr-0014, adr-0015]

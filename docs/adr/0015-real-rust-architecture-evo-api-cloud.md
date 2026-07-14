@@ -1,7 +1,7 @@
 ---
 id: adr-0015
 title: Arquitetura Real — EVO-API (Axum Rust) + rsxt + Cloudflare + Railway
-status: proposed
+status: superseded
 date: 2026-07-14
 deciders: founder, claude
 supersedes: [adr-0014]
