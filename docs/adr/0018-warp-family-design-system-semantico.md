@@ -976,3 +976,204 @@ WarpAPI.compose(intent, context)
 - EVO-API `materio_leaves.rs` + `materio_ingest.rs` (destilador)
 - Kimera Design System (tokens)
 - shadcn/ui, Radix UI, Tailwind CSS v4, Motion One
+
+---
+
+## Apêndice A — Refinamento via Open Design v0.9.0
+
+**Fonte:** `open-design-upstream-build/` · 310 PRs, 88 contributors, v0.9.0 (2026-05-29) · Ingerido no Qdrant :6350 (`evoapi-inspiration`, tag=open-design)
+
+O open-design é um design system tool de produção que implementa 3 padrões diretamente aplicáveis à Warp:
+
+### A.1 Skills Protocol → Component Skills
+
+**Fonte:** `docs/skills-protocol.md` · `docs/plugins-spec.md`
+
+O open-design define Skill como "unidade atômica de capacidade de design". Cada skill é um diretório com `SKILL.md` (frontmatter YAML + corpo Markdown). OD adiciona extensões opcionais (`od.mode`, `od.preview`, `od.inputs`, `od.design_system`) sem quebrar compatibilidade com Claude Code.
+
+**O que a Warp absorve:**
+
+| Padrão OD | Aplicação Warp |
+|-----------|---------------|
+| `triggers: ["magazine deck", "杂志风 PPT"]` | `2-registry.ts`: cada componente registrado tem `triggers[]` para busca determinística rápida |
+| `od.mode: deck \| prototype \| template \| design-system` | Componentes Warp ganham `mode` que determina como são renderizados |
+| `od.inputs: [{name, type, default}]` | Props tipadas e validadas com Zod (substitui `Record<string, unknown>`) |
+| `od.preview: {type: html, entry: index.html}` | Preview automático no registry (sem precisar montar a página inteira) |
+| `od.design_system: {requires: true, sections: [color, typography]}` | Componentes declaram quais tokens consomem — o compositor faz tree-shaking de CSS |
+
+Evolução do `WarpComponent`:
+```typescript
+// ANTES: props genéricas
+props: Record<string, unknown>
+
+// DEPOIS: tipado com Zod + triggers + mode + preview + design_system
+interface WarpComponent {
+  // ... (campos existentes)
+  triggers: string[]           // OD-style: palavras-chave para busca determinística
+  mode: "dashboard" | "deck" | "prototype" | "template" | "design-system"
+  preview: {
+    type: "html" | "jsx"
+    entry?: string            // arquivo de preview
+  }
+  inputs: ZodSchema           // props tipadas (Zod)
+  designSystem: {
+    requires: boolean
+    sections: string[]        // quais tokens este componente consome
+  }
+  pipeline?: PipelineStage[]  // OD-style: discovery → plan → generate → critique
+  genui?: {                   // Generative UI surfaces
+    surfaces: GenUISurface[]
+  }
+}
+```
+
+### A.2 Plugins System → Agent Workflows
+
+**Fonte:** `docs/plugins-spec.md` (80 linhas)
+
+O insight central do OD: **"plugins are not local UI addons; they are reusable agent workflows."** O ciclo de vida é:
+
+```
+User picks plugin → OD resolve skill + query + context + assets + capabilities
+→ Agent runs pipeline → SSE events → live preview → critique → refinement
+```
+
+**O que a Warp absorve:**
+
+1. **Plugin = Skill + Context + Assets + Capabilities.** Nosso `4-composer.ts` adota esse modelo: cada composição não é só uma lista de componentes — é um **workflow completo** com assets, design system, capabilities requeridas.
+
+2. **Atomic Pipeline** (discovery → plan → generate → critique):
+   ```
+   discovery: "o que o usuário precisa?"
+     → plan: "quais componentes + layout?"
+       → generate: "compor + renderizar"
+         → critique: "avaliar qualidade em 5 dimensões"
+   ```
+
+3. **Devloop:** Quando `critique.score < threshold`, o agente re-itera automaticamente. Nossa Warp ganha `DevloopStage`:
+   ```typescript
+   interface PipelineStage {
+     id: string
+     repeat?: boolean
+     until?: { condition: string; params: Record<string, number> }
+   }
+   // Ex: critique stage repete até score >= 7/10
+   ```
+
+4. **Generative UI:** Quando o pipeline precisa de input humano (confirmação de direção de design, escolha de variante), o compositor emite um `GenUISurface` event. O frontend renderiza o prompt, coleta a resposta, e o pipeline continua.
+
+### A.3 Agent Adapters → Brain Multi-Agent
+
+**Fonte:** `docs/agent-adapters.md` (80 linhas) · `packages/registry-protocol/src/schemas.ts`
+
+O open-design delega o loop de agente para CLIs existentes (Claude Code, Codex, Cursor, etc.) através de uma interface limpa:
+
+```typescript
+interface AgentAdapter {
+  detect(): Promise<AgentDetection | null>
+  capabilities(): AgentCapabilities
+  run(params: AgentRunParams): AsyncIterable<AgentEvent>
+  cancel(runId: string): Promise<void>
+  resume?(runId: string, message: string): AsyncIterable<AgentEvent>
+}
+```
+
+**O que a Warp absorve:**
+
+Nossa `b3-decide.ts` (Brain OODA) ganha um **AgentAdapter layer** que permite rotear composições para diferentes agentes:
+
+```typescript
+// lib/warp/8-agents.ts — Agent Adapter Layer (inspirado OD)
+interface WarpAgentAdapter {
+  id: string                    // "claude-code" | "deepseek" | "qwen-local"
+  detect(): Promise<boolean>
+  capabilities(): { streaming: boolean; resume: boolean; maxTokens: number }
+  compose(intent: string, context: CompositionContext): AsyncIterable<AgentEvent>
+}
+
+// Uso: warp.compose(intent, { agent: "deepseek" })
+// Se o agente detectado tem streaming → SSE events em tempo real
+// Se não tem → polling até completar
+```
+
+### A.4 Registry Protocol (Zod) → Type-Safe Component Registry
+
+**Fonte:** `packages/registry-protocol/src/schemas.ts`
+
+O open-design usa **Zod schemas** para validar entradas do registry: `RegistryEntrySchema`, `RegistryVersionSchema`, `RegistryPublisherSchema`, `RegistryMetricsSchema`, `RegistrySignatureSchema`.
+
+**O que a Warp absorve:**
+
+```typescript
+// lib/warp/2-registry.ts — com validação Zod
+import { z } from "zod"
+
+export const WarpComponentSchema = z.object({
+  id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/),
+  version: z.string(),
+  publisher: z.object({ id: z.string(), name: z.string(), verified: z.boolean() }).optional(),
+  capabilities: z.array(z.string()).optional(),
+  metrics: z.object({ downloads: z.number(), installs: z.number(), stars: z.number() }).optional(),
+  dist: z.object({ type: z.enum(["github-release", "local"]), archive: z.string(), integrity: z.string() }).optional(),
+})
+
+// Validação em runtime: todo componente registrado passa pelo schema
+// Componentes inválidos são rejeitados com mensagem clara
+```
+
+### A.5 88 Design Systems → Anatomia de Referência
+
+**Fonte:** `design-systems/` (88 diretórios, incluindo `warp/`)
+
+Cada design system tem um `DESIGN.md` com tokens, componentes e regras. O open-design já tem um entry `warp/` — o nosso.
+
+**O que a Warp absorve:**
+
+Nosso `3-destiller.ts` ganha um catálogo de 88 referências anatômicas:
+- `shadcn/` → Button, Card, Dialog, Table (já é nosso alvo)
+- `vercel/` → Design system enterprise com tokens
+- `stripe/` → Referência de qualidade de UI
+- `linear-app/` → Design system de produto (nosso Cockpit TOP-K)
+- `ibm/` → Carbon: acessibilidade enterprise
+- `nvidia/` → Temas escuros, data visualization
+- `warp/` → O NOSSO — precisa ser preenchido com tokens + componentes
+
+### A.6 Critique System → Design Quality Score
+
+**Fonte:** `design-templates/critique/example.html`
+
+O open-design avalia designs em 5 dimensões (0-10):
+1. **Visual hierarchy** — estrutura visual
+2. **Detail execution** — acabamento, polimento
+3. **Functionality** — funcionalidade
+4. **Innovation** — inovação
+5. **Philosophy consistency** — consistência com o design system
+
+**O que a Warp absorve:**
+
+Nosso `6-telemetry.ts` ganha uma 6ª métrica: **Design Quality**. O SGA Health Score passa de 4 para 5 dimensões:
+
+```
+SGA Health = 0.30·edgeQuality + 0.20·graphCoverage + 0.20·resolutionSpeed + 0.15·dataFreshness + 0.15·designQuality
+```
+
+| Dimensão | Peso | O que mede |
+|----------|:----:|-----------|
+| Visual Hierarchy | 0.25 | Estrutura visual da composição |
+| Detail Execution | 0.20 | Polimento, acabamento |
+| Functionality | 0.25 | Funcionalidade, acessibilidade |
+| Innovation | 0.10 | Originalidade, diferenciação |
+| Philosophy Consistency | 0.20 | Aderência aos tokens e design system |
+
+### A.7 Resumo: Warp refinada pelo Open Design
+
+| Módulo Warp | Antes (ADR-0018 original) | Depois (refinado pelo OD) |
+|-------------|--------------------------|--------------------------|
+| **1-tokens.ts** | 4 camadas CSS | 5 camadas (+Component Tokens) |
+| **2-registry.ts** | Registro simples | +Zod validation + triggers + mode + preview + design_system |
+| **3-destiller.ts** | shadcn/Radix/WCAG | **88 design systems** como anatomia de referência |
+| **4-composer.ts** | Pipeline linear | **Atomic Pipeline** (discovery→plan→generate→critique) + **Devloop** (re-itera até score ≥ threshold) |
+| **5-resolver.ts** | BFS dependency resolution | BFS + MCP tools (write files, delete, resolve workspace) |
+| **6-telemetry.ts** | Métricas de uso | +**Design Quality Score** (5 dimensões de critique) + **GenUI surfaces** |
+| **7-cache.ts** | 3 camadas | Mantido (cache é universal) |
+| **8-agents.ts** | ✨ NOVO | **Agent Adapter Layer** (inspirado OD): detect → capabilities → run → cancel → resume. Roteia composições para Claude Code, DeepSeek, Qwen local |
