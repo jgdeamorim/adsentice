@@ -82,6 +82,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0008` | EVO-API como Motor de Enriquecimento Completo (76 caps → L0-L4) | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0009` | Market Intelligence Engine (lead-level → market-level) | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0010` | Cloudflare Free Tier como Plataforma Enterprise (Workers+D1+Queues+R2) | ✅ accepted (2026-07-13) |
+| `ADS.COR.adr.0011` | adsentice Brain OODA — 12 containers cognitivos (c0-c4 + B2-B3 + D1 + A3) | ✅ accepted (2026-07-13) |
 
 ### ADS.COR.code — Código
 
