@@ -84,6 +84,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0010` | Cloudflare Free Tier como Plataforma Enterprise (Workers+D1+Queues+R2) | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0011` | adsentice Brain OODA — 12 containers cognitivos (c0-c4 + B2-B3 + D1 + A3) | ✅ accepted (2026-07-13) |
 | `ADS.COR.adr.0012` | Estrategia por Categoria/Nicho — cada segmento tem seu proprio ecossistema | ✅ accepted (2026-07-13) |
+| `ADS.COR.adr.0013` | Build vs Buy — Estrategia de Integracao de APIs (8 gaps SGA) | ⬜ proposed (2026-07-14) |
 
 ### ADS.COR.code — Código
 
