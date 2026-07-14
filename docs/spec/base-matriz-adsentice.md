@@ -91,6 +91,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (7 modulos) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
+| `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ⬜ proposed (2026-07-14) |
 
 ### ADS.COR.design — Corpus de Design (embedado no Qdrant)
 
@@ -99,6 +100,20 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.design.open_design` | 150 estilos de design system (Apple, Stripe, Vercel, Tesla, Supabase, etc.) | `open-design/*` | ~600 | ✅ embedado |
 | `ADS.COR.design.magic_ui` | 247 componentes Magic UI (21st) — 77 exemplos + 23 componentes + 147 variações | `21st-magic-ui` | 247 | ✅ embedado |
 | `ADS.COR.design.total` | Total do corpus de design (open-design + 21st) | — | ~847 (36% do corpus) | ✅ vivo |
+
+### ADS.COR.warp — Família Warp (Design System)
+
+| Rota | Módulo | Descrição | Status |
+|---|---|---|---|
+| `ADS.COR.warp.tokens` | M1 | `tokens.css` — 10 camadas, 40 tokens semânticos shadcn/ui v4 | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.ui` | M2 | `components/ui/` — 11 componentes shadcn/ui | 🔴 pendente |
+| `ADS.COR.warp.adsentice` | M3 | `components/adsentice/` — 10 componentes próprios | 🔴 pendente |
+| `ADS.COR.warp.compositor` | M4 | `compositor.ts` — intent → layout inference → HTML | 🔴 pendente |
+| `ADS.COR.warp.registry` | M5 | `registry.ts` — Component registry com Zod | 🔴 pendente |
+| `ADS.COR.warp.cache` | M6 | `cache.ts` — 3 camadas (KV + Redis + Memory) | 🔴 pendente |
+| `ADS.COR.warp.tracker` | M7 | `tracker.ts` — telemetria (eventos → Qdrant → SGA) | 🔴 pendente |
+| `ADS.COR.warp.agents` | M8 | `8-agents.ts` — multi-agent (detect→capabilities→run) | 🔴 pendente |
+| `ADS.COR.warp.tokens_composer` | M9 | `tokens-composer.ts` — morph por intent de mercado (ADR-0020) | ⬜ proposed |
 
 Estes pontos estão no Qdrant `adsentice-self` (total: 2,364 pontos). Permitem query semântica cross-design: "quero um card com efeito spotlight e tema dark" → Magic Card + open-design/dark theme.
 
