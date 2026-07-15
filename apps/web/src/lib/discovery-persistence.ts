@@ -39,7 +39,7 @@ function getPool(): Pool | null {
       port: 6543,
       database: "postgres",
       user: "postgres.tdigauruusdhnpvppixb",
-      password: process.env.SUPABASE_DB_PASSWORD || "pmaxnpmiJ6WfcX46",
+      password: process.env.SUPABASE_DB_PASSWORD || "",
       ssl: { rejectUnauthorized: false },
       max: 5,
       idleTimeoutMillis: 30000,

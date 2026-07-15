@@ -35,7 +35,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
   try {
     const pool = new Pool({
       host: 'aws-0-ca-central-1.pooler.supabase.com', port: 6543, database: 'postgres',
-      user: 'postgres.tdigauruusdhnpvppixb', password: 'pmaxnpmiJ6WfcX46',
+      user: 'postgres.tdigauruusdhnpvppixb', password: process.env.SUPABASE_DB_PASSWORD || '',
       ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000,
     })
 

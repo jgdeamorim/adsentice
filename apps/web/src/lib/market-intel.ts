@@ -89,7 +89,7 @@ function getPool(): Pool {
   if (_pool) return _pool
   _pool = new Pool({
     host: "aws-0-ca-central-1.pooler.supabase.com", port: 6543, database: "postgres",
-    user: "postgres.tdigauruusdhnpvppixb", password: "pmaxnpmiJ6WfcX46",
+    user: "postgres.tdigauruusdhnpvppixb", password: process.env.SUPABASE_DB_PASSWORD || "",
     ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000, max: 3,
   })
   return _pool
