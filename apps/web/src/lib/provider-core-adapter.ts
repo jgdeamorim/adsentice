@@ -6,8 +6,6 @@
 
 // ═══ Client (singleton com credenciais do .env) ═══
 
-let _client: DataForSEOClient | null = null
-
 class DataForSEOClient {
   authHeader: string
   mode: "sandbox" | "live"
@@ -43,8 +41,7 @@ function getClient(): DataForSEOClient {
   return new DataForSEOClient(login, password, mode)
 }
 
-// Remove singleton cache
-let _client: DataForSEOClient | null = null
+// _client is created fresh on every call in getClient() — no singleton cache needed
 
 // ═══ Types ═══
 
