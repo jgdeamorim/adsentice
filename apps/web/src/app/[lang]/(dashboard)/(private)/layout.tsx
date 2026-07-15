@@ -31,6 +31,10 @@ import { getMode, getSystemMode } from '@core/utils/serverHelpers'
 // Auth (adsentice)
 import { getSessionUser } from '@/libs/supabase/server'
 
+// Alert Boundary (adsentice — igual cargo check do Rust)
+import { AlertProvider } from '@/contexts/AlertContext'
+import AdminAlertBanner from '@/components/admin/AdminAlertBanner'
+
 const Layout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> }) => {
   const params = await props.params
 
@@ -55,12 +59,18 @@ const Layout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> 
               navbar={<Navbar />}
               footer={<VerticalFooter />}
             >
-              {children}
+              <AlertProvider>
+                <AdminAlertBanner />
+                {children}
+              </AlertProvider>
             </VerticalLayout>
           }
           horizontalLayout={
             <HorizontalLayout header={<Header dictionary={dictionary} />} footer={<HorizontalFooter />}>
-              {children}
+              <AlertProvider>
+                <AdminAlertBanner />
+                {children}
+              </AlertProvider>
             </HorizontalLayout>
           }
         />

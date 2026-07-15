@@ -46,6 +46,14 @@ export async function GET() {
   return NextResponse.json({
     status: healthStatus,
     timestamp: new Date().toISOString(),
+    alerts: {
+      active: activeAlerts.length,
+      total: alerts.length,
+      critical: activeAlerts.filter(a => a.level === "critical").length,
+      warning: activeAlerts.filter(a => a.level === "warning").length,
+      info: activeAlerts.filter(a => a.level === "info").length,
+      items: activeAlerts.slice(0, 10),  // full alert objects for AlertContext
+    },
     services: {
       qdrant: qdrantOk ? "online" : "offline",
       redis: redisOk ? "online" : "offline",
