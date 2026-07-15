@@ -13,6 +13,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
+import InputAdornment from '@mui/material/InputAdornment'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -188,12 +190,15 @@ const DiscoveryPage = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { lang: _lang } = useParams() as { lang: string }
 
-  // ── Geo (dinâmico: 27 capitais BR + raio adaptável por população) ──
+  // ── Geo (dinâmico: 27 capitais BR + raio adaptável por população + busca livre) ──
   const [stateKey, setStateKey] = useState('SP')
   const [cityLat, setCityLat] = useState(-23.5505)
   const [cityLng, setCityLng] = useState(-46.6333)
   const [cityLabel, setCityLabel] = useState('São Paulo (SP)')
   const [radius, setRadius] = useState(25)
+  const [geoQuery, setGeoQuery] = useState('')      // input de busca livre
+  const [geoSuggestions, setGeoSuggestions] = useState<{ lat: number; lng: number; displayName: string }[]>([])
+  const [geoSearching, setGeoSearching] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
   // ── Score Filters (v0.2) ──
@@ -285,6 +290,32 @@ const DiscoveryPage = () => {
   }
 
   const changeRadius = (r: number) => { setRadius(r) }
+
+  // ═══ Geo search (busca livre: bairro, cidade, zona) ═══
+  const handleGeoSearch = async (query: string) => {
+    setGeoQuery(query)
+    if (query.length < 3) { setGeoSuggestions([]); return }
+    setGeoSearching(true)
+    try {
+      const q = query.includes('São Paulo') || query.includes('SP') ? query
+        : query.includes('Rio') || query.includes('RJ') ? query
+        : `${query}, Brasil`
+      const res = await fetch(`/api/geo/search?q=${encodeURIComponent(q)}`)
+      if (!res.ok) { setGeoSuggestions([]); return }
+      const data = await res.json()
+      setGeoSuggestions(data.lat ? [data] : [])
+    } catch { setGeoSuggestions([]) }
+    finally { setGeoSearching(false) }
+  }
+
+  const selectGeoResult = (r: { lat: number; lng: number; displayName: string }) => {
+    setCityLat(r.lat)
+    setCityLng(r.lng)
+    setCityLabel(r.displayName)
+    setStateKey('')          // custom — não é capital
+    setGeoQuery(r.displayName)
+    setGeoSuggestions([])
+  }
 
   // ═══ Score-based sorting + filtering ═══
   const enriched = useMemo(() => {
@@ -422,27 +453,45 @@ return arr
         </Box>
       </Grid>
 
-      {/* ═══ GEO (27 capitais BR · raio adaptável por população) ═══ */}
+      {/* ═══ GEO (27 capitais BR · raio adaptável · busca livre) ═══ */}
       <Grid size={{ xs: 12 }}>
         <Card><CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant='subtitle2' fontWeight={600}>🌎 {cityLabel}</Typography>
             <Chip label={`${radius}km raio`} size='small' color='warning' variant='tonal' />
           </Box>
-          <Typography variant='caption' color='text.secondary' sx={{ mb: 1, display: 'block' }}>
-            27 capitais · Raio automático por população · Cidades grandes = raio maior
+          {/* ── Busca livre: bairro, zona, cidade ── */}
+          <TextField
+            fullWidth size='small' placeholder='🔍 Buscar bairro, zona ou cidade... (ex: Pinheiros, Santana, Itaquera)'
+            value={geoQuery} onChange={e => handleGeoSearch(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: <InputAdornment position='end'>
+                  {geoSearching ? <i className='ri-loader-4-line ri-spin' /> : null}
+                </InputAdornment>,
+              },
+            }}
+            sx={{ mb: geoSuggestions.length > 0 ? 0.5 : 1.5 }} />
+          {/* ── Sugestões de geocoding ── */}
+          {geoSuggestions.map((s, i) => (
+            <Chip key={i} label={s.displayName} size='small' color='success' variant='tonal'
+              onClick={() => selectGeoResult(s)} sx={{ mb: 1, mr: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }} />
+          ))}
+          {/* ── Capitais BR (quick-select) ── */}
+          <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
+            27 capitais · Raio automático por população · Ou digite bairro/zona acima
           </Typography>
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
             {BR_CAPITALS.map(c => (
               <Chip key={c.uf} label={c.uf} clickable size='small'
                 color={stateKey === c.uf ? 'primary' : 'default'}
                 variant={stateKey === c.uf ? 'filled' : 'outlined'}
-                onClick={() => changeCapital(c)}
+                onClick={() => { changeCapital(c); setGeoQuery(''); setGeoSuggestions([]) }}
                 sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400 }} />
             ))}
           </Box>
           <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
-            Raio: {suggestRadiusByPop(BR_CAPITALS.find(c => c.uf === stateKey)?.pop || 0).label}
+            Raio: {stateKey ? suggestRadiusByPop(BR_CAPITALS.find(c => c.uf === stateKey)?.pop || 0).label : `${radius}km (manual)`}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             {[5, 10, 15, 20, 25, 30].map(r => (
