@@ -53,7 +53,7 @@ const MarketPage = async ({ params, searchParams }: {
   const detectedCity = cities.length > 0 ? cities[0].city : ''
   const filterCity = sp.city || detectedCity
   const intel = await nicheIntelligence(filterCategory, filterCity || null)
-  const holds = await fetchMarketHolds(filterCategory, filterCity)
+  const holds = filterCity ? await fetchMarketHolds(filterCategory, filterCity) : []
 
   // Agrupa holds por métrica para mini time-series
   const holdGroups = new Map<string, MarketHoldRow[]>()
@@ -186,6 +186,13 @@ const MarketPage = async ({ params, searchParams }: {
             <Card>
               <CardContent>
                 <Typography variant='h6' gutterBottom>📝 Maturidade de Conteudo · {intel.overview.categoryLabel}</Typography>
+                {intel.overview.contentMaturity.every(m => m.count === 0) ? (
+                  <Alert severity='info' sx={{ mt: 1 }}>
+                    Nenhum lead tem L2 Website+SEO enrichment. Execute o{' '}
+                    <a href={`/${lang}/admin/discovery`} style={{ fontWeight: 600 }}>Discovery Engine</a>{' '}
+                    com enriquecimento para popular dados de maturidade de conteudo.
+                  </Alert>
+                ) : (
                 <Box sx={{ mt: 2 }}>
                   {intel.overview.contentMaturity.map(m => (
                     <Box key={m.level} sx={{ mb: 1.5 }}>
@@ -198,6 +205,7 @@ const MarketPage = async ({ params, searchParams }: {
                     </Box>
                   ))}
                 </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
