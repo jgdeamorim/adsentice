@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.6.0"
+version: "1.7.0"
 date: 2026-07-11
-updated: 2026-07-15T14:10:00-03:00
+updated: 2026-07-15T15:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.6.0
+# Base-Matriz do Ecossistema adsentice v1.7.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
