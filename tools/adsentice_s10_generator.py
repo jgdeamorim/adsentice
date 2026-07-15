@@ -203,11 +203,19 @@ def generate_copy(lead: dict, gaps: list) -> dict:
         data = r.json()
         content = data["choices"][0]["message"]["content"].strip()
 
-        # Parse robusto — DeepSeek reasoning model pode truncar JSON
+        # Parse robusto — DeepSeek V4 Flash é reasoning model
+        # Pode gastar todos os tokens em reasoning_content e retornar content vazio
+        if not content:
+            # Tenta extrair JSON do reasoning_content (formato não-JSON, modelo pensando)
+            reasoning = data["choices"][0]["message"].get("reasoning_content", "")
+            if reasoning:
+                content = reasoning.strip()
+            else:
+                raise ValueError("DeepSeek retornou content e reasoning vazios")
+
         try:
             c = json.loads(content)
         except json.JSONDecodeError:
-            # Tenta extrair campos com regex (fallback)
             import re
             headline = re.search(r'"headline"\s*:\s*"([^"]*)"', content)
             subtitle = re.search(r'"subtitle"\s*:\s*"([^"]*)"', content)
@@ -224,7 +232,10 @@ def generate_copy(lead: dict, gaps: list) -> dict:
         usage = data.get("usage", {})
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)
-        track_llm_cost(prompt_tokens, completion_tokens)
+        # KV Cache tracking (api-docs.deepseek.com/guides/kv_cache)
+        cache_hit = usage.get("prompt_cache_hit_tokens", 0)
+        cache_miss = usage.get("prompt_cache_miss_tokens", 0)
+        track_llm_cost(prompt_tokens, completion_tokens, cache_hit, cache_miss)
 
         return {
             "headline": c.get("headline", ""),
@@ -232,6 +243,8 @@ def generate_copy(lead: dict, gaps: list) -> dict:
             "cta": c.get("cta", ""),
             "tokens": usage.get("total_tokens", 0),
             "model": DEEPSEEK_MODEL,
+            "cache_hit_tokens": cache_hit,
+            "cache_miss_tokens": cache_miss,
         }
     except Exception as e:
         import traceback
@@ -256,10 +269,21 @@ def qdrant_search(vector, kind=None, limit=3):
                   headers={"Content-Type": "application/json"}, method="POST")
     return json.loads(urlopen(req, timeout=10).read()).get("result", [])
 
-def track_llm_cost(prompt_tokens: int, completion_tokens: int):
-    """Registra custo DeepSeek no Redis. ~$0.000003/call. medido=verdade."""
-    # DeepSeek V4 Flash: input $0.001/1M, output $0.002/1M
-    cost = (prompt_tokens / 1_000_000 * 0.001) + (completion_tokens / 1_000_000 * 0.002)
+def track_llm_cost(prompt_tokens: int, completion_tokens: int, cache_hit: int = 0, cache_miss: int = 0):
+    """Registra custo DeepSeek V4 Flash no Redis. medido=verdade.
+
+    Preços reais (api-docs.deepseek.com/quick_start/pricing):
+      Input cache HIT:  $0.0028/1M tokens  (98% cheaper que miss!)
+      Input cache MISS: $0.14/1M tokens
+      Output:           $0.28/1M tokens
+
+    KV Cache (api-docs.deepseek.com/guides/kv_cache):
+      ON por padrão. Cache prefix units no disco. System prompt fixo = ~80% hit rate.
+    """
+    if cache_hit > 0 or cache_miss > 0:
+        cost = (cache_hit / 1_000_000 * 0.0028) + (cache_miss / 1_000_000 * 0.14) + (completion_tokens / 1_000_000 * 0.28)
+    else:
+        cost = (prompt_tokens / 1_000_000 * 0.14) + (completion_tokens / 1_000_000 * 0.28)
     try:
         subprocess.run(
             ["redis-cli", "-p", "6396", "--no-auth-warning",
@@ -284,11 +308,11 @@ def track_llm_cost(prompt_tokens: int, completion_tokens: int):
         subprocess.run(
             ["redis-cli", "-p", "6396", "--no-auth-warning",
              "SETEX", "adsentice:llm:cost:last", "86400",
-             f"{cost:.8f} | {prompt_tokens}+{completion_tokens} tokens | deepseek-v4-flash"],
+             f"{cost:.8f} | cache_hit:{cache_hit} miss:{cache_miss} out:{completion_tokens} | deepseek-v4-flash"],
             timeout=2, capture_output=True,
         )
     except Exception:
-        pass  # Redis offline — custo não contabilizado mas chamada já aconteceu
+        pass
 
 def store_trace(meta):
     text = f"market intel trace | {meta['category']} | {meta['city']} | {meta['district']} | score:{meta['score']}"

@@ -13,6 +13,7 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
+import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
@@ -116,7 +117,18 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const usedCaps = capabilities.filter(c => usedIds.has(c.id))
   const availableCaps = capabilities.filter(c => !usedIds.has(c.id))
 
-  const llmCostPerCall = 0.000003  // DeepSeek V4 Flash: ~$0.000003/call
+  const llmCacheHitRate = llmCallsTotal > 0
+    ? (parseFloat(redisGet('adsentice:llm:cache:total_hits') || '0') / Math.max(llmCallsTotal, 1) * 100).toFixed(0)
+    : '—'
+
+  // DeepSeek pricing (real, fonte: api-docs.deepseek.com/quick_start/pricing)
+  const dsPricing = {
+    cacheHit: 0.0028,   // $/1M tokens
+    cacheMiss: 0.14,
+    output: 0.28,
+  }
+  // Estimativa por chamada com KV Cache (system prompt fixo = ~80% cache hit)
+  const llmEstPerCall = 0.000076  // ~2000 input (80% hit) + ~100 output
 
   // BRL rate aproximado
   const brlRate = 5.5
@@ -172,7 +184,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
                 { label: 'L1 Profile', cost: capabilities.find(c => c.id === 'business.profile.gmb')?.cost_usd || 0.0054, calls: sup.l1Calls },
                 { label: 'L2 OnPage', cost: (capabilities.find(c => c.id === 'on_page.instant_pages')?.cost_usd || 0) + (capabilities.find(c => c.id === 'domain.technologies')?.cost_usd || 0), calls: sup.l2Calls },
                 { label: 'L3 Backlinks', cost: capabilities.find(c => c.id === 'backlinks.competitors')?.cost_usd || 0.02, calls: 0 },
-                { label: 'DeepSeek Copy', cost: llmCostPerCall, calls: llmCallsTotal },
+                { label: 'DeepSeek Copy', cost: llmEstPerCall, calls: llmCallsTotal },
               ].map(s => (
                 <Box key={s.label} sx={{ textAlign: 'center', minWidth: 100 }}>
                   <Typography variant='caption' color='text.secondary'>{s.label}</Typography>
@@ -183,7 +195,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
               <Box sx={{ textAlign: 'center', minWidth: 100, borderLeft: '2px solid var(--primary)', pl: 2 }}>
                 <Typography variant='caption' color='text.secondary'>TOTAL/lead</Typography>
                 <Typography variant='h6' fontWeight={800} color='primary.main'>
-                  ~${(usedCaps.reduce((s, c) => s + c.cost_usd, 0) + llmCostPerCall).toFixed(4)}
+                  ~${(usedCaps.reduce((s, c) => s + c.cost_usd, 0) + llmEstPerCall).toFixed(4)}
                 </Typography>
                 <Chip label='L0→L3+Copy' size='small' color='primary' variant='tonal' sx={{ fontSize: '0.6rem' }} />
               </Box>
@@ -192,20 +204,100 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
         </Card>
       </Grid>
 
-      {/* ── DataForSEO Rate Limits ── */}
-      {dfsCostToday > 0 && (
-        <Grid size={{ xs: 12 }}>
-          <Alert severity='info'>
-            <Typography variant='body2'>
-              💰 <strong>Balance DataForSEO:</strong> disponível em{' '}
-              <a href='https://app.dataforseo.com/billing' target='_blank' rel='noopener noreferrer' style={{ fontWeight: 600 }}>
-                app.dataforseo.com/billing
-              </a>. Adsentice rastreia <strong>${sup.totalCost.toFixed(4)}</strong> em {sup.totalSearches} buscas
-              + <strong>${llmCostTotal.toFixed(6)}</strong> em {llmCallsTotal} chamadas DeepSeek.
+      {/* ── DeepSeek Pricing + KV Cache ── */}
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>🧠 DeepSeek V4 Flash Pricing</Typography>
+            <Typography variant='caption' color='text.secondary' sx={{ mb: 2, display: 'block' }}>
+              Fonte: api-docs.deepseek.com/quick_start/pricing
             </Typography>
-          </Alert>
-        </Grid>
-      )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {[
+                { label: 'Input (KV Cache HIT)', cost: dsPricing.cacheHit, desc: 'system prompt fixo → 98% cheaper', color: 'success.main' },
+                { label: 'Input (KV Cache MISS)', cost: dsPricing.cacheMiss, desc: 'user prompt varia por lead', color: 'warning.main' },
+                { label: 'Output', cost: dsPricing.output, desc: 'headline + subtitle + cta', color: 'error.main' },
+              ].map(p => (
+                <Box key={p.label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Typography variant='body2' fontWeight={600}>{p.label}</Typography>
+                    <Typography variant='caption' color='text.secondary'>{p.desc}</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant='body2' fontWeight={700} color={p.color}>${p.cost.toFixed(4)}/1M</Typography>
+                  </Box>
+                </Box>
+              ))}
+              <Divider />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant='body2' fontWeight={700}>Estimativa por chamada</Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    ~2000 tokens input (80% hit) + ~100 output
+                    {llmCacheHitRate !== '—' && ` · Cache hit rate: ${llmCacheHitRate}%`}
+                  </Typography>
+                </Box>
+                <Typography variant='h6' fontWeight={800} color='primary.main'>~${llmEstPerCall.toFixed(6)}</Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── DeepSeek Balance (Redis) ── */}
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>💳 DeepSeek Balance</Typography>
+            <Typography variant='caption' color='text.secondary' sx={{ mb: 2, display: 'block' }}>
+              GET /user/balance · Atualizado via tools/adsentice_deepseek_status.py
+            </Typography>
+            {(() => {
+              const usdRaw = redisGet('adsentice:llm:balance:usd')
+              if (!usdRaw) return <Chip label='Não consultado (rode adsentice_deepseek_status.py)' size='small' color='default' />
+              try {
+                const bal = JSON.parse(usdRaw)
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 3 }}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant='caption' color='text.secondary'>Total</Typography>
+                        <Typography variant='h5' fontWeight={800} color={bal.available ? 'success.main' : 'error.main'}>
+                          ${parseFloat(bal.total).toFixed(2)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant='caption' color='text.secondary'>Topped Up</Typography>
+                        <Typography variant='h6' fontWeight={700}>${parseFloat(bal.topped_up || '0').toFixed(2)}</Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant='caption' color='text.secondary'>Granted</Typography>
+                        <Typography variant='h6' fontWeight={700}>${parseFloat(bal.granted || '0').toFixed(2)}</Typography>
+                      </Box>
+                    </Box>
+                    <Chip label={bal.available ? '✅ Disponível p/ API' : '❌ Saldo insuficiente'} size='small'
+                      color={bal.available ? 'success' : 'error'} variant='tonal' />
+                  </Box>
+                )
+              } catch { return <Chip label='Erro ao parsear balance' size='small' color='error' /> }
+            })()}
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── Balances Alert ── */}
+      <Grid size={{ xs: 12 }}>
+        <Alert severity='info'>
+          <Typography variant='body2'>
+            💰 <strong>Balances:</strong> DataForSEO disponível em{' '}
+            <a href='https://app.dataforseo.com/billing' target='_blank' rel='noopener noreferrer' style={{ fontWeight: 600 }}>
+              app.dataforseo.com/billing
+            </a>{' · '}
+            DeepSeek via <code style={{ background: '#e2e8f0', padding: '1px 4px', borderRadius: 3 }}>python3 tools/adsentice_deepseek_status.py</code>.
+            Adsentice rastreia <strong>${sup.totalCost.toFixed(4)} (DFSEO)</strong> + <strong>${llmCostTotal.toFixed(6)} (LLM)</strong> = <strong>${totCostTotal.toFixed(4)} total</strong>.
+          </Typography>
+        </Alert>
+      </Grid>
 
       {/* ── Capabilities grid (da cost-registry.yaml) ── */}
       <Grid size={{ xs: 12 }}>
