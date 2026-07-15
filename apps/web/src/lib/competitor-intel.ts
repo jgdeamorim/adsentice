@@ -6,7 +6,8 @@
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
-import { extractDomain, domainCompetitors } from "./evo-mcp"
+import { extractDomain } from "./provider-core-adapter"
+import { domainCompetitors } from "./evo-mcp"
 import type { ScoringInput } from "./scoring"
 
 // ── Types ─────────────────────────────────────────────────────

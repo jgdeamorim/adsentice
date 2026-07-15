@@ -9,7 +9,7 @@ import "server-only"
 import { Pool } from "pg"
 
 import type { ScoreData } from "./scoring"
-import type { GMBListing } from "./evo-mcp"
+import type { GMBListing } from "./provider-core-adapter"
 
 // ── Types ───────────────────────────────────────────────────
 

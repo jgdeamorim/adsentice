@@ -6,7 +6,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch } from "@/lib/evo-mcp"
+import { businessListingsSearch } from "@/lib/provider-core-adapter"
 import { scoreLeads } from "@/lib/scoring"
 import { getCached, setCache } from "@/lib/discovery-cache"
 

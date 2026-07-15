@@ -9,7 +9,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain } from "@/lib/evo-mcp"
+import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain } from "@/lib/provider-core-adapter"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
