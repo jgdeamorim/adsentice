@@ -83,12 +83,12 @@ const MarketPage = async ({ params, searchParams }: {
         </Box>
       </Grid>
 
-      {/* Category Selector */}
+      {/* Category + City Selector */}
       <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
-            <Grid container spacing={2} alignItems='center'>
-              <Grid size={{ xs: 12, md: 8 }}>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
                   📁 Categoria:
                 </Typography>
@@ -97,10 +97,25 @@ const MarketPage = async ({ params, searchParams }: {
                     <Chip key={c.category} label={`${c.label} (${c.count})`} size='small' clickable
                       color={filterCategory === c.category ? 'primary' : 'default'}
                       variant={filterCategory === c.category ? 'filled' : 'outlined'}
-                      component='a' href={`/${lang}/admin/market?category=${c.category}${filterCity ? `&city=${filterCity}` : ''}`} />
+                      component='a' href={`/${lang}/admin/market?category=${c.category}${filterCity ? `&city=${encodeURIComponent(filterCity)}` : ''}`} />
                   ))}
                 </Box>
               </Grid>
+              {cities.length > 1 && (
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                    📍 Cidade:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {cities.map(c => (
+                      <Chip key={c.city} label={`${c.city} (${c.count})`} size='small' clickable
+                        color={filterCity === c.city ? 'warning' : 'default'}
+                        variant={filterCity === c.city ? 'filled' : 'outlined'}
+                        component='a' href={`/${lang}/admin/market?category=${filterCategory}${c.city !== detectedCity ? `&city=${encodeURIComponent(c.city)}` : ''}`} />
+                    ))}
+                  </Box>
+                </Grid>
+              )}
             </Grid>
           </CardContent>
         </Card>

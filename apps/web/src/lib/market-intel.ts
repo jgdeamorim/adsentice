@@ -60,13 +60,27 @@ const CATEGORY_TICKETS: Record<string, number> = {
   barber_shop: 45, real_estate_agency: 3000,
 }
 const SIGNAL_LABELS: Record<string, string> = {
-  W1: "Sem HTTPS", W4: "Sem Meta Tags", W5: "Sem Analytics",
-  W6: "CMS/Plataforma de Risco", W7: "Sem Blog/Conteudo", W8: "Sem Schema Markup",
-  W9: "Backlink Gap", W10: "Baixa Leiturabilidade", W11: "Conteudo Orfao",
+  // Fit (F1-F10) — quão próximo do ICP
+  F1: "Categoria fora do ICP", F2: "Poucas Reviews (<10)", F3: "Sem Website",
+  F4: "Sem Telefone", F5: "Endereco Nao Mapeado", F6: "Horario Nao Preenchido",
+  F7: "Sem Descricao", F8: "Poucos Servicos", F9: "Sem Dominio Proprio",
+  F10: "CNPJ Inativo",
+  // Engagement (E1-E7) — cuidado com canais digitais
+  E1: "Rating Abaixo de 4.0", E2: "Poucas Reviews Recentes", E3: "Poucas Fotos",
+  E4: "Nao Reivindicado", E5: "Sem WhatsApp Business", E6: "Sem Posts no GMB",
+  E7: "Sem Q&A no Perfil",
+  // Intent — nível de dor detectada
+  I1: "Score Baixo (<40)", I2: "Engajamento Baixo", I3: "Fit Baixo (<50%)",
+  // Website (W1-W11) — L2 enrichment
+  W1: "Sem HTTPS", W2: "Core Web Vitals Ruins", W3: "Mobile Ruim",
+  W4: "Sem Meta Tags", W5: "Sem Analytics", W6: "CMS/Plataforma de Risco",
+  W7: "Sem Blog/Conteudo", W8: "Sem Schema Markup", W9: "Backlink Gap",
+  W10: "Baixa Leiturabilidade", W11: "Conteudo Orfao",
+  // Content (C1-C5) — maturidade de conteúdo
   C1: "Conteudo Raso", C2: "Metadata Ausente", C3: "Arquitetura Pobre",
   C4: "Gap Tecnologico", C5: "Sem Estrategia de Conteudo",
+  // Schema (S1-S2)
   S1: "Sem Schema LocalBusiness", S2: "Sem Schema Organization",
-  E1: "Rating Baixo", E4: "Nao Reivindicado", F3: "Sem Website",
 }
 const ML = ["Invisivel", "Basico", "Presente", "Estruturado", "Maduro"]
 const SCHWARTZ = ["Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
@@ -102,7 +116,7 @@ export async function aggregateByCategory(cat: string, city?: string | null): Pr
       avgPhotos: Math.round(avg(photos)),
       claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
       hasWebsitePct: Math.round((list.filter(r => r.website).length / total) * 1000) / 10,
-      hasAnalyticsPct: Math.round((list.filter(r => r.l2_has_analytics).length / Math.max(list.filter(r => r.l2_has_analytics != null).length, 1)) * 1000) / 10,
+      hasAnalyticsPct: Math.round((list.filter(r => r.l2_has_analytics).length / Math.max(total, 1)) * 1000) / 10,
       schwartzDistribution: schwartzDist, contentMaturity: cmDist,
     }
   } catch (e: any) { console.error("[market-intel] aggregate:", e.message); return null }
