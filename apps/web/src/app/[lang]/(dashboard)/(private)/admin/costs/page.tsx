@@ -143,39 +143,18 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const cpl        = leads > 0 ? sup.totalCost / leads : 0
   const brl        = 5.5
 
-  // ═══ DeepSeek Balance (Redis → exec script → live API fallback) ═══
+  // ═══ DeepSeek Balance — fetch direto da API ═══
   let dsBal: any = null
   try {
-    const raw = redisRaw('adsentice:llm:balance:usd')
-    if (raw) {
-      dsBal = JSON.parse(raw)
-    } else {
-      // Rodar o script Python que le a API e salva no Redis
-      try {
-        execSync('python3 tools/adsentice_deepseek_status.py', { timeout: 15000, stdio: 'ignore', cwd: resolve(process.cwd(), '../..') })
-        // Ler do Redis apos script rodar
-        const cached = redisRaw('adsentice:llm:balance:usd')
-        if (cached) dsBal = JSON.parse(cached)
-      } catch {
-        // Script offline — tentar API direto
-        const dsKey = process.env.DEEPSEEK_API_KEY
-        if (dsKey) {
-          try {
-            const balRes = await fetch('https://api.deepseek.com/user/balance', {
-              headers: { Authorization: `Bearer ${dsKey}` }, signal: AbortSignal.timeout(8000),
-            })
-            if (balRes.ok) {
-              dsBal = await balRes.json()
-              // Cache no Redis
-              try {
-                execSync(`redis-cli -p 6396 --no-auth-warning SETEX adsentice:llm:balance:usd 3600 '${JSON.stringify(dsBal).replace(/'/g, "'\\''")}'`, { timeout: 2000, stdio: 'ignore' })
-              } catch { /* Redis offline */ }
-            }
-          } catch { /* API offline */ }
-        }
-      }
+    const key = process.env.DEEPSEEK_API_KEY
+    if (key) {
+      const balRes = await fetch("https://api.deepseek.com/user/balance", {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(10000),
+      })
+      if (balRes.ok) dsBal = await balRes.json()
     }
-  } catch { /* Redis offline */ }
+  } catch { /* API offline */ }
 
   // 21 tools implementadas — usadas como filtro sobre cost-registry.yaml
   const usedIds = new Set([
