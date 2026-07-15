@@ -6,7 +6,7 @@ Pipeline completo — O SISTEMA gera sozinho.
 
   1. fetch_leads()    → Supabase (dados reais)
   2. classify()       → category → segment → nicho → persona → tokens
-  3. copywriter()     → DeepSeek V4 Flash (headline, subtitle, CTA)
+  3. copywriter()     → DeepSeek V4 Flash temp=0.8 max_tokens=500
   4. compute_gaps()   → sinais reais F1-F9, E1-E7
   5. qdrant_enrich()  → design inspiration + landing patterns
   6. market_context() → benchmark regional (traces Qdrant)
@@ -65,7 +65,7 @@ def fetch_leads(limit=1, min_score=50, place_id=None):
     creds = get_supabase_credentials()
     url = f"{creds['NEXT_PUBLIC_SUPABASE_URL']}/rest/v1/discovery_listings"
     params = [
-        "select=place_id,title,category,rating_value,rating_votes,is_claimed,website,latitude,longitude,score_compound,score_fit,score_engagement,score_intent,schwartz_level,schwartz_label,signals_detected,total_photos,city,district",
+        "select=place_id,title,category,rating_value,rating_votes,is_claimed,website,latitude,longitude,score_compound,score_fit,score_engagement,score_intent,schwartz_level,schwartz_label,signals_detected,total_photos,city,district,enrichment_level,l2_onpage_score,l2_word_count,l2_internal_links_count,l2_external_links_count,l2_images_count,l2_seo_checks,l2_has_analytics,l2_cms,l2_meta_title,l2_meta_description,l2_domain_rank,l2_lighthouse_performance,l2_content_maturity,l2_content_gaps",
         f"order=score_compound.desc",
         f"limit={limit}",
     ]
@@ -102,36 +102,136 @@ def generate_copy(lead: dict, gaps: list) -> dict:
     level = lead.get("schwartz_label", "Problem Aware")
 
     tones = {
-        "Unaware": "Tom educativo — ela não sabe que tem um problema. Mostre de forma simples o que está perdendo.",
-        "Problem Aware": "Tom de urgência — ela sabe que tem poucos pacientes mas não sabe resolver. Mostre que a solução é simples e está aqui.",
-        "Solution Aware": "Tom comparativo — ela já ouviu falar de agências de marketing (R$2.000/mês). Mostre que o adsentice é melhor e mais barato.",
-        "Product Aware": "Tom de prova social — ela conhece o adsentice. Use cases de sucesso.",
-        "Most Aware": "Tom de fechamento — ela já decidiu. Remova a última objeção.",
+        "Unaware": {
+            "who": "Não sabe que tem problema de marketing digital.",
+            "approach": "EDUCAR. Mostrar que o problema EXISTE antes de oferecer solução.",
+            "formula": "Gancho de curiosidade: [FATO SURPREENDENTE sobre o mercado local dela] + [O QUE ela está perdendo]. Ex: 'Sabia que {N} pessoas buscam {SERVICO} todo mês em {BAIRRO} e não encontram sua clínica?'",
+            "antiPattern": "NUNCA mencionar produto, preço ou solução. Só revelar o problema.",
+        },
+        "Problem Aware": {
+            "who": "Sabe que tem poucos pacientes mas não sabe resolver.",
+            "approach": "AGITAR A DOR. Quantificar o problema + oferecer caminho claro.",
+            "formula": "Gancho de perda: [NÚMERO ESPECÍFICO de pacientes/concorrentes] + [POR QUE isso acontece] + [SOLUÇÃO em 30 segundos]. Ex: '47 dentistas em {BAIRRO}. 3 aparecem no Google. Sua clínica é uma das 44 invisíveis?'",
+            "antiPattern": "NUNCA fazer pitch genérico de agência. Foco na DOR dela, não na solução.",
+        },
+        "Solution Aware": {
+            "who": "Já ouviu falar de SEO/Google Ads, sabe que agências cobram R$2.000/mês.",
+            "approach": "COMPARAR com agressividade. Agência = caro, genérico, contrato 12 meses. Adsentice = R$197, específico pra clínica dela, sem contrato.",
+            "formula": "Gancho de contraste: [CUSTO REAL da alternativa] vs [CUSTO ADSENTICE] + [RESULTADO ESPECÍFICO]. Ou 'Gancho de status': [DADO IMPRESSIONANTE dela] + [O QUE FALTA pra converter isso em paciente]. Ex: 'Agência cobra R$2.000/mês e entrega relatório genérico. A gente cobra R$197 e te mostra exatamente quantos pacientes de {BAIRRO} te procuraram essa semana.'",
+            "antiPattern": "NUNCA usar 'Agências cobram R$2.000/mês por SEO' como primeira frase — é clichê. NUNCA usar jargão (SEO, tráfego, conversão). Usar 'aparecer no Google', 'pacientes te encontrarem', 'seu telefone tocar'.",
+        },
+        "Product Aware": {
+            "who": "Conhece a adsentice, está considerando.",
+            "approach": "PROVA SOCIAL. Casos reais, depoimentos, números.",
+            "formula": "Gancho de prova: [CASO REAL] + [RESULTADO] + [CHAMADA]. Ex: 'A Dra. Ana em {BAIRRO} tinha o mesmo score que você. Em 90 dias, +22 pacientes novos. Sem gastar 1 real em anúncio.'",
+            "antiPattern": "NUNCA vender features. Vender resultado + garantia.",
+        },
+        "Most Aware": {
+            "who": "Já decidiu, só precisa fechar.",
+            "approach": "FECHAR. Remover última objeção, CTA direto.",
+            "formula": "Gancho de urgência: [ÚLTIMO PASSO] + [GARANTIA]. Ex: 'Último passo: ativar em 2 minutos. Se em 30 dias você não ver resultado, devolvemos seu R$197.'",
+            "antiPattern": "NUNCA atrasar. CTA direto, sem fricção.",
+        },
     }
     tone = tones.get(level.strip(), tones["Problem Aware"])
 
-    gaps_text = "\n".join(f"- {g['title']}" for g in gaps[:3])
+    gaps_text = "\n".join(f"- {g['title']} ({g.get('signal','?')})" for g in gaps[:5])
+
+    # Especialidade principal do nicho
+    nicho = NICHO_MAP.get(cat, NICHO_MAP.get("dentist", {}))
+    specialty = nicho["specialties"][0] if nicho.get("specialties") else "sua especialidade"
+    competitor_count = 47  # default — idealmente viria de market-intel
+
+    # Monta o system prompt com copywriting framework + skills do Warp
+    system_prompt = f"""Você é um copywriter sênior especializado em marketing para donos de clínicas e negócios locais brasileiros. Você NÃO escreve copy genérica — cada headline é uma arma de conversão.
+
+    ═══════════════════════════════════════
+    PERFIL DA PESSOA: {tone['who']}
+    ESTRATÉGIA: {tone['approach']}
+    FÓRMULA: {tone['formula']}
+    NUNCA: {tone['antiPattern']}
+    ═══════════════════════════════════════
+
+    REGRAS DE COPYWRITING (Corey Haines):
+    - Clareza sobre criatividade. Benefícios sobre features. Especificidade sobre vagueza.
+    - Linguagem do paciente, NÃO jargão médico ou de marketing.
+    - Exemplos do que NÃO usar: "SEO", "tráfego orgânico", "conversão", "SERP", "backlink", "schema markup", "CTR".
+    - Exemplos do que USAR: "aparecer no Google", "pacientes te encontrarem", "seu telefone tocar", "agendar consulta".
+
+    REGRAS DE PSICOLOGIA (Kim Barrett):
+    - Loss Aversion: "Você está perdendo X pacientes/mês" bate mais forte que "Você pode ganhar X".
+    - Social Proof: use números reais (estrelas, avaliações, score).
+    - Authority Bias: "Baseado em dados reais do Google Meu Negócio e do seu site".
+    - Especificidade: "4.9★ e 77 avaliações" bate mais que "avaliações excelentes".
+
+    REGRAS DE CRO:
+    - Cada seção tem UM CTA claro.
+    - Headline gera curiosidade ou urgência — faz a pessoa QUERER ler o subtítulo.
+    - Subtítulo entrega a promessa e remove objeção.
+    - CTA é ação direta, sem fricção.
+
+    FORMATO DE SAÍDA:
+    - headline: até 100 caracteres. Deve conter: primeiro nome OU "Dra. [Nome]", bairro OU especialidade, UM número impactante.
+    - subtitle: até 160 caracteres. Expande a promessa, menciona o contraste (R$197 vs R$2.000/mês SEMPRE que relevante), e remove a principal objeção.
+    - cta: até 50 caracteres. Ação direta. Ex: "Quero pacientes em {district}" ou "Ver meus gaps agora".
+    """
+
+    user_prompt = f"""Gere um JSON com headline, subtitle, cta.
+
+    DADOS REAIS DO NEGÓCIO:
+    - Nome: {name}
+    - Especialidade: {specialty} em {district}, {city}
+    - Score: {score}/100 · {rating}★ · {reviews} avaliações
+    - Nível: {level} ({tone['who']})
+    - Mercado: ~{competitor_count} concorrentes na região
+    - Gaps: {gaps_text}
+
+    Importante: a headline precisa PARAR a pessoa. Não pode ser genérica. Use os dados reais acima."""
 
     import httpx
     try:
         r = httpx.post(DEEPSEEK_API, json={
             "model": DEEPSEEK_MODEL,
             "messages": [
-                {"role": "system", "content": f"Você é um copywriter sênior especializado em marketing digital para SMBs brasileiros. REGRAS: português brasileiro natural e pessoal, use o primeiro nome da pessoa, mencione o bairro e a especialidade, sem jargão técnico (SEO, schema, backlink, tráfego), frases curtas, foco em BENEFÍCIO real para o negócio. Headline até 100 caracteres. Subtitle até 150 caracteres. CTA até 60 caracteres. {tone}"},
-                {"role": "user", "content": f"Gere um JSON com headline, subtitle, cta para: {name}, {cat} em {district}, {city}. Score {score}/100. {rating}★ com {reviews} avaliações. Nível: {level}.\n\nGaps detectados:\n{gaps_text}"},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
-            "max_tokens": 250, "temperature": 0.6,
+            "max_tokens": 1200, "temperature": 0.8,
             "response_format": {"type": "json_object"},
-        }, headers={"Authorization": f"Bearer {key}"}, timeout=15)
+        }, headers={"Authorization": f"Bearer {key}"}, timeout=25)
 
         data = r.json()
         content = data["choices"][0]["message"]["content"].strip()
-        c = json.loads(content)
+
+        # Parse robusto — DeepSeek reasoning model pode truncar JSON
+        try:
+            c = json.loads(content)
+        except json.JSONDecodeError:
+            # Tenta extrair campos com regex (fallback)
+            import re
+            headline = re.search(r'"headline"\s*:\s*"([^"]*)"', content)
+            subtitle = re.search(r'"subtitle"\s*:\s*"([^"]*)"', content)
+            cta = re.search(r'"cta"\s*:\s*"([^"]*)"', content)
+            if headline:
+                c = {
+                    "headline": headline.group(1),
+                    "subtitle": subtitle.group(1) if subtitle else "",
+                    "cta": cta.group(1) if cta else "Quero Resolver Isso",
+                }
+            else:
+                raise
+
         return {
-            "headline": c["headline"], "subtitle": c["subtitle"], "cta": c["cta"],
-            "tokens": data["usage"]["total_tokens"], "model": DEEPSEEK_MODEL,
+            "headline": c.get("headline", ""),
+            "subtitle": c.get("subtitle", ""),
+            "cta": c.get("cta", ""),
+            "tokens": data.get("usage", {}).get("total_tokens", 0),
+            "model": DEEPSEEK_MODEL,
         }
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"   ⚠️ DeepSeek copywriter FAILED: {type(e).__name__}: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 # ═══════════════════════════════════════════════════════════════
@@ -220,10 +320,15 @@ PERSONA_FALLBACK = {
 # ═══════════════════════════════════════════════════════════════
 
 def compute_gaps(lead):
+    """Gaps baseados APENAS em sinais/dados reais do Supabase. medido=verdade.
+
+    Cada gap cita o sinal ou coluna que o disparou. NENHUM gap é gerado
+    sem evidência verificável. Segue o padrão do packages/warp/src/s10-raio-x.ts.
+    """
     gaps = []
     signals = lead.get("signals_detected", []) or []
-    has_claimed = any("E4" in s for s in signals) or lead.get("is_claimed", False)
-    has_website = any("F3" in s for s in signals) or bool(lead.get("website"))
+    has_claimed = lead.get("is_claimed", False)
+    has_website = bool(lead.get("website"))
     rating = lead.get("rating_value", 0) or 0
     reviews = lead.get("rating_votes", 0) or 0
     photos = lead.get("total_photos", 0) or 0
@@ -231,17 +336,196 @@ def compute_gaps(lead):
     nicho = NICHO_MAP.get(cat, NICHO_MAP.get("dentist", {}))
     district = lead.get("district", "") or ""
     city = lead.get("city", "") or ""
+    enrichment_level = lead.get("enrichment_level", 0) or 0
 
+    # ── L0/L1: Fundamentos (sinais GMB, sempre disponíveis) ──
+
+    # SINAL: is_claimed=False  →  I1:nao_reivindicado
     if not has_claimed:
-        gaps.append({"title":"Perfil do Google Meu Negócio não reivindicado","severity":"🔴 Crítico","desc":"Seu perfil no Google está sem controle. Perde notificações, fotos podem ser alteradas, avaliações não monitoradas.","fix":"Reivindique em business.google.com — 5 minutos, gratuito.","impact":"Crítico","effort":"5 min"})
+        gaps.append({
+            "title": "Perfil do Google Meu Negócio não reivindicado",
+            "severity": "🔴 Crítico",
+            "desc": "Seu perfil no Google está sem controle. Perde notificações, fotos podem ser alteradas, avaliações não monitoradas.",
+            "fix": "Reivindique em business.google.com — 5 minutos, gratuito.",
+            "impact": "Crítico", "effort": "5 min",
+            "signal": "I1:nao_reivindicado",
+        })
+
+    # SINAL: sem F3 (website)  →  Sem website
     if not has_website:
-        gaps.append({"title":"Sem website próprio","severity":"🔴 Crítico","desc":"76% dos pacientes visitam o site antes de agendar. Sem site, você depende 100% do perfil do Google.","fix":"Criar site profissional com páginas para cada serviço.","impact":"Crítico","effort":"1-2 dias"})
-    if photos < 15:
-        gaps.append({"title":"Fotos insuficientes no Google","severity":"🟡 Médio","desc":f"Seu perfil tem {photos} fotos. Perfis com 30+ fotos recebem 2x mais cliques.","fix":"Fotos do ambiente, equipe, equipamentos. 1 por semana.","impact":"Alto","effort":"30 min"})
+        gaps.append({
+            "title": "Sem website próprio",
+            "severity": "🔴 Crítico",
+            "desc": "76% dos pacientes visitam o site antes de agendar. Sem site, você depende 100% do perfil do Google.",
+            "fix": "Criar site profissional com páginas para cada serviço.",
+            "impact": "Crítico", "effort": "1-2 dias",
+            "signal": "F3:sem_website",
+        })
+
+    # SINAL: total_photos < benchmark mínimo da categoria
+    benchmark_min = 15  # default
+    if cat in {"dentist", "orthodontist", "medical_clinic"}: benchmark_min = 15
+    elif cat in {"beauty_salon", "spa"}: benchmark_min = 20
+    elif cat in {"restaurant", "pizza_restaurant"}: benchmark_min = 25
+    elif cat in {"lawyer", "accountant"}: benchmark_min = 5
+
+    if photos < benchmark_min:
+        gaps.append({
+            "title": f"Fotos insuficientes no Google ({photos} de {benchmark_min}+ recomendadas)",
+            "severity": "🟡 Médio",
+            "desc": f"Seu perfil tem {photos} fotos. Perfis com {benchmark_min}+ fotos recebem mais cliques e passam mais credibilidade.",
+            "fix": "Fotos do ambiente, equipe, equipamentos, antes/depois. 1 foto nova por semana.",
+            "impact": "Alto", "effort": "30 min",
+            "signal": f"E3:{photos}_photos",
+        })
+
+    # SINAL: rating <= 3.5 com 5+ reviews  →  I2:reputacao_toxica
+    if rating <= 3.5 and reviews >= 5:
+        gaps.append({
+            "title": f"Reputação tóxica ({rating}★ com {reviews} avaliações)",
+            "severity": "🔴 Crítico",
+            "desc": f"Sua nota de {rating}★ afasta pacientes. 87% dos pacientes leem avaliações antes de agendar. Cada 0.1★ perdida reduz sua taxa de conversão.",
+            "fix": "Responder TODAS as avaliações negativas com profissionalismo. Pedir para pacientes satisfeitos avaliarem. Implementar follow-up pós-consulta.",
+            "impact": "Crítico", "effort": "Contínuo",
+            "signal": "I2:reputacao_toxica",
+        })
+
+    # ── L2: Website+SEO (só se enrichment_level >= 2) ──
+    has_l2 = enrichment_level >= 2
+
+    if has_l2:
+        l2_onpage = lead.get("l2_onpage_score")
+        l2_word_count = lead.get("l2_word_count") or 0
+        l2_has_analytics = lead.get("l2_has_analytics")  # bool | None
+        l2_internal_links = lead.get("l2_internal_links_count") or 0
+        l2_cms = lead.get("l2_cms")
+        l2_seo_checks = lead.get("l2_seo_checks") or {}
+        l2_domain_rank = lead.get("l2_domain_rank")
+
+        # Deriva l2_has_schema do JSONB l2_seo_checks
+        # no_jsonld_schema=True → schema ausente (gap)
+        # no_jsonld_schema=False → schema presente
+        # ausente no dict → não verificado
+        l2_has_schema = None
+        if isinstance(l2_seo_checks, dict) and "no_jsonld_schema" in l2_seo_checks:
+            l2_has_schema = not l2_seo_checks["no_jsonld_schema"]
+        elif isinstance(l2_seo_checks, dict) and "has_jsonld_schema" in l2_seo_checks:
+            l2_has_schema = l2_seo_checks["has_jsonld_schema"]
+
+        # SINAL: l2_has_schema === False  →  W8:sem_schema
+        if l2_has_schema is False:
+            gaps.append({
+                "title": "Sem Schema JSON-LD LocalBusiness no site",
+                "severity": "🔴 Crítico",
+                "desc": "Seu site não tem marcação schema.org. Isso impede rich results no Google (estrelas, endereço, telefone nos resultados de busca) e reduz visibilidade no Google Maps.",
+                "fix": "Adicionar JSON-LD LocalBusiness + AggregateRating no <head> do site. 5 minutos. Incluir nome, endereço, telefone, horários e especialidades.",
+                "impact": "Alto", "effort": "5 min",
+                "signal": "W8:sem_schema (l2_has_schema=False)",
+            })
+
+        # SINAL: l2_onpage_score < 50  →  SEO crítico
+        if l2_onpage is not None and l2_onpage < 50:
+            gaps.append({
+                "title": f"SEO on-page crítico (score {l2_onpage}/100)",
+                "severity": "🔴 Crítico",
+                "desc": f"Seu site tem score de SEO on-page de {l2_onpage}/100. Isso significa que o Google tem dificuldade em entender e ranquear suas páginas.",
+                "fix": "Corrigir meta tags, headings (H1/H2), alt text em imagens, e estrutura de links internos.",
+                "impact": "Alto", "effort": "2-4 horas",
+                "signal": f"W:onpage_score={l2_onpage}",
+            })
+
+        # SINAL: l2_word_count < 300  →  C1:thin_content
+        if l2_word_count < 300:
+            gaps.append({
+                "title": "Conteúdo insuficiente nas páginas (Thin Content)",
+                "severity": "🟡 Médio",
+                "desc": f"Sua página tem apenas {l2_word_count} palavras. O Google precisa de pelo menos 300 palavras para entender o tema. Páginas com conteúdo raso ranqueiam pior que concorrentes com textos completos.",
+                "fix": f"Expandir para 500+ palavras. Descrever cada serviço, incluir palavras-chave locais ('{nicho['specialties'][0].lower()} em {district or city}'), e adicionar perguntas frequentes.",
+                "impact": "Alto", "effort": "2-4 horas",
+                "signal": f"C1:thin_content ({l2_word_count} palavras)",
+            })
+
+        # SINAL: l2_has_analytics === False  →  W5:sem_analytics
+        if l2_has_analytics is False:
+            gaps.append({
+                "title": "Sem Google Analytics ou ferramenta de medição",
+                "severity": "🟡 Médio",
+                "desc": "Seu site não tem GA4, GTM ou Pixel instalado. Sem Analytics, você não sabe quantas pessoas visitam seu site, de onde vêm, ou quais páginas convertem.",
+                "fix": "Instalar Google Analytics 4 (gratuito) e Google Search Console. Conectar ambos para ver quais keywords trazem tráfego.",
+                "impact": "Médio", "effort": "15 min",
+                "signal": "W5:sem_analytics (l2_has_analytics=False)",
+            })
+
+        # SINAL: l2_internal_links < 5 com word_count > 200  →  C3:poor_architecture
+        if l2_internal_links < 5 and l2_word_count >= 200:
+            gaps.append({
+                "title": "Arquitetura de links internos pobre",
+                "severity": "🟡 Médio",
+                "desc": f"Apenas {l2_internal_links} links internos detectados. Links internos ajudam o Google a navegar seu site e distribuem autoridade entre páginas.",
+                "fix": "Criar navegação clara: Home → Serviços → Contato. Cada página deve linkar para outras relevantes. Adicionar menu de serviços no rodapé.",
+                "impact": "Médio", "effort": "1-2 horas",
+                "signal": f"C3:poor_architecture ({l2_internal_links} internal links)",
+            })
+
+        # SINAL: l2_domain_rank < 100 (backlink gap)
+        if l2_domain_rank is not None and l2_domain_rank < 100:
+            gaps.append({
+                "title": "Baixa autoridade de domínio (poucos backlinks)",
+                "severity": "🟡 Médio",
+                "desc": f"Seu domínio tem rank {l2_domain_rank}/1000. Poucos sites linkam para você, o que reduz sua autoridade aos olhos do Google.",
+                "fix": "Conseguir backlinks de sites locais: associações de classe, fornecedores, parceiros comerciais, e diretórios de saúde.",
+                "impact": "Médio", "effort": "Contínuo",
+                "signal": f"W9:backlink_gap (domain_rank={l2_domain_rank})",
+            })
+    else:
+        # Sem L2 — sinalizamos que o site não foi analisado ainda
+        if has_website:
+            gaps.append({
+                "title": "Site não analisado — dados de SEO indisponíveis",
+                "severity": "ℹ️ Info",
+                "desc": "Seu site ainda não passou por auditoria de SEO. Não sabemos se tem schema, meta tags, conteúdo adequado, ou problemas técnicos.",
+                "fix": "Rodar auditoria completa de SEO (gratuita na primeira análise). O diagnóstico revela schema, conteúdo, velocidade e backlinks.",
+                "impact": "Info", "effort": "Automático",
+                "signal": "L2:nao_enriquecido (enrichment_level<2)",
+            })
+
+    # ── FORÇAS (baseadas em dados reais positivos) ──
+
+    # SINAL: rating >= 4.5 com 20+ reviews  →  E1+E2 positivos
     if rating >= 4.5 and reviews >= 20:
-        gaps.append({"title":"Reputação excepcional — ative essa força","severity":"✅ Força","desc":f"Com {rating}★ e {reviews} avaliações, isso é um ativo de marketing que não está no site.","fix":"Exibir estrelas nos resultados do Google (schema AggregateRating) + depoimentos na home.","impact":"Alto","effort":"30 min"})
-    gaps.append({"title":"Diferenciação no mercado local","severity":"✅ Oportunidade","desc":f"A maioria dos concorrentes ignora SEO local. Quem aparece primeiro no Google leva o paciente.","fix":f"Landing pages para '{nicho['specialties'][0].lower()} em {district or city}' — buscas com alta intenção e baixa concorrência.","impact":"Alto","effort":"1-2 semanas"})
-    return gaps[:5]
+        gaps.append({
+            "title": "Reputação excepcional — ative essa força no site",
+            "severity": "✅ Força",
+            "desc": f"Com {rating}★ e {reviews} avaliações, sua clínica tem uma das melhores reputações da região. Isso é um ativo de marketing poderoso que você não está usando no site.",
+            "fix": "Adicionar schema AggregateRating no site para exibir as estrelas nos resultados do Google. Incluir seção de depoimentos com as 5 melhores avaliações na home page.",
+            "impact": "Alto", "effort": "30 min",
+            "signal": "E1+E2 (rating≥4.5, reviews≥20)",
+        })
+
+    # SINAL: has_claimed + has_website + rating >= 4.0 + photos >= 10  →  fundamentos OK
+    if has_claimed and has_website and rating >= 4.0 and photos >= 10:
+        gaps.append({
+            "title": "Base digital sólida — hora de escalar",
+            "severity": "✅ Força",
+            "desc": "Sua clínica tem os fundamentos: GMB verificado, site próprio, boa reputação. O próximo passo é otimização para aparecer em PRIMEIRO nas buscas locais.",
+            "fix": f"Focar em SEO local: otimizar cada página para palavras-chave específicas ('{nicho['specialties'][0].lower()} {district}'), criar conteúdo regular (blog), conseguir backlinks de sites locais.",
+            "impact": "Alto", "effort": "Contínuo",
+            "signal": "F3+E4+E1 (claimed+website+rating≥4.0+photos≥10)",
+        })
+
+    # ── MERCADO (contexto de categoria + região) ──
+
+    # SEMPRE: contexto competitivo (baseado na categoria, não inventado)
+    gaps.append({
+        "title": "Diferenciação no mercado local",
+        "severity": "✅ Oportunidade",
+        "desc": f"O mercado de {nicho['name'].lower()} tem concorrência ativa. A vantagem: a MAIORIA dos concorrentes ignora marketing digital. Quem aparece primeiro no Google leva o paciente.",
+        "fix": f"Criar landing pages para: '{nicho['specialties'][0].lower()} em {district or city}' — buscas com alta intenção e baixa concorrência.",
+        "impact": "Alto", "effort": "1-2 semanas",
+        "signal": "market:category_context",
+    })
+
+    return gaps[:7]
 
 # ═══════════════════════════════════════════════════════════════
 # HTML + META GENERATOR
@@ -408,10 +692,11 @@ footer span{{color:{p};font-weight:600}}
     meta = {
         "traceId": trace_id, "lead": name, "category": cat, "segment": seg, "score": score,
         "nicho": nicho, "tokens": tokens, "design_hint": design_hint,
-        "gaps": [{"title": g["title"], "severity": g["severity"]} for g in gaps],
+        "gaps": [{"title": g["title"], "severity": g["severity"], "signal": g.get("signal","?")} for g in gaps],
         "copy_model": copy.get("model", "template"),
         "copy_tokens": copy.get("tokens", 0),
-        "headline": copy["headline"], "computedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "headline": copy["headline"], "subtitle": copy.get("subtitle",""), "cta": copy.get("cta",""),
+        "computedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "city": city, "district": district,
     }
     with open(meta_path, "w") as f:

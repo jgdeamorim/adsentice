@@ -12,9 +12,9 @@ Arquitetura:
 
 Calibração:
   model: deepseek-v4-flash (cheap, fast)
-  temperature: 0.6 (sweet spot — criativo mas estável)
+  temperature: 0.8 (criativo mas controlado)
   response_format: json_object
-  max_tokens: 250 (headline + subtitle + cta)
+  max_tokens: 800 (headline + subtitle + cta — DeepSeek V4 Flash e reasoning model, precisa de margem)
 
 medido=verdade · 2026-07-15 · adsentice
 """
@@ -41,7 +41,7 @@ def _load_deepseek_key():
                         return line.strip().split("=", 1)[1]
     return os.environ.get("DEEPSEEK_API_KEY", "")
 
-def generate_copy_deepseek(lead: dict, gaps: list, temperature=0.6, timeout=15) -> dict | None:
+def generate_copy_deepseek(lead: dict, gaps: list, temperature=0.8, timeout=15) -> dict | None:
     """Gera copy via DeepSeek V4 Flash. Custo: ~$0.001/query."""
     key = _load_deepseek_key()
     if not key:
@@ -76,7 +76,7 @@ def generate_copy_deepseek(lead: dict, gaps: list, temperature=0.6, timeout=15) 
                 {"role": "system", "content": f"Voce e um copywriter senior especializado em marketing digital para SMBs brasileiros. Voce escreve copy para relatorios de diagnostico digital (Raio-X) que ajudam donos de negocios locais. REGRAS: portugues brasileiro natural, use o primeiro nome da pessoa, mencione o bairro e a especialidade, sem jargao tecnico (SEO, schema, backlink, trafego), frases curtas, foco em BENEFICIO. {tone}"},
                 {"role": "user", "content": f"Gere um objeto JSON com chaves headline, subtitle, cta para o relatorio de diagnostico de: {name}, {cat} em {district}, {city}. Score {score}/100. {rating} estrelas, {reviews} avaliacoes. Nivel: {level}.\n\nGaps detectados:\n{gaps_text}"},
             ],
-            "max_tokens": 250,
+            "max_tokens": 800,
             "temperature": temperature,
             "response_format": {"type": "json_object"},
         }, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
