@@ -9,6 +9,7 @@ import "server-only"
 
 import type { ScoreData } from "./scoring"
 import type { GMBListing } from "./provider-core-adapter"
+import { pushEvent, pushAlert } from "./telemetry"
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -54,7 +55,11 @@ export async function saveDiscoverySearch(params: {
       signal: AbortSignal.timeout(10000),
     })
     if (!searchRes.ok) {
-      console.error("[discovery-persistence] search insert failed:", searchRes.status, await searchRes.text().catch(() => ""))
+      const errBody = await searchRes.text().catch(() => "")
+      console.error("[discovery-persistence] search insert failed:", searchRes.status, errBody)
+      // ⚠️ Dispara telemetria — sensor de falha de persistência
+      pushEvent({ route: "/api/discovery-search", status: searchRes.status, latency_ms: 0, provider: "Supabase", error: `INSERT discovery_searches: HTTP ${searchRes.status}`, detail: errBody.slice(0, 500) })
+      pushAlert({ level: "critical", route: "/api/discovery-search", message: `Supabase persistência quebrada — HTTP ${searchRes.status}`, detail: errBody.slice(0, 300) })
       return null
     }
     const searchData = await searchRes.json() as { id: string }[]
