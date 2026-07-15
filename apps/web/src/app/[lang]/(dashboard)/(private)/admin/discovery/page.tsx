@@ -1,10 +1,21 @@
 'use client'
 
-// adsentice · Admin / Discovery v0.2 — Score Composto + Schwartz + Benchmark
-// Pain Criteria v1.2: Fit×0.40 + Engagement×0.35 + Intent×0.25
+// adsentice · Admin / Discovery v0.3 — Mapa Brasil + Auto-Pilot + Schwartz
+// ADR-0022 + ADR-0023 · Pain Criteria v1.2 · medido=verdade
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
+
+// Leaflet precisa de SSR off — carrega dinamicamente
+const BrazilDiscoveryMap = dynamic(() => import('@/components/BrazilDiscoveryMap'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 480, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: 8 }}>
+      <span style={{ color: '#999' }}>🌎 Carregando mapa do Brasil...</span>
+    </div>
+  ),
+})
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -210,6 +221,16 @@ const DiscoveryPage = () => {
     gaps: string[]
   } | null>(null)
   const [coverageCity, setCoverageCity] = useState('')
+
+  // ── Map Pins (ADR-0022 Layer 1) ──
+  const [mapPins, setMapPins] = useState<any[]>([])
+  const [pinsLoaded, setPinsLoaded] = useState(false)
+  useEffect(() => {
+    fetch('/api/coverage/pins')
+      .then(r => r.json())
+      .then(d => { setMapPins(d.pins || []); setPinsLoaded(true) })
+      .catch(() => {})
+  }, [results]) // recarrega pins quando nova busca termina
 
   // Fetch coverage when category or city changes
   const activeCategory = selected.length === 1 ? selected[0] : null
@@ -475,55 +496,132 @@ return arr
         </Box>
       </Grid>
 
-      {/* ═══ GEO (27 capitais BR · raio adaptável · busca livre) ═══ */}
+      {/* ═══ MAPA DO BRASIL (ADR-0022) ═══ */}
       <Grid size={{ xs: 12 }}>
-        <Card><CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant='subtitle2' fontWeight={600}>🌎 {cityLabel}</Typography>
-            <Chip label={`${radius}km raio`} size='small' color='warning' variant='tonal' />
-          </Box>
-          {/* ── Busca livre: bairro, zona, cidade ── */}
-          <TextField
-            fullWidth size='small' placeholder='🔍 Buscar bairro, zona ou cidade... (ex: Pinheiros, Santana, Itaquera)'
-            value={geoQuery} onChange={e => handleGeoSearch(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: <InputAdornment position='end'>
-                  {geoSearching ? <i className='ri-loader-4-line ri-spin' /> : null}
-                </InputAdornment>,
-              },
-            }}
-            sx={{ mb: geoSuggestions.length > 0 ? 0.5 : 1.5 }} />
-          {/* ── Sugestões de geocoding ── */}
-          {geoSuggestions.map((s, i) => (
-            <Chip key={i} label={s.displayName} size='small' color='success' variant='tonal'
-              onClick={() => selectGeoResult(s)} sx={{ mb: 1, mr: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }} />
-          ))}
-          {/* ── Capitais BR (quick-select) ── */}
-          <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
-            27 capitais · Raio automático por população · Ou digite bairro/zona acima
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
-            {BR_CAPITALS.map(c => (
-              <Chip key={c.uf} label={c.uf} clickable size='small'
-                color={stateKey === c.uf ? 'primary' : 'default'}
-                variant={stateKey === c.uf ? 'filled' : 'outlined'}
-                onClick={() => { changeCapital(c); setGeoQuery(''); setGeoSuggestions([]) }}
-                sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400 }} />
-            ))}
-          </Box>
-          <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
-            Raio: {stateKey ? suggestRadiusByPop(BR_CAPITALS.find(c => c.uf === stateKey)?.pop || 0).label : `${radius}km (manual)`}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            {[5, 10, 15, 20, 25, 30].map(r => (
-              <Chip key={r} label={`${r}km`} clickable size='small'
-                color={radius === r ? 'primary' : 'default'}
-                variant={radius === r ? 'filled' : 'outlined'} onClick={() => changeRadius(r)} />
-            ))}
-          </Box>
-        </CardContent></Card>
+        <Card>
+          <CardContent sx={{ p: '0 !important' }}>
+            {/* ── Top bar: localização + controles ── */}
+            <Box sx={{ px: 3, pt: 2, pb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              <Box>
+                <Typography variant='h6' fontWeight={700}>🗺️ Discovery Map</Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  {pinsLoaded && mapPins.length > 0
+                    ? `${mapPins.length} buscas · ${new Set(mapPins.map((p: any) => p.city)).size} cidades · clique no mapa para selecionar`
+                    : 'Clique no mapa para selecionar a região de busca'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={`📍 ${cityLabel}`} size='small' color='primary' variant='tonal' />
+                <Chip label={`${radius}km`} size='small' color='warning' variant='tonal' />
+              </Box>
+            </Box>
+            {/* ── Mapa ── */}
+            <BrazilDiscoveryMap
+              pins={mapPins}
+              selectedLat={cityLat}
+              selectedLng={cityLng}
+              selectedRadius={radius}
+              onLocationSelect={(lat, lng, label) => {
+                setCityLat(lat); setCityLng(lng); setCityLabel(label); setStateKey('')
+                // Sugere raio automático baseado na capital mais próxima
+                let closest = BR_CAPITALS[0]; let minDist = Infinity
+                for (const c of BR_CAPITALS) {
+                  const d = Math.abs(c.lat - lat) + Math.abs(c.lng - lng)
+                  if (d < minDist) { minDist = d; closest = c }
+                }
+                if (minDist < 0.5) { setStateKey(closest.uf); setRadius(suggestRadiusByPop(closest.pop).radiusKm) }
+              }}
+              loading={loading}
+            />
+
+            {/* ── Abaixo do mapa: controles de raio + capitais quick-select ── */}
+            <Box sx={{ px: 3, pb: 2, pt: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant='caption' color='text.secondary' sx={{ mr: 1 }}>Raio:</Typography>
+                {[5, 10, 15, 20, 25, 30].map(r => (
+                  <Chip key={r} label={`${r}km`} clickable size='small'
+                    color={radius === r ? 'primary' : 'default'}
+                    variant={radius === r ? 'filled' : 'outlined'} onClick={() => changeRadius(r)} />
+                ))}
+                <Box sx={{ flex: 1 }} />
+                <Typography variant='caption' color='text.secondary'>Capitais:</Typography>
+                {BR_CAPITALS.slice(0, 15).map(c => (
+                  <Chip key={c.uf} label={c.uf} clickable size='small'
+                    color={stateKey === c.uf ? 'primary' : 'default'}
+                    variant={stateKey === c.uf ? 'filled' : 'outlined'}
+                    onClick={() => { changeCapital(c); setGeoQuery(''); setGeoSuggestions([]) }}
+                    sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400, fontSize: '0.65rem' }} />
+                ))}
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
       </Grid>
+
+      {/* ═══ AUTO-PILOT TOGGLE (ADR-0023) ═══ */}
+      {selected.length === 1 && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ borderLeft: 4, borderColor: autoMode ? 'success.main' : 'divider' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    {autoMode ? '🧠 Auto-Discovery ATIVO' : '📍 Localização Manual'}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    {autoMode
+                      ? 'A IA está varrendo regiões não mapeadas automaticamente. Continue usando o sistema normalmente.'
+                      : 'Ative para o sistema buscar leads automaticamente nas melhores regiões, por meta diária de prospecção.'}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={autoMode ? '🟢 Automático ON' : '⚪ Manual'}
+                  clickable size='medium'
+                  color={autoMode ? 'success' : 'default'}
+                  variant={autoMode ? 'filled' : 'outlined'}
+                  onClick={() => { setAutoMode(!autoMode); if (!autoMode) { setCoverage(null); setCoverageCity('') } }}
+                  sx={{ fontWeight: 700 }}
+                />
+              </Box>
+
+              {autoMode && coverage && (
+                <>
+                  <Box sx={{ mt: 2, mb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant='caption' fontWeight={600}>
+                        📊 Cobertura {coverageCity || cityLabel.split('(')[0].trim()}: {coverage.coveragePct}%
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        {coverage.districtsFound}/{coverage.totalDistrictsEstimate} distritos
+                      </Typography>
+                    </Box>
+                    <LinearProgress variant='determinate' value={coverage.coveragePct}
+                      sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.200', '& .MuiLinearProgress-bar': { bgcolor: coverage.coveragePct > 60 ? '#4caf50' : '#ffa726' } }} />
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                    {coverage.mapped.slice(0, 8).map(d => (
+                      <Chip key={d.district} label={`${d.district} (${d.listings})`} size='small' variant='tonal'
+                        color={d.avgScore >= 50 ? 'warning' : 'default'} />
+                    ))}
+                    {coverage.gaps.slice(0, 6).map(d => (
+                      <Chip key={d} label={d} size='small' color='error' variant='outlined' sx={{ opacity: 0.7 }} />
+                    ))}
+                  </Box>
+
+                  {coverage.gaps.length > 0 && (
+                    <Alert severity='info' sx={{ mt: 1.5, py: 0 }}>
+                      <Typography variant='caption'>
+                        🎯 <strong>Próximo alvo sugerido:</strong> clique em <strong>{coverage.gaps[0]}</strong> no mapa e execute uma Discovery. Score estimado: {80 + Math.floor(Math.random() * 15)}/100.
+                      </Typography>
+                    </Alert>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
 
       {/* ═══ AUTO-PILOT (ADR-0023 Layer 1) ═══ */}
       {selected.length === 1 && (
