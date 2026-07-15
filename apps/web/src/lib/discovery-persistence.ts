@@ -50,7 +50,8 @@ export async function saveDiscoverySearch(params: {
     const searchRes = await fetch(`${SFX}/rest/v1/discovery_searches`, {
       method: "POST",
       headers: { ...sbHeaders(), Prefer: "return=representation" },
-      body: JSON.stringify(searchRes ? searchBody : searchBody), signal: AbortSignal.timeout(10000),
+      body: JSON.stringify(searchBody),
+      signal: AbortSignal.timeout(10000),
     })
     if (!searchRes.ok) {
       console.error("[discovery-persistence] search insert failed:", searchRes.status, await searchRes.text().catch(() => ""))
