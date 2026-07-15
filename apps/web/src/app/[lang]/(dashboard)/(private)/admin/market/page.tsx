@@ -16,7 +16,7 @@ import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
-import { nicheIntelligence, listMarketCategories } from '@/lib/market-intel'
+import { nicheIntelligence, listMarketCategories, listMarketCities } from '@/lib/market-intel'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,10 +48,12 @@ const MarketPage = async ({ params, searchParams }: {
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const categories = await listMarketCategories()
+  const cities = await listMarketCities()
   const filterCategory = sp.category || (categories.length > 0 ? categories[0].category : '')
-  const filterCity = sp.city || ''
+  const detectedCity = cities.length > 0 ? cities[0].city : ''
+  const filterCity = sp.city || detectedCity
   const intel = await nicheIntelligence(filterCategory, filterCity || null)
-  const holds = await fetchMarketHolds(filterCategory, filterCity || 'Rio de Janeiro')
+  const holds = await fetchMarketHolds(filterCategory, filterCity)
 
   // Agrupa holds por métrica para mini time-series
   const holdGroups = new Map<string, MarketHoldRow[]>()
@@ -289,7 +291,7 @@ const MarketPage = async ({ params, searchParams }: {
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Chip label={`${holds.length} pontos`} size='small' color='primary' variant='tonal' />
-                  <Chip label={filterCity || 'Rio de Janeiro'} size='small' variant='outlined' />
+                  <Chip label={filterCity || 'Todas as cidades'} size='small' variant='outlined' />
                 </Box>
               </Box>
 
