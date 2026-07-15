@@ -238,7 +238,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force, enrich: 5, // top 5 leads com L1 (27 campos)
+          limit: 50, force: true, enrich: 5, // top 5 leads com L1 (27 campos)
           order_by: searchOrderBy ? [searchOrderBy] : undefined,
           offset: searchOffset,
         }),
