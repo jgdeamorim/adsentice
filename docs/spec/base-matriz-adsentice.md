@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.4.0"
+version: "1.5.0"
 date: 2026-07-11
-updated: 2026-07-15T00:00:00-03:00
+updated: 2026-07-15T08:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.4.0
+# Base-Matriz do Ecossistema adsentice v1.5.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
@@ -92,7 +92,25 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (9 modulos) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ✅ accepted (2026-07-14) |
-| `ADS.COR.adr.0021` | **NOVO** — Dual Embed e0+e1 — Arquitetura multilíngue (EN code + PT prose) para busca semântica | ✅ accepted (2026-07-15) |
+| `ADS.COR.adr.0021` | Dual Embed e0+e1 — Arquitetura multilíngue (EN code + PT prose) para busca semântica | ✅ accepted (2026-07-15) |
+
+### ADS.COR.llm — Inteligência de Linguagem
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.COR.llm.deepseek` | DeepSeek V4 Flash — copywriter S10 (headline, subtitle, CTA) | `tools/adsentice_llm_copywriter.py` | ✅ ativo (2026-07-15) |
+| `ADS.COR.llm.qwen` | Qwen 2.5 1.5B Q4_K_M GGUF local ($0, ~100s CPU) — fallback | `tools/adsentice_llm_copywriter.py` | 🟡 wireado, qualidade limitada |
+| `ADS.COR.llm.calibracao` | DeepSeek: model=deepseek-v4-flash, temperature=0.6, response_format=json_object | `tools/adsentice_llm_copywriter.py` | ✅ calibrado |
+
+### ADS.COR.pipeline — Pipeline S10 + Market Intel
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.COR.pipeline.s10_generator` | S10 Raio-X · Gerador Automático — Supabase→classify→copywriter→gaps→Qdrant→HTML+trace | `tools/adsentice_s10_generator.py` | ✅ ativo (2026-07-15) |
+| `ADS.COR.pipeline.market_intel` | Market Intelligence v1.0 · Trace Feedback Loop — cada S10 alimenta Qdrant → Qdrant enriquece próximo S10 | `packages/warp/src/market-intel.ts` | ✅ ativo (2026-07-15) |
+| `ADS.COR.pipeline.s10_rota` | Rota completa: category→nicho→persona→DeepSeek→tokens→gaps→Qdrant→HTML | `packages/warp/src/s10-raio-x.ts` | ✅ ativo (2026-07-15) |
+| `ADS.COR.pipeline.design_playbook` | Design Pipeline Playbook — regras, anti-padrões, arquitetura | `docs/spec/adsentice-design-pipeline-playbook.md` | ✅ v1.0 (2026-07-15) |
+| `ADS.COR.pipeline.embed_gate` | Embed Quality Gate — 5ª dimensão BOA (golden set, commit fingerprint) | `tools/adsentice_embed_quality_gate.py` | ✅ ativo (2026-07-15) |
 
 ### ADS.COR.design — Corpus de Design (embedado no Qdrant)
 
@@ -456,7 +474,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.4.0 · 2026-07-14 · 7 dimensões · 140+ rotas · medido=verdade · ISOLADO do EVO-API · Família Warp COMPLETA (M1-M9, 12 arquivos TS, ~108 KB) · 6,267 pontos Warp no Qdrant · 6,103 design knowledge points (UI UX Pro Max) · 5 skills originais adsentice · 6 Claude skills · 179 commits · 20 ADRs · Pipeline 6/6 OK · BOA 0.949 EXCELLENT · OD v0.9.0 absorvido com 5 refinamentos semânticos*
+*Base-Matriz adsentice v1.5.0 · 2026-07-15 · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · Família Warp COMPLETA (M1-M9, 22 arquivos TS) · 18K+ corpus A · 75K+ corpus C · S10 Generator automático (DeepSeek V4 Flash) · Market Intelligence feedback loop · Embed Quality Gate · Design Pipeline Playbook · 7 skills Claude · 208 commits · 21 ADRs · Pipeline 6/6 OK · BOA 0.959 EXCELLENT · OD foundation SUPERIOR (6,301 vs 88 pts) · Runtime 4/5 gaps fechados*
 
 ## Changelog
 
@@ -490,6 +508,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v026 | 2026-07-13 | adr-0009-market-intelligence-engine | `docs/adr/0009-market-intelligence-engine.md` — lead-level → market-level, agregacao por categoria×regiao (ZERO APIs) | ✅ accepted |
 | v027 | 2026-07-13 | adr-0010-cloudflare-free-tier-enterprise | `docs/adr/0010-cloudflare-free-tier-enterprise.md` — Workers+D1+Queues+R2+KV como plataforma enterprise ($0) | ✅ accepted |
 | v028 | 2026-07-14 | warpfield-completo-absorcao-od-v0.9.0 | Família Warp completa (M1-M9) + 6,267 pts design Qdrant + 6,103 design knowledge + 5 skills + 2 Claude skills + 5 refinamentos sobre OD | ✅ vivo |
+| v029 | 2026-07-15 | s10-deepseek-copywriter-market-intel | S10 Generator + DeepSeek V4 Flash Copywriter + Market Intelligence v1.0 + LLM Copywriter unificado (DeepSeek+Qwen) + Embed Quality Gate + Design Pipeline Playbook | ✅ vivo |
 
 ---
 
