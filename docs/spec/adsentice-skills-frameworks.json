@@ -1,0 +1,1457 @@
+[
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Initial Assessment",
+    "text": "## Initial Assessment\n\nBefore auditing, understand:\n\n1. **Business Context**\n   - What type of business? (clínica, restaurante, loja, etc.)\n   - How many locations?\n   - Primary service area (bairro, cidade, raio)?\n   - Is GMB already claimed/verified?\n\n2. **Current State**\n   - Current GMB rating and review count?\n   - Any known issues (suspension, duplicates, wrong info)?\n   - Competitor ranking comparison?\n\n3. **Goals**\n   - Primary category ranking?\n   - Service area expansion?\n   - Lead volume target?\n\n---",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] GMB Optimization Framework",
+    "text": "## GMB Optimization Framework\n\n### Priority Order\n1. **Profile Completeness** (is the profile 100% filled?)\n2. **Category Accuracy** (primary + secondary categories)\n3. **NAP Consistency** (Name, Address, Phone across web)\n4. **Review Velocity & Response** (quantity, recency, owner replies)\n5. **Visual Content** (photos, videos, virtual tour)\n6. **Posts & Updates** (offers, events, COVID updates)\n7. **Q&A Management** (seed + answer questions)\n8. **Attributes & Services** (menu, services list, booking)\n\n### Critical GMB Signals (2026 ranking factors)\n\n| Signal | Weight | How to Optimize |\n|--------|:------:|-----------------|\n| **Primary category match** | ⭐⭐⭐⭐⭐ | Choose the MOST specific category. \"Dentista\" not \"Clínica\". |\n| **Review count + velocity** | ⭐⭐⭐⭐⭐ | 1+ new review/week. 30+ ",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Profile Completeness Checklist",
+    "text": "## Profile Completeness Checklist\n\n### Required Fields (100% completeness)\n- [ ] Business name (exact legal name, no keyword stuffing)\n- [ ] Primary category (most specific available)\n- [ ] Secondary categories (up to 9, relevant)\n- [ ] Address (exact, consistent with website footer)\n- [ ] Service area (if service business, not storefront)\n- [ ] Phone number (local area code, consistent)\n- [ ] Website URL (UTM-tagged for GMB tracking: `?utm_source=gmb&utm_medium=organic`)\n- [ ] Hours of operation (including holiday hours)\n- [ ] Appointment link (if applicable)\n\n### High-Impact Fields\n- [ ] Business description (750 chars, primary keyword in first sentence, NO hashtags)\n- [ ] Services list with prices (menu for restaurants, services for clinics)\n- [ ] Products inventory (for retail — integr",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Review Management Strategy",
+    "text": "## Review Management Strategy\n\n### Review Generation (Brazil-specific)\n\n**Legal note (LGPD + Google TOS):** Never offer incentives for reviews. Never review-gate. Never create fake reviews.\n\n**Ethical review generation tactics:**\n1. **Timing ask:** Right after positive experience (post-consulta, pós-serviço)\n2. **QR code on receipt/counter:** Direct link to review form\n3. **WhatsApp follow-up:** 24h after service: \"Como foi sua experiência? Nos avalie no Google!\"\n4. **Email signature:** Link to GMB review page in all emails\n5. **Staff training:** Front desk asks verbally + hands card with QR\n\n**Review link format:**\n```\nhttps://search.google.com/local/writereview?placeid=<PLACE_ID>\n```\n\n### Owner Response Protocol\n\n| Review Type | Response Time | Tone |\n|------------|:------------:|------|",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Brazilian SMB-Specific Tactics",
+    "text": "## Brazilian SMB-Specific Tactics\n\n### Segmento-Specific Keywords\n\n| Segmento | Primary Category | Keywords for Description |\n|----------|-----------------|--------------------------|\n| **Dentista** | Dentista | implante dentário, clareamento, aparelho, canal, prótese |\n| **Clínica Estética** | Clínica de estética | botox, preenchimento, harmonização facial, laser, skinbooster |\n| **Salão de Beleza** | Salão de beleza | corte, coloração, mechas, manicure, penteados, noiva |\n| **Academia** | Academia | musculação, crossfit, personal trainer, spinning, funcional |\n| **Restaurante** | Restaurante | comida caseira, delivery, almoço executivo, happy hour |\n| **Pet Shop** | Pet shop | banho e tosa, ração, veterinário, hotel para pets, vacinação |\n| **Autoescola** | Autoescola | primeira habilita",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] NAP Consistency Audit",
+    "text": "## NAP Consistency Audit\n\n### DataForSEO Detection Flow\n\n```\n1. GMB API → extract NAP (name, address, phone)\n2. Website crawl → check footer/schema for NAP\n3. Top directories search → check NAP on:\n   - apontador.com.br\n   - guiamais.com.br\n   - telelistas.net\n   - ifood.com.br (restaurantes)\n   - doctoralia.com.br (saúde)\n   - tripadvisor.com.br (hospitalidade)\n4. Compare → flag inconsistencies\n```\n\n### Consistency Scoring\n\n| Status | Points | Action |\n|--------|:------:|--------|\n| Exact match across all sources | 100 | Monitor monthly |\n| Minor variation (abbreviation, punctuation) | 70 | Fix within 1 week |\n| Different phone number | 30 | Fix immediately (critical) |\n| Different address | 10 | Emergency fix — ranking killer |\n| Not listed on major directories | 0 | Create listings imme",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Metrics & Tracking",
+    "text": "## Metrics & Tracking\n\n### Key GMB KPIs (Google Business Profile Insights)\n\n| Metric | Target (SMB BR) | Benchmark Source |\n|--------|:---------------:|------------------|\n| Profile views | 100+/month | Industry average |\n| Search impressions | 500+/month | Competitive metro area |\n| Website clicks | 5%+ CTR | GMB benchmark |\n| Direction requests | 10+/month | Physical store indicator |\n| Call clicks | 15+/month | Mobile dominant market (BR) |\n| Photo views vs competitors | Higher than avg | GMB insights compare |\n| Review growth | 4+ new reviews/month | 1/week minimum |\n\n### UTM Tagging for GMB\n\n```\n?utm_source=google&utm_medium=gmb&utm_campaign=local_pack\n```\n\nTrack in GA4: Acquisition → Traffic Acquisition → Source/Medium = `google / gmb`\n\n---",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Cross-References",
+    "text": "## Cross-References\n\n- **seo-audit**: For website technical SEO (complement to GMB optimization)\n- **schema**: For LocalBusiness structured data on website\n- **programmatic-seo**: For generating location pages at scale\n- **whatsapp-business**: For messaging integration with GMB\n- **competitor-profiling**: For local competitor GMB analysis\n- **reputation** (TBD): For review management beyond GMB\n\n---",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_local_seo",
+    "title": "[local-seo] Anti-Patterns",
+    "text": "## Anti-Patterns\n\n| Anti-Pattern | Why It Hurts | Correct Approach |\n|-------------|-------------|------------------|\n| Keyword stuffing in business name | Google suspends listing | Legal name only. Keywords in description. |\n| Fake address (virtual office, PO box) | Suspension + trust loss | Real physical address or service area business |\n| Multiple listings for same location | Merged by Google, ranking loss | One listing per location. Use locations feature. |\n| Ignoring reviews >30 days | Signals business is inactive | Respond to ALL reviews within 48h |\n| Stock photos instead of real photos | Trust loss, lower CTR | Real photos of your team, location, work |\n\n---\n\n*local-seo v1.0 · adsentice-original skill · 2026-07-14 · medido=verdade*",
+    "skill_name": "local-seo",
+    "skill_category": "local-presence",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S10",
+      "S11",
+      "S2",
+      "S12"
+    ],
+    "skill_solutions": [
+      "SOL1"
+    ],
+    "skill_related": [
+      "seo-audit",
+      "schema",
+      "programmatic-seo",
+      "whatsapp-business",
+      "competitor-profiling"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Why WhatsApp is Critical for Brazil",
+    "text": "## Why WhatsApp is Critical for Brazil\n\n| Metric | Brazil | Global Avg | Source |\n|--------|:------:|:----------:|--------|\n| Smartphone penetration with WhatsApp | 99% | 78% | Statista 2025 |\n| Consumers who prefer WhatsApp for business | 76% | 52% | Meta Business Survey |\n| Businesses using WhatsApp Business app | 15M+ | — | Meta 2025 |\n| Open rate (WhatsApp vs Email) | 98% vs 20% | — | Industry benchmark |\n| Response rate (WhatsApp vs Email) | 45% vs 6% | — | Industry benchmark |\n\n---",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] WhatsApp Business — 3 Tiers",
+    "text": "## WhatsApp Business — 3 Tiers\n\n### Tier 1: WhatsApp Business App (Free)\n\n**What it is:** Free mobile app. Single user, single device. Manual messaging.\n\n**Features:**\n- Business profile (name, description, address, hours, website, email)\n- Catalog (products/services with photos, prices, descriptions)\n- Quick replies (saved message templates, `/saudacao`, `/precos`)\n- Labels (organize chats: \"Novo Lead\", \"Agendado\", \"Pago\", \"Follow-up\")\n- Away messages + greeting message\n- Short link: `wa.me/5511999999999`\n- QR code for easy contact\n\n**Limitations:**\n- 1 user, 1 device (web + phone paired)\n- No API access\n- No automation beyond quick replies\n- Broadcast limited to 256 contacts per list\n- No CRM integration\n\n**Best for:** Micro businesses (1-3 employees), freelancers, solo practitioners.\n\n#",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Automation Architecture for adsentice",
+    "text": "## Automation Architecture for adsentice\n\n### Integration Flow\n\n```\nadsentice Portal (S9) → Cloudflare Worker (Hono) → WhatsApp Cloud API\n                            ↓\n                    Redis :6396 (session state)\n                            ↓\n                    Qdrant :6352 (message history, embeddings)\n```\n\n### API Endpoints (Hono Worker)\n\n```typescript\n// POST /api/whatsapp/webhook\n// Receives incoming messages + status updates from Meta\ninterface WebhookPayload {\n  object: \"whatsapp_business_account\";\n  entry: [{\n    changes: [{\n      value: {\n        messaging_product: \"whatsapp\";\n        metadata: { display_phone_number, phone_number_id };\n        contacts: [{ profile: { name }, wa_id }];\n        messages: [{\n          from: string;      // sender phone\n          id: string;      ",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Opt-in Compliance (LGPD + Meta Policy)",
+    "text": "## Opt-in Compliance (LGPD + Meta Policy)\n\n### Brazil-Specific Rules\n\n1. **Explicit opt-in required:** Customer must explicitly agree to receive WhatsApp messages\n2. **Clear purpose:** State what type of messages they'll receive (marketing, utility, etc.)\n3. **Opt-out easy:** \"Responda SAIR para parar de receber mensagens\"\n4. **Data retention:** Store only necessary data (phone number, name, message history)\n5. **No scraping:** Never scrape phone numbers from Google Maps or directories\n6. **No purchased lists:** All contacts must be organic opt-ins\n\n### Opt-in Collection Points (adsentice)\n\n```\nS2 (Blog) → \"Receba dicas no WhatsApp\" → phone input → opt-in checkbox\nS6 (Lead Capture) → \"Quer receber o diagnóstico por WhatsApp?\" → opt-in\nS10 (Raio-X) → After diagnosis → \"Receber atualizações ",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Analytics & Tracking",
+    "text": "## Analytics & Tracking\n\n### Key WhatsApp Metrics\n\n| Metric | Target SMB BR | How to Track |\n|--------|:------------:|-------------|\n| 24h response rate | >90% | Webhook timestamps |\n| Template open rate | >95% | WhatsApp read receipts |\n| Template CTR | >15% | Interactive button clicks |\n| Opt-out rate | <2% | Webhook opt-out events |\n| Conversation to lead % | >25% | CRM attribution |\n| Avg response time | <5 min | Webhook latency tracking |\n| Customer satisfaction | >4.5/5 | Post-conversation survey |\n\n### UTM Tagging for WhatsApp Links\n\n```\nhttps://wa.me/5511999999999?text=Ol%C3%A1!%20Vim%20pelo%20site.\n```\n\nAdd UTM to website → WhatsApp flow:\n```\nWebsite CTA → ?utm_source=site&utm_medium=whatsapp → wa.me link\n```\n\n---",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Anti-Patterns (Brazil-Specific)",
+    "text": "## Anti-Patterns (Brazil-Specific)\n\n| Anti-Pattern | Why It Hurts | Correct Approach |\n|-------------|-------------|------------------|\n| Buying WhatsApp contact lists | Illegal (LGPD), Meta ban | Organic opt-in only |\n| Sending marketing without opt-in | Meta suspends number | Utility first, marketing only after opt-in |\n| Using personal WhatsApp for business | No automation, no compliance | WhatsApp Business App (free) minimum |\n| No response within 24h (repeated) | Customers block business | Auto-reply + human follow-up <4h |\n| Template rejected (promotional language) | Meta review fails | Utility tone: \"confirmação\" not \"promoção imperdível\" |\n| Sending broadcast at 8pm+ | Irritates customers, opt-out spike | Business hours only (8h-18h) |\n| Ignoring LGPD data rights | Fine up to 2% re",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Integration with Warp Surfaces",
+    "text": "## Integration with Warp Surfaces\n\n| Surface | WhatsApp Integration |\n|---------|---------------------|\n| **S10 (Raio-X Relatório)** | \"Receba seu diagnóstico completo no WhatsApp\" button |\n| **S12 (WhatsApp Delivery)** | Primary delivery channel for cards + tips |\n| **S9 (Portal do Cliente)** | WhatsApp notification preferences, template management |\n| **S14 (Onboarding Wizard)** | WhatsApp setup wizard (verify number, install templates) |\n| **S6 (Lead Capture)** | WhatsApp-first capture (phone number primary, email secondary) |\n\n---",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_whatsapp_business",
+    "title": "[whatsapp-business] Cross-References",
+    "text": "## Cross-References\n\n- **sms**: For SMS fallback (carriers: Twilio, Zenvia)\n- **local-seo**: GMB messaging button integrates with WhatsApp\n- **ifood-integration**: Order notifications via WhatsApp\n- **sales-enablement**: WhatsApp as sales channel\n- **churn-prevention**: Re-engagement via WhatsApp templates\n- **emails**: Email + WhatsApp dual-channel sequence\n\n---\n\n*whatsapp-business v1.0 · adsentice-original skill · 2026-07-14 · medido=verdade*",
+    "skill_name": "whatsapp-business",
+    "skill_category": "messaging",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "servicos",
+      "alimentacao",
+      "comercio",
+      "educacao",
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S12",
+      "S9",
+      "S10",
+      "S14",
+      "S6"
+    ],
+    "skill_solutions": [
+      "SOL1",
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "sms",
+      "sales-enablement",
+      "local-seo",
+      "emails"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Why Google Ads Telemetry Matters for SMB Brazil",
+    "text": "## Why Google Ads Telemetry Matters for SMB Brazil\n\n| Metric | Value | Source |\n|--------|:-----:|--------|\n| SMBs wasting ad spend (no conversion tracking) | 63% | Google Internal 2025 |\n| Avg Google Ads spend SMB BR | R$500-2,000/mês | Industry survey |\n| Accounts with broken conversion tracking | 41% | WordStream Benchmark |\n| CTR improvement with optimization | 2-5× | Google Ads Best Practices |\n\n---",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Architecture",
+    "text": "## Architecture\n\n### OAuth 2.0 Flow (Google Ads API)\n\n```\nadsentice Portal (S9) → OAuth consent screen → Google Auth Server\n                           ↓\n                    Refresh token stored in Vault (encrypted)\n                           ↓\n                    Cloudflare Worker (Hono) → Google Ads API v17\n                           ↓\n                    Redis :6396 (cache: 6h TTL for reports)\n                           ↓\n                    Supabase (time-series metrics, variance reports)\n```\n\n### Required OAuth Scopes\n\n```\nhttps://www.googleapis.com/auth/adwords  # Read/write access (required for API)\n```\n\n### API Credentials (Google Cloud Console)\n\n1. Create project → Enable Google Ads API\n2. OAuth consent screen → External → scopes config\n3. Credentials → OAuth 2.0 Client ID (Web app",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Google Ads API v17 — Key Endpoints",
+    "text": "## Google Ads API v17 — Key Endpoints\n\n### 1. Campaign Performance (GAQL)\n\n```sql\n-- GAQL: Google Ads Query Language (SQL-like)\nSELECT\n  campaign.id,\n  campaign.name,\n  campaign.status,\n  campaign.advertising_channel_type,\n  metrics.impressions,\n  metrics.clicks,\n  metrics.cost_micros,\n  metrics.conversions,\n  metrics.conversions_value,\n  metrics.ctr,\n  metrics.average_cpc,\n  metrics.cost_per_conversion,\n  segments.date\nFROM campaign\nWHERE segments.date DURING LAST_30_DAYS\n  AND campaign.status = 'ENABLED'\nORDER BY metrics.cost_micros DESC\nLIMIT 50\n```\n\n### 2. Keyword Performance\n\n```sql\nSELECT\n  ad_group_criterion.keyword.text,\n  ad_group_criterion.keyword.match_type,\n  metrics.impressions,\n  metrics.clicks,\n  metrics.cost_micros,\n  metrics.conversions,\n  metrics.quality_score,\n  metrics.",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Variance Report v2 — adsentice Integration",
+    "text": "## Variance Report v2 — adsentice Integration\n\n### What It Is\n\nA variance report compares Google Ads actual spend/performance against expected benchmarks for the SMB's segment and location. It answers: \"Are you getting what you paid for?\"\n\n### Data Sources\n\n| Metric | Source | Update Frequency |\n|--------|--------|:----------------:|\n| Actual spend | Google Ads API | Daily |\n| Actual impressions | Google Ads API | Daily |\n| Actual clicks/conversions | Google Ads API | Daily |\n| Segment benchmarks | DataForSEO keyword_data + SERP competitors | Weekly |\n| Geo benchmarks | DataForSEO location-specific CPC | Monthly |\n| Competitor ad presence | DataForSEO ads_advertisers + competitor_intel | Monthly |\n\n### Variance Dimensions\n\n```typescript\ninterface VarianceReport {\n  tenant_id: string;\n  per",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Cost Guardrails",
+    "text": "## Cost Guardrails\n\n### Per-Tenant Spend Controls\n\n```typescript\ninterface AdSpendPolicy {\n  tenant_id: string;\n  plan: \"raio-x\" | \"sentinela\" | \"dominio\" | \"escala\";\n\n  // Hard limits\n  max_monthly_spend_brl: number;     // R$ limit\n  max_daily_spend_brl: number;       // R$ daily limit\n  max_cpc_brl: number;               // R$ per click max\n\n  // Alerts\n  alert_at_pct: number;              // e.g. 80% → alert\n  auto_pause_at_pct: number;         // e.g. 110% → auto-pause\n\n  // Google Ads API writes\n  allow_api_writes: boolean;         // Can we modify campaigns?\n  write_scopes: (\"budget\" | \"bid\" | \"status\" | \"keyword\" | \"creative\")[];\n}\n```\n\n### Budget Pacing Algorithm\n\n```typescript\nfunction shouldAlertOrPause(\n  spent_mtd: number,\n  cap: number,\n  days_elapsed: number,\n  total_days: n",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Dashboard Widgets (S3 Admin + S9 Portal)",
+    "text": "## Dashboard Widgets (S3 Admin + S9 Portal)\n\n### Widget 1: Spend Overview Card\n```\n┌─────────────────────────┐\n│  Google Ads — Jul 2026  │\n│  R$ 1.247,32 gastos     │\n│  Budget: R$ 2.000,00    │\n│  ████████░░ 62%         │\n│  3 campanhas ativas     │\n└─────────────────────────┘\n```\n\n### Widget 2: Performance vs Benchmark\n```\n┌──────────────────────────────┐\n│  Seus Anúncios vs Mercado    │\n│  CTR: 3.2% vs 2.8% avg ✅   │\n│  CPC: R$ 1.47 vs R$ 2.10 ✅ │\n│  Conv Rate: 4.1% vs 3.5% ✅ │\n│  CPA: R$ 35.80 vs R$ 42 ✅  │\n└──────────────────────────────┘\n```\n\n### Widget 3: Search Term Waste\n```\n┌──────────────────────────────┐\n│  Termos com Gasto sem Retorno│\n│  ⚠ \"dentista gratuito\"       │\n│     R$ 47,30 · 0 conversões  │\n│  ⚠ \"como fazer clareamento\"  │\n│     R$ 32,10 · 0 conversões  │\n│  ⚠ \"preço",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Segment-Specific Benchmarks (Brazil)",
+    "text": "## Segment-Specific Benchmarks (Brazil)\n\n| Segmento | Avg CPC (R$) | Avg CTR (%) | Avg Conv Rate (%) | Avg CPA (R$) | Budget Range (R$/mês) |\n|----------|:-----------:|:----------:|:-----------------:|:------------:|:---------------------:|\n| Saúde (dentista) | 4.50 | 3.2% | 5.1% | 88 | 500-3000 |\n| Saúde (clínica estética) | 6.80 | 3.8% | 6.2% | 110 | 1000-5000 |\n| Beleza (salão) | 2.40 | 4.1% | 4.5% | 53 | 300-1500 |\n| Alimentação | 1.80 | 5.2% | 3.8% | 47 | 300-2000 |\n| Serviços Profissionais | 7.20 | 2.5% | 7.1% | 101 | 500-3000 |\n| Pet Shop | 3.20 | 3.9% | 4.8% | 67 | 200-1000 |\n| Autoescola | 5.10 | 2.8% | 6.5% | 78 | 500-2000 |\n\n*Fonte: WordStream Brazil Benchmarks 2025 + Google Ads internal data (medido)*\n\n---",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Integration with Warp Surfaces",
+    "text": "## Integration with Warp Surfaces\n\n| Surface | Google Ads Integration |\n|---------|----------------------|\n| **S3 (Dashboard Admin)** | Multi-tenant spend overview, alerts, health scores |\n| **S9 (Portal do Cliente)** | Client-facing performance dashboard, variance reports |\n| **S15 (Cockpit TOP-K)** | Aggregate spend + performance across top clients |\n| **S17 (Cost/Usage Dashboard)** | Google Ads API costs as part of total cost tracking |\n| **S4 (Checkout/Pricing)** | Upsell: \"Quer que otimizemos seus anúncios?\" |\n\n---",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Anti-Patterns",
+    "text": "## Anti-Patterns\n\n| Anti-Pattern | Why It Hurts | Correct Approach |\n|-------------|-------------|------------------|\n| No conversion tracking | Can't measure ROI → wasted spend | Set up conversion actions before campaign launch |\n| Broad match without negatives | Irrelevant search terms drain budget | Add negative keywords weekly from search terms report |\n| No geo-targeting | Ads shown outside service area | Strict radius targeting (5-15km for SMB) |\n| Campaign running without oversight | Budget burns on autopilot | Weekly review + automated alerts |\n| Smart Bidding without conversion data | Google optimizes without signal | Manual CPC until 15-30 conversions/month |\n| One campaign for everything | No budget control per service | Separate campaigns per service line |\n\n---",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_google_ads_telemetry",
+    "title": "[google-ads-telemetry] Cross-References",
+    "text": "## Cross-References\n\n- **ads**: For ad creative strategy and campaign setup\n- **ad-creative**: For scroll-stopping ad design\n- **analytics**: For GA4 + ad attribution tracking\n- **competitor-intel**: For competitive ad landscape\n- **whatsapp-business**: For WhatsApp click-to-ad campaigns\n- **revops**: For cost/revenue attribution modeling\n\n---\n\n*google-ads-telemetry v1.0 · adsentice-original skill · 2026-07-14 · medido=verdade*",
+    "skill_name": "google-ads-telemetry",
+    "skill_category": "advertising-analytics",
+    "skill_segmentos": [
+      "saude",
+      "beleza",
+      "alimentacao",
+      "servicos"
+    ],
+    "skill_surfaces": [
+      "S3",
+      "S9",
+      "S15",
+      "S17",
+      "S4"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL4"
+    ],
+    "skill_related": [
+      "ads",
+      "ad-creative",
+      "analytics",
+      "competitor-intel",
+      "revops"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] iFood Platform Overview (Brazil Market)",
+    "text": "## iFood Platform Overview (Brazil Market)\n\n| Metric | Value | Source |\n|--------|:-----:|--------|\n| Market share (food delivery BR) | ~80% | iFood Investor Relations 2025 |\n| Active restaurants | 330K+ | iFood 2025 |\n| Monthly orders | 70M+ | iFood 2025 |\n| Avg commission (marketplace) | 23-27% | Industry data |\n| Avg commission (own delivery) | 12-15% | iFood pricing |\n| Avg ticket (delivery) | R$ 45-65 | iFood internal |\n\n### iFood Plans for Restaurants\n\n| Plan | Monthly Fee | Commission | Features |\n|------|:----------:|:----------:|----------|\n| **Básico** | R$ 100-150 | 23-27% | Marketplace listing, delivery by iFood drivers |\n| **Entrega Livre** | R$ 200-300 | 12-15% | Marketplace listing, own delivery logistics |\n| **Completo** | R$ 500-800 | 23-27% | Priority listing, analytics, ",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] iFood API Architecture",
+    "text": "## iFood API Architecture\n\n### API Access Levels\n\n```\nLevel 1: Partner App (OAuth restaurant owner)\n  → Menu management, order reception, status updates\n  → Rate limit: 100 req/min\n\nLevel 2: Integration Partner (certified)\n  → Multi-restaurant, webhook registration, analytics\n  → Rate limit: 500 req/min\n\nLevel 3: Enterprise (volume contract)\n  → All features, priority support, sandbox access\n  → Custom rate limits\n```\n\n### Authentication (OAuth 2.0)\n\n```\nPOST https://oauth.ifood.com.br/oauth/token\nHeaders:\n  Content-Type: application/x-www-form-urlencoded\nBody:\n  grant_type=client_credentials\n  client_id={{MERCHANT_ID}}\n  client_secret={{MERCHANT_SECRET}}\n\nResponse:\n  {\n    \"access_token\": \"eyJ...\",\n    \"token_type\": \"Bearer\",\n    \"expires_in\": 3600\n  }\n```\n\n---",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Core API Endpoints",
+    "text": "## Core API Endpoints\n\n### 1. Menu Management\n\n```typescript\n// GET /v2.0/merchants/{merchantId}/menus\n// Lists all menus with categories, items, prices\ninterface MenuItem {\n  id: string;\n  name: string;\n  description: string;\n  price: number;          // in cents\n  originalPrice: number;  // for promotions\n  image: string;          // URL\n  availability: \"AVAILABLE\" | \"UNAVAILABLE\";\n  category: string;\n  serving: string;        // \"1 pessoa\", \"2 pessoas\"\n  modifications?: {\n    name: string;\n    min: number;\n    max: number;\n    options: { name: string; price: number }[];\n  }[];\n}\n\n// PATCH /v2.0/merchants/{merchantId}/menus/items/batch\n// Batch update prices, availability, promotions\n```\n\n### 2. Order Management\n\n```typescript\n// Event types (webhook delivery)\ntype OrderEvent =\n  | \"PLAC",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Adsentice Integration Flow",
+    "text": "## Adsentice Integration Flow\n\n### Architecture\n\n```\nadsentice Portal (S9) → Cloudflare Worker (Hono)\n                           ↓\n                    iFood Partner API\n                           ↓\n                    Webhook Receiver (order events)\n                           ↓\n                    Redis :6396 (order state, real-time)\n                           ↓\n                    Supabase (order history, analytics)\n                           ↓\n                    Qdrant :6352 (menu embeddings, semantic search)\n```\n\n### Key Integration Points\n\n#### 1. Menu Health Score\n\n```typescript\ninterface MenuHealthScore {\n  totalItems: number;\n  withPhotos: number;          // % items with photos (target >80%)\n  withDescription: number;     // % items with descriptions\n  avgPrice: number;\n  priceRan",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Segment-Specific Insights (Alimentação)",
+    "text": "## Segment-Specific Insights (Alimentação)\n\n### Restaurant Performance Benchmarks (BR)\n\n| Restaurant Type | Avg Order Value (R$) | Orders/Day | Cancel Rate | Rating |\n|----------------|:--------------------:|:----------:|:-----------:|:------:|\n| Hamburgueria | 45 | 30-80 | 3-5% | 4.3 |\n| Pizza | 55 | 20-60 | 2-4% | 4.2 |\n| Japonesa | 75 | 15-50 | 4-7% | 4.5 |\n| Brasileira (PF) | 30 | 40-100 | 2-3% | 4.0 |\n| Árabe/Sírio | 40 | 25-60 | 3-5% | 4.3 |\n| Açaí/Saudável | 35 | 30-70 | 2-4% | 4.4 |\n| Doces/Sobremesa | 30 | 20-50 | 3-6% | 4.5 |\n\n### Common Restaurant Pain Points (Brazil)\n\n| Pain | Symptom on iFood | Adsentice Solution |\n|------|-----------------|-------------------|\n| **Low visibility** | < 50 orders/month | SEO de cardápio + fotos profissionais + promoções |\n| **High cancellation*",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Operational Dashboard Widgets",
+    "text": "## Operational Dashboard Widgets\n\n### Widget: Orders Today\n```\n┌──────────────────────────────────┐\n│  iFood — Hoje (14 Jul)           │\n│  📦 23 pedidos    💰 R$ 1.035    │\n│  ⏱️  Médio: 38 min               │\n│  ⭐ 4.7 (últimos 10)             │\n│  ⚠ Itens sem foto: 3            │\n└──────────────────────────────────┘\n```\n\n### Widget: Weekly Trends\n```\n┌──────────────────────────────────┐\n│  iFood — Esta Semana vs Passada  │\n│  Pedidos:  156 → 172  +10.3% ✅  │\n│  Ticket:   R$ 43 → R$ 46   +7% ✅ │\n│  Cancel:   4.2% → 3.1%  -26% ✅  │\n│  Rating:   4.5 → 4.6           ✅ │\n└──────────────────────────────────┘\n```\n\n### Widget: Top Items (Last 7 Days)\n```\n┌──────────────────────────────────┐\n│  Mais Vendidos — iFood           │\n│  1. X-Burger Completo    42x     │\n│  2. Batata Frita G        38x   ",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Anti-Patterns (iFood-Specific)",
+    "text": "## Anti-Patterns (iFood-Specific)\n\n| Anti-Pattern | Why It Hurts | Correct Approach |\n|-------------|-------------|------------------|\n| Menu items without photos | 60%+ lower conversion | All items must have professional photos |\n| Not updating availability | Orders for out-of-stock → cancel → penalty | Real-time inventory sync |\n| Ignoring reviews | Low rating → less visibility (iFood algo) | Respond to all reviews within 24h |\n| Accepting then canceling | Cancellation rate >5% → platform penalty | Only accept if you can fulfill |\n| Wrong prep time estimate | Late deliveries → bad reviews + penalty | Add buffer (real prep time + 10 min) |\n| Only on iFood (no direct channel) | 23-27% commission eats margin | WhatsApp ordering as alternative channel |\n\n---",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Integration with Warp Surfaces",
+    "text": "## Integration with Warp Surfaces\n\n| Surface | iFood Integration |\n|---------|------------------|\n| **S9 (Portal do Cliente)** | iFood analytics, menu health, order monitoring |\n| **S12 (WhatsApp Delivery)** | WhatsApp as alternative channel (lower cost) |\n| **S3 (Dashboard Admin)** | Multi-restaurant iFood aggregation |\n| **S15 (Cockpit TOP-K)** | Top restaurant performance dashboard |\n| **S17 (Cost/Usage Dashboard)** | iFood commission vs own-channel tracking |\n\n---",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_ifood_integration",
+    "title": "[ifood-integration] Cross-References",
+    "text": "## Cross-References\n\n- **local-seo**: GMB restaurant listing + food photos\n- **whatsapp-business**: WhatsApp catalog as alternative order channel\n- **social**: Instagram menu/food content marketing\n- **reputation** (TBD): Review management across platforms\n- **competitor-intel**: Competitive pricing/menu analysis\n- **booking-ota-integration**: Similar integration pattern for hospitality\n\n---\n\n*ifood-integration v1.0 · adsentice-original skill · 2026-07-14 · medido=verdade*",
+    "skill_name": "ifood-integration",
+    "skill_category": "food-delivery",
+    "skill_segmentos": [
+      "alimentacao"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Brazilian Hospitality Market Context",
+    "text": "## Brazilian Hospitality Market Context\n\n| Metric | Value | Source |\n|--------|:-----:|--------|\n| Pousadas/hotéis in Brazil | ~31K | Ministério do Turismo 2025 |\n| Avg occupancy rate (BR) | 52% | FOHB Benchmark |\n| Avg daily rate (pousada) | R$ 250-450 | Industry survey |\n| Commission (Booking.com) | 15-22% | Booking partner terms |\n| Commission (Decolar) | 18-25% | Decolar partner terms |\n| Commission (Airbnb) | 3% host + 14% guest | Airbnb fee structure |\n| Direct booking cost | ~0% (website + WhatsApp) | Adsentice estimate |\n\n---",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] OTA Platform Landscape (Brazil)",
+    "text": "## OTA Platform Landscape (Brazil)\n\n### Booking.com (Market Leader)\n\n| Feature | Detail |\n|---------|--------|\n| **Market share BR** | ~45% of online bookings |\n| **Commission** | 15% (Genius) to 22% (standard) |\n| **API access** | Booking.com Connectivity APIs (requires certification) |\n| **Calendar sync** | iCal (free, basic) or XML (full, requires connectivity partner) |\n| **Payment** | Booking collects payment OR property collects (hotel define) |\n| **Guest communication** | Booking messaging platform (anonymized emails/phones) |\n| **Reviews** | Post-stay verified reviews, public score 1-10 |\n\n### Decolar (LATAM Leader)\n\n| Feature | Detail |\n|---------|--------|\n| **Market share BR** | ~25% of online bookings |\n| **Commission** | 18-25% (varies by property type) |\n| **API access** | De",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Channel Manager Architecture",
+    "text": "## Channel Manager Architecture\n\n### The Problem: Double-Booking Risk\n\nA pousada with 5 rooms listed on Booking.com, Decolar, Airbnb, AND direct website needs real-time calendar sync. If Room 3 sells on Booking at 10am, all other channels must block Room 3 for that date immediately.\n\n### Solution: adsentice Channel Manager\n\n```\nBooking.com API ──┐\nDecolar API ──────┤\nAirbnb iCal ──────┼──→ adsentice Channel Manager (Hono Worker)\nGoogle Hotels ────┤         │\nDirect Website ───┘         ↓\n                      Redis :6396 (real-time room state)\n                            ↓\n                      Supabase (bookings, guests, history)\n                            ↓\n                      WhatsApp notifications (guest comms)\n```\n\n### Room Inventory Model\n\n```typescript\ninterface RoomInventory {\n ",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Pricing Strategy (Revenue Management Light)",
+    "text": "## Pricing Strategy (Revenue Management Light)\n\n### Dynamic Pricing Rules\n\n```typescript\ninterface PricingRule {\n  condition: \"lead_time\" | \"occupancy\" | \"day_of_week\" | \"season\" | \"event\";\n  adjustment: number;  // percentage adjustment (e.g. -15 or +30)\n}\n\n// Example: Pousada Praia Grande\nconst rules: PricingRule[] = [\n  // Urgency: last room → premium\n  { condition: \"occupancy\", threshold: \">=80%\", adjustment: +25 },\n\n  // Lead time: book early → discount\n  { condition: \"lead_time\", threshold: \">30_days\", adjustment: -10 },\n\n  // Weekend premium\n  { condition: \"day_of_week\", threshold: \"friday,saturday\", adjustment: +15 },\n\n  // Low season (March-June, Aug-Nov)\n  { condition: \"season\", threshold: \"low\", adjustment: -20 },\n\n  // High season (Dec-Feb, Jul)\n  { condition: \"season\", thresho",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Guest Communication Automation",
+    "text": "## Guest Communication Automation\n\n### Booking Confirmation Flow\n\n```\nBooking Received → Auto-confirm (if available)\n                → WhatsApp template: \"Reserva Confirmada\"\n                → Calendar sync: block dates across all channels\n\n3 Days Before  → WhatsApp template: \"Lembrete de Checkin\"\n                → Include: address, checkin time, contact\n\n1 Day Before   → WhatsApp template: \"Previsão de Chegada?\"\n                → Interactive: morning/afternoon/evening buttons\n\nDay of Checkout → WhatsApp: \"Como foi sua estadia?\"\n                → Review link: Booking.com + Google Maps\n```\n\n### WhatsApp Templates for Hospitality\n\n```\nTemplate: reserva_confirmada\nBody:\n  Olá {{1}}! Sua reserva na {{2}} está confirmada ✨\n  \n  📅 Check-in: {{3}} a partir das {{4}}\n  📅 Check-out: {{5}} até as {{",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Analytics Dashboard",
+    "text": "## Analytics Dashboard\n\n### Property Performance Metrics\n\n```typescript\ninterface PropertyAnalytics {\n  period: { start: Date; end: Date };\n\n  // Occupancy\n  occupancy: {\n    rate: number;              // % (e.g. 62%)\n    room_nights_sold: number;\n    room_nights_available: number;\n    revpar: number;            // Revenue Per Available Room (R$)\n    adr: number;               // Average Daily Rate (R$)\n  };\n\n  // Channel Mix\n  channels: {\n    booking_com: { bookings: number; revenue: number; commission: number };\n    decolar: { bookings: number; revenue: number; commission: number };\n    airbnb: { bookings: number; revenue: number; host_fee: number };\n    direct_website: { bookings: number; revenue: number };\n    direct_whatsapp: { bookings: number; revenue: number };\n    walk_in: { booki",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Integration with Warp Surfaces",
+    "text": "## Integration with Warp Surfaces\n\n| Surface | Booking/OTA Integration |\n|---------|------------------------|\n| **S9 (Portal do Cliente)** | Channel manager dashboard, pricing, booking analytics |\n| **S12 (WhatsApp Delivery)** | Guest communication templates, direct booking funnel |\n| **S3 (Dashboard Admin)** | Multi-property aggregation, revenue trends |\n| **S15 (Cockpit TOP-K)** | Top property performance benchmarks |\n| **S17 (Cost/Usage Dashboard)** | Commission cost analysis, direct-vs-OTA ROI |\n\n---",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Anti-Patterns (Hospitality-Specific)",
+    "text": "## Anti-Patterns (Hospitality-Specific)\n\n| Anti-Pattern | Why It Hurts | Correct Approach |\n|-------------|-------------|------------------|\n| Same rate on all channels | Lose margin to OTAs unnecessarily | Direct 10-15% cheaper than Booking/Decolar |\n| No direct booking option | 100% dependent on OTAs → margin erosion | WhatsApp + website booking as priority |\n| Ignoring calendar sync | Double-bookings → guest fury + penalties | Automated sync every 5 minutes |\n| Slow response to reviews | Low score → algorithm penalty on all platforms | Respond within 24h, every review |\n| No minimum stay on peak dates | 1-night bookings kill revenue on peak dates | 3-5 night minimum for Réveillon, Carnaval |\n| All rooms on all channels | Overselling risk | Allocate: 60% OTAs, 40% direct + buffer |\n\n---",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  },
+  {
+    "source": "adsentice-original",
+    "kind": "execution",
+    "framework": "adsentice_booking_ota_integration",
+    "title": "[booking-ota-integration] Cross-References",
+    "text": "## Cross-References\n\n- **local-seo**: GMB hotel/pousada listing with photos, reviews\n- **whatsapp-business**: Guest communication + direct booking via catalog\n- **ifood-integration**: Similar integration pattern (alimentação → delivery)\n- **reputation** (TBD): Review management across Booking + Google + TripAdvisor\n- **social**: Instagram/pinterest visual marketing for hospitality\n- **competitor-intel**: Competitive pricing/occupancy analysis\n\n---\n\n*booking-ota-integration v1.0 · adsentice-original skill · 2026-07-14 · medido=verdade*",
+    "skill_name": "booking-ota-integration",
+    "skill_category": "hospitality",
+    "skill_segmentos": [
+      "hospitalidade"
+    ],
+    "skill_surfaces": [
+      "S9",
+      "S12",
+      "S3",
+      "S15",
+      "S17"
+    ],
+    "skill_solutions": [
+      "SOL2",
+      "SOL3"
+    ],
+    "skill_related": [
+      "local-seo",
+      "whatsapp-business",
+      "social",
+      "reputation",
+      "competitor-intel"
+    ]
+  }
+]
