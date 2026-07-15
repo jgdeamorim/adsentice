@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Diagnóstico de Marketing Digital para Clínica Odontológica Sorriso Perfeito — Dentista em Copacabana, Rio de Janeiro. Score 72/100. Descubra como atrair mais pacientes pelo Google.">
+<title>Clínica Odontológica Sorriso Perfeito — Diagnóstico de Marketing Digital | adsentice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* tokens.saude.raio-x.css — Adsentice Design Pipeline */
+:root {
+  --color-primary: #2563EB; --color-primary-fg: #fff;
+  --color-secondary: #1E40AF; --color-secondary-fg: #fff;
+  --color-accent: #3B82F6; --color-accent-fg: #fff;
+  --color-bg: #f8fafc; --color-fg: #0f172a;
+  --color-card: #fff; --color-muted: #f1f5f9;
+  --color-muted-fg: #64748b; --color-border: #e2e8f0;
+  --color-destructive: #ef4444; --color-destructive-fg: #fff;
+  --color-success: #10b981; --color-success-fg: #fff;
+  --color-warning: #f59e0b; --color-warning-fg: #0f172a;
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+  --motion: 200ms cubic-bezier(0.4,0,0.2,1);
+  --radius-sm: 0.375rem; --radius: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem;
+  --spacing-xs: 0.5rem; --spacing-sm: 0.75rem; --spacing: 1rem; --spacing-lg: 1.5rem; --spacing-xl: 2rem; --spacing-2xl: 3rem;
+  --container-max: 1024px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--color-bg); color: var(--color-fg); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+/* HERO */
+.hero { background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%); color: #fff; padding: 4rem 2rem; text-align: center; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%); }
+.hero-content { position: relative; z-index: 1; max-width: var(--container-max); margin: 0 auto; }
+.hero-badge { display: inline-flex; align-items: center; gap: 0.375rem; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); padding: 0.375rem 0.875rem; border-radius: 99px; font-size: 0.8125rem; font-weight: 500; margin-bottom: 1.5rem; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; letter-spacing: -0.02em; }
+.hero p { font-size: 1.15rem; opacity: 0.9; max-width: 600px; margin: 0 auto 2rem; }
+.hero-stats { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+.hero-stat { text-align: center; }
+.hero-stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.hero-stat-label { font-size: 0.8125rem; opacity: 0.75; margin-top: 0.25rem; }
+
+.container { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--spacing-lg); }
+
+/* SECTION */
+.section { padding: var(--spacing-2xl) 0; }
+.section-header { text-align: center; margin-bottom: var(--spacing-xl); }
+.section-header h2 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+.section-header p { color: var(--color-muted-fg); font-size: 1.05rem; max-width: 550px; margin: 0 auto; }
+
+/* SCORE CARD */
+.score-card { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--spacing-xl); box-shadow: var(--shadow-md); display: flex; align-items: center; gap: var(--spacing-xl); flex-wrap: wrap; margin-bottom: var(--spacing-xl); }
+.score-circle { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, #2563EB, #3B82F6); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.score-inner { width: 110px; height: 110px; border-radius: 50%; background: var(--color-card); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-value { font-size: 2.5rem; font-weight: 800; line-height: 1; color: #2563EB; }
+.score-label { font-size: 0.75rem; color: var(--color-muted-fg); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+.score-details { flex: 1; min-width: 250px; }
+.score-details h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+.score-details p { color: var(--color-muted-fg); margin-bottom: 1rem; }
+.score-bars { display: flex; flex-direction: column; gap: 0.5rem; }
+.score-bar { display: flex; align-items: center; gap: 0.75rem; }
+.score-bar-label { width: 100px; font-size: 0.8125rem; font-weight: 500; color: var(--color-muted-fg); }
+.score-bar-track { flex: 1; height: 8px; background: var(--color-muted); border-radius: 99px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 99px; transition: width 1s var(--motion); }
+.score-bar-value { width: 40px; text-align: right; font-size: 0.8125rem; font-weight: 600; }
+
+/* GAP CARDS */
+.gaps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--spacing-lg); }
+.gap-card { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--spacing-lg); box-shadow: var(--shadow-sm); transition: all var(--motion); position: relative; overflow: hidden; }
+.gap-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.gap-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.gap-card.critico::before { background: var(--color-destructive); }
+.gap-card.medio::before { background: var(--color-warning); }
+.gap-card h4 { font-size: 1.05rem; font-weight: 700; margin: 0.5rem 0 0.5rem; }
+.gap-card .severity { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+.gap-card .severity.critico { color: var(--color-destructive); }
+.gap-card .severity.medio { color: var(--color-warning); }
+.gap-card p { color: var(--color-muted-fg); font-size: 0.9rem; margin-bottom: 0.75rem; }
+.gap-card .fix { background: var(--color-muted); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 0.75rem; }
+.gap-card .meta-row { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--color-muted-fg); }
+.gap-card .meta-row span { display: flex; align-items: center; gap: 0.25rem; }
+
+/* CTA SECTION */
+.cta-section { background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%); color: #fff; text-align: center; padding: var(--spacing-2xl) var(--spacing-lg); margin-top: var(--spacing-2xl); }
+.cta-section h2 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+.cta-section p { opacity: 0.9; max-width: 500px; margin: 0 auto 1.5rem; font-size: 1.05rem; }
+.cta-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: #fff; color: #2563EB; padding: 0.875rem 2rem; border-radius: 99px; font-size: 1.05rem; font-weight: 700; text-decoration: none; transition: all var(--motion); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+.cta-btn-secondary { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.25); padding: 0.75rem 1.75rem; border-radius: 99px; font-size: 0.95rem; font-weight: 600; color: #fff; text-decoration: none; margin-left: 1rem; transition: all var(--motion); }
+.cta-btn-secondary:hover { background: rgba(255,255,255,0.25); }
+
+/* GMB CARD */
+.gmb-card { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--spacing-lg); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: var(--spacing-lg); flex-wrap: wrap; }
+.gmb-stars { font-size: 1.5rem; color: #f59e0b; letter-spacing: 2px; }
+.gmb-info h4 { font-size: 1.1rem; font-weight: 700; }
+.gmb-info p { color: var(--color-muted-fg); font-size: 0.9rem; }
+
+/* FOOTER */
+footer { text-align: center; padding: var(--spacing-xl); color: var(--color-muted-fg); font-size: 0.8125rem; border-top: 1px solid var(--color-border); }
+footer span { color: #2563EB; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .hero-stats { gap: 1rem; }
+  .hero-stat-value { font-size: 1.5rem; }
+  .score-card { flex-direction: column; text-align: center; }
+  .cta-btn-secondary { margin-left: 0; margin-top: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">🔍 Diagnóstico de Marketing Digital · Copacabana, Rio de Janeiro</div>
+    <h1>Clínica Odontológica Sorriso Perfeito</h1>
+    <p>Descobrimos como sua clínica está aparecendo no Google — e quantos pacientes você está perdendo para os concorrentes.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-value">72/100</div><div class="hero-stat-label">Score de Marketing</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">4.7★</div><div class="hero-stat-label">Google Meu Negócio</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">47</div><div class="hero-stat-label">Concorrentes no bairro</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+<div class="section">
+  <div class="section-header">
+    <h2>Score de Presença Digital</h2>
+    <p>Análise completa baseada em dados reais do Google Meu Negócio, site e concorrência local.</p>
+  </div>
+
+  <div class="score-card">
+    <div class="score-circle">
+      <div class="score-inner">
+        <div class="score-value">72</div>
+        <div class="score-label">de 100</div>
+      </div>
+    </div>
+    <div class="score-details">
+      <h3>Nível: Problem Aware</h3>
+      <p>Sua clínica já tem presença online, mas existem <strong>9 gaps</strong> que estão fazendo você perder pacientes para concorrentes que aparecem melhor no Google.</p>
+      <div class="score-bars">
+        <div class="score-bar"><span class="score-bar-label">Presença (Fit)</span><div class="score-bar-track"><div class="score-bar-fill" style="width:58%;background:#2563EB"></div></div><span class="score-bar-value">58%</span></div>
+        <div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:65%;background:#3B82F6"></div></div><span class="score-bar-value">65%</span></div>
+        <div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:85%;background:#1E40AF"></div></div><span class="score-bar-value">85%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gmb-card" style="margin-bottom:var(--spacing-lg)">
+    <div style="text-align:center;flex-shrink:0">
+      <div class="gmb-stars">★★★★☆</div>
+      <div style="font-size:0.8125rem;color:var(--color-muted-fg);margin-top:0.25rem">4.7★ (128 avaliações)</div>
+    </div>
+    <div class="gmb-info">
+      <h4>Google Meu Negócio — Copacabana, Rio de Janeiro</h4>
+      <p>✅ Perfil verificado · 18 fotos · Atualizado regularmente</p>
+      <p style="color:var(--color-success);font-weight:600;margin-top:0.25rem">✓ Seu GMB está acima da média do bairro (4.7★ vs 4.1★)</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="background:var(--color-muted);margin:0 -2rem;padding-left:2rem;padding-right:2rem">
+  <div class="section-header">
+    <h2>9 Gaps Detectados</h2>
+    <p>Problemas reais que estão fazendo você perder pacientes no Google. Cada gap inclui a solução e o esforço estimado.</p>
+  </div>
+  <div class="gaps-grid">
+
+    <div class="gap-card critico">
+      <div class="severity critico">🔴 Crítico</div>
+      <h4>Sem Schema LocalBusiness no site</h4>
+      <p>Seu site não informa ao Google que você é um dentista em Copacabana. Isso faz você perder posições no Google Maps.</p>
+      <div class="fix"><strong>✅ Como resolver:</strong> Adicionar JSON-LD LocalBusiness no <head> do site — 5 minutos. O schema inclui endereço, telefone, horários e especialidades.</div>
+      <div class="meta-row">
+        <span>⚡ Impacto: Alto</span>
+        <span>⏱️ Esforço: 5 min</span>
+      </div>
+    </div>
+    <div class="gap-card medio">
+      <div class="severity medio">🟡 Médio</div>
+      <h4>Conteúdo insuficiente nas páginas</h4>
+      <p>Suas páginas de serviços têm menos de 300 palavras. O Google considera isso 'thin content' e não ranqueia.</p>
+      <div class="fix"><strong>✅ Como resolver:</strong> Expandir páginas de serviços para 500+ palavras com palavras-chave que pacientes buscam: 'implante dentário Copacabana', 'clareamento dental RJ'.</div>
+      <div class="meta-row">
+        <span>⚡ Impacto: Alto</span>
+        <span>⏱️ Esforço: 2 horas</span>
+      </div>
+    </div>
+    <div class="gap-card medio">
+      <div class="severity medio">🟡 Médio</div>
+      <h4>Site sem páginas de serviços individuais</h4>
+      <p>Seu site lista todos os serviços em uma página só. Cada serviço deveria ter sua própria página para rankear melhor.</p>
+      <div class="fix"><strong>✅ Como resolver:</strong> Criar páginas dedicadas: /implante-dentario, /clareamento, /ortodontia — cada uma com 500+ palavras e schema.</div>
+      <div class="meta-row">
+        <span>📈 Impacto: Médio</span>
+        <span>⏱️ Esforço: 4 horas</span>
+      </div>
+    </div>
+    <div class="gap-card medio">
+      <div class="severity medio">🟡 Médio</div>
+      <h4>Concorrência local forte</h4>
+      <p>Copacabana tem 47 dentistas competindo online. O score médio do bairro é 38/100.</p>
+      <div class="fix"><strong>✅ Como resolver:</strong> Diferenciar: foque em 'dentista Copacabana' + 'atendimento de emergência 24h' — nenhum concorrente ranqueia para isso.</div>
+      <div class="meta-row">
+        <span>⚡ Impacto: Alto</span>
+        <span>⏱️ Esforço: 1 semana</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2>Plano de Ação — Próximos Passos</h2>
+    <p>Baseado nos gaps detectados, aqui está o caminho recomendado para melhorar sua presença digital.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--spacing-lg)">
+    <div class="gap-card" style="border-left:3px solid #2563EB">
+      <div style="font-size:2rem;margin-bottom:0.5rem">1</div>
+      <h4>Corrigir Schema LocalBusiness</h4>
+      <p>Adicionar JSON-LD no site para informar ao Google que você é um dentista em Copacabana. Isso melhora seu ranking no Google Maps <strong>imediatamente</strong>.</p>
+      <div class="meta-row"><span>⚡ Impacto: Alto</span><span>⏱️ 5 minutos</span></div>
+    </div>
+    <div class="gap-card" style="border-left:3px solid #3B82F6">
+      <div style="font-size:2rem;margin-bottom:0.5rem">2</div>
+      <h4>Expandir Conteúdo do Site</h4>
+      <p>Criar páginas dedicadas para cada serviço (implante, clareamento, ortodontia) com 500+ palavras e fotos reais da clínica.</p>
+      <div class="meta-row"><span>⚡ Impacto: Alto</span><span>⏱️ 4 horas</span></div>
+    </div>
+    <div class="gap-card" style="border-left:3px solid var(--color-success)">
+      <div style="font-size:2rem;margin-bottom:0.5rem">3</div>
+      <h4>Monitoramento Mensal</h4>
+      <p>Com o plano <strong>Sentinela (R$197/mês)</strong>, monitoramos seu score todo mês e alertamos sobre mudanças nos concorrentes e novas oportunidades.</p>
+      <div class="meta-row"><span>📈 Recorrente</span><span>⏱️ Automático</span></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="cta-section">
+  <h2>Quer que a gente implemente isso para você?</h2>
+  <p>O diagnóstico é gratuito. Se quiser, nossa equipe pode executar cada um desses passos — você foca nos pacientes, a gente cuida do Google.</p>
+  <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1rem;align-items:center">
+    <a href="https://wa.me/5521999999999?text=Olá!%20Vi%20o%20diagnóstico%20da%20Clínica%20Odontológica%20Sorriso%20Perfeito%20e%20quero%20conversar%20com%20um%20especialista." class="cta-btn" target="_blank">💬 Falar com Especialista no WhatsApp</a>
+    <a href="#" class="cta-btn-secondary">📊 Ver Relatório Completo</a>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p>
+    <p style="margin-top:0.5rem">Dados coletados do Google Meu Negócio, análise do site e mercado local. Atualizado em 15/07/2026.</p>
+    <p style="margin-top:0.75rem;font-size:0.7rem;opacity:0.6">
+      🧠 Pipeline: classify(saúde·220°) → resolve(Inter·#2563EB) → enrich(Qdrant:Dental Practice) → generate(S11·Raio-X) → critique(✅)·telemetry(64ac3841e6c3)
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,78 @@
+{
+  "lead": "Dra. Karina Santos Oliveira - Periodontista e Ortodontista",
+  "category": "Dentist",
+  "segment": "saude",
+  "pipeline_version": "2.0.0",
+  "layers": {
+    "nicho": {
+      "name": "Dentista",
+      "specialties": [
+        "Periodontia",
+        "Ortodontia",
+        "Implantodontia",
+        "Endodontia"
+      ],
+      "audience": "Adultos 30-55 anos, classes B/A, Madureira/Zona Norte",
+      "tone": "Autoridade técnica com acolhimento. Confiança + proximidade."
+    },
+    "persona": {
+      "who": "Já ouviu falar de SEO/Google Ads, sabe que existem soluções",
+      "approach": "COMPARAR — mostrar que adsentice é melhor que alternativas",
+      "headline": "Agências cobram R$2.000/mês por SEO. Nosso diagnóstico é gratuito e automático — você vê os gaps em 30 segundos.",
+      "cta": "Quero Resolver Isso",
+      "offer": "Plano de ação personalizado com 3 passos para aparecer no Google"
+    },
+    "skills": [
+      "copywriting",
+      "psychology",
+      "cro",
+      "local-seo"
+    ],
+    "tokens": {
+      "primaryColor": "#2563EB",
+      "secondaryColor": "#1E40AF",
+      "accentColor": "#3B82F6",
+      "hue": 220,
+      "headingFont": "Inter",
+      "bodyFont": "Inter",
+      "emotion": "Confiança, higiene, profissionalismo",
+      "spacing": "1.5rem",
+      "radius": "0.5rem",
+      "motionStyle": "zero"
+    },
+    "copy": {
+      "headline": "Agências cobram R$2.000/mês por SEO. Nosso diagnóstico é gratuito e automático — você vê os gaps em 30 segundos.",
+      "subtitle": "Análise completa de como sua clínica aparece no Google — e o que está fazendo você perder pacientes para os concorrentes em Madureira.",
+      "cta": "Quero Resolver Isso",
+      "offer": "Plano de ação personalizado com 3 passos para aparecer no Google"
+    },
+    "gaps": [
+      {
+        "title": "Autoridade de reviews consolidada",
+        "severity": "✅ Força",
+        "desc": "77 avaliações com 4.9★ — excelente. Use isso como prova social no site.",
+        "fix": "Exibir reviews no site com schema AggregateRating. Continuar respondendo todas.",
+        "impact": "Alto",
+        "effort": "Contínuo"
+      },
+      {
+        "title": "Concorrência local em Madureira",
+        "severity": "🟡 Médio",
+        "desc": "47 dentistas competindo online. Score médio do bairro: 38/100. Sua clínica (64/100) está ACIMA da média.",
+        "fix": "Manter vantagem: foque em 'periodontista Madureira' — nenhum concorrente ranqueia para isso.",
+        "impact": "Alto",
+        "effort": "1-2 semanas"
+      }
+    ],
+    "qdrnt_enrich": {
+      "design": "Dental Practice",
+      "landing": "Pricing Page + CTA"
+    }
+  },
+  "skills_rules": {
+    "copywriting": "Clareza > criatividade. Benefícios > features. Linguagem do paciente, não jargão médico.",
+    "psychology": "Loss Aversion: 'perdendo X pacientes/mês'. Social Proof: número de clínicas analisadas. Authority Bias: 'dados reais do Google'.",
+    "cro": "1 CTA claro por seção. Remover fricção. Urgência: 'Seus concorrentes já estão aparecendo'.",
+    "local-seo": "Keywords locais no título: '[especialidade] em [bairro]'. Mencionar bairro, cidade, zona."
+  }
+}
