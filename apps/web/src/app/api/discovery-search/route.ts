@@ -285,6 +285,7 @@ export async function POST(request: NextRequest) {
     let listings = result.listings
     let enrichmentCost = 0
     let enrichedCount = 0
+    console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
     let l2Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field profiles, $0.0054/lead) ═══

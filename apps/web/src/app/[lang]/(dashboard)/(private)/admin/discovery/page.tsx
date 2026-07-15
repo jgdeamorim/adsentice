@@ -238,7 +238,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force, enrich: 50, // todos os leads com L1 (27 campos, contato)
+          limit: 50, force, enrich: 5, // top 5 leads com L1 (27 campos)
           order_by: searchOrderBy ? [searchOrderBy] : undefined,
           offset: searchOffset,
         }),
@@ -246,8 +246,13 @@ const DiscoveryPage = () => {
 
       const data = await res.json()
 
-      if (!res.ok) throw new Error(data.error)
-      setResults(data.listings || [])
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      if (!Array.isArray(data.listings)) {
+        console.error('[discovery] data.listings is not an array', data)
+        throw new Error(`API returned invalid listings: ${typeof data.listings}`)
+      }
+      console.log(`[discovery] Received ${data.listings.length} listings, ${data.scores?.length || 0} scores, distribution: ${data.distribution?.avgScore ?? 'null'}/100`)
+      setResults(data.listings)
       setScores(data.scores || [])
       setDistribution(data.distribution || null)
       setTotalCount(data.total_count || 0)
