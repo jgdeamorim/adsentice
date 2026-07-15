@@ -445,7 +445,9 @@ export async function POST(request: NextRequest) {
 
     // Persist + cache (Redis + memory)
     const payload = {
-      ...result, scores, distribution,
+      ...result,  // total_count, cost_usd
+      listings,   // enriched listings (sobrescreve result.listings)
+      scores, distribution,
       enrichedCount, enrichmentCost, l2Cost,
       l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
       totalCost: searchCost + enrichmentCost + l2Cost,
