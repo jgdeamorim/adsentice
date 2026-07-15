@@ -37,6 +37,10 @@ export { backlinksCompetitors, extractDomain } from "./tools/backlinks-competito
 export { serpOrganic } from "./tools/serp-organic"
 export { googleReviews } from "./tools/reviews-google"
 
+// Market intelligence (t0 holds)
+export { appendMarketHold, appendMarketHolds, cacheMarketSnapshot, queryMarketTrends } from "./market-holds"
+export type { MarketHold, MarketMetric, MarketTrendPoint } from "./market-holds"
+
 // Types
 export type * from "./types"
 export type { LighthouseScores, LighthouseAudit } from "./tools/lighthouse"
