@@ -32,9 +32,15 @@ export { onPageLighthouse } from "./tools/lighthouse"
 
 // L3 — Competitive
 export { backlinksCompetitors, extractDomain } from "./tools/backlinks-competitors"
+export { domainCompetitors } from "./tools/domain-competitors"
+export { rankedKeywords } from "./tools/ranked-keywords"
+export { keywordGap } from "./tools/keyword-gap"
+export { domainOverview } from "./tools/domain-overview"
 
 // L4 — Keywords, SERP, Reviews
+export { keywordResearch } from "./tools/keyword-research"
 export { serpOrganic } from "./tools/serp-organic"
+export { serpLocalFinder } from "./tools/serp-local-finder"
 export { googleReviews } from "./tools/reviews-google"
 
 // Market intelligence (t0 holds)
@@ -46,3 +52,9 @@ export type * from "./types"
 export type { LighthouseScores, LighthouseAudit } from "./tools/lighthouse"
 export type { GoogleReview, GoogleReviewsResult } from "./tools/reviews-google"
 export type { SerpOrganicItem, SerpOrganicResult } from "./tools/serp-organic"
+export type { DomainCompetitor } from "./tools/domain-competitors"
+export type { RankedKeyword } from "./tools/ranked-keywords"
+export type { KeywordGapItem } from "./tools/keyword-gap"
+export type { DomainOverview } from "./tools/domain-overview"
+export type { KeywordResearch } from "./tools/keyword-research"
+export type { LocalFinderItem } from "./tools/serp-local-finder"
