@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.5.0"
+version: "1.6.0"
 date: 2026-07-11
-updated: 2026-07-15T08:00:00-03:00
+updated: 2026-07-15T14:10:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.5.0
+# Base-Matriz do Ecossistema adsentice v1.6.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
@@ -238,22 +238,32 @@ Usuário: "landing page para dentista em SP, plano Sentinela"
 
 ## Dimensão CAP(abilidades) — {#ADS.CAP}
 
-### ADS.CAP.dataforseo — DataForSEO (MCP oficial)
+### ADS.CAP.dataforseo — DataForSEO (provider-core v1.0 direto)
 
-| Rota | Capability | Módulo DataForSEO | Status |
+| Rota | Capability | Layer | Custo | Status |
+|---|---|---|---|---|
+| `ADS.CAP.dataforseo.provider_core` | **provider-core v1.0** — DataForSEO direto, 1 hop HTTP | — | — | ✅ v1.0 |
+| `ADS.CAP.dataforseo.listings_search` | L0: Business Listings Search | L0 | $0.015 | ✅ live |
+| `ADS.CAP.dataforseo.profile_gmb` | L1: Google Business Profile (27 campos) | L1 | $0.0054 | ✅ live · custom |
+| `ADS.CAP.dataforseo.instant_pages` | L2: OnPage SEO audit (60+ checks) | L2 | $0.000125 | ✅ live |
+| `ADS.CAP.dataforseo.domain_technologies` | L2: CMS/Analytics/Stack detection | L2 | $0.01 | ✅ live |
+| `ADS.CAP.dataforseo.backlinks_competitors` | L3: Backlinks competitors | L3 | $0.02 | ✅ live |
+| `ADS.CAP.dataforseo.cost_registry` | 13 capabilities precificadas (YAML) | — | — | ✅ `cost-registry.yaml` |
+| `ADS.CAP.dataforseo.sandbox` | Sandbox $0: mesmos shapes, dados fake | — | $0 | ✅ `DATAFORSEO_MODE=sandbox` |
+
+Cobertura: **6 tools implementadas (L0→L3)** · **13 precificadas** no cost-registry · **$0.05/lead pipeline completo**
+EVO-API mantido como **referência canônica** (76 caps, shapes, translators, cost-registry) — não mais runtime.
+
+### ADS.CAP.deepseek — DeepSeek (copywriter S10 + LLM pipeline)
+
+| Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.CAP.dataforseo.keyword_research` | Pesquisa de keywords | DATAFORSEO_LABS | ✅ via MCP |
-| `ADS.CAP.dataforseo.serp_organic` | SERP orgânico | SERP | ✅ via MCP |
-| `ADS.CAP.dataforseo.domain_competitors` | Concorrentes | DOMAIN_ANALYTICS | ✅ via MCP |
-| `ADS.CAP.dataforseo.business_profile_gmb` | Google Meu Negócio | BUSINESS_DATA | ✅ via MCP |
-| `ADS.CAP.dataforseo.business_reviews` | Reviews Google | BUSINESS_DATA | ✅ via MCP |
-| `ADS.CAP.dataforseo.on_page_lighthouse` | Lighthouse audit | ONPAGE | ✅ via MCP |
-| `ADS.CAP.dataforseo.ads_traffic_forecast` | Previsão de tráfego pago | KEYWORDS_DATA | ✅ via MCP |
-| `ADS.CAP.dataforseo.backlinks_summary` | Backlinks | BACKLINKS | ✅ via MCP |
-| `ADS.CAP.dataforseo.content_sentiment` | Análise de sentimento | CONTENT_ANALYSIS | ✅ via MCP |
-| `ADS.CAP.dataforseo.ai_mentions` | Menções em IA | AI_OPTIMIZATION | ✅ via MCP |
-
-Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
+| `ADS.CAP.deepseek.copywriter` | Copywriter S10 via DeepSeek V4 Flash (headline+subtitle+CTA pt-BR) | `s10_generator.py` | ✅ v1.0 |
+| `ADS.CAP.deepseek.pricing` | Input $0.14/1M (miss) / $0.0028/1M (hit) · Output $0.28/1M | api-docs.deepseek.com | ✅ medido |
+| `ADS.CAP.deepseek.kv_cache` | KV Cache ON por padrão — system prompt fixo = ~80% hit rate | api-docs.deepseek.com | ✅ ativo |
+| `ADS.CAP.deepseek.balance` | GET /user/balance → Redis (adsentice:llm:balance:*) | `adsentice_deepseek_status.py` | ✅ $2.31 USD |
+| `ADS.CAP.deepseek.cost_tracking` | Custo rastreado no Redis (adsentice:llm:cost:*) | `track_llm_cost()` | ✅ live |
+| `ADS.CAP.deepseek.copy_framework` | Copywriting com persona+fórmula+anti-patterns (Corey+Kim+CRO) | `generate_copy()` | ✅ v1.0 |
 
 ### ADS.CAP.marketing — Inteligência de Marketing (Domain Enrichment)
 
