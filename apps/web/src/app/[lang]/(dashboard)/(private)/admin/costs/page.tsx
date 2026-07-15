@@ -143,7 +143,17 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const cpl        = leads > 0 ? sup.totalCost / leads : 0
   const brl        = 5.5
 
-  const usedIds = new Set(['business.listings.search', 'business.profile.gmb', 'on_page.instant_pages', 'domain.technologies', 'on_page.lighthouse', 'serp.organic', 'business.reviews.google', 'backlinks.competitors'])
+  // 21 tools implementadas — usadas como filtro sobre cost-registry.yaml
+  const usedIds = new Set([
+    'business.listings.search', 'business.profile.gmb',
+    'on_page.instant_pages', 'domain.technologies', 'on_page.lighthouse',
+    'backlinks.competitors', 'domain.competitors', 'domain.ranked_keywords',
+    'domain.keyword_gap', 'domain.overview', 'keyword.research',
+    'serp.organic', 'serp.local_finder', 'serp.maps',
+    'business.reviews.google', 'business.qa',
+    'keyword.volume', 'keyword.trends', 'keyword.related',
+    'keyword.historical', 'content.sentiment.summary',
+  ])
   const usedCaps = caps.filter(c => usedIds.has(c.id))
   const availCaps = caps.filter(c => !usedIds.has(c.id))
 

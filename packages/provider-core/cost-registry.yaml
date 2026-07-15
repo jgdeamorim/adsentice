@@ -27,6 +27,7 @@ costs:
   domain.ranked_keywords:            { cost_usd: "0.0101",  confidence: measured }
   domain.competitors:                { cost_usd: "0.0101",  confidence: measured }
   domain.keyword_gap:                { cost_usd: "0.0101",  confidence: measured }
+  domain.overview:                   { cost_usd: "0.0101",  confidence: measured }
 
   # ── L2 · OnPage expandido (Fase 1) ──
   on_page.lighthouse:                { cost_usd: "0.00425", confidence: measured }
@@ -35,14 +36,22 @@ costs:
   keyword.volume:                    { cost_usd: "0.075",   confidence: provider }
   keyword.research:                  { cost_usd: "0.02",    confidence: measured }
   keyword.trends:                    { cost_usd: "0.009",   confidence: measured }
+  keyword.related:                   { cost_usd: "0.0109",  confidence: measured }
+  keyword.historical:                { cost_usd: "0.0101",  confidence: measured }
 
   # ── L4 · SERP ──
   serp.organic:                      { cost_usd: "0.002",   confidence: measured }
+  serp.local_finder:                 { cost_usd: "0.002",   confidence: measured }
+  serp.maps:                         { cost_usd: "0.002",   confidence: measured }
 
   # ── L4 · Reviews ──
   business.reviews.google:           { cost_usd: "0.00075", confidence: measured }
+  business.qa:                       { cost_usd: "0.00075", confidence: provider }
 
-  # ── Pipeline completo (1 lead, L0→L3) ──
+  # ── L4 · Content ──
+  content.sentiment.summary:         { cost_usd: "0.02003", confidence: provider+measured }
+
+  # ── Pipeline completo (1 lead, L0→L4) ──
   pipeline.full_enrichment:
-    cost_usd: "0.050225"   # L0(0.015) + L1(0.0054) + L2(0.000125+0.01) + L3(0.02)
-    confidence: provider
+    cost_usd: "0.272"
+    confidence: measured

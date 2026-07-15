@@ -63,7 +63,7 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
     },
     {
       name: 'provider-core (DataForSEO)', icon: 'ri-search-line',
-      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ provider-core v1.0' : '❌ Não configurado',
+      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ provider-core v2.0 (21 tools)' : '❌ Não configurado',
       statusColor: hasDataForSeo ? 'success' as const : 'error' as const,
       detail: hasDataForSeo
         ? `Login: ${process.env.DATAFORSEO_LOGIN} · Live + Sandbox · $${e.dataCostToday.toFixed(4)} hoje · packages/provider-core/`
@@ -116,9 +116,19 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       items: ['adsentice-redis (npx)', 'adsentice-qdrant (uv run)', 'adsentice-kg (uv run)', 'adsentice-conversation (uv run)', 'context7 (npx, docs)', 'dataforseo → provider-core (npx, REMOVIDO)'],
     },
     {
-      name: 'provider-core v1.0 · DataForSEO direto', icon: 'ri-flashlight-line', statusColor: 'primary' as const,
-      detail: 'Substitui EVO-API MCP como intermediário. 1 hop HTTP direto → api.dataforseo.com. Sandbox $0 para dev, live para prod. 6 tools implementadas, 5 disponíveis.',
-      items: ['✅ L0 business_listings_search ($0.015)', '✅ L1 business_profile_gmb ($0.0054) — custom', '✅ L2 on_page_instant_pages ($0.000125)', '✅ L2 domain_technologies ($0.01)', '✅ L3 backlinks_competitors ($0.02)', '⬜ L4 keywords/serp/trends (disponível)', '📦 packages/provider-core/ · 11 arquivos · ~400 linhas'],
+      name: 'provider-core v2.0 · 21 tools DataForSEO', icon: 'ri-flashlight-line', statusColor: 'primary' as const,
+      detail: 'DataForSEO direto, 1 hop HTTP. 21 tools L0→L4 (Fases 1-5 completas). Sandbox $0 dev, live prod. 3 caps Enterprise no roadmap futuro.',
+      items: [
+        '✅ L0: business_listings_search ($0.015)',
+        '✅ L1: business_profile_gmb ($0.0054)',
+        '✅ L2: instant_pages ($0.000125) · domain_technologies ($0.01) · lighthouse ($0.00425)',
+        '✅ L3: backlinks · domain_competitors · ranked_keywords · keyword_gap · domain_overview ($0.01 cada)',
+        '✅ L4: keyword_research ($0.02) · keyword_volume ($0.075) · trends ($0.009) · related ($0.0109)',
+        '✅ L4: serp_organic ($0.002) · serp_local_finder ($0.002) · serp_maps ($0.002)',
+        '✅ L4: google_reviews ($0.00075) · business_qa ($0.00075) · content_sentiment ($0.02)',
+        '📦 packages/provider-core/ · 21 tools · 28 arquivos · Shape Catalog 27 endpoints',
+        '🔮 Roadmap: ai.llm.mentions · ai.llm.responses · domain.whois · on_page.crawl_summary',
+      ],
     },
     {
       name: 'EVO-API · Referência canônica', icon: 'ri-book-open-line', statusColor: 'info' as const,
@@ -145,17 +155,17 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
   // ── Feature cards (Tab 3) ──
   const features = [
     {
-      name: 'Enrichment Engine (L0-L3 via provider-core)', icon: 'ri-rocket-2-line', color: 'primary' as const,
-      detail: 'Pipeline de enriquecimento progressivo direto via DataForSEO (sem EVO-API). 37 sinais de scoring em 9 dimensões. 5 camadas ativas.',
+      name: 'Enrichment Engine (L0→L4 via provider-core)', icon: 'ri-rocket-2-line', color: 'primary' as const,
+      detail: 'Pipeline de enriquecimento progressivo. 21 tools provider-core em 5 camadas. Fases 1-5 completas (52.5% de 40 caps mapeadas). 37 sinais de scoring em 9 dimensões.',
       metrics: [
-        { label: 'L0 GMB Search', value: '$0.015/busca', chip: '11 campos' },
-        { label: 'L1 GMB Profile', value: '$0.0054/lead', chip: '27 campos (custom)' },
-        { label: 'L2 Website Audit', value: '$0.010/lead', chip: 'on_page + technologies' },
-        { label: 'L2.5 Content Gap', value: '$0 (zero API)', chip: '8 sinais C' },
-        { label: 'L3 Competitive', value: '$0.02/lead', chip: 'backlinks_competitors' },
-        { label: 'Custo full-stack', value: '~$0.05', chip: 'L0→L3' },
+        { label: 'L0 Discovery', value: '$0.015', chip: 'listings_search' },
+        { label: 'L1 Profile', value: '$0.0054', chip: 'profile_gmb' },
+        { label: 'L2 Website+SEO', value: '$0.014', chip: 'instant+tech+lighthouse' },
+        { label: 'L3 Competitive', value: '$0.060', chip: '6 tools (backlinks+domain+kw)' },
+        { label: 'L4 Keywords+SERP', value: '$0.177', chip: '11 tools (volume+trends+serp+reviews)' },
+        { label: 'Custo pipeline', value: '~$0.272', chip: 'L0→L4 completo' },
         { label: 'Sinais ativos', value: '37', chip: '9 dimensões' },
-        { label: 'Runtime', value: 'provider-core', chip: '1 hop direto' },
+        { label: 'Fase 6 (roadmap)', value: '4 tools', chip: 'Enterprise R$997/mês' },
       ],
     },
     {
