@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 // adsentice · Admin / Telemetry — Finding Alerts + Route Health + Event Log
 // Padrão EVO-API :7700/health + capital.RS capital-observability
 import { redirect } from 'next/navigation'

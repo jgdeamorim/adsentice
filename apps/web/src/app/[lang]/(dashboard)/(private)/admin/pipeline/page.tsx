@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 // adsentice · Admin / Pipeline — dados REAIS do Supabase (agregado de TODAS as buscas)
 import { redirect } from 'next/navigation'
 import Link from 'next/link'

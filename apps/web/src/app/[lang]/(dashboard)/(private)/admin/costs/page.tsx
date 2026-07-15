@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 // adsentice · Admin / Costs — centro de custos (medido=verdade)
 // Fontes: cost-registry.yaml + Supabase REST + Redis + plans.ts canônico
 // ZERO pg Pool. ZERO CardStatVertical (forca trend desnecessario).

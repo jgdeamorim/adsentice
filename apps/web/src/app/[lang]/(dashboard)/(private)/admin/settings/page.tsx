@@ -3,6 +3,8 @@
 // v2.0: Abas (Infra · Integrações · Features · Inteligência)
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'

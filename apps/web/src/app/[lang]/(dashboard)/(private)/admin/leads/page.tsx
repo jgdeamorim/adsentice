@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 // adsentice · Admin / Leads — dados REAIS do Supabase com paginação e filtros
 import { redirect } from 'next/navigation'
 import Link from 'next/link'

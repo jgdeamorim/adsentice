@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 // adsentice · Admin / Market Intelligence — ADR-0009
 // Agrega dados existentes por categoria × região (ZERO novas APIs)
 import { redirect } from 'next/navigation'
