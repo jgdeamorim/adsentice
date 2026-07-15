@@ -5,19 +5,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
 import { useParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
-
-// Leaflet precisa de SSR off — carrega dinamicamente
-const BrazilDiscoveryMap = dynamic(() => import('@/components/BrazilDiscoveryMap'), {
-  ssr: false,
-  loading: () => (
-    <div style={{ height: 480, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: 8 }}>
-      <span style={{ color: '#999' }}>🌎 Carregando mapa do Brasil...</span>
-    </div>
-  ),
-})
 
 import Grid from '@mui/material/Grid2'
+import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'

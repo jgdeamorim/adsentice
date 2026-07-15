@@ -3,20 +3,23 @@
 // ══════════════════════════════════════════════════════════════════
 // ADSENTICE · BrazilDiscoveryMap — mapa interativo com cobertura
 // ADR-0022 + ADR-0023 · medido=verdade · 2026-07-15
+// Leaflet + OpenStreetMap ($0) — sem API key, sem Google, sem Cloudflare
 // ══════════════════════════════════════════════════════════════════
 
-import { useEffect, useState, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Circle, Popup, useMapEvents, useMap } from 'react-leaflet'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import type { Map as LeafletMap } from 'leaflet'
 import L from 'leaflet'
-
-// Corrige ícones do Leaflet em builds com webpack/Next.js
 import 'leaflet/dist/leaflet.css'
-// @ts-expect-error leaflet icon fix
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+
+// ── Icon fix (Leaflet + bundler) ──
+
+const iconDefault = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 })
 
 // ── Types ──
@@ -42,31 +45,12 @@ interface Props {
   loading?: boolean
 }
 
-// ── Map click handler ──
-
-function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) { onClick(e.latlng.lat, e.latlng.lng) },
-  })
-  return null
-}
-
-// ── Auto-center when selectedLat/Lng change ──
-
-function MapCenterUpdater({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap()
-  useEffect(() => {
-    map.setView([lat, lng], map.getZoom(), { animate: true })
-  }, [lat, lng, map])
-  return null
-}
-
-// ── Cores por cobertura ──
+// ── Cores ──
 
 function pinColor(avgScore: number): string {
-  if (avgScore >= 50) return '#ef5350'   // alta dor
-  if (avgScore >= 35) return '#ffa726'   // média
-  return '#42a5f5'                      // baixa
+  if (avgScore >= 50) return '#ef5350'
+  if (avgScore >= 35) return '#ffa726'
+  return '#42a5f5'
 }
 
 function radiusColor(totalCount: number): string {
@@ -79,110 +63,116 @@ function radiusColor(totalCount: number): string {
 
 export default function BrazilDiscoveryMap({
   pins, selectedLat, selectedLng, selectedRadius,
-  onLocationSelect, loading,
+  onLocationSelect,
 }: Props) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
+  const circlesRef = useRef<L.Circle[]>([])
+  const markersRef = useRef<L.Marker[]>([])
+  const [ready, setReady] = useState(false)
 
-  const handleMapClick = useCallback((lat: number, lng: number) => {
-    onLocationSelect(lat, lng, `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-  }, [onLocationSelect])
+  // 1 — Init map ONCE (evita double-invoke do StrictMode)
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
 
-  // Agrupa pins próximos (mesma coordenada) pra evitar overlap
-  const uniquePins = new Map<string, SearchPin>()
-  for (const p of pins) {
-    const key = `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`
-    const existing = uniquePins.get(key)
-    if (!existing || new Date(p.createdAt) > new Date(existing.createdAt)) {
-      uniquePins.set(key, p)
+    const map = L.map(containerRef.current, {
+      center: [selectedLat, selectedLng],
+      zoom: 5,
+      scrollWheelZoom: true,
+      attributionControl: true,
+    })
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OSM</a>',
+    }).addTo(map)
+
+    // Click handler
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      onLocationSelect(e.latlng.lat, e.latlng.lng, `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`)
+    })
+
+    mapRef.current = map
+    setReady(true)
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+      setReady(false)
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  if (!mounted) {
-    return (
-      <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: 8 }}>
-        <span style={{ color: '#999' }}>🌎 Carregando mapa...</span>
-      </div>
-    )
-  }
+  // 2 — Update center when selected changes
+  useEffect(() => {
+    if (!mapRef.current) return
+    mapRef.current.setView([selectedLat, selectedLng], mapRef.current.getZoom(), { animate: true })
+  }, [selectedLat, selectedLng])
+
+  // 3 — Draw/update circles + markers when pins or selected changes
+  useEffect(() => {
+    if (!mapRef.current || !ready) return
+    const map = mapRef.current
+
+    // Limpa anteriores
+    for (const c of circlesRef.current) map.removeLayer(c)
+    for (const m of markersRef.current) map.removeLayer(m)
+    circlesRef.current = []
+    markersRef.current = []
+
+    // Agrupa pins únicos
+    const unique = new Map<string, SearchPin>()
+    for (const p of pins) {
+      const key = `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`
+      const existing = unique.get(key)
+      if (!existing || new Date(p.createdAt) > new Date(existing.createdAt)) {
+        unique.set(key, p)
+      }
+    }
+
+    // Pins
+    for (const p of unique.values()) {
+      const marker = L.marker([p.lat, p.lng], { icon: iconDefault })
+        .bindPopup(`
+          <div style="font-size:0.85rem;min-width:160px">
+            <strong>${p.city}</strong><br/>
+            📁 ${p.categories.join(', ')}<br/>
+            📊 ${p.totalCount} leads · ${p.avgScore}/100<br/>
+            🔘 ${p.radiusKm}km raio<br/>
+            <span style="font-size:0.7rem;color:#999">${p.createdAt?.slice(0, 16)}</span>
+          </div>`)
+        .addTo(map)
+      markersRef.current.push(marker)
+    }
+
+    // Raio selecionado
+    const selCircle = L.circle([selectedLat, selectedLng], {
+      radius: selectedRadius * 1000,
+      color: '#1976d2',
+      fillColor: '#1976d2',
+      fillOpacity: 0.08,
+      weight: 2,
+      dashArray: '6 3',
+    }).bindPopup(`📍 Região selecionada · ${selectedRadius}km raio`).addTo(map)
+    circlesRef.current.push(selCircle)
+
+    // Círculos de cobertura
+    for (const p of [...unique.values()].slice(0, 15)) {
+      const c = L.circle([p.lat, p.lng], {
+        radius: p.radiusKm * 1000,
+        color: radiusColor(p.totalCount),
+        fillColor: radiusColor(p.totalCount),
+        fillOpacity: 0.04,
+        weight: 1,
+        opacity: 0.5,
+      }).addTo(map)
+      circlesRef.current.push(c)
+    }
+  }, [pins, selectedLat, selectedLng, selectedRadius, ready])
 
   return (
-    <div style={{ height: 480, borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e0e0' }}>
-      <MapContainer
-        center={[selectedLat, selectedLng]}
-        zoom={5}
-        scrollWheelZoom={true}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        <MapClickHandler onClick={handleMapClick} />
-        <MapCenterUpdater lat={selectedLat} lng={selectedLng} />
-
-        {/* Pins de searches anteriores */}
-        {[...uniquePins.values()].map(p => (
-          <Marker
-            key={p.id}
-            position={[p.lat, p.lng]}
-            icon={L.divIcon({
-              className: 'custom-pin',
-              html: `<div style="
-                width:14px;height:14px;border-radius:50%;
-                background:${pinColor(p.avgScore)};
-                border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)
-              "></div>`,
-              iconSize: [14, 14],
-              iconAnchor: [7, 7],
-            })}
-          >
-            <Popup>
-              <div style={{ fontSize: '0.85rem', minWidth: 160 }}>
-                <strong>{p.city}</strong><br />
-                📁 {p.categories.join(', ')}<br />
-                📊 {p.totalCount} leads · score {p.avgScore}<br />
-                🔘 {p.radiusKm}km raio<br />
-                <span style={{ fontSize: '0.7rem', color: '#999' }}>{p.createdAt?.slice(0, 16)}</span>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* Raio atual selecionado */}
-        <Circle
-          center={[selectedLat, selectedLng]}
-          radius={selectedRadius * 1000}
-          pathOptions={{
-            color: '#1976d2',
-            fillColor: '#1976d2',
-            fillOpacity: 0.08,
-            weight: 2,
-            dashArray: '6 3',
-          }}
-        >
-          <Popup>
-            📍 Região selecionada · {selectedRadius}km raio
-          </Popup>
-        </Circle>
-
-        {/* Círculos de cobertura (searches anteriores) */}
-        {[...uniquePins.values()].slice(0, 15).map(p => (
-          <Circle
-            key={`cov-${p.id}`}
-            center={[p.lat, p.lng]}
-            radius={p.radiusKm * 1000}
-            pathOptions={{
-              color: radiusColor(p.totalCount),
-              fillColor: radiusColor(p.totalCount),
-              fillOpacity: 0.04,
-              weight: 1,
-              opacity: 0.5,
-            }}
-          />
-        ))}
-      </MapContainer>
-    </div>
+    <div
+      ref={containerRef}
+      style={{ height: 480, width: '100%', borderRadius: 8, border: '1px solid #e0e0e0' }}
+    />
   )
 }
