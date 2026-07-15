@@ -22,6 +22,7 @@ import Paper from '@mui/material/Paper'
 
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAlerts, getEvents, getRouteStats } from '@/lib/telemetry'
+import { execSync } from 'child_process'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,6 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
   // Árbitro DeepSeek verdict (Redis, TTL 2h)
   let arbiterVerdict: any = null
   try {
-    const { execSync } = await import("child_process")
     const raw = execSync("redis-cli -p 6396 --no-auth-warning GET adsentice:telemetry:arbiter_verdict", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
     if (raw) arbiterVerdict = JSON.parse(raw)
   } catch { /* offline */ }
