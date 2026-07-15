@@ -18,11 +18,18 @@ async function checkUrl(url: string, timeout = 3000): Promise<boolean> {
 }
 
 export async function GET() {
-  const [qdrantOk, redisOk, embedOk] = await Promise.all([
+  const [qdrantOk, embedOk] = await Promise.all([
     checkUrl("http://127.0.0.1:6352/healthz"),
-    checkUrl("http://127.0.0.1:6396", 2000).catch(() => true), // Redis via TCP
     checkUrl("http://127.0.0.1:8081/healthz"),
   ])
+
+  // Redis check via redis-cli (TCP fetch não funciona para Redis)
+  let redisOk = false
+  try {
+    const { execSync } = await import("child_process")
+    const result = execSync("redis-cli -p 6396 --no-auth-warning PING", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+    redisOk = result === "PONG"
+  } catch { /* Redis offline */ }
 
   const dfOk = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD)
   const dsOk = !!process.env.DEEPSEEK_API_KEY
