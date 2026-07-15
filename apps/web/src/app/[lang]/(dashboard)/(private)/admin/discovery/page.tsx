@@ -204,6 +204,7 @@ const DiscoveryPage = () => {
 
   // ── Auto-Pilot (ADR-0023 Layer 2) ──
   const [autoMode, setAutoMode] = useState(false)
+  const [autoModeType, setAutoModeType] = useState<'coverage' | 'intelligence'>('coverage')
   const [autoQueue, setAutoQueue] = useState<{
     targets: { city: string; district: string; category: string; categoryLabel: string; score: number; breakdown: { painScore: number; ticketScore: number; densityScore: number; fixabilityScore: number; coverageScore: number }; estimatedLeads: number; suggestedRadius: number; avgTicket: number; action: string; strategy: string }[]
     meta: { totalGaps: number; priorityTargets: number; estimatedCost: number; estimatedMRR: number }
@@ -557,28 +558,55 @@ return arr
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                 <Box>
                   <Typography variant='h6' fontWeight={700}>
-                    {autoMode ? '🧠 Auto-Discovery · Inteligência de Mercado' : '📍 Localização Manual'}
+                    {autoMode
+                      ? autoModeType === 'intelligence'
+                        ? '🧠 Auto-Discovery · Inteligência de Mercado'
+                        : '📋 Auto-Discovery · Cobertura Automática'
+                      : '📍 Localização Manual'}
                   </Typography>
                   <Typography variant='caption' color='text.secondary'>
                     {autoMode
-                      ? `Target Scorer analisa: dor (30%) + ticket (25%) + concorrência (20%) + quick win (10%) + cobertura (15%)`
-                      : 'Ative para o sistema analisar o mercado e sugerir os melhores alvos para prospecção.'}
+                      ? autoModeType === 'intelligence'
+                        ? 'Analisa mercado completo: dor + ticket + concorrência + persona. Enriquecimento L0→L1→L2→L3 automático nos leads qualificados.'
+                        : 'Varre distritos não mapeados. Busca → enriquece L0+L1 → próximo gap. Meta: 100% de cobertura da cidade.'}
                   </Typography>
                 </Box>
-                <Chip
-                  label={autoMode ? '🟢 Automático ON' : '⚪ Manual — Busca por cidade'}
-                  clickable size='medium'
-                  color={autoMode ? 'success' : 'default'}
-                  variant={autoMode ? 'filled' : 'outlined'}
-                  onClick={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null) }}
-                  sx={{ fontWeight: 700 }}
-                />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  {autoMode && (
+                    <Box sx={{ display: 'flex', gap: 0.5, mr: 1 }}>
+                      <Chip
+                        label='📋 Cobertura'
+                        clickable size='small'
+                        color={autoModeType === 'coverage' ? 'primary' : 'default'}
+                        variant={autoModeType === 'coverage' ? 'filled' : 'outlined'}
+                        onClick={() => setAutoModeType('coverage')}
+                      />
+                      <Chip
+                        label='🧠 Inteligência'
+                        clickable size='small'
+                        color={autoModeType === 'intelligence' ? 'primary' : 'default'}
+                        variant={autoModeType === 'intelligence' ? 'filled' : 'outlined'}
+                        onClick={() => setAutoModeType('intelligence')}
+                      />
+                    </Box>
+                  )}
+                  <Chip
+                    label={autoMode ? '🟢 Automático ON' : '⚪ Manual — Busca por cidade'}
+                    clickable size='medium'
+                    color={autoMode ? 'success' : 'default'}
+                    variant={autoMode ? 'filled' : 'outlined'}
+                    onClick={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null) }}
+                    sx={{ fontWeight: 700 }}
+                  />
+                </Box>
               </Box>
 
               {autoMode && autoLoading && (
                 <Box sx={{ mt: 2, textAlign: 'center' }}>
                   <LinearProgress sx={{ mb: 1 }} />
-                  <Typography variant='caption' color='text.secondary'>Analisando mercado com Target Scorer...</Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    {autoModeType === 'coverage' ? 'Analisando distritos não mapeados...' : 'Analisando mercado com Target Scorer...'}
+                  </Typography>
                 </Box>
               )}
 
@@ -589,14 +617,21 @@ return arr
                     <Chip label={`${autoQueue.meta.totalGaps} gaps`} size='small' color='error' variant='tonal' />
                     <Chip label={`${autoQueue.meta.priorityTargets} alta prioridade`} size='small' color='warning' variant='tonal' />
                     <Chip label={`~$${autoQueue.meta.estimatedCost}`} size='small' color='info' variant='tonal' />
-                    <Chip label={`~R$${autoQueue.meta.estimatedMRR.toLocaleString('pt-BR')}/mês potencial`} size='small' color='success' variant='tonal' />
+                    {autoModeType === 'intelligence' && (
+                      <Chip label={`~R$${autoQueue.meta.estimatedMRR.toLocaleString('pt-BR')}/mês potencial`} size='small' color='success' variant='tonal' />
+                    )}
+                    <Chip
+                      label={autoModeType === 'intelligence' ? 'Pipeline: L0→L1→L2→L3 automático' : 'Pipeline: L0+L1 por distrito'}
+                      size='small' variant='outlined'
+                      sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}
+                    />
                   </Box>
 
                   {/* Priority Targets Table */}
                   {autoQueue.targets.length > 0 && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant='subtitle2' fontWeight={600} gutterBottom>
-                        🎯 Alvos Priorizados ({autoQueue.targets.length})
+                        {autoModeType === 'coverage' ? `🗺️ Distritos a Mapear (${autoQueue.targets.length})` : `🎯 Alvos Priorizados (${autoQueue.targets.length})`}
                       </Typography>
                       <TableContainer component={Paper} variant='outlined'>
                         <Table size='small'>
@@ -604,14 +639,21 @@ return arr
                             <TableRow>
                               <TableCell width={30}>#</TableCell>
                               <TableCell>Distrito</TableCell>
-                              <TableCell width={60}>Score</TableCell>
-                              <TableCell width={150}>Critérios</TableCell>
-                              <TableCell width={180}>Estratégia</TableCell>
+                              {autoModeType === 'intelligence' && (
+                                <>
+                                  <TableCell width={60}>Score</TableCell>
+                                  <TableCell width={150}>Critérios</TableCell>
+                                  <TableCell width={180}>Estratégia</TableCell>
+                                </>
+                              )}
+                              {autoModeType === 'coverage' && (
+                                <TableCell width={120}>Status</TableCell>
+                              )}
                               <TableCell width={80}>Ação</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {autoQueue.targets.slice(0, 8).map((t, i) => (
+                            {autoQueue.targets.slice(0, autoModeType === 'coverage' ? 12 : 8).map((t, i) => (
                               <TableRow key={t.district}
                                 sx={{ bgcolor: i === 0 ? 'success.50' : i < 3 ? 'warning.50' : undefined }}>
                                 <TableCell>
@@ -622,29 +664,41 @@ return arr
                                 <TableCell>
                                   <Typography variant='body2' fontWeight={600}>{t.district}</Typography>
                                   <Typography variant='caption' color='text.secondary'>
-                                    ~{t.estimatedLeads} leads · {t.suggestedRadius}km · R${t.avgTicket}/mês
+                                    ~{t.estimatedLeads} leads · {t.suggestedRadius}km {autoModeType === 'intelligence' && `· R$${t.avgTicket}/mês`}
                                   </Typography>
                                 </TableCell>
-                                <TableCell>
-                                  <Chip label={t.score} size='small'
-                                    color={t.score >= 80 ? 'error' : t.score >= 60 ? 'warning' : t.score >= 40 ? 'info' : 'default'}
-                                    variant='tonal' />
-                                </TableCell>
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap' }}>
-                                    <Chip label={`Dor ${t.breakdown.painScore}`} size='small' variant='outlined'
-                                      sx={{ fontSize: '0.6rem', height: 18 }} />
-                                    <Chip label={`Ticket ${t.breakdown.ticketScore}`} size='small' variant='outlined'
-                                      sx={{ fontSize: '0.6rem', height: 18 }} />
-                                    <Chip label={`Conc. ${t.breakdown.densityScore}`} size='small' variant='outlined'
-                                      sx={{ fontSize: '0.6rem', height: 18 }} />
-                                  </Box>
-                                </TableCell>
-                                <TableCell>
-                                  <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.2 }}>
-                                    {t.strategy}
-                                  </Typography>
-                                </TableCell>
+                                {autoModeType === 'intelligence' && (
+                                  <>
+                                    <TableCell>
+                                      <Chip label={t.score} size='small'
+                                        color={t.score >= 80 ? 'error' : t.score >= 60 ? 'warning' : t.score >= 40 ? 'info' : 'default'}
+                                        variant='tonal' />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap' }}>
+                                        <Chip label={`Dor ${t.breakdown.painScore}`} size='small' variant='outlined'
+                                          sx={{ fontSize: '0.6rem', height: 18 }} />
+                                        <Chip label={`Ticket ${t.breakdown.ticketScore}`} size='small' variant='outlined'
+                                          sx={{ fontSize: '0.6rem', height: 18 }} />
+                                        <Chip label={`Conc. ${t.breakdown.densityScore}`} size='small' variant='outlined'
+                                          sx={{ fontSize: '0.6rem', height: 18 }} />
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.2 }}>
+                                        {t.strategy}
+                                      </Typography>
+                                    </TableCell>
+                                  </>
+                                )}
+                                {autoModeType === 'coverage' && (
+                                  <TableCell>
+                                    <Chip label={t.score >= 80 ? '🔥 Prioridade' : t.score >= 60 ? '⭐ Mapear' : '📋 Pendente'}
+                                      size='small'
+                                      color={t.score >= 80 ? 'error' : t.score >= 60 ? 'warning' : 'default'}
+                                      variant='tonal' />
+                                  </TableCell>
+                                )}
                                 <TableCell>
                                   <Button variant='contained' size='small' color={i === 0 ? 'success' : 'primary'}
                                     onClick={() => {
