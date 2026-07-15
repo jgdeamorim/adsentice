@@ -315,7 +315,143 @@ export async function capabilityName(params: {...}): Promise<Result | null> {
 }
 ```
 
+
+---
+
+## 6. Padrões de Implementação (absorvidos do EVO-API)
+
+Cada translator no EVO-API segue 10 padrões que devemos aplicar no provider-core:
+
+### 6.1 Pure-function translators
+
+Cada capability = 2 funções puras:
+```
+translate_*_request(input) → DataForSEO POST body
+translate_*_response(raw) → Canonical Output
+```
+Sem HTTP, sem LLM, sem estado. Testável com fixtures JSON.
+
+### 6.2 Naming convention
+
+| Elemento | Padrão | Exemplo |
+|----------|--------|---------|
+| Tool ID | `{capability}` | `business-listings-search` |
+| Endpoint | `{surface}/{endpoint}/live` | `business_data/business_listings/search/live` |
+| Request POST | `[{ input }]` | Array de 1 elemento |
+
+### 6.3 Validation cascade
+
+1. Input não-vazio (required fields)
+2. Response `status_code == 20000`
+3. Required fields existem no JSON path esperado
+
+### 6.4 Flatten-and-rename
+
+Provider fields aninhados → flat canonical:
+| Raw DataForSEO | Canonical |
+|----------------|-----------|
+| `rating.value` | `rating_value` |
+| `rating.votes_count` | `rating_votes` |
+| `address_info.borough` | `district` |
+| `meta.content.plain_text_word_count` | `word_count` |
+| `full_domain_metrics.organic.etv` | `organic_traffic` |
+
+### 6.5 Normalization
+
+| Raw | Canonical | Transform |
+|-----|-----------|-----------|
+| `keyword_difficulty` (0-100 int) | `difficulty` (0.0-1.0) | ÷ 100 |
+| `rank_absolute` | `position` | fallback → `rank_group` |
+| `competition` (label) | `competition_level` | LOW/MEDIUM/HIGH |
+| URL | `domain` | strip scheme + www + path |
+
+### 6.6 Dynamic map passthrough
+
+Campos com chaves dinâmicas (technologies, sentiment, countries) mantidos como
+`Record<string, unknown>` — não achatados em colunas.
+
+### 6.7 Response envelope
+
+TODAS as chamadas DataForSEO retornam:
+```json
+{
+  "status_code": 20000,
+  "tasks": [{ "result": [ ... ] }]
+}
+```
+
+3 padrões de navegação:
+| Padrão | Usado por | Path |
+|--------|-----------|------|
+| `result[0].items[]` | listings, profile, instant_pages | `tasks[0].result[0].items[]` |
+| `result[0]` (direto) | backlinks_summary, domain_technologies | `tasks[0].result[0]` |
+| `result[].items[]` | domain_intel, keyword_volume | itera `result[]` |
+
+### 6.8 Task-based vs single-call
+
+- **Live (single-call):** `POST /live` → resposta imediata. 80% dos endpoints.
+- **Task-based:** `POST /task_post` → poll `GET /task_get/{id}`. Reviews, crawl, lighthouse.
+
+### 6.9 Sandbox-first
+
+Toda capability testada primeiro no sandbox ($0, shapes reais):
+`POST https://sandbox.dataforseo.com/v3/{endpoint}` — mesmo auth, dados fake.
+Só depois vai pra live.
+
+### 6.10 Cost gate
+
+Antes de chamar live, verifica `spend_cap_usd`. Após chamada, extrai custo real
+do campo `cost` no top-level da resposta e registra no `InvocationResponse`.
+
+---
+
+## 7. Template de Implementação (provider-core)
+
+Cada nova tool no provider-core segue este template (~50 linhas):
+
+```typescript
+// packages/provider-core/src/tools/{tool-name}.ts
+
+import { getDFSEOClient } from "../client"
+
+export interface {Tool}Input {
+  // campos canônicos flat
+}
+
+export interface {Tool}Output {
+  // campos canônicos flat com flatten-and-rename
+}
+
+export async function {toolName}(input: {Tool}Input): Promise<{Tool}Output | null> {
+  const c = getDFSEOClient()
+
+  // 1. Validação
+  if (!input.required_field) return null
+
+  // 2. Traduz input → DataForSEO body
+  const body = [{
+    // flatten + defaults + location_code
+  }]
+
+  // 3. POST /v3/{endpoint}
+  const data = await c.post<{ items: Record<string, unknown>[] }>(
+    "/v3/{endpoint_path}",
+    body
+  )
+
+  // 4. Navega response envelope
+  const item = data.items?.[0]
+  if (!item) return null
+
+  // 5. Traduz raw → canonical (flatten-and-rename)
+  return {
+    field: item.raw_field ?? default,
+  }
+}
+```
+
 ---
 
 *Auditoria EVO-API → adsentice · 2026-07-15 · medido=verdade*
 *73 caps mapeadas · 40 relevantes · 4 implementadas · 7 na Fase 1*
+*10 padrões de implementação absorvidos do EVO-API translator architecture*
