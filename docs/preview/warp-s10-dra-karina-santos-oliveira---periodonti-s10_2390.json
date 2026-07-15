@@ -1,0 +1,66 @@
+{
+  "traceId": "s10_23903b319e23",
+  "lead": "Dra. Karina Santos Oliveira - Periodontista e Ortodontista",
+  "category": "dentist",
+  "segment": "saude",
+  "score": 64,
+  "nicho": {
+    "name": "Dentista",
+    "specialties": [
+      "Periodontia",
+      "Ortodontia",
+      "Implantodontia",
+      "Clínico Geral",
+      "Estética Dental"
+    ],
+    "audience": "Adultos 30-55, classes B/A",
+    "tone": "Autoridade com acolhimento",
+    "keywords": [
+      "dentista [bairro]",
+      "implante dentário",
+      "clareamento dental"
+    ]
+  },
+  "tokens": {
+    "primary": "#2563EB",
+    "secondary": "#1E40AF",
+    "accent": "#3B82F6",
+    "hue": 220,
+    "heading": "Inter",
+    "body": "Inter",
+    "emotion": "Confiança, higiene, profissionalismo",
+    "spacing": "1.5rem",
+    "radius": "0.5rem"
+  },
+  "design_hint": "Barbearia | Design System Completo",
+  "gaps": [
+    {
+      "title": "Site não analisado — dados de SEO indisponíveis",
+      "severity": "ℹ️ Info",
+      "signal": "L2:nao_enriquecido (enrichment_level<2)"
+    },
+    {
+      "title": "Reputação excepcional — ative essa força no site",
+      "severity": "✅ Força",
+      "signal": "E1+E2 (rating≥4.5, reviews≥20)"
+    },
+    {
+      "title": "Base digital sólida — hora de escalar",
+      "severity": "✅ Força",
+      "signal": "F3+E4+E1 (claimed+website+rating≥4.0+photos≥10)"
+    },
+    {
+      "title": "Diferenciação no mercado local",
+      "severity": "✅ Oportunidade",
+      "signal": "market:category_context"
+    }
+  ],
+  "copy_model": "deepseek-v4-flash",
+  "copy_tokens": 2074,
+  "headline": "Dra. Karina, 47 dentistas concorrem com você em Madureira. A gente te deixa na frente por R$197.",
+  "subtitle": "Enquanto agências cobram R$2.000/mês e ignoram sua clínica, a Adsentice analisa seu Google Meu Negócio e site por R$197, sem contrato. Resultados comprovados.",
+  "cta": "Quero ser a dentista líder em Madureira",
+  "computedAt": "2026-07-15T14:01:02Z",
+  "city": "Rio de Janeiro",
+  "district": "Madureira"
+}

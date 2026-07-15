@@ -11,7 +11,7 @@ import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 
-import { Pool } from 'pg'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
@@ -69,76 +69,34 @@ const LeadsPage = async ({ params, searchParams }: {
   let schwartzDist: { level: number; label: string; count: number }[] = []
 
   try {
-    const pool = new Pool({
-      host: 'aws-0-ca-central-1.pooler.supabase.com', port: 6543, database: 'postgres',
-      user: 'postgres.tdigauruusdhnpvppixb', password: process.env.SUPABASE_DB_PASSWORD || '',
-      ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000,
-    })
+    const supabase = getAdminClient()
 
-    const conditions: string[] = []
-    const vals: any[] = []
-    let idx = 1
+    // Build query
+    let q = supabase.from("discovery_listings").select("*").order("enrichment_level", { ascending: false }).limit(2000)
+    if (filterCategory) q = q.eq("category", filterCategory)
+    if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
+    if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
 
-    if (filterCategory) { conditions.push(`dl.category = $${idx++}`); vals.push(filterCategory) }
-    if (filterSchwartz > 0) { conditions.push(`dl.schwartz_level = $${idx++}`); vals.push(filterSchwartz) }
-    if (filterSearch) { conditions.push(`dl.title ILIKE $${idx++}`); vals.push(`%${filterSearch}%`) }
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    const { data, error } = await q
+    if (!error && data) {
+      // Dedup by place_id (keep highest enrichment_level)
+      const deduped = new Map<string, any>()
+      for (const r of data) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
+      const list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
+      totalCount = list.length
+      leads = list.slice(offset, offset + PER_PAGE) as LeadRow[]
 
-    // Paginated query with DISTINCT ON
-    const { rows } = await pool.query(
-      `SELECT * FROM (
-        SELECT DISTINCT ON (dl.place_id)
-          dl.id, dl.title, dl.category, dl.address, dl.rating_value, dl.rating_votes, dl.is_claimed,
-          dl.website, dl.phone, dl.total_photos, dl.description,
-          dl.score_compound, dl.score_fit, dl.score_engagement, dl.score_intent,
-          dl.business_status, dl.categories_arr, dl.price_level,
-          dl.city, dl.district, dl.postal_code, dl.country_code,
-          dl.place_id, dl.latitude, dl.longitude,
-          dl.schwartz_label, dl.schwartz_level, dl.enrichment_level,
-          dl.contact_methods, dl.signals_detected, dl.created_at,
-          dl.l2_onpage_score, dl.l2_meta_title, dl.l2_meta_description,
-          dl.l2_word_count, dl.l2_internal_links_count, dl.l2_external_links_count,
-          dl.l2_images_count, dl.l2_cms, dl.l2_has_analytics,
-          dl.l2_domain_rank, dl.l2_country_iso_code, dl.l2_enriched_at,
-          dl.l2_content_maturity, dl.l2_content_gaps
-        FROM discovery_listings dl
-        ${whereClause}
-        ORDER BY dl.place_id, dl.enrichment_level DESC, dl.score_compound DESC
-      ) sub
-      ORDER BY sub.score_compound DESC, sub.created_at DESC
-      LIMIT ${PER_PAGE} OFFSET ${offset}`,
-      vals
-    )
-
-    leads = rows as LeadRow[]
-
-    // Count with DISTINCT ON
-    const countRes = await pool.query(
-      `SELECT COUNT(*) as n FROM (
-        SELECT DISTINCT ON (dl.place_id) dl.id FROM discovery_listings dl ${whereClause}
-      ) sub`,
-      vals
-    )
-
-    totalCount = parseInt(countRes.rows[0].n) || 0
-
-    // Stats (sem filtro — todas as buscas)
-    const [scoreRes, webRes, phoneRes, catRes, distRes] = await Promise.all([
-      pool.query('SELECT ROUND(AVG(score_compound))::INTEGER as avg FROM (SELECT DISTINCT ON (place_id) score_compound FROM discovery_listings) sub'),
-      pool.query('SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) website FROM discovery_listings WHERE website IS NOT NULL) sub'),
-      pool.query("SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) phone FROM discovery_listings WHERE phone IS NOT NULL) sub"),
-      pool.query('SELECT category, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) category FROM discovery_listings WHERE category IS NOT NULL) sub GROUP BY category ORDER BY n DESC LIMIT 10'),
-      pool.query('SELECT schwartz_level, schwartz_label, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) schwartz_level, schwartz_label FROM discovery_listings) sub GROUP BY schwartz_level, schwartz_label ORDER BY schwartz_level'),
-    ])
-
-    totalScore = parseInt(scoreRes.rows[0].avg) || 0
-    withWebsite = parseInt(webRes.rows[0].n) || 0
-    withPhone = parseInt(phoneRes.rows[0].n) || 0
-    categories = catRes.rows.map((r: any) => ({ category: r.category, count: parseInt(r.n) }))
-    schwartzDist = distRes.rows.map((r: any) => ({ level: r.schwartz_level, label: r.schwartz_label, count: parseInt(r.n) }))
-
-    // WhatsApp detection
-      await pool.end()
+      // Stats from the deduped list
+      const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
+      totalScore = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
+      withWebsite = list.filter((r: any) => r.website).length
+      withPhone = list.filter((r: any) => r.phone).length
+      const catCounts: Record<string, number> = {}
+      for (const r of list) { if (r.category) { const k = r.category; catCounts[k] = (catCounts[k] || 0) + 1 } }
+      categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n }))
+      const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
+      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length; return { level: l, label: schwartzLabels[l], count: n } })
+    }
   } catch { /* Supabase offline */ }
 
   const totalPages = Math.ceil(totalCount / PER_PAGE)

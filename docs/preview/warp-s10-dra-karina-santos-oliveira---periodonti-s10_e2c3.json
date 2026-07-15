@@ -1,0 +1,72 @@
+{
+  "traceId": "s10_e2c3156bdd74",
+  "lead": "Dra. Karina Santos Oliveira - Periodontista e Ortodontista",
+  "category": "dentist",
+  "segment": "saude",
+  "score": 64,
+  "nicho": {
+    "name": "Dentista",
+    "specialties": [
+      "Periodontia",
+      "Ortodontia",
+      "Implantodontia",
+      "Clínico Geral",
+      "Estética Dental"
+    ],
+    "audience": "Adultos 30-55, classes B/A",
+    "tone": "Autoridade com acolhimento",
+    "keywords": [
+      "dentista [bairro]",
+      "implante dentário",
+      "clareamento dental"
+    ]
+  },
+  "tokens": {
+    "primary": "#2563EB",
+    "secondary": "#1E40AF",
+    "accent": "#3B82F6",
+    "hue": 220,
+    "heading": "Inter",
+    "body": "Inter",
+    "emotion": "Confiança, higiene, profissionalismo",
+    "spacing": "1.5rem",
+    "radius": "0.5rem"
+  },
+  "design_hint": "Barbearia | Design System Completo",
+  "gaps": [
+    {
+      "title": "Sem Schema LocalBusiness no site",
+      "severity": "🔴 Crítico"
+    },
+    {
+      "title": "Site sem otimização para mobile e velocidade",
+      "severity": "🟡 Médio"
+    },
+    {
+      "title": "Falta conteúdo local no site (blog/landing pages)",
+      "severity": "🟡 Médio"
+    },
+    {
+      "title": "Reputação excepcional — ative essa força no site",
+      "severity": "✅ Força"
+    },
+    {
+      "title": "Base digital sólida — hora de escalar",
+      "severity": "✅ Força"
+    },
+    {
+      "title": "Diferenciação no mercado local",
+      "severity": "✅ Oportunidade"
+    },
+    {
+      "title": "Monitoramento contínuo do Google Meu Negócio",
+      "severity": "✅ Oportunidade"
+    }
+  ],
+  "copy_model": "deepseek-v4-flash",
+  "copy_tokens": 491,
+  "headline": "Karina, sua clínica em Madureira precisa de pacientes? Nosso plano custa menos que R$2.000/mês.",
+  "computedAt": "2026-07-15T13:11:55Z",
+  "city": "Rio de Janeiro",
+  "district": "Madureira"
+}

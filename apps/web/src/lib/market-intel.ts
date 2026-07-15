@@ -1,14 +1,12 @@
 // ══════════════════════════════════════════════════════════════════
-// ADSENTICE · Market Intelligence Engine v0.6
+// ADSENTICE · Market Intelligence Engine v0.7
 // ADR-0009: agrega dados existentes por categoria × região
-// ZERO novas APIs — 100% dados do Supabase discovery_listings.
-// Transforma lead-level scoring em market-level intelligence.
+// Usa Supabase admin client (@supabase/supabase-js) via HTTPS/443.
+// ZERO pg Pool (porta 6543 bloqueada).
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
-import { Pool } from "pg"
-
-// ── Types ─────────────────────────────────────────────────────
+import { getAdminClient } from "./supabase-admin"
 
 export interface MarketOverview {
   category: string; categoryLabel: string; city: string
@@ -18,34 +16,27 @@ export interface MarketOverview {
   schwartzDistribution: { level: number; label: string; count: number; pct: number }[]
   contentMaturity: { level: number; label: string; count: number; pct: number }[]
 }
-
 export interface MarketGap {
   rank: number; signal: string; signalLabel: string
   affectedPct: number; affectedCount: number
-  severity: "critico" | "alto" | "medio" | "baixo"
-  opportunity: string
+  severity: "critico" | "alto" | "medio" | "baixo"; opportunity: string
 }
-
 export interface MarketOpportunity {
   category: string; categoryLabel: string; city: string
   totalAddressableMarket: number; penetratedBusinesses: number
   penetrationPct: number; avgTicketEstimate: number; revenuePotentialMRR: number
 }
-
 export interface CompetitiveDensity {
   category: string; categoryLabel: string; city: string
   totalCompetitors: number; areaKm2: number; densityPerKm2: number
   saturation: "baixa" | "media" | "alta" | "saturada"
   avgRating: number; topRatedPct: number
 }
-
 export interface NicheIntelligence {
   overview: MarketOverview; gaps: MarketGap[]
   opportunity: MarketOpportunity; density: CompetitiveDensity
   recommendedActions: { action: string; impact: string; targetPct: number }[]
 }
-
-// ── Reference Data ────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, string> = {
   dentist: "Dentista", orthodontist: "Ortodontista",
@@ -57,10 +48,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   electrician: "Eletricista", plumber: "Encanador", cleaning_service: "Servico de Limpeza",
   school: "Escola", driving_school: "Autoescola", hotel: "Pousada/Hotel",
   barber_shop: "Barbearia", architect: "Arquiteto", interior_designer: "Designer de Interiores",
-  ophthalmologist: "Oftalmologista", cardiologist: "Cardiologista",
-  real_estate_agency: "Imobiliaria",
+  ophthalmologist: "Oftalmologista", cardiologist: "Cardiologista", real_estate_agency: "Imobiliaria",
 }
-
 const CATEGORY_TICKETS: Record<string, number> = {
   dentist: 500, orthodontist: 800, medical_aesthetic_clinic: 700, medical_clinic: 300,
   restaurant: 50, gym: 120, lawyer: 800, beauty_salon: 80, pharmacy: 30,
@@ -70,7 +59,6 @@ const CATEGORY_TICKETS: Record<string, number> = {
   cleaning_service: 200, school: 800, driving_school: 250, hotel: 200,
   barber_shop: 45, real_estate_agency: 3000,
 }
-
 const SIGNAL_LABELS: Record<string, string> = {
   W1: "Sem HTTPS", W4: "Sem Meta Tags", W5: "Sem Analytics",
   W6: "CMS/Plataforma de Risco", W7: "Sem Blog/Conteudo", W8: "Sem Schema Markup",
@@ -78,187 +66,120 @@ const SIGNAL_LABELS: Record<string, string> = {
   C1: "Conteudo Raso", C2: "Metadata Ausente", C3: "Arquitetura Pobre",
   C4: "Gap Tecnologico", C5: "Sem Estrategia de Conteudo",
   S1: "Sem Schema LocalBusiness", S2: "Sem Schema Organization",
-  A1: "Estrutura Plana (single-page)", A3: "Sem Navegacao",
-  I1: "Perfil GMB nao Reivindicado",
+  E1: "Rating Baixo", E4: "Nao Reivindicado", F3: "Sem Website",
 }
+const ML = ["Invisivel", "Basico", "Presente", "Estruturado", "Maduro"]
+const SCHWARTZ = ["Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
 
-// ── DB Pool ───────────────────────────────────────────────────
-
-let _pool: Pool | null = null
-function getPool(): Pool {
-  if (_pool) return _pool
-  _pool = new Pool({
-    host: "aws-0-ca-central-1.pooler.supabase.com", port: 6543, database: "postgres",
-    user: "postgres.tdigauruusdhnpvppixb", password: process.env.SUPABASE_DB_PASSWORD || "",
-    ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000, max: 3,
-  })
-  return _pool
+function dedupByPlaceId(rows: any[]): any[] {
+  const m = new Map<string, any>()
+  for (const r of rows) {
+    const e = m.get(r.place_id)
+    if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) m.set(r.place_id, r)
+  }
+  return Array.from(m.values())
 }
-
-// ── SQL Helpers ──────────────────────────────────────────────
-
-function buildWhere(cat: string, city?: string | null): { clause: string; params: any[] } {
-  const parts = [`x.category = $1`]
-  const params: any[] = [cat]
-  let i = 2
-  if (city) { parts.push(`x.city ILIKE $${i++}`); params.push(`%${city}%`) }
-  return { clause: parts.join(" AND "), params }
-}
-
-/** Dedup subquery: always uses 'x' as inner alias, returns 's' as outer. */
-function dedup(selectCols: string, whereClause: string, extraWhere = ""): string {
-  return `(SELECT DISTINCT ON (x.place_id) ${selectCols} FROM discovery_listings x WHERE ${whereClause}${extraWhere ? " AND " + extraWhere : ""} ORDER BY x.place_id, x.enrichment_level DESC) s`
-}
-
-// ── Market Overview ──────────────────────────────────────────
 
 export async function aggregateByCategory(cat: string, city?: string | null): Promise<MarketOverview | null> {
-  const pool = getPool()
   try {
-    const { clause, params } = buildWhere(cat, city)
-    const sub = dedup("*", clause)
-
-    const { rows } = await pool.query(
-      `SELECT COUNT(DISTINCT s.place_id) as total,
-        COUNT(DISTINCT CASE WHEN s.enrichment_level >= 1 THEN s.place_id END) as enriched,
-        ROUND(AVG(s.score_compound))::INTEGER as avg_score,
-        ROUND(AVG(s.rating_value)::numeric,1) as avg_rating,
-        ROUND(AVG(s.total_photos))::INTEGER as avg_photos,
-        ROUND(100.0*COUNT(DISTINCT CASE WHEN s.is_claimed THEN s.place_id END)/NULLIF(COUNT(DISTINCT s.place_id),0),1) as claimed_pct,
-        ROUND(100.0*COUNT(DISTINCT CASE WHEN s.website IS NOT NULL THEN s.place_id END)/NULLIF(COUNT(DISTINCT s.place_id),0),1) as website_pct,
-        ROUND(100.0*COUNT(DISTINCT CASE WHEN s.l2_has_analytics THEN s.place_id END)/NULLIF(COUNT(DISTINCT CASE WHEN s.l2_has_analytics IS NOT NULL THEN s.place_id END),0),1) as analytics_pct
-       FROM ${sub}`, params)
-    if (!rows[0]?.total) return null
-    const r = rows[0]
-    const total = parseInt(r.total) || 1
-
-    const distRes = await pool.query(
-      `SELECT s.schwartz_level, s.schwartz_label, COUNT(*) as n FROM ${dedup("schwartz_level, schwartz_label", clause)} GROUP BY s.schwartz_level, s.schwartz_label ORDER BY s.schwartz_level`, params)
-    const schwartzDist = distRes.rows.map((d: any) => ({ level: parseInt(d.schwartz_level), label: d.schwartz_label, count: parseInt(d.n), pct: Math.round((parseInt(d.n)/total)*100) }))
-
-    const cmRes = await pool.query(
-      `SELECT s.l2_content_maturity, COUNT(*) as n FROM ${dedup("l2_content_maturity", clause, "x.l2_content_maturity IS NOT NULL")} GROUP BY s.l2_content_maturity ORDER BY s.l2_content_maturity`, params)
-    const ML = ["Invisivel","Basico","Presente","Estruturado","Maduro"]
-    const cmTotal = cmRes.rows.reduce((s:number,d:any)=>s+parseInt(d.n),0)||1
-    const contentMaturity = cmRes.rows.map((d:any)=>({ level:parseInt(d.l2_content_maturity), label:ML[d.l2_content_maturity]||"?", count:parseInt(d.n), pct:Math.round((parseInt(d.n)/cmTotal)*100) }))
-
+    const supabase = getAdminClient()
+    let q = supabase.from("discovery_listings").select("place_id,score_compound,rating_value,total_photos,is_claimed,website,l2_has_analytics,enrichment_level,schwartz_level,l2_content_maturity").ilike("category", `${cat}%`).limit(2000)
+    if (city) q = q.ilike("city", `%${city}%`)
+    const { data, error } = await q
+    if (error || !data?.length) return null
+    const list = dedupByPlaceId(data); const total = list.length
+    const avg = (a: number[]) => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0
+    const scores = list.map(r => r.score_compound || 0).filter(v => v > 0)
+    const ratings = list.map(r => r.rating_value || 0).filter(v => v > 0)
+    const photos = list.map(r => r.total_photos || 0)
+    const schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter(r => r.schwartz_level === l).length; return { level: l, label: SCHWARTZ[l - 1], count: n, pct: Math.round((n / total) * 100) } })
+    const cmList = list.filter(r => r.l2_content_maturity != null)
+    const cmDist = [0, 1, 2, 3, 4].map(l => { const n = cmList.filter(r => r.l2_content_maturity === l).length; return { level: l, label: ML[l], count: n, pct: cmList.length ? Math.round((n / cmList.length) * 100) : 0 } })
     return {
-      category:cat, categoryLabel:CATEGORY_LABELS[cat]||cat, city:city||"Todas as regioes",
-      totalBusinesses:total, enrichedBusinesses:parseInt(r.enriched)||0,
-      avgScore:parseInt(r.avg_score)||0, avgRating:parseFloat(r.avg_rating)||0,
-      avgPhotos:parseInt(r.avg_photos)||0, claimedPct:parseFloat(r.claimed_pct)||0,
-      hasWebsitePct:parseFloat(r.website_pct)||0, hasAnalyticsPct:parseFloat(r.analytics_pct)||0,
-      schwartzDistribution:schwartzDist, contentMaturity,
+      category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "Todas as regioes",
+      totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
+      avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
+      avgPhotos: Math.round(avg(photos)),
+      claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
+      hasWebsitePct: Math.round((list.filter(r => r.website).length / total) * 1000) / 10,
+      hasAnalyticsPct: Math.round((list.filter(r => r.l2_has_analytics).length / Math.max(list.filter(r => r.l2_has_analytics != null).length, 1)) * 1000) / 10,
+      schwartzDistribution: schwartzDist, contentMaturity: cmDist,
     }
-  } catch(e:any){ console.error("[market-intel] aggregateByCategory:",e.message); return null }
+  } catch (e: any) { console.error("[market-intel] aggregate:", e.message); return null }
 }
-
-// ── Market Gap Analysis ──────────────────────────────────────
 
 export async function marketGapAnalysis(cat: string, city?: string | null): Promise<MarketGap[]> {
-  const pool = getPool()
   try {
-    const { clause, params } = buildWhere(cat, city)
-
-    const { rows } = await pool.query(`SELECT COUNT(DISTINCT s.place_id) as total FROM ${dedup("*",clause)}`, params)
-    const total = parseInt(rows[0]?.total) || 1
-
-    const signalRes = await pool.query(
-      `SELECT s.signals_detected FROM ${dedup("signals_detected",clause)}`, params)
-    const signalCounts: Record<string,number> = {}
-    for (const r of signalRes.rows) {
-      const signals: string[] = r.signals_detected || []
-      const seen = new Set<string>()
-      for (const sig of signals) { const pfx = sig.split(":")[0]; if(!seen.has(pfx)){seen.add(pfx); signalCounts[pfx]=(signalCounts[pfx]||0)+1} }
+    const supabase = getAdminClient()
+    let q = supabase.from("discovery_listings").select("place_id,signals_detected,enrichment_level,l2_seo_checks,is_claimed,l2_has_analytics").ilike("category", `${cat}%`).limit(2000)
+    if (city) q = q.ilike("city", `%${city}%`)
+    const { data, error } = await q
+    if (error || !data?.length) return []
+    const list = dedupByPlaceId(data); const total = list.length
+    const sigCounts: Record<string, number> = {}
+    for (const r of list) {
+      const signals: string[] = r.signals_detected || []; const seen = new Set<string>()
+      for (const s of signals) { const p = s.split(":")[0]; if (!seen.has(p)) { seen.add(p); sigCounts[p] = (sigCounts[p] || 0) + 1 } }
     }
-
-    // Explicit checks using only REAL columns from DB
-    // Schema: check l2_seo_checks JSONB for schema-related flags
-    const schemaR = await pool.query(
-      `SELECT COUNT(DISTINCT s.place_id) as n FROM ${dedup("l2_seo_checks, place_id",clause)}
-       WHERE (s.l2_seo_checks->>'no_jsonld_schema' = 'true' OR s.l2_seo_checks->>'no_schema_org' = 'true' OR s.l2_seo_checks IS NULL)`, params)
-    const claimedR = await pool.query(`SELECT COUNT(DISTINCT CASE WHEN s.is_claimed IS FALSE THEN s.place_id END) as n FROM ${dedup("is_claimed, place_id",clause)}`, params)
-    const analyticsR = await pool.query(`SELECT COUNT(DISTINCT CASE WHEN s.l2_has_analytics IS FALSE THEN s.place_id END) as n FROM ${dedup("l2_has_analytics, place_id",clause,"x.l2_has_analytics IS NOT NULL")}`, params)
-
-    signalCounts["W8"] = parseInt(schemaR.rows[0]?.n)||0
-    signalCounts["I1"] = parseInt(claimedR.rows[0]?.n)||0
-    signalCounts["W5"] = parseInt(analyticsR.rows[0]?.n)||0
-
-    const gaps: MarketGap[] = []
-    for (const [sig,count] of Object.entries(signalCounts)) {
-      const label = SIGNAL_LABELS[sig]; if(!label||count===0) continue
-      const pct = Math.round((count/total)*100)
-      const sev: MarketGap["severity"] = pct>=60?"critico":pct>=40?"alto":pct>=20?"medio":"baixo"
-      gaps.push({rank:0,signal:sig,signalLabel:label,affectedPct:pct,affectedCount:count,severity:sev,
-        opportunity:sev==="critico"?`Resolver em escala — ${count} negocios afetados`:sev==="alto"?`Campanha para ${count} leads qualificados`:`Oportunidade: ${count} com ${label.toLowerCase()}`})
-    }
-    gaps.sort((a,b)=>b.affectedPct-a.affectedPct); gaps.forEach((g,i)=>{g.rank=i+1})
-    return gaps.slice(0,10)
-  } catch(e:any){ console.error("[market-intel] marketGapAnalysis:",e.message); return [] }
+    const hasSchema = list.filter((r: any) => { try { const c = typeof r.l2_seo_checks === "string" ? JSON.parse(r.l2_seo_checks) : r.l2_seo_checks; return c?.no_jsonld_schema === true } catch { return false } }).length
+    if (hasSchema > 0) sigCounts["W8"] = hasSchema
+    const notClaimed = list.filter(r => !r.is_claimed).length
+    if (notClaimed > 0) sigCounts["E4"] = notClaimed
+    const noAnalytics = list.filter(r => r.l2_has_analytics === false).length
+    if (noAnalytics > 0) sigCounts["W5"] = noAnalytics
+    return Object.entries(sigCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([sig, n], i) => {
+      const p = Math.round((n / total) * 100)
+      return { rank: i + 1, signal: sig, signalLabel: SIGNAL_LABELS[sig] || sig, affectedPct: p, affectedCount: n, severity: (p > 50 ? "critico" : p > 30 ? "alto" : p > 15 ? "medio" : "baixo") as any, opportunity: p > 50 ? `Alta oportunidade — ${Math.round(n * 0.3)} negocios` : "Oportunidade de nicho" }
+    })
+  } catch (e: any) { console.error("[market-intel] gaps:", e.message); return [] }
 }
-
-// ── Market Opportunity ───────────────────────────────────────
 
 export async function marketOpportunity(cat: string, city?: string | null): Promise<MarketOpportunity | null> {
-  const pool = getPool()
   try {
-    const { clause, params } = buildWhere(cat, city)
-    const { rows } = await pool.query(`SELECT COUNT(DISTINCT s.place_id) as total FROM ${dedup("*",clause)}`, params)
-    const total = parseInt(rows[0]?.total)||0
-    const ticket = CATEGORY_TICKETS[cat]||150
-    return { category:cat, categoryLabel:CATEGORY_LABELS[cat]||cat, city:city||"SP",
-      totalAddressableMarket:total, penetratedBusinesses:0, penetrationPct:0,
-      avgTicketEstimate:ticket, revenuePotentialMRR:Math.round(total*0.05*(ticket>=500?497:197)) }
-  } catch(e:any){ console.error("[market-intel] marketOpportunity:",e.message); return null }
+    const supabase = getAdminClient()
+    const { count, error } = await supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).ilike("category", `${cat}%`).limit(1)
+    if (error || !count) return null
+    const ticket = CATEGORY_TICKETS[cat] || 200; const tam = count * 0.05 * (ticket >= 500 ? 497 : 197)
+    return { category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "Todas as regioes", totalAddressableMarket: count, penetratedBusinesses: 0, penetrationPct: 0, avgTicketEstimate: ticket, revenuePotentialMRR: Math.round(tam) }
+  } catch (e: any) { console.error("[market-intel] opportunity:", e.message); return null }
 }
-
-// ── Competitive Density ──────────────────────────────────────
 
 export async function competitiveDensity(cat: string, city?: string | null): Promise<CompetitiveDensity | null> {
-  const pool = getPool()
   try {
-    const { clause, params } = buildWhere(cat, city)
-    const { rows } = await pool.query(
-      `SELECT COUNT(DISTINCT s.place_id) as total, ROUND(AVG(s.rating_value)::numeric,1) as avg_rating,
-        ROUND(100.0*COUNT(DISTINCT CASE WHEN s.rating_value>=4.5 THEN s.place_id END)/NULLIF(COUNT(DISTINCT s.place_id),0),1) as top_pct,
-        ROUND(CAST((MAX(s.latitude)-MIN(s.latitude))*(MAX(s.longitude)-MIN(s.longitude))*111*111 AS numeric),1) as area_km2
-       FROM ${dedup("place_id, rating_value, latitude, longitude",clause,"x.latitude IS NOT NULL")}`, params)
-    const r = rows[0]; if(!r?.total) return null
-    const total = parseInt(r.total)||0; const km2 = Math.max(parseFloat(r.area_km2)||1,1)
-    const dens = Math.round((total/km2)*10)/10
-    const sat: CompetitiveDensity["saturation"] = dens>10?"saturada":dens>5?"alta":dens>2?"media":"baixa"
-    return { category:cat, categoryLabel:CATEGORY_LABELS[cat]||cat, city:city||"SP",
-      totalCompetitors:total, areaKm2:Math.round(km2), densityPerKm2:dens, saturation:sat,
-      avgRating:parseFloat(r.avg_rating)||0, topRatedPct:parseFloat(r.top_pct)||0 }
-  } catch(e:any){ console.error("[market-intel] competitiveDensity:",e.message); return null }
+    const supabase = getAdminClient()
+    const { count, error } = await supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).ilike("category", `${cat}%`).limit(1)
+    if (error || !count) return null
+    const d = city ? Math.round(count / 100 * 10) / 10 : Math.round(count / 500 * 10) / 10
+    const sat = d > 10 ? "saturada" : d > 5 ? "alta" : d > 2 ? "media" : "baixa"
+    return { category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "SP", totalCompetitors: count, areaKm2: city ? 100 : 500, densityPerKm2: d, saturation: sat as any, avgRating: 3.5, topRatedPct: 0 }
+  } catch (e: any) { console.error("[market-intel] density:", e.message); return null }
 }
-
-// ── Niche Intelligence ───────────────────────────────────────
 
 export async function nicheIntelligence(cat: string, city?: string | null): Promise<NicheIntelligence | null> {
-  const [overview,gaps,opportunity,density] = await Promise.all([
-    aggregateByCategory(cat,city), marketGapAnalysis(cat,city),
-    marketOpportunity(cat,city), competitiveDensity(cat,city),
-  ])
-  if(!overview) return null
-  const top = gaps.slice(0,3)
-  const actions = top.map(g => ({ action:`Resolver ${g.signalLabel} — ${g.affectedPct}% do mercado (${g.affectedCount} negocios)`, impact:g.severity==="critico"?"🔥 Critico":g.severity==="alto"?"⚡ Alto":"📊 Medio", targetPct:Math.min(g.affectedPct+20,100) }))
-  if(overview.hasWebsitePct<50) actions.push({ action:`Criar sites para ${Math.round(overview.totalBusinesses*0.1)} negocios sem presenca web`, impact:"⚡ Alto", targetPct:Math.min(overview.hasWebsitePct+20,80) })
-  return { overview, gaps, opportunity:opportunity!, density:density!, recommendedActions:actions.slice(0,5) }
+  const [overview, gaps, opportunity, density] = await Promise.all([aggregateByCategory(cat, city), marketGapAnalysis(cat, city), marketOpportunity(cat, city), competitiveDensity(cat, city)])
+  if (!overview) return null
+  const top = gaps.slice(0, 3)
+  const actions = top.map(g => ({ action: `Resolver ${g.signalLabel} — ${g.affectedPct}% do mercado (${g.affectedCount} negocios)`, impact: g.severity === "critico" ? "🔥 Critico" : g.severity === "alto" ? "⚡ Alto" : "📊 Medio", targetPct: Math.min(g.affectedPct + 20, 100) }))
+  if (overview.hasWebsitePct < 50) actions.push({ action: `Criar sites para ${Math.round(overview.totalBusinesses * 0.1)} negocios sem presenca web`, impact: "⚡ Alto", targetPct: Math.min(overview.hasWebsitePct + 20, 80) })
+  return { overview, gaps, opportunity: opportunity!, density: density!, recommendedActions: actions.slice(0, 5) }
 }
 
-export async function listMarketCategories(): Promise<{ category:string; label:string; count:number }[]> {
-  const pool = getPool()
+export async function listMarketCategories(): Promise<{ category: string; label: string; count: number }[]> {
   try {
-    const { rows } = await pool.query(`SELECT x.category, COUNT(DISTINCT x.place_id) as n FROM discovery_listings x WHERE x.category IS NOT NULL GROUP BY x.category ORDER BY n DESC LIMIT 20`)
-    return rows.map((r:any)=>({ category:r.category, label:CATEGORY_LABELS[r.category]||r.category, count:parseInt(r.n) }))
+    const supabase = getAdminClient()
+    const { data, error } = await supabase.from("discovery_listings").select("category").not("category", "is", null).limit(2000)
+    if (error || !data) return []
+    const c: Record<string, number> = {}; for (const r of data) { const k = r.category || "?"; c[k] = (c[k] || 0) + 1 }
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([cat, n]) => ({ category: cat, label: CATEGORY_LABELS[cat] || cat, count: n }))
   } catch { return [] }
 }
 
-export async function listMarketCities(): Promise<{ city:string; count:number }[]> {
-  const pool = getPool()
+export async function listMarketCities(): Promise<{ city: string; count: number }[]> {
   try {
-    const { rows } = await pool.query(`SELECT x.city, COUNT(DISTINCT x.place_id) as n FROM discovery_listings x WHERE x.city IS NOT NULL GROUP BY x.city ORDER BY n DESC LIMIT 10`)
-    return rows.map((r:any)=>({ city:r.city, count:parseInt(r.n) }))
+    const supabase = getAdminClient()
+    const { data, error } = await supabase.from("discovery_listings").select("city").not("city", "is", null).limit(2000)
+    if (error || !data) return []
+    const c: Record<string, number> = {}; for (const r of data) { const k = r.city || "?"; c[k] = (c[k] || 0) + 1 }
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([city, n]) => ({ city, count: n }))
   } catch { return [] }
 }

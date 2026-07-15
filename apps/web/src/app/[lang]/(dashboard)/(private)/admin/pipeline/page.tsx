@@ -12,7 +12,7 @@ import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
 import Button from '@mui/material/Button'
 
-import { Pool } from 'pg'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
@@ -33,32 +33,23 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
   let avgScoreAll = 0
 
   try {
-    const pool = new Pool({
-      host: 'aws-0-ca-central-1.pooler.supabase.com', port: 6543, database: 'postgres',
-      user: 'postgres.tdigauruusdhnpvppixb', password: process.env.SUPABASE_DB_PASSWORD || '',
-      ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000,
-    })
-
-    const [totalRes, distRes, catRes, scoreRes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) id FROM discovery_listings) dedup`),
-      pool.query(`SELECT schwartz_level, schwartz_label, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) schwartz_level, schwartz_label FROM discovery_listings ORDER BY place_id, enrichment_level DESC) dedup GROUP BY schwartz_level, schwartz_label ORDER BY schwartz_level`),
-      pool.query(`SELECT category, COUNT(*) as n FROM (SELECT DISTINCT ON (place_id) category FROM discovery_listings WHERE category IS NOT NULL ORDER BY place_id, enrichment_level DESC) dedup GROUP BY category ORDER BY n DESC LIMIT 10`),
-      pool.query(`SELECT ROUND(AVG(score_compound))::INTEGER as avg FROM (SELECT DISTINCT ON (place_id) score_compound FROM discovery_listings ORDER BY place_id, enrichment_level DESC) dedup`),
-    ])
-
-    supabaseTotal = parseInt(totalRes.rows[0].n) || 0
-    avgScoreAll = parseInt(scoreRes.rows[0].avg) || 0
-
-    schwartzDist = distRes.rows.map((r: any) => ({
-      level: r.schwartz_level, label: r.schwartz_label, count: parseInt(r.n),
-    }))
-    categoryCounts = catRes.rows.map((r: any) => ({
-      category: r.category, count: parseInt(r.n),
-      label: CAT_SHORT[r.category] || r.category,
-    }))
-
-    await pool.end()
-  } catch { /* Supabase offline — fallback to Redis */ }
+    const supabase = getAdminClient()
+    const { data, error } = await supabase.from("discovery_listings").select("place_id,score_compound,schwartz_level,schwartz_label,category,enrichment_level").limit(3000)
+    if (!error && data?.length) {
+      // Dedup by place_id (keep highest enrichment_level)
+      const deduped = new Map<string, any>()
+      for (const r of data) { const e = deduped.get(r.place_id); if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) deduped.set(r.place_id, r) }
+      const list = Array.from(deduped.values())
+      supabaseTotal = list.length
+      const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
+      avgScoreAll = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
+      const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
+      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length; return { level: l, label: schwartzLabels[l], count: n } })
+      const catCounts: Record<string, number> = {}
+      for (const r of list) { if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1 }
+      categoryCounts = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n, label: CAT_SHORT[c] || c }))
+    }
+  } catch { /* Supabase offline */ }
 
   // Fallback: use Redis data if Supabase is empty
   const hasSupabase = supabaseTotal > 0
