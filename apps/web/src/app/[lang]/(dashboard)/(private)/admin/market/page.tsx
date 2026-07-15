@@ -10,11 +10,30 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
+import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { nicheIntelligence, listMarketCategories } from '@/lib/market-intel'
+
+// ── Market Holds (rsxt-t0 time-series) ──
+
+interface MarketHoldRow {
+  metric: string; value: number; recorded_at: string; source: string
+}
+
+async function fetchMarketHolds(category: string, city: string, limit = 20): Promise<MarketHoldRow[]> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tdigauruusdhnpvppixb.supabase.co'}/rest/v1/market_holds`
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  try {
+    const params = new URLSearchParams({ category: `eq.${category}`, city: `eq.${city}`, order: 'recorded_at.desc', limit: String(limit), select: 'metric,value,recorded_at,source' })
+    const res = await fetch(`${url}?${params}`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return []
+    const data = (await res.json()) as MarketHoldRow[]
+    return data.reverse() // chronological
+  } catch { return [] }
+}
 
 const MarketPage = async ({ params, searchParams }: {
   params: Promise<{ lang: string }>
@@ -29,6 +48,17 @@ const MarketPage = async ({ params, searchParams }: {
   const filterCategory = sp.category || (categories.length > 0 ? categories[0].category : '')
   const filterCity = sp.city || ''
   const intel = await nicheIntelligence(filterCategory, filterCity || null)
+  const holds = await fetchMarketHolds(filterCategory, filterCity || 'Rio de Janeiro')
+
+  // Agrupa holds por métrica para mini time-series
+  const holdGroups = new Map<string, MarketHoldRow[]>()
+  for (const h of holds) {
+    const g = holdGroups.get(h.metric) || []
+    g.push(h)
+    holdGroups.set(h.metric, g)
+  }
+  const latestHolds = new Map<string, MarketHoldRow>()
+  for (const h of holds) latestHolds.set(h.metric, h)
 
   const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]
   const maturityColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#4caf50"]
@@ -240,6 +270,95 @@ const MarketPage = async ({ params, searchParams }: {
             </Card>
           </Grid>
         </>
+      )}
+
+      {/* ═══ Market Holds · Time-Series (rsxt-t0) ═══ */}
+      {holds.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant='h6'>⏱️ Market Holds · Time-Series</Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    Padrão rsxt-t0 — cada busca Discovery grava snapshot de mercado. Append-only, imutável.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Chip label={`${holds.length} pontos`} size='small' color='primary' variant='tonal' />
+                  <Chip label={filterCity || 'Rio de Janeiro'} size='small' variant='outlined' />
+                </Box>
+              </Box>
+
+              <Grid container spacing={2}>
+                {/* Latest metrics */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant='subtitle2' gutterBottom>📊 Últimas métricas</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {['avg_score', 'total_businesses', 'claimed_pct'].map(metric => {
+                      const h = latestHolds.get(metric)
+                      return (
+                        <Box key={metric} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant='caption' sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{metric}</Typography>
+                            {h && <Chip label={h.source} size='small' variant='outlined' sx={{ fontSize: '0.55rem' }} />}
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant='body2' fontWeight={700}>
+                              {h ? (metric === 'claimed_pct' ? `${h.value.toFixed(1)}%` : metric === 'total_businesses' ? h.value.toLocaleString('pt-BR') : h.value.toFixed(1)) : '—'}
+                            </Typography>
+                            {h && <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>{h.recorded_at?.slice(0, 16).replace('T', ' ')}</Typography>}
+                          </Box>
+                        </Box>
+                      )
+                    })}
+                  </Box>
+                </Grid>
+
+                {/* Mini time-series (sparkline) */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant='subtitle2' gutterBottom>📈 Tendência (avg_score)</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, height: 80, mt: 1 }}>
+                    {(holdGroups.get('avg_score') || []).slice(-20).map((h, i) => {
+                      const pct = Math.max(2, ((h.value || 0) / 100) * 100)
+                      const color = i < 3 ? '#9e9e9e' : h.value > 60 ? '#4caf50' : h.value > 40 ? '#ffa726' : '#ef5350'
+                      return (
+                        <Box key={i} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Typography variant='caption' sx={{ fontSize: '0.5rem', color: 'text.secondary' }}>{h.value.toFixed(0)}</Typography>
+                          <Box sx={{ width: '100%', height: `${pct}px`, bgcolor: color, borderRadius: '2px 2px 0 0', minWidth: 8, opacity: 0.8 }} />
+                        </Box>
+                      )
+                    })}
+                  </Box>
+                  <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block', fontSize: '0.6rem' }}>
+                    Barras: score médio no tempo. Verde {'>'} 60, laranja {'>'} 40, vermelho {'<'} 40.
+                  </Typography>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='caption' color='text.secondary'>
+                💡 <strong>Market Holds</strong> acumulam inteligência de mercado a cada busca Discovery.
+                Com 3+ meses de dados, é possível detectar tendências, sazonalidade e oportunidades
+                antes dos concorrentes. Padrão absorvido do EVO-API rsxt-t0 e capital.RS.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+
+      {/* No holds yet */}
+      {holds.length === 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info'>
+            <Typography variant='body2'>
+              ⏱️ <strong>Market Holds ainda vazio.</strong> Execute uma busca no{' '}
+              <a href={`/${lang}/admin/discovery`} style={{ fontWeight: 600 }}>Discovery Engine</a>{' '}
+              para começar a acumular séries temporais de mercado. Cada busca grava um snapshot
+              de avg_score, total_businesses e claimed_pct.
+            </Typography>
+          </Alert>
+        </Grid>
       )}
     </Grid>
   )
