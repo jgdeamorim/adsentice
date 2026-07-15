@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
     const dfCoord = `${(lat || -23.5505).toFixed(4)},${(lng || -46.6333).toFixed(4)},${radiusKm || 10}`
     const dfBody = JSON.stringify([{ categories, location_coordinate: dfCoord, language_code: "pt", limit: limit || 50 }])
 
-    const dfRes = await fetch("https://api.dataforseo.com/v3/business_data/business_listings/search/live.ai", {
+    const dfRes = await fetch("https://api.dataforseo.com/v3/business_data/business_listings/search/live", {
       method: "POST",
       headers: { Authorization: dfAuth, "Content-Type": "application/json" },
       body: dfBody,
@@ -281,8 +281,8 @@ export async function POST(request: NextRequest) {
       throw new Error(`DataForSEO HTTP ${dfRes.status}: ${errText.slice(0, 300)}`)
     }
 
-    const dfData = await dfRes.json() as { items?: Record<string, unknown>[] }
-    const items = (dfData.items || []).map((item: Record<string, unknown>) => {
+    const dfData = await dfRes.json() as { tasks?: Array<{ result?: Array<{ items?: Record<string, unknown>[], items_count?: number }> }> }
+    const items = (dfData.tasks?.[0]?.result?.[0]?.items || []).map((item: Record<string, unknown>) => {
       const rating = (item.rating || {}) as Record<string, unknown>
       return {
         title: (item.title as string) || null,
@@ -298,11 +298,12 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const result = { total_count: items.length, listings: items, cost_usd: items.length * 0.0003 }
+    const totalCount = dfData.tasks?.[0]?.result?.[0]?.items_count || items.length
+    const result = { total_count: totalCount, listings: items, cost_usd: 0.015 }
 
     const l0Latency = Date.now() - t0
-    console.log(`[discovery:L0:inline] ${result.listings.length} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
-    pushEvent({ route: "/api/discovery-search", status: 200, latency_ms: l0Latency, provider: "DataForSEO", detail: `${result.listings.length} listings` })
+    console.log(`[discovery:L0:inline] ${result.listings.length}/${totalCount} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
+    pushEvent({ route: "/api/discovery-search", status: 200, latency_ms: l0Latency, provider: "DataForSEO", detail: `${result.listings.length}/${totalCount} listings` })
 
     const searchCost = result.cost_usd || 0
 
