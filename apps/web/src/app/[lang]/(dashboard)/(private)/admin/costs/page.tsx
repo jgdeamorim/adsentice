@@ -143,7 +143,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const cpl        = leads > 0 ? sup.totalCost / leads : 0
   const brl        = 5.5
 
-  const usedIds = new Set(['business.listings.search', 'business.profile.gmb', 'on_page.instant_pages', 'domain.technologies'])
+  const usedIds = new Set(['business.listings.search', 'business.profile.gmb', 'on_page.instant_pages', 'domain.technologies', 'on_page.lighthouse', 'serp.organic', 'business.reviews.google', 'backlinks.competitors'])
   const usedCaps = caps.filter(c => usedIds.has(c.id))
   const availCaps = caps.filter(c => !usedIds.has(c.id))
 
