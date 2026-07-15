@@ -20,6 +20,7 @@ import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
 import { vaultWriteBatch } from "@/lib/r2-vault"
 import { appendMarketHolds } from "@/lib/provider-core-adapter"
+import { pushEvent } from "@/lib/telemetry"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -260,6 +261,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ═══ L0: LIVE SEARCH ($0.015) ═══
+  let t0 = Date.now()
   try {
     // Direct fetch — bypass adapter singleton issues
     const login = process.env.DATAFORSEO_LOGIN || ""
@@ -298,7 +300,9 @@ export async function POST(request: NextRequest) {
 
     const result = { total_count: items.length, listings: items, cost_usd: items.length * 0.0003 }
 
-    console.log(`[discovery:L0:inline] ${result.listings.length} listings, first: ${result.listings[0]?.title?.slice(0,40)}`)
+    const l0Latency = Date.now() - t0
+    console.log(`[discovery:L0:inline] ${result.listings.length} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
+    pushEvent({ route: "/api/discovery-search", status: 200, latency_ms: l0Latency, provider: "DataForSEO", detail: `${result.listings.length} listings` })
 
     const searchCost = result.cost_usd || 0
 
@@ -489,8 +493,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(payload)
   } catch (e: any) {
+    const errLatency = Date.now() - t0
+    pushEvent({ route: "/api/discovery-search", status: 500, latency_ms: errLatency, provider: "DataForSEO", error: e.message, detail: String(e.stack).slice(0, 500) })
     return NextResponse.json(
-      { error: e.message || "EVO-API MCP unavailable" },
+      { error: e.message || "DataForSEO API unavailable" },
       { status: 500 }
     )
   }
