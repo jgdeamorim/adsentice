@@ -33,6 +33,14 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
   const stats = getRouteStats()
   const recentErrors = events.filter(e => e.status >= 400)
 
+  // Árbitro DeepSeek verdict (Redis, TTL 2h)
+  let arbiterVerdict: any = null
+  try {
+    const { execSync } = await import("child_process")
+    const raw = execSync("redis-cli -p 6396 --no-auth-warning GET adsentice:telemetry:arbiter_verdict", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+    if (raw) arbiterVerdict = JSON.parse(raw)
+  } catch { /* offline */ }
+
   const healthStatus = activeAlerts.length > 0 ? '⚠️ Degraded' : '✅ Healthy'
   const healthColor = activeAlerts.filter(a => a.level === 'critical').length > 0 ? 'error' as const
     : activeAlerts.length > 0 ? 'warning' as const : 'success' as const
@@ -75,6 +83,38 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
                 {a.detail && <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.7rem', ml: 1 }}>{a.detail?.slice(0, 200)}</Typography>}
               </Box>
             ))}
+          </Alert>
+        </Grid>
+      )}
+
+      {/* ═══ Arbiter Verdict (DeepSeek SRE) ═══ */}
+      {arbiterVerdict ? (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ bgcolor: arbiterVerdict.verdict?.includes('🔴') ? 'error.50' : arbiterVerdict.verdict?.includes('🟡') ? 'warning.50' : 'success.50', border: '1px solid', borderColor: arbiterVerdict.verdict?.includes('🔴') ? 'error.main' : arbiterVerdict.verdict?.includes('🟡') ? 'warning.main' : 'success.main' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant='h6'>🤖 Árbitro DeepSeek · Parecer SRE</Typography>
+                  <Chip label={`${arbiterVerdict.events_analyzed} eventos analisados`} size='small' variant='outlined' />
+                  <Chip label={arbiterVerdict.at?.slice(0, 16).replace('T', ' ')} size='small' variant='outlined' />
+                </Box>
+                <Chip label='Automático (dispara ao detectar erro)' size='small' color='info' variant='tonal' />
+              </Box>
+              <Typography variant='body2' sx={{ whiteSpace: 'pre-line', fontFamily: 'system-ui', lineHeight: 1.8 }}>
+                {arbiterVerdict.verdict}
+              </Typography>
+              <Typography variant='caption' color='text.secondary' sx={{ mt: 1, display: 'block' }}>
+                Acionado automaticamente quando um erro crítico é detectado. TTL 2h. DeepSeek V4 Flash analisa padrões de falha e sugere root cause.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      ) : (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info'>
+            <Typography variant='body2'>
+              🤖 <strong>Árbitro DeepSeek ainda não acionado.</strong> O parecer SRE é gerado automaticamente quando um erro crítico (HTTP 500+) é detectado nas rotas. Execute buscas no Discovery para popular a telemetria.
+            </Typography>
           </Alert>
         </Grid>
       )}

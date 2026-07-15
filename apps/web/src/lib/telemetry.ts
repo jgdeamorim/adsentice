@@ -89,6 +89,12 @@ export function pushEvent(event: Omit<TelemetryEvent, "timestamp">): void {
         message: `${event.provider || "HTTP"} error ${event.status}${event.error ? `: ${event.error}` : ""}`,
         detail: event.detail,
       })
+      // Dispara árbitro em background (fire-and-forget)
+      try {
+        execSync("python3 tools/adsentice_finding_arbiter.py", {
+          timeout: 30000, stdio: "ignore",
+        })
+      } catch { /* arbiter offline — alerts stay in Redis */ }
     }
 
     // Expira o evento mais antigo além do TTL
