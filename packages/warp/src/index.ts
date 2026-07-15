@@ -6,25 +6,9 @@
  *
  * Uso:
  *   import { warp } from '@adsentice/warp'
+ *   const design = await warp.design.run({ segment: 'saude', plan: 'sentinela' })
  *
- *   // Buscar componentes por intent
- *   const components = await warp.registry.queryByIntent('dashboard executivo')
- *
- *   // Compor página completa
- *   const page = await warp.composer.compose({
- *     intent: 'dashboard para dentista em SP',
- *     context: { page: '/admin', category: 'saude' }
- *   })
- *
- *   // Gerar tokens para segmento
- *   const tokens = await warp.tokens.compose({
- *     intent: 'landing page', segment: 'beleza', plan: 'sentinela'
- *   })
- *
- *   // Escolher agente para tarefa
- *   const agent = await warp.agents.route('critique design system qualidade')
- *
- * medido=verdade · 2026-07-14 · adsentice
+ * medido=verdade · 2026-07-15 · adsentice
  */
 
 import { ComponentRegistry, registry as defaultRegistry } from './2-registry'
@@ -36,7 +20,6 @@ import { TokenComposer, tokenComposer as defaultTokenComposer } from './tokens-c
 import { AgentRouter, agentRouter as defaultAgentRouter } from './8-agents'
 import { RecommendEngine, recommendEngine as defaultRecommendEngine } from './recommend-engine'
 import { L3CompetitorAnalyzer, l3Analyzer as defaultL3Analyzer } from './l3-competitor-keywords'
-import { EmbedRouter, embedRouter as defaultEmbedRouter } from './embed-router'
 import { DesignPipeline, designPipeline as defaultDesignPipeline } from './pipeline'
 
 // ═══════════════════════════════════════════════════════════════
@@ -51,8 +34,8 @@ export { WarpTracker } from './6-telemetry'
 export { TokenComposer, composeTokens } from './tokens-composer'
 export { RecommendEngine } from './recommend-engine'
 export { L3CompetitorAnalyzer } from './l3-competitor-keywords'
-export { EmbedRouter } from './embed-router'
 export { DesignPipeline } from './pipeline'
+export { embedText, embedBatch } from './embed'
 export {
   AgentRouter,
   ClaudeCodeAdapter,
@@ -62,7 +45,6 @@ export {
   mcpRegistry,
 } from './8-agents'
 
-// Validation
 export {
   WarpComponentSchema,
   PluginSchema,
@@ -74,68 +56,22 @@ export {
 
 // Types
 export type {
-  WarpComponent,
-  WarpEvent,
-  WarpMetrics,
-  CompositionRequest,
-  CompositionResult,
-  ResolvedComponent,
-  LayoutTree,
-  ReferenceSource,
-  DestilledComponent,
-  ComponentEmbedPayload,
+  WarpComponent, WarpEvent, WarpMetrics,
+  CompositionRequest, CompositionResult, ResolvedComponent, LayoutTree,
+  ReferenceSource, DestilledComponent, ComponentEmbedPayload,
 } from './types'
 
-export type {
-  CritiqueScore,
-  PipelineStage,
-} from './4-composer'
-
-export type {
-  ComposeTokensRequest,
-  ComposeTokensResult,
-  TokenSet,
-  SegmentId,
-  PlanTier,
-  SurfaceId,
-} from './tokens-composer'
-
-export type {
-  AgentAdapter,
-  AgentCapabilities,
-  AgentDetection,
-  AgentRunParams,
-  AgentEvent,
-  MCPServerInfo,
-} from './8-agents'
-
-export type {
-  ValidationResult,
-  Plugin,
-  RegistryEntry,
-  WarpComponentValidated,
-  PropDef,
-} from './5-registry'
-
-export type {
-  CacheEntry,
-} from './7-cache'
-
-export type {
-  RecommendAction,
-  RecommendResult,
-  BattleCardOutput,
-} from './recommend-engine'
-
-export type {
-  CompetitorProfile as L3CompetitorProfile,
-  KeywordOpportunity as L3KeywordOpportunity,
-  MarketPosition as L3MarketPosition,
-  L3CompetitiveLandscape,
-} from './l3-competitor-keywords'
+export type { CritiqueScore, PipelineStage } from './4-composer'
+export type { ComposeTokensRequest, ComposeTokensResult, TokenSet, SegmentId, PlanTier, SurfaceId } from './tokens-composer'
+export type { AgentAdapter, AgentCapabilities, AgentDetection, AgentRunParams, AgentEvent, MCPServerInfo } from './8-agents'
+export type { ValidationResult, Plugin, RegistryEntry, WarpComponentValidated, PropDef } from './5-registry'
+export type { CacheEntry } from './7-cache'
+export type { RecommendAction, RecommendResult, BattleCardOutput } from './recommend-engine'
+export type { CompetitorProfile as L3CompetitorProfile, KeywordOpportunity as L3KeywordOpportunity, MarketPosition as L3MarketPosition, L3CompetitiveLandscape } from './l3-competitor-keywords'
+export type { DesignPipelineInput, DesignPipelineResult } from './pipeline'
 
 // ═══════════════════════════════════════════════════════════════
-// WarpAPI — interface unificada
+// WarpAPI
 // ═══════════════════════════════════════════════════════════════
 
 export class WarpAPI {
@@ -148,7 +84,6 @@ export class WarpAPI {
   agents: AgentRouter
   recommend: RecommendEngine
   l3: L3CompetitorAnalyzer
-  embed: EmbedRouter
   design: DesignPipeline
 
   constructor() {
@@ -161,10 +96,8 @@ export class WarpAPI {
     this.agents = defaultAgentRouter
     this.recommend = defaultRecommendEngine
     this.l3 = defaultL3Analyzer
-    this.embed = defaultEmbedRouter
-    this.design = new DesignPipeline(this.tokens, this.composer, this.tracker, this.cache)
+    this.design = defaultDesignPipeline
   }
 }
 
-/** Singleton */
 export const warp = new WarpAPI()

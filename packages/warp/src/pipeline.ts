@@ -27,6 +27,7 @@ import type { CompositionResult, WarpComponent } from './types'
 import { Composer, composer as defaultComposer } from './4-composer'
 import { WarpTracker, warpTracker as defaultTracker } from './6-telemetry'
 import { WarpCache, warpCache as defaultCache } from './7-cache'
+import { embedText } from './embed'
 import type { CritiqueScore } from './4-composer'
 
 // ═══════════════════════════════════════════════════════════════
@@ -157,23 +158,12 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Embed helpers (same as embed-router, inline for self-containment)
+// Qdrant helpers
 // ═══════════════════════════════════════════════════════════════
 
-const EMBED_URL = 'http://127.0.0.1:8081/embed'
 const QDRANT_URL = 'http://127.0.0.1:6352'
 const COLLECTION = 'adsentice-self'
 const TAG = 'adsentice-warp'
-
-async function embed(text: string): Promise<number[]> {
-  const res = await fetch(EMBED_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ texts: [text.slice(0, 800)] }),
-  })
-  const data = (await res.json()) as { vectors: number[][] }
-  return data.vectors[0] ?? []
-}
 
 async function qdrantSearch(vector: number[], filters: Record<string, string>, limit = 3) {
   const must = [{ key: 'tag', match: { value: TAG } }]
@@ -232,7 +222,7 @@ export class DesignPipeline {
 
     // Buscar design inspiration FILTRADO pelo segmento
     const designQuery = `visual design style layout for ${input.segment} business ${preset.emotion} ${preset.businessKeywords}`
-    const designVec = await embed(designQuery)
+    const designVec = await embedText(designQuery)
     const designHits = await qdrantSearch(designVec, {
       kind: 'design-knowledge',
     }, 5)
