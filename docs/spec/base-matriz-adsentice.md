@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.3.0"
+version: "1.4.0"
 date: 2026-07-11
-updated: 2026-07-14T20:30:00-03:00
+updated: 2026-07-15T00:00:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.0.0
+# Base-Matriz do Ecossistema adsentice v1.4.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
@@ -89,39 +89,95 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0015` | Arquitetura Real Rust — EVO-API + rsxt como backend | ❌ superseded (por ADR-0016) |
 | `ADS.COR.adr.0016` | Adsentice Soberano — Hetzner CAX11, nao Railway, TypeScript nativo | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0017` | Frontend Enterprise — React 19 + Vite + Tailwind + shadcn/ui + tokens proprios | ✅ accepted (2026-07-14) |
-| `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (7 modulos) | ✅ accepted (2026-07-14) |
+| `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (9 modulos) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
-| `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ⬜ proposed (2026-07-14) |
+| `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ✅ accepted (2026-07-14) |
 
 ### ADS.COR.design — Corpus de Design (embedado no Qdrant)
 
 | Rota | Descrição | Source Qdrant | Pontos | Status |
 |---|---|---|---|---|
+| `ADS.COR.design.warp_components` | 107 componentes Warp: 40 shadcn/Radix (context7) + 67 21st-magic (visual premium) | `adsentice-self` (kind=component, tag=adsentice-warp) | 107 | ✅ embedado · 2026-07-14 |
+| `ADS.COR.design.warp_snippets` | 57 snippets + referências técnicas: 37 shadcn/ui v4 TypeScript source + 20 Radix Primitives WAI-ARIA API docs | `adsentice-self` (kind=snippet\|reference, tag=adsentice-warp) | 57 | ✅ embedado · 2026-07-14 |
+| `ADS.COR.design.warp_design_knowledge` | 6,103 design knowledge points do UI UX Pro Max: 85 UI styles, 161 color palettes, 161 reasoning rules, 99 UX guidelines, 35 landing patterns, 74 typography pairings, 26 chart types, 162 product patterns, 1,923 font combinations, 1,601 design principles, 1,602 draft designs | `adsentice-self` (kind=design-knowledge, tag=adsentice-warp) | 6,103 | ✅ embedado · 2026-07-14 |
 | `ADS.COR.design.open_design` | 150 estilos de design system (Apple, Stripe, Vercel, Tesla, Supabase, etc.) | `open-design/*` | ~600 | ✅ embedado |
 | `ADS.COR.design.magic_ui` | 247 componentes Magic UI (21st) — 77 exemplos + 23 componentes + 147 variações | `21st-magic-ui` | 247 | ✅ embedado |
-| `ADS.COR.design.total` | Total do corpus de design (open-design + 21st) | — | ~847 (36% do corpus) | ✅ vivo |
+| `ADS.COR.design.materio` | 36 design tokens Materio (palette, typography, spacing, border, muted) | `adsentice-materio` | 36 | ✅ embedado |
+| `ADS.COR.design.warp_total` | **Total do corpus de design Warp** (componentes + snippets + knowledge) | — | **6,267** | ✅ vivo |
+| `ADS.COR.design.total` | Total do corpus de design (Warp + open-design + 21st + Materio) | — | ~7,150 | ✅ vivo |
+| `ADS.COR.design.skills_adsentice` | 5 novos marketing skills originais adsentice (45 frameworks): local-seo, whatsapp-business, google-ads-telemetry, ifood-integration, booking-ota-integration | `adsentice-self` (source=adsentice-original) | 45 | ✅ embedado · 2026-07-14 |
+| `ADS.COR.design.warp_registry_json` | Registry JSON dos 11 componentes base + 45 frameworks skills | `docs/spec/warp-component-registry.json` + `docs/spec/adsentice-skills-frameworks.json` | — | ✅ vivo |
 
-### ADS.COR.warp — Família Warp (Design System)
+### ADS.COR.design.tools — Ferramentas de Ingestão de Design
 
-| Rota | Módulo | Descrição | Status |
+| Rota | Script | Descrição | Status |
 |---|---|---|---|
-| `ADS.COR.warp.tokens` | M1 | `tokens.css` — 10 camadas, 40 tokens semânticos shadcn/ui v4 | ✅ v1.0 (2026-07-14) |
-| `ADS.COR.warp.ui` | M2 | `components/ui/` — 11 componentes shadcn/ui | 🔴 pendente |
-| `ADS.COR.warp.adsentice` | M3 | `components/adsentice/` — 10 componentes próprios | 🔴 pendente |
-| `ADS.COR.warp.compositor` | M4 | `compositor.ts` — intent → layout inference → HTML | 🔴 pendente |
-| `ADS.COR.warp.registry` | M5 | `registry.ts` — Component registry com Zod | 🔴 pendente |
-| `ADS.COR.warp.cache` | M6 | `cache.ts` — 3 camadas (KV + Redis + Memory) | 🔴 pendente |
-| `ADS.COR.warp.tracker` | M7 | `tracker.ts` — telemetria (eventos → Qdrant → SGA) | 🔴 pendente |
-| `ADS.COR.warp.agents` | M8 | `8-agents.ts` — multi-agent (detect→capabilities→run) | 🔴 pendente |
-| `ADS.COR.warp.tokens_composer` | M9 | `tokens-composer.ts` — morph por intent de mercado (ADR-0020) | ⬜ proposed |
+| `ADS.COR.design.tools.warp_ingest` | `tools/adsentice_warp_ingest.py` | Ingest 11 componentes base (shadcn+Radix) | ✅ vivo |
+| `ADS.COR.design.tools.warp_ingest_max` | `tools/adsentice_warp_ingest_max.py` | Ingest 107 componentes premium (40 shadcn+Radix + 67 21st) | ✅ vivo |
+| `ADS.COR.design.tools.warp_ingest_snippets` | `tools/adsentice_warp_ingest_snippets.py` | Ingest 57 snippets + referências (source code + API docs) | ✅ vivo |
+| `ADS.COR.design.tools.uupm_ingest` | `tools/adsentice_uupm_ingest.py` | Ingest 6,103 design knowledge points (UI UX Pro Max) | ✅ vivo |
+| `ADS.COR.design.tools.skills_ingest` | `tools/adsentice_skills_ingest.py` | Ingest 5 novos marketing skills (45 frameworks) | ✅ vivo |
+| `ADS.COR.design.tools.corey_ingest` | `tools/adsentice_corey_ingest.py` | Ingest 4 skills estruturais Corey Haines (9 frameworks) | ✅ vivo |
+| `ADS.COR.design.tools.strategy_ingest` | `tools/adsentice_strategy_ingest.py` | Ingest 17 frameworks marketing strategy | ✅ vivo |
 
-Estes pontos estão no Qdrant `adsentice-self` (total: 2,364 pontos). Permitem query semântica cross-design: "quero um card com efeito spotlight e tema dark" → Magic Card + open-design/dark theme.
+**Fontes de design combinadas:** 21st-magic MCP (77 componentes) + context7 MCP (shadcn/ui 4,051 snippets + Radix 746 API docs) + UI UX Pro Max (6,461 linhas CSV) + Corey Haines (43 skills) + Kim Barrett (12 skills) + Materio (36 tokens) + open-design (150 estilos)
+
+### ADS.COR.warp — Família Warp (Design System Semântico)
+
+> **Status:** 9/9 módulos implementados em 12 arquivos TypeScript (~108 KB) · `packages/warp/`
+> **Arquitetura:** WarpAPI unificada: `warp.registry` + `warp.composer` + `warp.tokens` + `warp.agents`
+> **Doutrina:** Design System Vivo com Composição por Intent Semântico (ADR-0018)
+> **Refinamento:** Absorção OD v0.9.0 com 5 refinamentos semânticos (vec, market-derived, MCP plugins, 6-dim critique, mutationId cache)
+
+| Rota | Módulo | Arquivo | Descrição | Status |
+|---|---|---|---|---|
+| `ADS.COR.warp.tokens` | M1 | `apps/web/src/tokens.css` | 10 camadas, 40 tokens semânticos shadcn/ui v4, OKLCH palettes | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.registry` | M2 | `packages/warp/src/2-registry.ts` | Component Registry Semântico: `register()` (vec embed→Qdrant) + `queryByIntent()` (Qdrant search + re-rank) | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.destiller` | M3 | `packages/warp/src/3-destiller.ts` | Destilador de Referências: 11 componentes shadcn/Radix canônicos pré-destilados + `process()` para LLM pipeline (L6) | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.composer` | M4 | `packages/warp/src/4-composer.ts` | **Compositor (Atomic Pipeline + Devloop):** discovery→plan→generate→critique. Devloop re-itera até score ≥ 7 (max 3x). 6 dimensões de critique (5 OD + Market Fit Warp). BFS dependency resolution + layout inference + cache 3 camadas | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.registry_zod` | M5 | `packages/warp/src/5-registry.ts` | **Registry Protocol (Zod):** WarpComponentSchema, RegistryEntrySchema, PluginSchema. `validateComponent()` com warnings de qualidade. PluginRegistry: plugins como `{skill, context, assets, capabilities}` | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.telemetry` | M6 | `packages/warp/src/6-telemetry.ts` | **WarpTracker + Critique + GenUI:** eventos→embed→Qdrant. DesignQuality: 6 dimensões com pesos. GenUI surfaces: SSE events para input humano no pipeline. `onGenUI(handler)` para frontend | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.cache` | M7 | `packages/warp/src/7-cache.ts` | **Cache 3 Camadas:** L1 Memory LRU (<0.1ms, 100 entradas) + L2 Redis :6396 (<2ms, TTL 1h) + L3 Cloudflare KV (futuro). Invalidação granular por `mutationId` + `componentId`. Write-through em todas as camadas | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.agents` | M8 | `packages/warp/src/8-agents.ts` | **Agent Adapters + MCP Connectors:** AgentAdapter interface (OD-style): `detect→capabilities→run→cancel→resume`. ClaudeCodeAdapter, DeepSeekAdapter, QwenLocalAdapter. AgentRouter: escolhe melhor agente por complexidade/custo. MCPRegistry: 4 MCP servers como plugins vivos (21st, context7, Firecrawl, DataForSEO) | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.tokens_composer` | M9 | `packages/warp/src/tokens-composer.ts` | **Tokens Composer (ADR-0020):** 7 segmentos com presets canônicos (Matriz Warp) + 4 planos com shadow/motion progressivos. 6 pipelines de inferência: palette, typography, spacing, shadow, motion, responsive. Output: `tokens.{segment}.{plan}.css` + A/B variant + telemetry. `composeTokens('beleza', 'sentinela')` → CSS com Playfair Display + Rose Gold | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.types` | — | `packages/warp/src/types.ts` | 12 interfaces TypeScript: WarpComponent, CompositionRequest, CompositionResult, ResolvedComponent, LayoutTree, ReferenceSource, DestilledComponent, ComponentEmbedPayload, WarpEvent, WarpMetrics + Zod schemas | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.index` | — | `packages/warp/src/index.ts` | WarpAPI unificada (singleton): `warp.registry`, `warp.composer`, `warp.tokens`, `warp.agents`, `warp.cache`, `warp.tracker`, `warp.destiller` | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.warp.config` | — | `packages/warp/package.json` + `tsconfig.json` | Package config: `@adsentice/warp` v0.1.0, Zod dependency, TypeScript 5.7 | ✅ vivo |
+
+### ADS.COR.warp.refinements — 5 Refinamentos Warp sobre OD v0.9.0
+
+| # | Refinamento | OD v0.9.0 | Warp | Impacto |
+|---|-----------|-----------|------|---------|
+| 1 | **Busca semântica** | `triggers[]` determinísticos (match exato de string) | `vec(description + intent + triggers)` → queryByIntent() no Qdrant | "apresentação corporativa" acha "Bento Grid" (0.78) — OD não acharia |
+| 2 | **Design knowledge vivo** | 88 DESIGN.md arquivos estáticos | 6,103 pontos Qdrant + DataForSEO (mercado local) + Marketing Skills (psicologia) | Tokens regeneráveis sob demanda, não obsoletos |
+| 3 | **MCP como plugins vivos** | Plugins = skills do filesystem | MCP servers respondendo queries em tempo real: 21st (design), context7 (docs), Firecrawl (audit), DataForSEO (SEO) | Fontes de design vivas, não estáticas |
+| 4 | **Critique 6 dimensões** | 5 dimensões: Visual Hierarchy, Detail Execution, Functionality, Innovation, Philosophy Consistency | + Market Fit (0.15): "este design converte para o segmento e região alvo?" validado por DataForSEO | Validação de mercado real, não só estética |
+| 5 | **Cache com mutationId** | Sem cache — cada intent re-gera do zero | 3 camadas (L1 Memory + L2 Redis :6396 + L3 KV futuro) com invalidação granular por mutationId | Cache hit >80%, <50ms vs re-gerar 2s |
+
+### ADS.COR.warp.pipeline — Fluxo de Composição
+
+```
+Usuário: "landing page para dentista em SP, plano Sentinela"
+  │
+  ├─→ M2 registry.queryByIntent() → Qdrant :6352 → 107 componentes ranqueados
+  ├─→ M4 composer.compose() → Atomic Pipeline (discovery→plan→generate→critique)
+  │     ├─ discovery: vec(intent) → top 15 componentes
+  │     ├─ plan: consulta 6,103 design-knowledge → layout + paleta
+  │     ├─ generate: assembly → CompositionResult
+  │     └─ critique: 6 dimensões → score ≥ 7? (Devloop até 3x)
+  ├─→ M9 tokens.compose() → 3 fontes paralelas → 6 pipelines inferência
+  │     └─ output: tokens.dentista-sp.sentinela.css + A/B variant
+  ├─→ M7 cache.set() → write-through L1+L2 → próximo request <50ms
+  ├─→ M6 tracker.track() → evento → Qdrant → métricas de uso
+  └─→ M8 agents.route() → escolhe melhor agente (Claude Code para critique, Qwen $0 para batch)
+```
 
 ### ADS.COR.code — Código
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
 | `ADS.COR.code.web` | Dashboard admin (Next.js → migrando para Vite+React 19, ADR-0017) | `apps/web/` | ✅ vivo (80+ commits, migração pendente) |
+| `ADS.COR.code.warp` | **Família Warp — 12 arquivos TypeScript** (M2-M9) · packages/warp/src/ | `packages/warp/` | ✅ v1.0 (2026-07-14) |
 | `ADS.COR.code.scoring` | Scoring Engine — Fit×0.40+Engagement×0.35+Intent×0.25 · Schwartz classifier | `apps/web/src/lib/scoring.ts` | ✅ v1.0 · 480 linhas |
 | `ADS.COR.code.engine` | Admin dashboard data bridge (Redis :6396 · Qdrant :6352 · EVO-API :7700) | `apps/web/src/lib/engine.ts` | ✅ vivo · zero hardcoded |
 | `ADS.COR.code.discovery_page` | Discovery Engine UI — score composto + Schwartz chips + benchmark competitivo | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/discovery/page.tsx` | ✅ v0.2 |
@@ -142,11 +198,22 @@ Estes pontos estão no Qdrant `adsentice-self` (total: 2,364 pontos). Permitem q
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks lean, 3 skills) |
-| `ADS.COR.config.claudemd` | CLAUDE.md canônico | `CLAUDE.md` | ✅ vivo (recuperação pós-compact) |
+| `ADS.COR.config.claude` | Hooks + Skills Claude Code | `.claude/` | ✅ vivo (3 hooks lean, 6 skills) |
+| `ADS.COR.config.claudemd` | CLAUDE.md canônico (estabilizado — sem métricas hardcoded) | `CLAUDE.md` | ✅ vivo (recuperação pós-compact) |
 | `ADS.COR.config.mcp` | Servidores MCP | `.mcp.json` | ✅ vivo (8 servidores: 4 Python + 2 npx ativos + 1 firecrawl + 1 disabled 21st) |
 | `ADS.COR.config.docker` | Infra local | `docker-compose.yml` | ✅ vivo (Redis :6396 + Qdrant :6352) |
 | `ADS.COR.config.pipeline` | Pipeline auto-compact (6 passos canônicos) | `tools/adsentice_pipeline_auto_compact.sh` | ✅ vivo (EVO-API pattern) |
+
+### ADS.COR.skills — Claude Skills
+
+| Rota | Skill | Descrição | Status |
+|---|---|---|---|
+| `ADS.COR.skills.chat` | `adsentice-chat` | Construir, evoluir e operar o pipeline de discovery e o chat | ✅ vivo |
+| `ADS.COR.skills.dag` | `adsentice-dag` | KG-first grounded recall (5 passos) | ✅ vivo |
+| `ADS.COR.skills.site_audit` | `adsentice-site-audit` | Auditoria de site (Firecrawl + DataForSEO ONPAGE) | ✅ vivo |
+| `ADS.COR.skills.spec` | `adsentice-spec` | Autorar specs e ADRs | ✅ vivo |
+| `ADS.COR.skills.content_gap` | `adsentice-content-gap` | **NOVO** — Content Gap Analyzer: crawl → keywords → SERP → C1-C8 scoring → recomendações | ✅ v1.0 (2026-07-14) |
+| `ADS.COR.skills.competitive` | `adsentice-competitive-landscape` | **NOVO** — Competitive Landscape TOP 3: domain_competitors + backlinks + keyword_gap → battle cards | ✅ v1.0 (2026-07-14) |
 
 ---
 
@@ -183,6 +250,22 @@ Cobertura: **10 caps live-ready** (9 módulos DataForSEO MCP)
 | `ADS.CAP.marketing.objection_crusher` | Framework de objeções (Price/Time/Trust/Complexity/Past Failures) | Kim `objection-crusher` SKILL.md | ✅ referência ingerida |
 | `ADS.CAP.marketing.campaign_orchestrator` | Full-funnel: 9 passos avatar→offer→awareness→mechanism→angles→creative→funnel→objections→qa | Kim `full-funnel-campaign-orchestrator` SKILL.md | ✅ referência ingerida |
 | `ADS.CAP.marketing.performance_diagnosis` | Diagnóstico 5 dimensões (Offer/Audience/Creative/Funnel/Sales) | Kim `performance-diagnosis` SKILL.md | ✅ referência ingerida |
+
+### ADS.CAP.marketing.skills_adsentice — Skills Originais adsentice
+
+Skills criados para a Matriz Warp (22 superfícies × 5 soluções × 7 segmentos). 45 frameworks embedados no Qdrant.
+
+| Rota | Skill | Categoria | Segmentos | Superfícies Warp | Status |
+|---|---|---|---|---|---|
+| `ADS.CAP.marketing.skills.local_seo` | **local-seo** — Google Meu Negócio, Local Pack, NAP consistency, reviews, posts, fotos | local-presence | todos (7) | S10, S11, S2, S12 | ✅ v1.0 · embedado |
+| `ADS.CAP.marketing.skills.whatsapp` | **whatsapp-business** — Cloud API, templates, automação, 3 tiers (Free/API/BSP), LGPD compliance | messaging | todos (7) | S12, S9, S10, S14, S6 | ✅ v1.0 · embedado |
+| `ADS.CAP.marketing.skills.google_ads` | **google-ads-telemetry** — OAuth, GAQL queries, variance reports, budget pacing, segment benchmarks | advertising-analytics | saúde, beleza, alimentação, serviços | S3, S9, S15, S17, S4 | ✅ v1.0 · embedado |
+| `ADS.CAP.marketing.skills.ifood` | **ifood-integration** — Partner API, menu, pedidos, webhooks, SLAs, menu health score | food-delivery | alimentação | S9, S12, S3, S15, S17 | ✅ v1.0 · embedado |
+| `ADS.CAP.marketing.skills.booking` | **booking-ota-integration** — Booking.com, Decolar, Airbnb, channel manager, revenue management, pricing rules | hospitality | hospitalidade | S9, S12, S3, S15, S17 | ✅ v1.0 · embedado |
+
+**Fonte:** `skills/{local-seo,whatsapp-business,google-ads-telemetry,ifood-integration,booking-ota-integration}/SKILL.md`
+**Ingest:** `tools/adsentice_skills_ingest.py` → 45 frameworks embedados no Qdrant `adsentice-self` (source=adsentice-original)
+**Registro:** `docs/spec/adsentice-skills-frameworks.json`
 
 Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
@@ -240,10 +323,10 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 | Rota | Descrição | Coleção Qdrant | Status |
 |---|---|---|---|
-| `ADS.INT.conv.history` | Histórico Claude Code (adsentice + EVO-API ref) | `adsentice-conversation` | ✅ 716 pts (38 RUST-CHAT + 678 Claude history) |
-| `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | 🟡 collection criada, vazia |
+| `ADS.INT.conv.history` | Histórico Claude Code (adsentice + EVO-API ref) | `adsentice-conversation` | ✅ 57,199 pts (2 sessões) |
+| `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | ✅ 24 memórias (23 + 1 nova v007) |
 | `ADS.INT.conv.tools` | MCP tools: search, recall, remember, status | `adsentice-conversation` MCP server | ✅ vivo |
-| `ADS.INT.conv.ingest` | Scripts de ingestão | `tools/adsentice_*_ingest.py` | ✅ 2 scripts (RUST-CHAT + Claude history) |
+| `ADS.INT.conv.ingest` | Scripts de ingestão (7 scripts ativos) | `tools/adsentice_*_ingest.py` | ✅ 7 scripts (RUST-CHAT, Claude history, Corey, Strategy, Skills, Warp base, Warp max, Warp snippets, UUPM) |
 | `ADS.INT.conv.precompact` | Ingest automático no PreCompact | `.claude/hooks/adsentice-pre-compact.py` | ✅ vivo (sync ingest) |
 
 ### ADS.INT.ritual — Ritual de Fechamento
@@ -264,7 +347,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | `ADS.INF.qdrant` | Qdrant KG | :6352/:6353 | `adsentice-qdrant` (v1.13.6) | ✅ 57 MB |
 | `ADS.INF.embed` | Embed server | :8081 | `embed-server-rs` (mpnet) | ✅ compartilhado |
 | `ADS.INF.vercel` | Frontend deploy | :3000 (dev) | Next.js 15 | ✅ dev |
-| `ADS.INF.railway` | Backend deploy | — | `apps/api/` | 🔴 a construir |
+| `ADS.INF.s3_bucket` | Backend target (ADR-0016) | Hetzner CAX11 $5.39/mês | Docker Compose + Cloudflare Workers (Hono) | 🔴 a provisionar |
 | `ADS.INF.supabase` | Database + Auth | — | Supabase | ✅ auth wire |
 
 ---
@@ -372,7 +455,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.0.9 · 2026-07-13 · 7 dimensões · 100+ rotas · medido=verdade · ISOLADO do EVO-API · L1 Enrichment ATIVO (27 campos GMB) · 76 capabilities mapeadas (L0-L4) · 4 estratégias de nutrição por perfil · 5 camadas de enriquecimento (Search→Profile→SEO+Social→Keywords→AI) · Supabase LIVE · Cloudflare R2 configurado*
+*Base-Matriz adsentice v1.4.0 · 2026-07-14 · 7 dimensões · 140+ rotas · medido=verdade · ISOLADO do EVO-API · Família Warp COMPLETA (M1-M9, 12 arquivos TS, ~108 KB) · 6,267 pontos Warp no Qdrant · 6,103 design knowledge points (UI UX Pro Max) · 5 skills originais adsentice · 6 Claude skills · 179 commits · 20 ADRs · Pipeline 6/6 OK · BOA 0.949 EXCELLENT · OD v0.9.0 absorvido com 5 refinamentos semânticos*
 
 ## Changelog
 
@@ -405,6 +488,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v025 | 2026-07-13 | adr-0008-evo-api-enriquecimento-completo-l0-l4-76-capabilities | `docs/adr/0008-evo-api-enriquecimento-completo-l0-l4.md` — Decisao arquitetural: EVO-API como motor L0-L4, 76 caps mapeadas, roadmap v0.3→v0.5 | ✅ accepted |
 | v026 | 2026-07-13 | adr-0009-market-intelligence-engine | `docs/adr/0009-market-intelligence-engine.md` — lead-level → market-level, agregacao por categoria×regiao (ZERO APIs) | ✅ accepted |
 | v027 | 2026-07-13 | adr-0010-cloudflare-free-tier-enterprise | `docs/adr/0010-cloudflare-free-tier-enterprise.md` — Workers+D1+Queues+R2+KV como plataforma enterprise ($0) | ✅ accepted |
+| v028 | 2026-07-14 | warpfield-completo-absorcao-od-v0.9.0 | Família Warp completa (M1-M9) + 6,267 pts design Qdrant + 6,103 design knowledge + 5 skills + 2 Claude skills + 5 refinamentos sobre OD | ✅ vivo |
 
 ---
 
