@@ -202,15 +202,13 @@ const DiscoveryPage = () => {
   const [geoSearching, setGeoSearching] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
-  // ── Auto-Pilot (ADR-0023 Layer 1) ──
+  // ── Auto-Pilot (ADR-0023 Layer 2) ──
   const [autoMode, setAutoMode] = useState(false)
-  const [coverage, setCoverage] = useState<{
-    coveragePct: number; districtsFound: number; totalDistrictsEstimate: number
-    totalListings: number; uniqueBusinesses: number; avgScore: number
-    mapped: { district: string; listings: number; avgScore: number }[]
-    gaps: string[]
+  const [autoQueue, setAutoQueue] = useState<{
+    targets: { city: string; district: string; category: string; categoryLabel: string; score: number; breakdown: { painScore: number; ticketScore: number; densityScore: number; fixabilityScore: number; coverageScore: number }; estimatedLeads: number; suggestedRadius: number; avgTicket: number; action: string; strategy: string }[]
+    meta: { totalGaps: number; priorityTargets: number; estimatedCost: number; estimatedMRR: number }
   } | null>(null)
-  const [coverageCity, setCoverageCity] = useState('')
+  const [autoLoading, setAutoLoading] = useState(false)
 
   // ── Map Pins (ADR-0022 Layer 1) ──
   const [mapPins, setMapPins] = useState<any[]>([])
@@ -223,17 +221,18 @@ const DiscoveryPage = () => {
       .catch(() => {})
   }, [pinsVersion]) // recarrega pins quando pinsVersion incrementa
 
-  // Fetch coverage when category or city changes
+  // Fetch auto-pilot queue when category or city changes
   const activeCategory = selected.length === 1 ? selected[0] : null
   useEffect(() => {
     if (!autoMode || !activeCategory || !cityLabel) return
     const cityName = cityLabel.split('(')[0].trim()
-    if (cityName === coverageCity) return  // já carregado
-    fetch(`/api/coverage?category=${encodeURIComponent(activeCategory)}&city=${encodeURIComponent(cityName)}`)
+    setAutoLoading(true)
+    fetch(`/api/coverage/queue?category=${encodeURIComponent(activeCategory)}&city=${encodeURIComponent(cityName)}`)
       .then(r => r.json())
-      .then(d => { if (d.coveragePct !== undefined) { setCoverage(d); setCoverageCity(cityName) } })
+      .then(d => { if (d.targets) setAutoQueue(d) })
       .catch(() => {})
-  }, [autoMode, activeCategory, cityLabel, coverageCity])
+      .finally(() => setAutoLoading(false))
+  }, [autoMode, activeCategory, cityLabel])
 
   // ── Score Filters (v0.2) ──
   const [minScore, setMinScore] = useState(0)
@@ -550,143 +549,120 @@ return arr
         </Card>
       </Grid>
 
-      {/* ═══ AUTO-PILOT TOGGLE (ADR-0023) ═══ */}
+      {/* ═══ AUTO-PILOT (ADR-0023 Layer 2 — Target Scorer) ═══ */}
       {selected.length === 1 && (
         <Grid size={{ xs: 12 }}>
-          <Card sx={{ borderLeft: 4, borderColor: autoMode ? 'success.main' : 'divider' }}>
+          <Card sx={{ borderLeft: 4, borderColor: autoMode ? 'success.main' : 'divider', bgcolor: autoMode ? 'success.50' : undefined }}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                 <Box>
-                  <Typography variant='subtitle2' fontWeight={600}>
-                    {autoMode ? '🧠 Auto-Discovery ATIVO' : '📍 Localização Manual'}
+                  <Typography variant='h6' fontWeight={700}>
+                    {autoMode ? '🧠 Auto-Discovery · Inteligência de Mercado' : '📍 Localização Manual'}
                   </Typography>
                   <Typography variant='caption' color='text.secondary'>
                     {autoMode
-                      ? 'A IA está varrendo regiões não mapeadas automaticamente. Continue usando o sistema normalmente.'
-                      : 'Ative para o sistema buscar leads automaticamente nas melhores regiões, por meta diária de prospecção.'}
+                      ? `Target Scorer analisa: dor (30%) + ticket (25%) + concorrência (20%) + quick win (10%) + cobertura (15%)`
+                      : 'Ative para o sistema analisar o mercado e sugerir os melhores alvos para prospecção.'}
                   </Typography>
                 </Box>
                 <Chip
-                  label={autoMode ? '🟢 Automático ON' : '⚪ Manual'}
+                  label={autoMode ? '🟢 Automático ON' : '⚪ Manual — Busca por cidade'}
                   clickable size='medium'
                   color={autoMode ? 'success' : 'default'}
                   variant={autoMode ? 'filled' : 'outlined'}
-                  onClick={() => { setAutoMode(!autoMode); if (!autoMode) { setCoverage(null); setCoverageCity('') } }}
+                  onClick={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null) }}
                   sx={{ fontWeight: 700 }}
                 />
               </Box>
 
-              {autoMode && coverage && (
-                <>
-                  <Box sx={{ mt: 2, mb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant='caption' fontWeight={600}>
-                        📊 Cobertura {coverageCity || cityLabel.split('(')[0].trim()}: {coverage.coveragePct}%
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {coverage.districtsFound}/{coverage.totalDistrictsEstimate} distritos
-                      </Typography>
-                    </Box>
-                    <LinearProgress variant='determinate' value={coverage.coveragePct}
-                      sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.200', '& .MuiLinearProgress-bar': { bgcolor: coverage.coveragePct > 60 ? '#4caf50' : '#ffa726' } }} />
-                  </Box>
-
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                    {coverage.mapped.slice(0, 8).map(d => (
-                      <Chip key={d.district} label={`${d.district} (${d.listings})`} size='small' variant='tonal'
-                        color={d.avgScore >= 50 ? 'warning' : 'default'} />
-                    ))}
-                    {coverage.gaps.slice(0, 6).map(d => (
-                      <Chip key={d} label={d} size='small' color='error' variant='outlined' sx={{ opacity: 0.7 }} />
-                    ))}
-                  </Box>
-
-                  {coverage.gaps.length > 0 && (
-                    <Alert severity='info' sx={{ mt: 1.5, py: 0 }}>
-                      <Typography variant='caption'>
-                        🎯 <strong>Próximo alvo sugerido:</strong> clique em <strong>{coverage.gaps[0]}</strong> no mapa e execute uma Discovery. Score estimado: {80 + Math.floor(Math.random() * 15)}/100.
-                      </Typography>
-                    </Alert>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      )}
-
-      {/* ═══ AUTO-PILOT (ADR-0023 Layer 1) ═══ */}
-      {selected.length === 1 && (
-        <Grid size={{ xs: 12 }}>
-          <Card sx={{ borderLeft: 4, borderColor: autoMode ? 'success.main' : 'divider' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Box>
-                  <Typography variant='subtitle2' fontWeight={600}>
-                    🧭 Localização {autoMode ? 'Automática' : 'Manual'}
-                  </Typography>
-                  <Typography variant='caption' color='text.secondary'>
-                    {autoMode
-                      ? 'Discovery Auto-Pilot · analisa cobertura e sugere próximos alvos'
-                      : 'Ative para o sistema sugerir regiões não mapeadas automaticamente'}
-                  </Typography>
+              {autoMode && autoLoading && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <LinearProgress sx={{ mb: 1 }} />
+                  <Typography variant='caption' color='text.secondary'>Analisando mercado com Target Scorer...</Typography>
                 </Box>
-                <Chip
-                  label={autoMode ? '🟢 Automática ON' : '⚪ Manual'}
-                  clickable size='medium'
-                  color={autoMode ? 'success' : 'default'}
-                  variant={autoMode ? 'filled' : 'outlined'}
-                  onClick={() => { setAutoMode(!autoMode); if (!autoMode) { setCoverage(null); setCoverageCity('') } }}
-                />
-              </Box>
+              )}
 
-              {autoMode && coverage && (
+              {autoMode && autoQueue && (
                 <>
-                  {/* Coverage Progress Bar */}
-                  <Box sx={{ mt: 2, mb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant='caption' fontWeight={600}>
-                        📊 Cobertura {coverage.city || cityLabel.split('(')[0].trim()}
-                      </Typography>
-                      <Typography variant='caption' fontWeight={700} color={coverage.coveragePct > 60 ? 'success.main' : 'warning.main'}>
-                        {coverage.coveragePct}%
-                      </Typography>
-                    </Box>
-                    <LinearProgress variant='determinate' value={coverage.coveragePct}
-                      sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.200' }} />
-                    <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
-                      {coverage.districtsFound}/{coverage.totalDistrictsEstimate} distritos · {coverage.uniqueBusinesses} negócios únicos · {(coverage.totalDistrictsEstimate - coverage.districtsFound)} gaps
-                    </Typography>
+                  {/* Meta Header */}
+                  <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Chip label={`${autoQueue.meta.totalGaps} gaps`} size='small' color='error' variant='tonal' />
+                    <Chip label={`${autoQueue.meta.priorityTargets} alta prioridade`} size='small' color='warning' variant='tonal' />
+                    <Chip label={`~$${autoQueue.meta.estimatedCost}`} size='small' color='info' variant='tonal' />
+                    <Chip label={`~R$${autoQueue.meta.estimatedMRR.toLocaleString('pt-BR')}/mês potencial`} size='small' color='success' variant='tonal' />
                   </Box>
 
-                  {/* Mapped districts (top) */}
-                  {coverage.mapped.length > 0 && (
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant='caption' fontWeight={600}>✅ Mapeados ({coverage.mapped.length}):</Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
-                        {coverage.mapped.slice(0, 12).map(d => (
-                          <Chip key={d.district} label={`${d.district} (${d.listings})`} size='small'
-                            color={d.avgScore >= 50 ? 'warning' : 'default'} variant='tonal' />
-                        ))}
-                      </Box>
-                    </Box>
-                  )}
-
-                  {/* Gaps (districts never mapped) */}
-                  {coverage.gaps.length > 0 && (
-                    <Box>
-                      <Typography variant='caption' fontWeight={600}>⬜ Não mapeados ({coverage.gaps.length}):</Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
-                        {coverage.gaps.map(d => (
-                          <Chip key={d} label={d} size='small' color='error' variant='outlined'
-                            sx={{ opacity: 0.7 }} />
-                        ))}
-                      </Box>
-                      <Alert severity='info' sx={{ mt: 1, py: 0 }}>
-                        <Typography variant='caption'>
-                          🎯 <strong>Próxima sugestão:</strong> busque um desses bairros na barra de localização acima e execute uma nova Discovery.
-                        </Typography>
-                      </Alert>
+                  {/* Priority Targets Table */}
+                  {autoQueue.targets.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant='subtitle2' fontWeight={600} gutterBottom>
+                        🎯 Alvos Priorizados ({autoQueue.targets.length})
+                      </Typography>
+                      <TableContainer component={Paper} variant='outlined'>
+                        <Table size='small'>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell width={30}>#</TableCell>
+                              <TableCell>Distrito</TableCell>
+                              <TableCell width={60}>Score</TableCell>
+                              <TableCell width={150}>Critérios</TableCell>
+                              <TableCell width={180}>Estratégia</TableCell>
+                              <TableCell width={80}>Ação</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {autoQueue.targets.slice(0, 8).map((t, i) => (
+                              <TableRow key={t.district}
+                                sx={{ bgcolor: i === 0 ? 'success.50' : i < 3 ? 'warning.50' : undefined }}>
+                                <TableCell>
+                                  <Typography fontWeight={700} color={i === 0 ? 'success.main' : i < 3 ? 'warning.main' : 'text.secondary'}>
+                                    {i + 1}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant='body2' fontWeight={600}>{t.district}</Typography>
+                                  <Typography variant='caption' color='text.secondary'>
+                                    ~{t.estimatedLeads} leads · {t.suggestedRadius}km · R${t.avgTicket}/mês
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip label={t.score} size='small'
+                                    color={t.score >= 80 ? 'error' : t.score >= 60 ? 'warning' : t.score >= 40 ? 'info' : 'default'}
+                                    variant='tonal' />
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap' }}>
+                                    <Chip label={`Dor ${t.breakdown.painScore}`} size='small' variant='outlined'
+                                      sx={{ fontSize: '0.6rem', height: 18 }} />
+                                    <Chip label={`Ticket ${t.breakdown.ticketScore}`} size='small' variant='outlined'
+                                      sx={{ fontSize: '0.6rem', height: 18 }} />
+                                    <Chip label={`Conc. ${t.breakdown.densityScore}`} size='small' variant='outlined'
+                                      sx={{ fontSize: '0.6rem', height: 18 }} />
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.2 }}>
+                                    {t.strategy}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant='contained' size='small' color={i === 0 ? 'success' : 'primary'}
+                                    onClick={() => {
+                                      // Busca a coordenada do distrito via Nominatim
+                                      setGeoQuery(`${t.district}, ${t.city}`)
+                                      handleGeoSearch(`${t.district}, ${t.city}`)
+                                      // Define raio sugerido
+                                      setRadius(t.suggestedRadius)
+                                    }}
+                                    sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                                    {i === 0 ? '🎯 Ir' : 'Mapear'}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
                     </Box>
                   )}
                 </>
