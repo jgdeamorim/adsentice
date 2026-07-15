@@ -34,11 +34,11 @@ A config de sessão, a memória OODA e as doutrinas NÃO estão só neste arquiv
 | Qdrant KG | `:6352/:6353` | `adsentice-qdrant` (v1.13.6) | `curl http://127.0.0.1:6352/healthz` |
 | Embed server | `:8081` | `embed-server-rs` (mpnet 768d) | `curl http://127.0.0.1:8081/healthz` |
 
-Coleções Qdrant: `adsentice-self` (docs/ADRs/specs), `adsentice-conversation` (histórico), `adsentice-materio` (design tokens), `adsentice-kg` (reservada), `claude-memory` (memória curada).
+Coleções Qdrant: `adsentice-self` (2,469 docs/ADRs/specs), `adsentice-conversation` (54,897 histórico), `adsentice-materio` (36 design tokens), `adsentice-kg` (reservada, vazia), `claude-memory` (23 memórias curadas).
 
 ---
 
-## MCP Servers (6 slots — `.mcp.json`)
+## MCP Servers (8 slots — `.mcp.json`)
 
 | Slot | Runtime | Tools |
 |------|---------|-------|
@@ -47,7 +47,9 @@ Coleções Qdrant: `adsentice-self` (docs/ADRs/specs), `adsentice-conversation` 
 | `adsentice-kg` | uv run `adsentice_kg_server.py` | adsentice_kg_edges, adsentice_kg_what_produces, adsentice_kg_neighbors, adsentice_kg_stats |
 | `adsentice-conversation` | uv run `adsentice_conversation.py` | adsentice_conversation_search, adsentice_conversation_recall, adsentice_conversation_remember, adsentice_conversation_status |
 | `dataforseo` | npx `dataforseo-mcp-server@2.8.10` | 9 módulos, ~30 tools |
-| `context7` | npx `@upstash/context7-mcp` | resolve-library-id, query-docs |
+| `context7` | npx `@upstash/context7-mcp` | resolve-library-id, query-docs (ADR-0019: fonte primária) |
+| `firecrawl` | URL externa `mcp.firecrawl.dev` | site audit, crawl, scrape |
+| `21st-magic` | npx `@magicuidesign/mcp@latest` | **disabled** (inspiração visual, pago — ADR-0019) |
 
 **IMPORTANTE:** Os 3 MCP servers Python usam `uv run --quiet --script` com `# /// script` inline dependencies (mcp, httpx, redis).
 NÃO usar `python3` direto — não tem o SDK `mcp` instalado globalmente.
@@ -63,9 +65,12 @@ NÃO usar `python3` direto — não tem o SDK `mcp` instalado globalmente.
 5. **Vault:** R2 blob → Postgres série ANTES de indexar
 6. **Corpora:** A=self(adsentice) ≠ B=cliente(tenant·PII) ≠ C=tooling
 7. **Spec primeiro · ADR para decisões · Português (pt-BR)**
-8. **Stack:** Next.js 15 + Railway + Supabase + Cloudflare R2 + DataForSEO MCP
+8. **Stack atual (:3000):** Next.js 15 + MUI/Materio (legado, 77K LOC)
+   **Stack target:** React 19 + Vite + Tailwind + shadcn/ui (ADR-0017) · Hetzner CAX11 $5.39/mês (ADR-0016) · Cloudflare Workers (Hono) + Supabase + R2
+   **Railway DESCARTADO** (ADR-0016: 9.5× mais caro, bug Tokio MPSC, SSE 15min)
 9. **Público:** SMB brasileiro (dono de clínica, lojista, contador)
 10. **Ticket:** R$0 (free) · R$47 (starter) · R$197 (pro) · R$497 (escala)
+    **Planos de solução (Strategic Plan v2.0):** Raio-X R$0 · Sentinela R$197 · Domínio R$497 · Escala R$997
 
 ---
 
@@ -92,12 +97,15 @@ MAS adsentice tem containers, portas e coleções **ISOLADAS**:
 
 ## Stack & Deploy
 
-- **Frontend:** Next.js 15 + TypeScript + Tailwind + Materio UI kit (`apps/web/`)
-- **Backend:** Railway (`apps/api/` — a construir)
-- **Database:** Supabase (Postgres + Auth)
-- **Storage:** Cloudflare R2 (vault blobs)
+- **Frontend atual:** Next.js 15 + MUI/Materio (`apps/web/`, :3000) — **em produção local**
+- **Frontend target (ADR-0017):** React 19 + Vite + Tailwind CSS v4 + shadcn/ui — **migração pendente**
+- **Design System (ADR-0018):** Família Warp — 9 módulos (M1 tokens.css ✅ v1.0, M2-M9 🔴 pendentes)
+- **Backend target (ADR-0016):** Hetzner CAX11 (ARM64, $5.39/mês) + Docker Compose + Cloudflare Workers (Hono)
+- **Database:** Supabase (Postgres + Auth) — projeto a criar
+- **Storage:** Cloudflare R2 (vault blobs) — `packages/vault/` wireado
 - **AI:** DataForSEO MCP (9 módulos) · DeepSeek V4 (árbitro cost-capped) · Qwen 2.5 1.5B (local $0) · embed mpnet 768d (:8081)
-- **Infra local:** Docker Compose (Redis + Qdrant) + embed-server-rs
+- **Infra local:** Docker Compose (Redis :6396 + Qdrant :6352) + embed-server-rs
+- **ADR DevOps:** ADR-0014 (Railway) SUPERSEDED → ADR-0016 (Hetzner) ACCEPTED
 
 ---
 
@@ -130,7 +138,27 @@ Thresholds: excellent ≥ 0.8 · acceptable ≥ 0.5 · reobserve < 0.2
 
 **Skills** (`.claude/skills/`):
 - `adsentice-chat` — construir, evoluir e operar o pipeline de discovery e o chat
+- `adsentice-dag` — KG-first grounded recall (5 passos: KG→git→filesystem→síntese→persistir)
+- `adsentice-site-audit` — auditoria de site (Firecrawl + DataForSEO ONPAGE + DOMAIN_ANALYTICS)
 - `adsentice-spec` — autorar specs e ADRs
+
+## Métricas do Ecossistema
+
+| Métrica | Valor | Fonte |
+|---------|:-----:|-------|
+| Commits | 172 | `git log --oneline --all \| wc -l` |
+| ADRs | 20 (13 acc, 2 sup, 5 prop) | `docs/adr/` |
+| Lib modules | 26 (6,228 LOC) | `apps/web/src/lib/*.ts` |
+| Brain modules | 7 (676 LOC) | `apps/web/src/lib/brain/*.ts` |
+| API routes | 10 | `apps/web/src/app/api/*/` |
+| Corpus A (self) | 2,469 pontos | Qdrant `adsentice-self` |
+| Corpus C (conversa) | 54,897 pontos | Qdrant `adsentice-conversation` |
+| Corpus design | ~847 pontos (open-design + 21st) | Qdrant `adsentice-self` filter `source=open-design/*` + `21st-magic-ui` |
+| Materio tokens | 36 | Qdrant `adsentice-materio` |
+| Marketing skills embedados | 43 | Qdrant `adsentice-self` filter `source=marketingskills/*` |
+| Redis keys | 46 | `redis-cli -p 6396 DBSIZE` |
+| Containers | 3 (Redis, Qdrant, Embed) | `docker ps` |
+| :3000 | Next.js 15 + MUI/Materio | `npm run dev` |
 
 ---
 
