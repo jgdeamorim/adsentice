@@ -1,0 +1,21 @@
+{
+  "name": "@adsentice/warp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Família Warp — Design System Vivo com Composição por Intent Semântico (ADR-0018)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
