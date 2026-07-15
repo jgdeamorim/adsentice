@@ -143,6 +143,32 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const cpl        = leads > 0 ? sup.totalCost / leads : 0
   const brl        = 5.5
 
+  // ═══ DeepSeek Balance (Redis → live fallback) ═══
+  let dsBal: any = null
+  try {
+    const raw = redisRaw('adsentice:llm:balance:usd')
+    if (raw) {
+      dsBal = JSON.parse(raw)
+    } else {
+      // TTL expired or never set — fetch live from DeepSeek API
+      const dsKey = process.env.DEEPSEEK_API_KEY
+      if (dsKey) {
+        const balRes = await fetch('https://api.deepseek.com/user/balance', {
+          headers: { Authorization: `Bearer ${dsKey}` },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (balRes.ok) {
+          const balData = await balRes.json() as any
+          dsBal = balData.is_available != null ? { ...balData, balance_infos: balData.balance_infos || [] } : null
+          // Cache no Redis por 1h em background
+          try {
+            execSync(`redis-cli -p 6396 --no-auth-warning SETEX adsentice:llm:balance:usd 3600 '${JSON.stringify(dsBal).replace(/'/g, "'\\''")}'`, { timeout: 2000, stdio: 'ignore' })
+          } catch { /* Redis offline */ }
+        }
+      }
+    }
+  } catch { /* key not set, API offline */ }
+
   // 21 tools implementadas — usadas como filtro sobre cost-registry.yaml
   const usedIds = new Set([
     'business.listings.search', 'business.profile.gmb',
@@ -159,10 +185,6 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
 
   // DeepSeek pricing
   const dsHit = 0.0028; const dsMiss = 0.14; const dsOut = 0.28; const llmEst = 0.000076
-
-  // DeepSeek balance
-  let dsBal: any = null
-  try { const r = redisRaw('adsentice:llm:balance:usd'); if (r) dsBal = JSON.parse(r) } catch { /* not set */ }
 
   // Pipeline cost
   const pipeCost = usedCaps.reduce((s, c) => s + c.cost_usd, 0) + llmEst
@@ -283,29 +305,29 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
             <Typography variant='caption' color='text.secondary' sx={{ mb: 2, display: 'block' }}>
               GET /user/balance · <code>python3 tools/adsentice_deepseek_status.py</code>
             </Typography>
-            {dsBal ? (
+            {dsBal && dsBal.balance_infos?.length > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box sx={{ display: 'flex', gap: 3 }}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant='caption' color='text.secondary'>Total</Typography>
-                    <Typography variant='h5' fontWeight={800} color={dsBal.available ? 'success.main' : 'error.main'}>
-                      ${fmt(parseFloat(dsBal.total || '0'), 2)}
+                    <Typography variant='h5' fontWeight={800} color={dsBal.is_available ? 'success.main' : 'error.main'}>
+                      ${fmt(parseFloat(dsBal.balance_infos[0].total_balance || '0'), 2)}
                     </Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant='caption' color='text.secondary'>Topped Up</Typography>
-                    <Typography variant='h6' fontWeight={700}>${fmt(parseFloat(dsBal.topped_up || '0'), 2)}</Typography>
+                    <Typography variant='h6' fontWeight={700}>${fmt(parseFloat(dsBal.balance_infos[0].topped_up_balance || '0'), 2)}</Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant='caption' color='text.secondary'>Granted</Typography>
-                    <Typography variant='h6' fontWeight={700}>${fmt(parseFloat(dsBal.granted || '0'), 2)}</Typography>
+                    <Typography variant='h6' fontWeight={700}>${fmt(parseFloat(dsBal.balance_infos[0].granted_balance || '0'), 2)}</Typography>
                   </Box>
                 </Box>
-                <Chip label={dsBal.available ? '✅ Disponível p/ API' : '❌ Saldo insuficiente'} size='small'
-                  color={dsBal.available ? 'success' : 'error'} variant='tonal' />
+                <Chip label={dsBal.is_available ? '✅ Disponível p/ API' : '❌ Saldo insuficiente'} size='small'
+                  color={dsBal.is_available ? 'success' : 'error'} variant='tonal' />
               </Box>
             ) : (
-              <Chip label='Não consultado' size='small' color='default' />
+              <Chip label={process.env.DEEPSEEK_API_KEY ? '⏳ Buscando balance...' : '⚠️ DEEPSEEK_API_KEY ausente'} size='small' color='warning' />
             )}
           </CardContent>
         </Card>
@@ -437,7 +459,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
               Cada plano cobre múltiplos leads com margem alta.
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {planMargins.filter(p => p.tier !== 'free' && p.tier !== 'enterprise').map(p => (
+              {planMargins.filter(p => p.tier !== 'free').map(p => (
                 <Box key={p.tier} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Chip label={p.name} size='small' color={p.color} variant='tonal' />
