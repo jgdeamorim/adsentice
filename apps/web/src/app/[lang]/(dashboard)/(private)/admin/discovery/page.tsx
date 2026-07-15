@@ -224,7 +224,9 @@ const DiscoveryPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
-  const estimatedCost = selected.length * 0.015
+  const l0Cost = selected.length * 0.015          // L0: business_listings_search
+  const l1Cost = 5 * 0.0054                         // L1: top 5 leads enriquecidos (27 campos)
+  const totalCost = l0Cost + l1Cost                  // Total estimado L0+L1
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = false, offsetOverride?: number) => {
@@ -459,13 +461,13 @@ return arr
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={`~$${(estimatedCost + 0.27).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip label={`~$${(totalCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
             </Typography>
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(estimatedCost + 0.27).toFixed(4)} L0+L1)`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(4)} L0+L1)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -633,29 +635,34 @@ return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartz
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>⚠️ Confirmar gasto?</DialogTitle>
+        <DialogTitle>🤖 Pipeline Automático L0→L1</DialogTitle>
         <DialogContent>
           <Typography variant='body1' gutterBottom>
-            Você está prestes a fazer uma chamada <strong>LIVE</strong> ao DataForSEO.
+            Chamada <strong>LIVE</strong> ao DataForSEO via provider-core.
           </Typography>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
             <Typography variant='body2'>📍 <strong>{cityLabel}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
-              💰 Custo estimado: <strong>${(estimatedCost + 0.27).toFixed(4)}</strong> (R${((estimatedCost + 0.27) * 5.5).toFixed(2)})
+              💰 Custo: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
             </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              L0 Search: ${estimatedCost.toFixed(4)} + L1 Enrichment (50 leads × $0.0054): $0.27
-            </Typography>
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (até 50 listings, 11 campos)</Typography>
+              <Typography variant='caption'>📋 L1 Enrichment: ${l1Cost.toFixed(4)} (top 5 leads, 27 campos GMB)</Typography>
+              <Typography variant='caption' color='text.secondary'>⚡ L2 Website+SEO: sob demanda após L1 (${(0.000125+0.01).toFixed(4)})</Typography>
+            </Box>
           </Box>
-          <Typography variant='caption' color='text.secondary'>
-            Resultados em cache por 30min e persistidos no Redis por 24h. A mesma busca não gasta de novo.
-          </Typography>
+          <Alert severity='info' sx={{ mt: 1 }}>
+            <Typography variant='caption'>
+              <strong>Pipeline automático:</strong> L0 → score → L1 top 5 → salva no Supabase → aparece em Leads e Pipeline.
+              Cache Redis 24h: mesma busca não gasta de novo.
+            </Typography>
+          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
           <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(true); }}>
-            Sim, buscar (${(estimatedCost + 0.27).toFixed(4)} — L0+L1)
+            🚀 Buscar (${totalCost.toFixed(4)})
           </Button>
         </DialogActions>
       </Dialog>
@@ -749,7 +756,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo 50 leads (L1) · Custo: ${(estimatedCost + 0.27).toFixed(4)} (L0+L1)</Typography>
+            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo 5 leads (L1) · Custo: ${(totalCost).toFixed(4)} (L0+L1)</Typography>
           </CardContent></Card>
         </Grid>
       )}
