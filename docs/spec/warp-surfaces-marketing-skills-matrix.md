@@ -1,379 +1,254 @@
-# Matriz Warp × Marketing Skills × Design Tokens
+# Matriz Definitiva Warp — Superfícies × Soluções × Skills × Tokens
 
-> **Princípio:** Cada superfície Warp tem seu próprio conjunto de skills de marketing + tokens de design + referências visuais. Nada é genérico — tudo é derivado do intent da superfície.
-> **Fonte:** 43 skills Corey Haines embedados no Qdrant + 847 design points + 36 Materio tokens + 247 21st-magic components
-> **medido=verdade** · 2026-07-14
+> **"Cada superfície Warp entrega uma solução, para um segmento, em um plano, usando skills específicos, com tokens derivados do mercado."**
+> **Fontes:** 5 soluções-core · 4 planos (R$0→R$997) · 7 segmentos · 8 hubs · 43 marketing skills · 847 design points · 36 Materio tokens · 247 21st-magic components
+> **medido=verdade** · 2026-07-14 · adsentice
 
 ---
 
-## SUPERFÍCIES WARP (8 superfícies)
+## ESTRUTURA DO PRODUTO ADSENTICE
 
 ```
-WARP SURFACES
-├── S1 · LANDING PAGE       → Conversão primária (lead magnet, trial, compra)
-├── S2 · BLOG / CONTEÚDO    → SEO, autoridade, tráfego orgânico
-├── S3 · DASHBOARD ADMIN    → Data display, KPI, ações, cockpit
-├── S4 · CHECKOUT / PRICING → Conversão de pagamento, upgrade
-├── S5 · EMAIL / SEQUENCE   → Nutrição, onboarding, retenção
-├── S6 · LEAD CAPTURE       → Formulários, popups, lead magnets
-├── S7 · SOCIAL / ADS       → Criativos, anúncios, posts
-└── S8 · APP / SPA          → Discovery engine, lead detail, settings
+ADSENTICE (hub inteligente de marketing para SMB)
+
+PLANOS (4 tiers)
+├── R$0   · RAIO-X          → Lead magnet, 1 página, diagnóstico gratuito
+├── R$197 · SENTINELA        → Monitoramento mensal, alertas, recomendações
+├── R$497 · DOMÍNIO          → Competitive intelligence, battle cards, keyword gap
+└── R$997 · ESCALA           → Brandformance, marketing plan, consultoria
+
+SOLUÇÕES (5 bundles de capabilities)
+├── SOL1 · Diagnóstico SEO Local     → GMB + keywords + on-page audit
+├── SOL2 · Análise de Concorrência   → domain competitors + keyword gap
+├── SOL3 · Reputação Online          → reviews + Q&A + profile
+├── SOL4 · GEO / Marca na IA         → AI mentions + LLM responses
+└── SOL5 · Auditoria de Site         → Lighthouse + crawl + backlinks
+
+SEGMENTOS (7 categorias)
+├── Saúde (dentista, clínica, psicólogo, veterinário...)
+├── Beleza (salão, barbearia, academia)
+├── Serviços Profissionais (advogado, contador, arquiteto)
+├── Alimentação (restaurante, pizzaria, padaria)
+├── Comércio Local (pet shop, farmácia, oficina)
+├── Educação (escola, autoescola)
+└── Hospitalidade (pousada, hotel)
+
+HUBS (8 capacidades core)
+├── 📍 Local Presence (GMB)    ├── 👥 Customer (CRM)
+├── 🌐 Website                 ├── 🤖 AI (LLM/geo)
+├── 💬 WhatsApp                ├── 📱 Social (Instagram, TikTok)
+├── ⭐ Reputation              └── 📈 Marketing (SEO, ads, content)
 ```
 
 ---
 
-## S1 · LANDING PAGE
-**Objetivo:** Converter visitante → lead. Máximo impacto visual em 3 segundos.
+## 22 SUPERFÍCIES WARP — MATRIZ COMPLETA
 
-### Skills aplicáveis
+### 🔵 CLIENT-FACING (o SMB vê e usa)
 
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `copywriting` | Headlines, subheads, CTAs, social proof copy | Gera texto da hero, features, depoimentos |
-| `marketing-psychology` | Cores por emoção, viés cognitivo, prova social | Define paleta emocional + urgency triggers |
-| `product-marketing` | ICP, personas, JTBD, value prop | Define tom de voz + hierarquia de mensagem |
-| `cro` | Conversão, scroll depth, heatmaps, A/B testing | Estratégia de variantes + métricas |
-| `offers` | Estrutura de oferta, garantia, bônus | Define CTA + pricing highlight |
-| `customer-research` | Voz do cliente, objeções, linguagem real | Copy usa palavras REAIS dos clientes |
+| # | Superfície | Solução | Plano | Segmento | Skills | Tokens |
+|---|-----------|---------|:-----:|----------|--------|--------|
+| **S1** | **Landing Page adsentice** | — (marketing próprio) | R$0 | Todos | copywriting, psychology, cro, offers, customer-research, launch | 🔴 paleta · 🔴 tipo · 🔴 scroll · 🟡 shadow |
+| **S2** | **Blog / Conteúdo** | SOL1+SOL2 (educação) | R$0 | Todos | content-strategy, seo-audit, programmatic-seo, copy-editing, schema, image, ai-seo | 🔴 tipo · 🔴 spacing (65ch) · 🟡 paleta · 🟡 progress |
+| **S9** | **Portal do Cliente** | SOL1-5 (white-label) | R$197+ | Todos (tenant-isolado) | analytics, product-marketing, churn-prevention | 🔴 semantic · 🟡 mono · 🟢 zero motion |
+| **S10** | **Relatório Raio-X** | SOL1 | R$0 | Por segmento | seo-audit, schema, site-architecture, copywriting | 🔴 semantic · 🔴 data colors · 🟡 brand |
+| **S11** | **Landing Page do Cliente** | SOL1 (gerada) | R$197+ | Por segmento | copywriting, psychology, cro, local-seo, free-tools | 🔴 paleta (psi+cor) · 🔴 tipo · 🔴 scroll · 🔴 responsive |
+| **S12** | **WhatsApp Delivery** | SOL1-3 (cards+tips) | R$0+ | Todos | sms, sales-enablement, prospecting | 🟡 brand · 🔴 mobile · 🟢 zero animation |
+| **S13** | **Widget/Selo** | SOL1-3 (embed) | R$197+ | Por segmento | referrals, social-proof | 🟡 brand · 🟡 shadow · 🔴 responsive |
+| **S14** | **Onboarding Wizard** | Setup inicial | R$0→R$197 | Todos | onboarding, signup, product-marketing | 🟡 clean · 🔴 form · 🟡 progress |
 
-### Design Tokens prioritários
+### 🟡 INTERNAL (nosso time)
 
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Paleta** | 🔴 Máxima | Psicologia de cor por categoria GMB + emoção |
-| **Tipografia** | 🔴 Máxima | Display font (hero), body font (features) |
-| **Motion/Scroll** | 🔴 Máxima | Scroll-reveal, parallax, velocity, sticky |
-| **Spacing** | 🟡 Média | Hero arejado, features densidade média |
-| **Shadows** | 🟡 Média | Cards de depoimento, CTA elevation |
-| **Radius** | 🟢 Baixa | Consistente com a paleta |
+| # | Superfície | Solução | Plano | Skills | Tokens |
+|---|-----------|---------|:-----:|--------|--------|
+| **S3** | **Dashboard Admin** | Gestão operacional | Interno | analytics, revops, product-marketing | 🔴 data · 🔴 semantic · 🔴 denso · 🟢 zero motion |
+| **S15** | **Cockpit TOP-K** | Agregado multi-tenant | Interno | analytics, revops, marketing-ideas | 🔴 data · 🔴 chart · 🟢 zero motion |
+| **S16** | **Pipeline Monitor** | Status 6 pipelines | Interno | analytics, marketing-loops | 🟡 status colors · 🔴 real-time |
+| **S17** | **Cost/Usage Dashboard** | Créditos por tenant | Interno | analytics, revops, pricing | 🔴 custo · 🟡 alertas |
+| **S18** | **Template Marketplace** | Galeria de templates | Interno → Cliente | offers, pricing, image | 🔴 visual · 🔴 grid · 🟡 preview |
+| **S19** | **Quality Jury** | Design jury tokens | Interno | marketing-council, ab-testing | 🔴 comparison · 🟡 voting |
 
-### Referências embedadas
-- `open-design/stripe` — Hero com gradiente + social proof
-- `open-design/intercom` — Warm off-white + CTA orange
-- `open-design/vercel` — Shadow-as-border, Geist font
-- `21st-magic/scroll-based-velocity` — Texto reativo ao scroll
-- `21st-magic/magic-card` — Spotlight effect no card principal
-- `21st-magic/bento-grid` — Features em grid Bento
+### 🟢 COMERCIAL (conversão)
 
----
+| # | Superfície | Solução | Plano | Skills | Tokens |
+|---|-----------|---------|:-----:|--------|--------|
+| **S4** | **Checkout / Pricing** | Upgrade | R$0→R$197→R$497→R$997 | pricing, offers, paywalls, cro, psychology | 🔴 tiers · 🔴 glow · 🔴 mobile |
+| **S6** | **Lead Capture** | Formulários, popups | R$0 | lead-magnets, popups, signup, cro, psychology | 🔴 form · 🔴 spacing · 🟡 modal |
 
-## S2 · BLOG / CONTEÚDO
-**Objetivo:** Tráfego orgânico, autoridade, SEO. Leitura confortável.
+### 🟣 AQUISIÇÃO (tráfego pago)
 
-### Skills aplicáveis
+| # | Superfície | Solução | Skills | Tokens |
+|---|-----------|---------|--------|--------|
+| **S7** | **Social / Ads Creative** | Criativos Meta, Google, TikTok | ads, ad-creative, social, video, copywriting, image | 🔴 contrast · 🔴 bold · 🔴 video · 🔴 multi-format |
 
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `content-strategy` | Topic clusters, pillar pages, content calendar | Estrutura de conteúdo |
-| `seo-audit` | On-page SEO, meta tags, headings, velocidade | Otimização técnica |
-| `programmatic-seo` | Páginas em escala (cidade×categoria) | Templates de landing local |
-| `copywriting` | Títulos, subtítulos, body copy | Estrutura do artigo |
-| `copy-editing` | Clareza, legibilidade, tom | Refinamento do texto |
-| `schema` | Structured data, rich results | JSON-LD automático |
-| `image` | Imagens, alt text, compressão | Otimização visual |
+### ⚪ TECHNICAL
 
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Tipografia** | 🔴 Máxima | Leitura longa: font-size +20%, line-height 1.6+ |
-| **Spacing** | 🔴 Máxima | Largura de leitura (65ch), espaço entre parágrafos |
-| **Paleta** | 🟡 Média | Background leitura (nunca branco puro), links |
-| **Motion/Scroll** | 🟡 Média | Progress bar, scroll-spy, reveal sutil |
-| **Responsive** | 🟡 Média | Mobile-first, font-size responsivo |
-
-### Referências embedadas
-- `open-design/apple` — Editorial precision, SF Pro Display
-- `open-design/stripe` — Content pages com tipografia sohne-var
-- `open-design/perplexity` — Dark mode reading
+| # | Superfície | Skills | Tokens |
+|---|-----------|--------|--------|
+| **S20** | **API Documentation** | schema, programmatic-seo | 🟡 mono · 🟡 code · 🟢 minimal |
+| **S21** | **Status Page** | analytics | 🟡 status · 🟡 real-time |
+| **S22** | **Help Center** | content-strategy, copy-editing, image | 🔴 tipo · 🔴 search · 🟡 clean |
 
 ---
 
-## S3 · DASHBOARD ADMIN
-**Objetivo:** Data display, ações rápidas, clareza. Densidade alta de informação.
+## SOLUÇÕES → SUPERFÍCIES (quem entrega o quê)
 
-### Skills aplicáveis
-
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `analytics` | Métricas, KPIs, dashboards, tracking | Estrutura de dados + hierarquia |
-| `revops` | Funil, receita, métricas de negócio | KPIs do dashboard |
-| `product-marketing` | ICP, health score, lead scoring | Dados exibidos no cockpit |
-| `sales-enablement` | Battle cards, objection handling | Cards de lead + concorrentes |
-
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Paleta** | 🔴 Máxima | Data colors (chart-1 a chart-5), semantic colors (score, status) |
-| **Spacing** | 🔴 Máxima | Densidade alta, compacto, grid alinhado |
-| **Tipografia** | 🟡 Média | Mono para dados, tabular numbers, font-size pequeno |
-| **Radius** | 🟡 Média | Cards, chips, badges |
-| **Motion/Scroll** | 🟢 Zero | Dados não dançam. Zero animação (exceto loading). |
-| **Shadows** | 🟢 Baixa | Elevação sutil para cards |
-
-### Referências embedadas
-- `open-design/linear-app` — Dark precision, minimal chrome
-- `open-design/supabase` — Dark emerald dashboard, pill geometry
-- `open-design/posthog` — Warm sage data display
-- `open-design/cisco` — Enterprise dashboard density
-- **Materio** — 36 tokens base (spacing, palette, typography) — referência PRIMÁRIA
+| Solução | Superfícies que a entregam | Plano mínimo |
+|---------|---------------------------|:------------:|
+| **SOL1 · Diagnóstico SEO Local** | S10 (Raio-X), S11 (Landing Cliente), S12 (WhatsApp), S3 (Dashboard), S9 (Portal) | R$0 |
+| **SOL2 · Análise de Concorrência** | S10 (Raio-X), S3 (Dashboard), S9 (Portal), S15 (Cockpit) | R$197 |
+| **SOL3 · Reputação Online** | S10 (Raio-X), S9 (Portal), S12 (WhatsApp) | R$197 |
+| **SOL4 · GEO / Marca na IA** | S10 (Raio-X), S9 (Portal), S15 (Cockpit) | R$497 |
+| **SOL5 · Auditoria de Site** | S10 (Raio-X), S3 (Dashboard), S11 (Landing Cliente) | R$0 |
 
 ---
 
-## S4 · CHECKOUT / PRICING
-**Objetivo:** Converter trial → pago. Transparência, confiança, zero atrito.
+## PLANOS → SUPERFÍCIES (quem acessa o quê)
 
-### Skills aplicáveis
-
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `pricing` | Tiers, packaging, freemium, trials, discounts | Estrutura de preços + design |
-| `offers` | Garantia, bônus, escassez | Elementos de confiança |
-| `cro` | Checkout flow, objeções, fricção | Otimização do fluxo |
-| `paywalls` | Upgrade prompts, paywall timing | Quando mostrar upgrade |
-| `marketing-psychology` | Ancoragem, aversão à perda, prova social | Destaque do plano recomendado |
-
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Paleta** | 🔴 Máxima | Tier colors (free=stone, starter=mint, pro=navy, escala=coral) |
-| **Shadows** | 🔴 Máxima | Plano recomendado elevado, glow effect |
-| **Radius** | 🟡 Média | Cards de preço, botões de CTA |
-| **Spacing** | 🟡 Média | Comparação lado a lado, feature lists |
-
-### Referências embedadas
-- `open-design/stripe` — Pricing page elegante, multi-layer shadows
-- `open-design/vercel` — Minimal pricing, shadow-as-border
-- `21st-magic/shine-border` — Destaque no plano recomendado
-- `21st-magic/magic-card` — Spotlight no CTA principal
+| Plano | Preço | Superfícies que acessa |
+|-------|:-----:|------------------------|
+| **Raio-X** | R$0 | S10 (relatório 1 página), S12 (WhatsApp delivery), S2 (blog) |
+| **Sentinela** | R$197/mês | S9 (portal), S10 (relatório mensal), S11 (landing), S12, S13 (selo) |
+| **Domínio** | R$497/mês | Sentinela + S9 (competitive intel), S15 (battle cards) |
+| **Escala** | R$997/mês | Domínio + S9 (marketing plan), S4 (checkout upgrade), S19 (jury) |
 
 ---
 
-## S5 · EMAIL / SEQUENCE
-**Objetivo:** Nutrir leads, onboardar, reter. Consistência cross-device.
+## SEGMENTO → TOKENS (especificidade visual por nicho)
 
-### Skills aplicáveis
-
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `emails` | Sequências, automação, segmentação | Estrutura da sequência |
-| `onboarding` | Ativação, first value, time-to-value | Emails de onboarding |
-| `churn-prevention` | Cancel flow, save offers, win-back | Emails de retenção |
-| `referrals` | Programa de indicação, recompensas | Emails de referral |
-| `copywriting` | Subject lines, body copy, CTAs | Texto do email |
-
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Tipografia** | 🔴 Máxima | Email-safe fonts, line-height generoso |
-| **Spacing** | 🔴 Máxima | Largura máxima 600px, padding consistente |
-| **Paleta** | 🟡 Média | Brand + link color + CTA |
-| **Responsive** | 🔴 Máxima | Mobile-first obrigatório (60%+ abertura mobile) |
-
-### Referências embedadas
-- `open-design/intercom` — Email templates conversacionais
-- `open-design/linear-app` — Minimal transactional emails
+| Segmento | Primary Hue | Emotion | Spacing | Radius | Motion | Skills dominantes |
+|----------|:-----------:|---------|:-------:|:------:|:------:|-------------------|
+| **Saúde** | Azul clínico (220°) | Confiança, higiene | Médio (md) | Leve (md) | Zero | seo-audit, reputation |
+| **Beleza** | Rose gold (340°) | Feminino, luxo | Arejado (lg) | Arredondado (lg) | Parallax suave | social, reputation, psychology |
+| **Serviços Profissionais** | Navy (260°) | Autoridade, tradição | Formal (md) | Reto (sm) | Zero | seo-audit, competitor-profiling |
+| **Alimentação** | Terracota (25°) | Apetite, calor | Denso (sm) | Médio (md) | Scroll reveal | delivery, reputation, social |
+| **Comércio Local** | Azul industrial (250°) | Confiança, praticidade | Denso (sm) | Reto (sm) | Zero | whatsapp, reputation |
+| **Educação** | Verde + Navy | Crescimento, confiança | Médio (md) | Médio (md) | Scroll reveal | content-strategy, reputation |
+| **Hospitalidade** | Terracota + Gold | Acolhimento, experiência | Arejado (lg) | Arredondado (md) | Parallax lento | reputation, social, customer |
 
 ---
 
-## S6 · LEAD CAPTURE
-**Objetivo:** Formulários, popups, lead magnets. Máxima conversão com mínimo atrito.
+## MATRIZ COMPLETA: Skill × Superfície × Solução × Segmento
 
-### Skills aplicáveis
+| # | Skill | Superfícies | Soluções | Segmentos prioritários |
+|---|-------|------------|----------|----------------------|
+| 1 | `product-marketing` | **TODAS** (fundação) | Todas | Todos |
+| 2 | `marketing-psychology` | S1, S4, S6, S7, S11 | SOL1 | Beleza, Alimentação, Hospitalidade |
+| 3 | `copywriting` | S1, S2, S4, S5, S6, S7, S10 | SOL1, SOL3 | Todos |
+| 4 | `cro` | S1, S4, S6, S11 | SOL1 | Todos |
+| 5 | `offers` | S1, S4, S6, S18 | — | Todos |
+| 6 | `customer-research` | S1, S10, S11 | SOL1, SOL3 | Saúde, Beleza |
+| 7 | `content-strategy` | S2, S10, S22 | SOL1 | Educação, Saúde |
+| 8 | `seo-audit` | S2, S10, S11 | SOL1, SOL5 | Todos |
+| 9 | `programmatic-seo` | S2, S11 | SOL1 | Alimentação, Comércio |
+| 10 | `copy-editing` | S2, S22 | — | Todos |
+| 11 | `schema` | S2, S10, S20 | SOL1, SOL5 | Todos |
+| 12 | `image` | S2, S7, S18 | — | Beleza, Alimentação, Hospitalidade |
+| 13 | `ai-seo` | S2, S10 | SOL4 | Saúde, Serviços Profissionais |
+| 14 | `analytics` | S3, S9, S15, S16, S17, S21 | Todas | Interno |
+| 15 | `revops` | S3, S15, S17 | — | Interno |
+| 16 | `sales-enablement` | S3, S8, S12 | SOL2 | Serviços Profissionais, Saúde |
+| 17 | `pricing` | S4, S17, S18 | — | Todos |
+| 18 | `paywalls` | S4 | — | Todos |
+| 19 | `emails` | S5 | — | Todos |
+| 20 | `onboarding` | S5, S14 | — | Todos |
+| 21 | `churn-prevention` | S5, S9 | — | Saúde, Beleza |
+| 22 | `referrals` | S5, S13 | — | Beleza, Alimentação |
+| 23 | `lead-magnets` | S6, S10 | SOL1 | Todos |
+| 24 | `popups` | S6 | — | Todos |
+| 25 | `signup` | S6, S14 | — | Todos |
+| 26 | `ads` | S7 | — | Saúde, Beleza, Alimentação |
+| 27 | `ad-creative` | S7 | — | Beleza, Alimentação |
+| 28 | `social` | S7 | — | Beleza, Alimentação, Hospitalidade |
+| 29 | `video` | S7 | — | Beleza, Hospitalidade |
+| 30 | `prospecting` | S8, S12 | SOL1 | Todos |
+| 31 | `competitor-profiling` | S8, S10 | SOL2 | Serviços Profissionais, Saúde |
+| 32 | `competitors` | S8, S10 | SOL2 | Todos |
+| 33 | `marketing-ideas` | S8, S15 | SOL1-3 | Todos |
+| 34 | `marketing-plan` | S8, S10 | Todas | Saúde, Serviços Profissionais |
+| 35 | `marketing-loops` | S1, S2, S16 | — | Interno |
+| 36 | `site-architecture` | S1, S2, S11 | SOL1, SOL5 | Todos |
+| 37 | `free-tools` | S1, S6, S11 | SOL1 | Todos |
+| 38 | `launch` | S1 | — | Todos |
+| 39 | `co-marketing` | S1 | — | Beleza, Alimentação |
+| 40 | `public-relations` | S2 | — | Saúde, Educação |
+| 41 | `community-marketing` | S7 | — | Beleza, Educação |
+| 42 | `cold-email` | S5 | — | Serviços Profissionais |
+| 43 | `directory-submissions` | S2 | — | Todos |
 
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `lead-magnets` | Checklist, templates, calculadoras, diagnósticos | Tipo de lead magnet |
-| `popups` | Timing, trigger, exit-intent, design | Quando e como mostrar |
-| `signup` | Form fields, social login, progressive profiling | Design do formulário |
-| `cro` | Form optimization, field reduction, micro-copy | Otimização de conversão |
-| `marketing-psychology` | Prova social, reciprocidade, escassez | Elementos de persuasão |
+### BÔNUS: skills NÃO embedadas mas necessárias
 
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Spacing** | 🔴 Máxima | Form fields, labels, CTAs |
-| **Radius** | 🟡 Média | Inputs, botões |
-| **Shadows** | 🟡 Média | Modal/popup elevation |
-| **Motion** | 🟡 Média | Entrada do popup, focus states |
-
-### Referências embedadas
-- `21st-magic/confetti` — Celebração pós-captura
-- `21st-magic/cool-mode` — Delight na interação
-
----
-
-## S7 · SOCIAL / ADS CREATIVE
-**Objetivo:** Criativos para Meta, Google, TikTok, LinkedIn. Formatos específicos por plataforma.
-
-### Skills aplicáveis
-
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `ads` | Google Ads, Meta Ads, LinkedIn Ads, TikTok | Estratégia de mídia paga |
-| `ad-creative` | Formatos, hooks, CTAs, A/B testing | Design do criativo |
-| `social` | Calendário, formato por plataforma, voz | Conteúdo orgânico |
-| `video` | Roteiro, formatos (9:16, 16:9, 1:1) | Video ads |
-| `copywriting` | Hooks (3 segundos), corpo, CTA | Copy do anúncio |
-| `image` | Dimensões, compressão, boas práticas | Assets visuais |
-
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Paleta** | 🔴 Máxima | Brand + high contrast (ads precisam chamar atenção) |
-| **Tipografia** | 🔴 Máxima | Bold, legível em mobile (tamanho mínimo 14px) |
-| **Motion** | 🔴 Máxima | Video hooks (3s), transições rápidas |
-| **Responsive** | 🔴 Máxima | Formatos: 1:1, 9:16, 16:9, 4:5 |
-
----
-
-## S8 · APP / SPA (Discovery Engine)
-**Objetivo:** Aplicação interativa. Descoberta de leads, scoring, detalhes.
-
-### Skills aplicáveis
-
-| Skill | O que entrega | Como o compositor usa |
-|-------|--------------|----------------------|
-| `prospecting` | Descoberta, qualificação, list building | Discovery engine |
-| `competitor-profiling` | Battle cards, SWOT, diferenciais | Competitive landscape |
-| `competitors` | Páginas de comparação, alternative pages | Comparação side-by-side |
-| `product-marketing` | ICP, health score, lead scoring | Scoring engine |
-| `marketing-ideas` | 43 ideias por canal | Recommendation engine |
-| `marketing-plan` | Estratégia completa por lead | Marketing plan generator |
-| `sales-enablement` | One-pagers, pitch decks, demo scripts | Output pro SMB |
-
-### Design Tokens prioritários
-
-| Camada | Intensidade | Referência |
-|--------|:----------:|-----------|
-| **Paleta** | 🔴 Máxima | Semantic scoring colors, Schwartz levels, lead status |
-| **Spacing** | 🔴 Máxima | Data density, tabelas, filtros |
-| **Tipografia** | 🟡 Média | Tabular numbers, mono para dados |
-| **Radius** | 🟡 Média | Chips, badges, filtros |
-| **Motion** | 🟢 Zero | Dados, não distração |
-
-### Referências embedadas
-- `open-design/linear-app` — App precision, keyboard shortcuts
-- `open-design/supabase` — Data-heavy dashboard
-- `open-design/cursor` — AI-first interface
-
----
-
-## TABELA RESUMO: Skill → Superfície
-
-| # | Skill | S1 LP | S2 Blog | S3 Dash | S4 Checkout | S5 Email | S6 Lead | S7 Ads | S8 App |
-|---|-------|:-----:|:------:|:------:|:----------:|:------:|:------:|:----:|:----:|
-| 1 | `product-marketing` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 2 | `copywriting` | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ | |
-| 3 | `marketing-psychology` | ✅ | | | ✅ | | ✅ | ✅ | |
-| 4 | `cro` | ✅ | | | ✅ | | ✅ | | |
-| 5 | `offers` | ✅ | | | ✅ | | ✅ | | |
-| 6 | `customer-research` | ✅ | | | | | | | |
-| 7 | `content-strategy` | | ✅ | | | | | | |
-| 8 | `seo-audit` | | ✅ | | | | | | |
-| 9 | `programmatic-seo` | | ✅ | | | | | | |
-| 10 | `copy-editing` | | ✅ | | | | | | |
-| 11 | `schema` | | ✅ | | | | | | |
-| 12 | `image` | | ✅ | | | | | ✅ | |
-| 13 | `analytics` | | | ✅ | | | | | |
-| 14 | `revops` | | | ✅ | | | | | |
-| 15 | `sales-enablement` | | | ✅ | | | | | ✅ |
-| 16 | `pricing` | | | | ✅ | | | | |
-| 17 | `paywalls` | | | | ✅ | | | | |
-| 18 | `emails` | | | | | ✅ | | | |
-| 19 | `onboarding` | | | | | ✅ | | | |
-| 20 | `churn-prevention` | | | | | ✅ | | | |
-| 21 | `referrals` | | | | | ✅ | | | |
-| 22 | `lead-magnets` | | | | | | ✅ | | |
-| 23 | `popups` | | | | | | ✅ | | |
-| 24 | `signup` | | | | | | ✅ | | |
-| 25 | `ads` | | | | | | | ✅ | |
-| 26 | `ad-creative` | | | | | | | ✅ | |
-| 27 | `social` | | | | | | | ✅ | |
-| 28 | `video` | | | | | | | ✅ | |
-| 29 | `prospecting` | | | | | | | | ✅ |
-| 30 | `competitor-profiling` | | | | | | | | ✅ |
-| 31 | `competitors` | | | | | | | | ✅ |
-| 32 | `marketing-ideas` | | | | | | | | ✅ |
-| 33 | `marketing-plan` | | | | | | | | ✅ |
-| 34 | `marketing-loops` | ✅ | ✅ | | | | | | |
-| 35 | `ai-seo` | | ✅ | | | | | | |
-| 36 | `site-architecture` | ✅ | ✅ | | | | | | |
-| 37 | `free-tools` | ✅ | | | | | ✅ | | |
-| 38 | `launch` | ✅ | | | | | | | |
-| 39 | `co-marketing` | ✅ | | | | | | | |
-| 40 | `public-relations` | | ✅ | | | | | | |
-| 41 | `community-marketing` | | | | | | | ✅ | |
-| 42 | `cold-email` | | | | | ✅ | | | |
-| 43 | `directory-submissions` | | ✅ | | | | | | |
-
-### Skills FUNDAÇÃO (aplicam-se a TODAS as superfícies)
-
-| Skill | Função |
-|-------|--------|
-| `product-marketing` | ICP, personas, brand voice, value prop — lido PRIMEIRO por todos os outros |
-| `marketing-council` | Simula banca de especialistas (Seth Godin, David Ogilvy) para julgar qualidade |
-| `ab-testing` | Metodologia de teste A/B para qualquer superfície |
+| # | Skill | Por que | Onde aplicar |
+|---|-------|---------|-------------|
+| 44 | `local-seo` | Específico para Google Meu Negócio (além do seo-audit genérico) | S10, S11 |
+| 45 | `whatsapp-business` | API WhatsApp, templates, automação (além do sms genérico) | S12 |
+| 46 | `google-ads-telemetry` | OAuth google.ads para Variance Report (v2) | S9, S17 |
+| 47 | `ifood-integration` | API iFood para Restaurantes (segmento Alimentação) | S8, S9 |
+| 48 | `booking-ota-integration` | Booking/Decolar para Hotel (segmento Hospitalidade) | S8, S9 |
 
 ---
 
 ## INTEGRAÇÃO COM ADR-0020 (Compositor de Tokens)
 
-O compositor agora tem **8 superfícies × 6 pipelines de inferência**:
-
 ```typescript
-// tokens-composer.ts — atualizado com matriz de superfícies
+// tokens-composer.ts — atualizado com matriz completa
 
-interface TokenIntent {
-  surface: 'landing-page' | 'blog' | 'dashboard' | 'checkout' | 
-           'email' | 'lead-capture' | 'social-ads' | 'app-spa';
-  category: string;        // GMB category
-  region: string;          // geo
-  audience: Audience;      // derivado de DataForSEO + product-marketing
+interface ComposeRequest {
+  // Qual superfície
+  surface: SurfaceId;  // 22 valores possíveis
   
-  // NOVO: skills prioritários para esta superfície
-  activeSkills: string[];  // ex: ["copywriting", "marketing-psychology", "cro"]
+  // Qual solução está entregando
+  solution: SolutionId;  // SOL1-SOL5
   
-  // NOVO: referências de design para esta superfície
+  // Para qual segmento
+  segment: SegmentId;  // saude | beleza | servicos | alimentacao | comercio | educacao | hospitalidade
+  
+  // Em qual plano
+  plan: PlanTier;  // raio-x | sentinela | dominio | escala
+  
+  // Contexto de mercado (DataForSEO)
+  market: {
+    category: string;     // GMB category
+    region: string;       // geo
+    audience: Audience;   // derivado do GMB + reviews
+  };
+  
+  // Skills ativos para esta combinação
+  activeSkills: string[];  // derivado da matriz superfície×solução×segmento
+  
+  // Referências de design para esta superfície
   designRefs: {
-    openDesign: string[];  // ex: ["stripe", "intercom"]
-    magicUi: string[];     // ex: ["magic-card", "scroll-based-velocity"]
+    openDesign: string[];  // quais marcas referência
+    magicUi: string[];     // quais componentes 21st
     materio: boolean;      // dashboard sempre true
   };
 }
+
+// O compositor agora tem 22 × 5 × 7 = 770 combinações possíveis
+// Mas na prática, cada superfície ativa um subconjunto específico
 ```
-
-### Pipeline de inferência por superfície
-
-| Superfície | Paleta | Tipo | Spacing | Shadow | Motion | Responsive |
-|-----------|:------:|:----:|:------:|:-----:|:-----:|:---------:|
-| S1 Landing | 🔴 psi+cor | 🔴 display | 🟡 médio | 🟡 card | 🔴 scroll | 🟡 mobile |
-| S2 Blog | 🟡 leitura | 🔴 body | 🔴 65ch | 🟢 none | 🟡 progress | 🔴 mobile |
-| S3 Dashboard | 🔴 data+semantic | 🟡 mono | 🔴 denso | 🟢 sutil | 🟢 zero | 🟢 desktop |
-| S4 Checkout | 🔴 tiers | 🟡 bold | 🟡 comp | 🔴 glow | 🟢 zero | 🔴 mobile |
-| S5 Email | 🟡 brand | 🔴 safe | 🔴 600px | 🟢 none | 🟢 zero | 🔴 mobile |
-| S6 Lead Capture | 🟡 brand | 🟡 clean | 🔴 form | 🟡 modal | 🟡 entrada | 🔴 mobile |
-| S7 Social Ads | 🔴 contrast | 🔴 bold | 🟡 formato | 🟢 none | 🔴 video | 🔴 multi |
-| S8 App SPA | 🔴 semantic | 🟡 mono | 🔴 data | 🟢 sutil | 🟢 zero | 🟡 desktop |
 
 ---
 
-## CONCLUSÃO
+## ATUALIZAÇÕES NECESSÁRIAS
 
-**Sim, escolhemos os skills certos para a ADR-0020** — mas a matriz revela que:
+### ADR-0020
+- Superfícies: 8 → 22
+- Skills ativos: 33 → 43 (+ 5 novos a criar)
+- Segmentos: 1 (genérico) → 7 (com tokens específicos)
+- Soluções: Nenhuma → 5 bundles de capabilities
 
-1. **`product-marketing` é FUNDAÇÃO** — todo pipeline de tokens DEVE ler o ICP/persona antes de inferir
-2. **Cada superfície tem seu próprio conjunto** — Landing usa `copywriting+psychology+cro`, Dashboard usa `analytics+revops`, App usa `prospecting+competitor`
-3. **Materio é referência PRIMÁRIA para Dashboard** — não open-design. Dashboard = Materio + semantic tokens.
-4. **21st-magic é referência PRIMÁRIA para Landing** — scroll, magic-card, bento-grid, confetti
-5. **open-design é referência para TODAS** — mas com pesos diferentes por superfície
-6. **Faltam 3 skills no Qdrant?** — Temos 43 de 43. Todos os Corey Haines skills estão embedados.
+### Base-Matriz
+- `ADS.COR.warp`: 9 módulos (M1 ✅, M2-M9 🔴)
+- Nova seção: `ADS.PRD.surfaces` com 22 superfícies
+- Nova seção: `ADS.PRD.solutions` com 5 soluções + 4 planos
 
-### Atualização necessária na ADR-0020
+### tokens-composer.ts (M9)
+- Parâmetro `surface: 22 valores`
+- Parâmetro `segment: 7 valores` (paleta por segmento)
+- Parâmetro `solution: 5 valores` (skills por solução)
+- 5 novos skills a criar (local-seo, whatsapp-business, google-ads-telemetry, ifood-integration, booking-ota)
 
-A ADR-0020 deve incluir esta matriz. O `tokens-composer.ts` recebe `surface` como parâmetro e seleciona os skills + design refs corretos automaticamente.
+---
+
+*Matriz Definitiva Warp · 2026-07-14 · adsentice · medido=verdade*
