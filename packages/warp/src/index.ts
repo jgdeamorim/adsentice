@@ -35,7 +35,10 @@ export { TokenComposer, composeTokens } from './tokens-composer'
 export { RecommendEngine } from './recommend-engine'
 export { L3CompetitorAnalyzer } from './l3-competitor-keywords'
 export { DesignPipeline } from './pipeline'
+export { DesignRuntime } from './runtime'
 export { embedText, embedBatch } from './embed'
+export { PluginRegistry, pluginRegistry, aestheticEnforcementPlugin, mcpConnectorPlugins } from './plugins'
+export type { Plugin, PluginManifest, DesignContext } from './plugins'
 export {
   AgentRouter,
   ClaudeCodeAdapter,
