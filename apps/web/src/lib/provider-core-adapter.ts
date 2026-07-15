@@ -36,15 +36,15 @@ class DataForSEOClient {
 }
 
 function getClient(): DataForSEOClient {
-  if (!_client) {
-    const login = process.env.DATAFORSEO_LOGIN || ""
-    const password = process.env.DATAFORSEO_PASSWORD || ""
-    const mode = (process.env.DATAFORSEO_MODE as "sandbox" | "live") || "live"
-    if (!login || !password) throw new Error("DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD required")
-    _client = new DataForSEOClient(login, password, mode)
-  }
-  return _client
+  const login = process.env.DATAFORSEO_LOGIN || ""
+  const password = process.env.DATAFORSEO_PASSWORD || ""
+  const mode = (process.env.DATAFORSEO_MODE as "sandbox" | "live") || "live"
+  if (!login || !password) throw new Error("DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD required")
+  return new DataForSEOClient(login, password, mode)
 }
+
+// Remove singleton cache
+let _client: DataForSEOClient | null = null
 
 // ═══ Types ═══
 

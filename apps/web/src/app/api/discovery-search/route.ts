@@ -261,16 +261,44 @@ export async function POST(request: NextRequest) {
 
   // ═══ L0: LIVE SEARCH ($0.015) ═══
   try {
-    const result = await businessListingsSearch({
-      categories,
-      lat: lat || -23.5505,
-      lng: lng || -46.6333,
-      radiusKm: radiusKm || 10,
-      limit: limit || 50,
-      offset: offset || undefined,
-      order_by: order_by || undefined,
-      filters: filters || undefined,
+    // Direct fetch — bypass adapter singleton issues
+    const login = process.env.DATAFORSEO_LOGIN || ""
+    const password = process.env.DATAFORSEO_PASSWORD || ""
+    const dfAuth = `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`
+    const dfCoord = `${(lat || -23.5505).toFixed(4)},${(lng || -46.6333).toFixed(4)},${radiusKm || 10}`
+    const dfBody = JSON.stringify([{ categories, location_coordinate: dfCoord, language_code: "pt", limit: limit || 50 }])
+
+    const dfRes = await fetch("https://api.dataforseo.com/v3/business_data/business_listings/search/live.ai", {
+      method: "POST",
+      headers: { Authorization: dfAuth, "Content-Type": "application/json" },
+      body: dfBody,
     })
+
+    if (!dfRes.ok) {
+      const errText = await dfRes.text().catch(() => "")
+      throw new Error(`DataForSEO HTTP ${dfRes.status}: ${errText.slice(0, 300)}`)
+    }
+
+    const dfData = await dfRes.json() as { items?: Record<string, unknown>[] }
+    const items = (dfData.items || []).map((item: Record<string, unknown>) => {
+      const rating = (item.rating || {}) as Record<string, unknown>
+      return {
+        title: (item.title as string) || null,
+        category: (item.category as string) || null,
+        address: (item.address as string) || null,
+        rating_value: (rating.value as number) ?? null,
+        rating_votes: (rating.votes_count as number) ?? null,
+        place_id: (item.place_id as string) || null,
+        cid: (item.cid as string) || null,
+        latitude: (item.latitude as number) ?? null,
+        longitude: (item.longitude as number) ?? null,
+        is_claimed: (item.is_claimed as boolean) ?? null,
+      }
+    })
+
+    const result = { total_count: items.length, listings: items, cost_usd: items.length * 0.0003 }
+
+    console.log(`[discovery:L0:inline] ${result.listings.length} listings, first: ${result.listings[0]?.title?.slice(0,40)}`)
 
     const searchCost = result.cost_usd || 0
 
