@@ -39,9 +39,13 @@ export { domainOverview } from "./tools/domain-overview"
 
 // L4 — Keywords, SERP, Reviews
 export { keywordResearch } from "./tools/keyword-research"
+export { keywordVolume } from "./tools/keyword-volume"
+export { keywordTrends } from "./tools/keyword-trends"
+export { relatedKeywords } from "./tools/keyword-related"
 export { serpOrganic } from "./tools/serp-organic"
 export { serpLocalFinder } from "./tools/serp-local-finder"
 export { googleReviews } from "./tools/reviews-google"
+export { contentSentiment } from "./tools/content-sentiment"
 
 // Market intelligence (t0 holds)
 export { appendMarketHold, appendMarketHolds, cacheMarketSnapshot, queryMarketTrends } from "./market-holds"
