@@ -256,28 +256,40 @@ export interface S10Input {
 }
 
 export interface S10Output {
-  // Classificação
+  // ═══ VISÍVEL AO CLIENTE (renderizado no HTML) ═══
+  /** Nome do negócio */
+  businessName: string
+  /** Score composto (0-100) */
+  score: number
+  /** Nível Schwartz */
+  schwartzLevel: string
+  /** Segmento Matriz Warp */
   segment: SegmentId
-  nicho: NichoProfile
-  persona: PersonaProfile
-  skills: SkillProfile[]
+  /** Tokens visuais aplicados */
   tokens: TokenProfile
-
-  // Copy derivada
+  /** Headline personalizada */
   headline: string
+  /** Subtítulo */
   subtitle: string
+  /** CTA principal */
   cta: string
+  /** Oferta */
   offer: string
-
-  // Gaps
+  /** Gaps detectados */
   gaps: Array<{ title: string; severity: string; desc: string; fix: string; impact: string; effort: string }>
 
-  // Objeções do nicho (para CTA/follow-up)
-  objections: string[]
-
-  // Metadata
-  traceId: string
-  pipelineVersion: string
+  // ═══ INTERNO (metadados, telemetria, NÃO renderizado) ═══
+  /** Metadados do pipeline — salvo no trace, NUNCA no HTML */
+  _meta: {
+    traceId: string
+    pipelineVersion: string
+    nicho: { name: string; specialties: string[]; audience: string; tone: string }
+    persona: { level: string; approach: string }
+    skills: string[]
+    qdrantHints: { design: string; landing: string; typography: string }
+    signalsRaw: string[]
+    computedAt: string
+  }
 }
 
 export class S10RaioXPipeline {
@@ -334,20 +346,32 @@ export class S10RaioXPipeline {
     // As 2 objeções mais relevantes para o nicho
     const objections = nicho.objections.slice(0, 2)
 
+    const traceId = `s10_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
     return {
+      // ═══ VISÍVEL AO CLIENTE ═══
+      businessName: input.businessName,
+      score: input.score,
+      schwartzLevel: input.schwartzLevel,
       segment,
-      nicho,
-      persona,
-      skills,
       tokens,
       headline,
       subtitle,
       cta,
       offer,
       gaps,
-      objections,
-      traceId: `s10_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      pipelineVersion: '2.0.0',
+
+      // ═══ INTERNO (NUNCA no HTML) ═══
+      _meta: {
+        traceId,
+        pipelineVersion: '2.0.0',
+        nicho: { name: nicho.name, specialties: nicho.specialties, audience: nicho.audience, tone: nicho.tone },
+        persona: { level: persona.level, approach: persona.approach },
+        skills: skills.map(s => s.name),
+        qdrantHints: { design: '', landing: '', typography: '' }, // filled by enrich stage
+        signalsRaw: input.signals,
+        computedAt: new Date().toISOString(),
+      },
     }
   }
 
