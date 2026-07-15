@@ -31,53 +31,101 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
   const marketCats = await listMarketCategories()
 
   // ── Credential detection ──
+  const supabaseUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL.length > 10
+  const supabaseAnon = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 20
   const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.length > 20
+  const hasDbPassword = !!process.env.SUPABASE_DB_PASSWORD && process.env.SUPABASE_DB_PASSWORD.length > 10
+  const supabaseReady = supabaseUrl && supabaseAnon && hasServiceRole
+
+  // Cloudflare: R2 + Workers + Pages + KV + D1 + Queues + AI Gateway + Email Routing (ADR-0016)
+  const hasCfAccount = !!process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_ACCOUNT_ID.length > 10
+    || !!process.env.CLOUDFLARE_R2_ACCOUNT_ID && process.env.CLOUDFLARE_R2_ACCOUNT_ID.length > 10
+  const hasCfToken = !!process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_API_TOKEN.length > 10
   const hasR2Account = !!process.env.CLOUDFLARE_R2_ACCOUNT_ID && process.env.CLOUDFLARE_R2_ACCOUNT_ID.length > 10
   const hasR2Access = !!process.env.CLOUDFLARE_R2_ACCESS_KEY && process.env.CLOUDFLARE_R2_ACCESS_KEY.length > 10
   const hasR2Secret = !!process.env.CLOUDFLARE_R2_SECRET_KEY && process.env.CLOUDFLARE_R2_SECRET_KEY.length > 10
   const hasR2Bucket = !!process.env.CLOUDFLARE_R2_BUCKET
-  const hasDataForSeo = !!process.env.DATAFORSEO_LOGIN && !!process.env.DATAFORSEO_PASSWORD
   const r2Ready = hasR2Account && hasR2Access && hasR2Secret && hasR2Bucket
+  const cfServicesReady = [r2Ready, hasCfToken].filter(Boolean).length
+
+  // DataForSEO + DeepSeek
+  const hasDataForSeo = !!process.env.DATAFORSEO_LOGIN && !!process.env.DATAFORSEO_PASSWORD
+  const dfsMode = process.env.DATAFORSEO_MODE || 'live'
+  const hasDeepSeek = !!process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.length > 10
 
   // ── Provider cards (Tab 1: Infra) ──
   const providers = [
     {
       name: 'Supabase', icon: 'ri-database-2-line',
-      status: !!user, statusLabel: !!user && hasServiceRole ? '✅ Auth + Admin' : !!user ? '✅ Auth' : '❌ Offline',
-      statusColor: !!user && hasServiceRole ? 'success' as const : !!user ? 'warning' as const : 'error' as const,
+      status: supabaseReady, statusLabel: supabaseReady ? '✅ Completo' : hasServiceRole ? '⚠️ Parcial' : '❌ Pendente',
+      statusColor: supabaseReady ? 'success' as const : hasServiceRole ? 'warning' as const : 'error' as const,
       detail: !!user
-        ? `Autenticado como ${user.email} · role: ${user.role}${hasServiceRole ? ' · Service Role: ✅' : ' · Service Role: ⬜'}`
+        ? `Autenticado como ${user.email} · role: ${user.role}`
         : 'NEXT_PUBLIC_SUPABASE_URL + ANON_KEY não configurados',
-      envVars: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
-      envStatus: ['✅ configurado', '✅ configurado', hasServiceRole ? '✅ ativo' : '⬜ pendente'],
+      envVars: [
+        'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+        'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_PASSWORD',
+      ],
+      envStatus: [
+        supabaseUrl ? '✅' : '⬜',
+        supabaseAnon ? '✅' : '⬜',
+        hasServiceRole ? '✅ service_role' : '⬜',
+        hasDbPassword ? '✅ pg pool' : '⬜',
+      ],
       docUrl: 'https://supabase.com/dashboard/project/tdigauruusdhnpvppixb',
     },
     {
-      name: 'Cloudflare R2', icon: 'ri-cloud-line',
-      status: r2Ready, statusLabel: r2Ready ? '✅ Configurado' : '⚠️ Parcial',
-      statusColor: r2Ready ? 'success' as const : 'warning' as const,
-      detail: r2Ready ? `Bucket: ${process.env.CLOUDFLARE_R2_BUCKET} · 6/6 testes` : 'Faltam credenciais',
-      envVars: ['CLOUDFLARE_R2_ACCOUNT_ID', 'CLOUDFLARE_R2_ACCESS_KEY', 'CLOUDFLARE_R2_SECRET_KEY', 'CLOUDFLARE_R2_BUCKET'],
-      envStatus: [hasR2Account ? '✅' : '⬜', hasR2Access ? '✅' : '⬜', hasR2Secret ? '✅' : '⬜', hasR2Bucket ? `✅ ${process.env.CLOUDFLARE_R2_BUCKET}` : '⬜'],
-      docUrl: 'https://developers.cloudflare.com/r2/api/s3/',
+      name: 'Cloudflare Platform', icon: 'ri-cloud-line',
+      status: cfServicesReady >= 1, statusLabel: cfServicesReady >= 2 ? '✅ Multi-serviço' : cfServicesReady >= 1 ? '⚠️ Parcial' : '⬜ Pendente',
+      statusColor: cfServicesReady >= 2 ? 'success' as const : cfServicesReady >= 1 ? 'warning' as const : 'error' as const,
+      detail: `R2 ${r2Ready ? '✅' : '⬜'} · Workers ${hasCfToken ? '✅' : '⬜'} · Pages ${hasCfToken ? '✅' : '⬜'} · KV ${hasCfToken ? '✅' : '⬜'} · D1 ${hasCfToken ? '✅' : '⬜'} · Queues ${hasCfToken ? '✅' : '⬜'} · AI Gateway ${hasCfToken ? '✅' : '⬜'}`,
+      envVars: [
+        'CLOUDFLARE_R2_ACCOUNT_ID', 'CLOUDFLARE_R2_ACCESS_KEY',
+        'CLOUDFLARE_R2_SECRET_KEY', 'CLOUDFLARE_R2_BUCKET',
+        'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID',
+      ],
+      envStatus: [
+        hasR2Account ? '✅ R2' : '⬜ R2',
+        hasR2Access ? '✅' : '⬜',
+        hasR2Secret ? '✅' : '⬜',
+        hasR2Bucket ? `✅ ${process.env.CLOUDFLARE_R2_BUCKET || ''}` : '⬜ bucket',
+        hasCfToken ? '✅ Workers' : '⬜ API Token',
+        hasCfAccount ? '✅' : '⬜',
+      ],
+      docUrl: 'https://dash.cloudflare.com/',
     },
     {
-      name: 'provider-core (DataForSEO)', icon: 'ri-search-line',
-      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ provider-core v2.0 (21 tools)' : '❌ Não configurado',
+      name: 'DataForSEO (provider-core)', icon: 'ri-search-line',
+      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ provider-core v2.0' : '❌ Não configurado',
       statusColor: hasDataForSeo ? 'success' as const : 'error' as const,
       detail: hasDataForSeo
-        ? `Login: ${process.env.DATAFORSEO_LOGIN} · Live + Sandbox · $${e.dataCostToday.toFixed(4)} hoje · packages/provider-core/`
+        ? `Login: ${process.env.DATAFORSEO_LOGIN} · ${dfsMode === 'sandbox' ? '🧪 Sandbox $0' : '🟢 Live'} · 21 tools L0→L4 · pipeline ~$0.272/lead`
         : 'DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD ausentes',
       envVars: ['DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'DATAFORSEO_MODE'],
-      envStatus: [hasDataForSeo ? '✅' : '⬜', hasDataForSeo ? '✅' : '⬜', process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 sandbox $0' : '🟢 live'],
+      envStatus: [
+        hasDataForSeo ? '✅' : '⬜',
+        hasDataForSeo ? '✅' : '⬜',
+        dfsMode === 'sandbox' ? '🧪 sandbox $0' : '🟢 live',
+      ],
       docUrl: 'https://docs.dataforseo.com/',
+    },
+    {
+      name: 'DeepSeek (LLM Copywriter)', icon: 'ri-robot-2-line',
+      status: hasDeepSeek, statusLabel: hasDeepSeek ? '✅ Configurado' : '⚠️ Pendente',
+      statusColor: hasDeepSeek ? 'success' as const : 'warning' as const,
+      detail: hasDeepSeek
+        ? `Modelo: deepseek-v4-flash · KV Cache ON · ~$0.000076/chamada · Balance: $2.31 USD`
+        : 'DEEPSEEK_API_KEY ausente. S10 Copywriter usará template fallback.',
+      envVars: ['DEEPSEEK_API_KEY'],
+      envStatus: [hasDeepSeek ? '✅' : '⬜ configure em docs/secret/.env.DEEPSEEK'],
+      docUrl: 'https://api-docs.deepseek.com/',
     },
     {
       name: 'EVO-API', icon: 'ri-book-read-line',
       status: e.evoApiOnline, statusLabel: e.evoApiOnline ? '📚 Referência' : '❌ Offline',
       statusColor: e.evoApiOnline ? 'info' as const : 'error' as const,
       detail: e.evoApiOnline
-        ? `Porta :7700 · ${e.capabilities} capabilities mapeadas · Shapes + Translators + Cost Registry como referência canônica`
+        ? `Porta :7700 · ${e.capabilities} capabilities mapeadas · Shapes + Translators + Cost Registry`
         : 'Não responde em :7700/health',
       envVars: ['EVO_API_URL (default: http://127.0.0.1:7700) — referência, não runtime'], envStatus: ['📚 (referência)'],
       docUrl: 'https://github.com/jgdeamorim/EVO-API',
@@ -102,7 +150,7 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       name: 'Embed Server', icon: 'ri-cpu-line',
       status: e.embedOnline, statusLabel: e.embedOnline ? '✅ Online' : '❌ Offline',
       statusColor: e.embedOnline ? 'success' as const : 'error' as const,
-      detail: e.embedOnline ? 'mpnet 768d · Porta :8081 · Compartilhado com EVO-API' : 'Não responde em :8081/healthz',
+      detail: e.embedOnline ? 'mpnet 768d · Porta :8081 · 16.5ms latência' : 'Não responde em :8081/healthz',
       envVars: ['EMBED_URL (default: http://127.0.0.1:8081)'], envStatus: ['✅ (default)'],
       docUrl: 'https://huggingface.co/sentence-transformers/all-mpnet-base-v2',
     },
@@ -141,14 +189,22 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       items: ['reverseGeocode() — lat/lng → cidade', 'searchCity() — nome → coordenadas', 'Rate limit: 1.1s entre chamadas', 'User-Agent: adsentice/1.0', 'Gratuito, sem API key', 'Endpoint: nominatim.openstreetmap.org'],
     },
     {
-      name: 'Supabase pg Pool', icon: 'ri-database-2-line', statusColor: 'success' as const,
-      detail: 'Pooler direto aws-0-ca-central-1.pooler.supabase.com:6543. Bypassa RLS, permissão garantida via service_role. Usado por: discovery-persistence.ts, market-intel.ts, market/page.tsx, leads/page.tsx, pipeline/page.tsx.',
-      items: ['Host: aws-0-ca-central-1.pooler.supabase.com', 'Porta: 6543 (PgBouncer)', 'Database: postgres', 'Max connections: 5 (lib), 3 (market-intel)', 'Timeout: 5s connection', 'SSL: required (rejectUnauthorized: false)'],
+      name: 'Supabase pg Pool', icon: 'ri-database-2-line', statusColor: hasDbPassword ? 'success' as const : 'warning' as const,
+      detail: hasDbPassword
+        ? 'Pooler direto aws-0-ca-central-1.pooler.supabase.com:6543. Bypassa RLS, permissão garantida via service_role. Usado por: discovery-persistence.ts, market-intel.ts, market/page.tsx, leads/page.tsx, pipeline/page.tsx.'
+        : 'SUPABASE_DB_PASSWORD não configurado — pg Pool offline. Páginas de leads e pipeline não funcionarão.',
+      items: hasDbPassword
+        ? ['Host: aws-0-ca-central-1.pooler.supabase.com', 'Porta: 6543 (PgBouncer)', 'Database: postgres', 'Max connections: 5 (lib), 3 (market-intel)', 'Timeout: 5s connection', 'SSL: required (rejectUnauthorized: false)']
+        : ['⚠️ Configure SUPABASE_DB_PASSWORD no .env'],
     },
     {
-      name: 'DeepSeek (copywriter S10)', icon: 'ri-robot-2-line', statusColor: 'info' as const,
-      detail: 'LLM cost-capped para copywriting de relatórios Raio-X (S10). NÃO é extrator de dados — o provider-core extrai via DataForSEO. DeepSeek só gera copy estratégica (headline, subtitle, CTA). Fail-closed: sem chave → template fallback.',
-      items: ['Modelo: DeepSeek V4 Flash', 'Cap: ~$0.001/query', 'Árbitro copywriter, não extrator', 'Uso: S10 Raio-X copy pt-BR', 'Temperature: 0.8', 'Fallback: PERSONA_FALLBACK templates'],
+      name: 'DeepSeek (copywriter S10)', icon: 'ri-robot-2-line', statusColor: hasDeepSeek ? 'info' as const : 'warning' as const,
+      detail: hasDeepSeek
+        ? 'LLM cost-capped para copywriting de relatórios Raio-X (S10). NÃO é extrator de dados — o provider-core extrai via DataForSEO. DeepSeek só gera copy estratégica. KV Cache ON por padrão (98% cheaper input a partir da 2ª chamada).'
+        : 'DEEPSEEK_API_KEY não configurado. S10 usará template fallback (PERSONA_FALLBACK).',
+      items: hasDeepSeek
+        ? ['Modelo: DeepSeek V4 Flash', 'Custo: ~$0.000076/chamada (com KV Cache)', 'Input: $0.0028/1M (hit) · $0.14/1M (miss)', 'Output: $0.28/1M', 'Temperature: 0.8', 'Fallback: PERSONA_FALLBACK templates']
+        : ['⚠️ Configure DEEPSEEK_API_KEY em docs/secret/.env.DEEPSEEK'],
     },
   ]
 
@@ -440,10 +496,10 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               {[
                 { label: 'Infra (Redis+Qdrant+Embed)', count: [e.qdrantOnline, e.redisOnline, e.embedOnline].filter(Boolean).length, total: 3 },
-                { label: 'DataForSEO (provider-core)', count: hasDataForSeo ? 1 : 0, total: 1 },
-                { label: 'Auth (Supabase)', count: (!!user ? 1 : 0) + (hasServiceRole ? 1 : 0), total: 2 },
-                { label: 'Storage (R2)', count: r2Ready ? 1 : 0, total: 1 },
-                { label: 'MCP Servers', count: 6, total: 6 },
+                { label: 'Supabase', count: (supabaseReady ? 1 : 0) + (hasDbPassword ? 1 : 0), total: 2 },
+                { label: 'Cloudflare', count: cfServicesReady, total: 2 },
+                { label: 'DataForSEO', count: hasDataForSeo ? 1 : 0, total: 1 },
+                { label: 'DeepSeek', count: hasDeepSeek ? 1 : 0, total: 1 },
                 { label: 'BOA Score', count: Math.round(e.boaScore * 100), total: 100 },
               ].map((h) => (
                 <Box key={h.label} sx={{ textAlign: 'center' }}>
