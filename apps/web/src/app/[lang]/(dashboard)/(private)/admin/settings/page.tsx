@@ -69,7 +69,7 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
         ? `Login: ${process.env.DATAFORSEO_LOGIN} · Live + Sandbox · $${e.dataCostToday.toFixed(4)} hoje · packages/provider-core/`
         : 'DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD ausentes',
       envVars: ['DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'DATAFORSEO_MODE'],
-      envStatus: [hasDataForSeo ? '✅' : '⬜', hasDataForSeo ? '✅' : '⬜', process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 sandbox $0' : '✅ live'],
+      envStatus: [hasDataForSeo ? '✅' : '⬜', hasDataForSeo ? '✅' : '⬜', process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 sandbox $0' : '🟢 live'],
       docUrl: 'https://docs.dataforseo.com/',
     },
     {

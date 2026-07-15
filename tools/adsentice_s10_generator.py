@@ -21,7 +21,7 @@ Uso:
 medido=verdade · 2026-07-15 · adsentice
 """
 
-import json, os, sys, time, uuid, hashlib
+import json, os, sys, time, uuid, hashlib, subprocess
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -221,11 +221,16 @@ def generate_copy(lead: dict, gaps: list) -> dict:
             else:
                 raise
 
+        usage = data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        track_llm_cost(prompt_tokens, completion_tokens)
+
         return {
             "headline": c.get("headline", ""),
             "subtitle": c.get("subtitle", ""),
             "cta": c.get("cta", ""),
-            "tokens": data.get("usage", {}).get("total_tokens", 0),
+            "tokens": usage.get("total_tokens", 0),
             "model": DEEPSEEK_MODEL,
         }
     except Exception as e:
@@ -250,6 +255,40 @@ def qdrant_search(vector, kind=None, limit=3):
     req = Request(f"{QDRANT_URL}/collections/adsentice-self/points/search", data=body,
                   headers={"Content-Type": "application/json"}, method="POST")
     return json.loads(urlopen(req, timeout=10).read()).get("result", [])
+
+def track_llm_cost(prompt_tokens: int, completion_tokens: int):
+    """Registra custo DeepSeek no Redis. ~$0.000003/call. medido=verdade."""
+    # DeepSeek V4 Flash: input $0.001/1M, output $0.002/1M
+    cost = (prompt_tokens / 1_000_000 * 0.001) + (completion_tokens / 1_000_000 * 0.002)
+    try:
+        subprocess.run(
+            ["redis-cli", "-p", "6396", "--no-auth-warning",
+             "INCRBYFLOAT", "adsentice:llm:cost:today", str(cost)],
+            timeout=2, capture_output=True,
+        )
+        subprocess.run(
+            ["redis-cli", "-p", "6396", "--no-auth-warning",
+             "INCRBYFLOAT", "adsentice:llm:cost:total", str(cost)],
+            timeout=2, capture_output=True,
+        )
+        subprocess.run(
+            ["redis-cli", "-p", "6396", "--no-auth-warning",
+             "INCR", "adsentice:llm:calls:today"],
+            timeout=2, capture_output=True,
+        )
+        subprocess.run(
+            ["redis-cli", "-p", "6396", "--no-auth-warning",
+             "INCR", "adsentice:llm:calls:total"],
+            timeout=2, capture_output=True,
+        )
+        subprocess.run(
+            ["redis-cli", "-p", "6396", "--no-auth-warning",
+             "SETEX", "adsentice:llm:cost:last", "86400",
+             f"{cost:.8f} | {prompt_tokens}+{completion_tokens} tokens | deepseek-v4-flash"],
+            timeout=2, capture_output=True,
+        )
+    except Exception:
+        pass  # Redis offline — custo não contabilizado mas chamada já aconteceu
 
 def store_trace(meta):
     text = f"market intel trace | {meta['category']} | {meta['city']} | {meta['district']} | score:{meta['score']}"
