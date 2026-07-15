@@ -24,6 +24,8 @@ A config de sessão, a memória OODA e as doutrinas NÃO estão só neste arquiv
 
 **⭐ REGRA-MÃE GLOBAL (inviolável · TODA sessão):** `medido=verdade` — toda afirmação sobre o sistema cita **fonte** (arquivo, commit, teste, MCP tool). Sem fonte → `⚠ não-verificado`, NÃO conta como fato.
 
+**⚠️ MÉTRICAS DINÂMICAS:** Commits, ADRs, corpus points, BOA score, e outras métricas **NÃO são hardcoded aqui** — mudam a cada sessão. Use as fontes de recuperação canônica (acima) para obter valores reais. O CLAUDE.md é estável (doutrinas, arquitetura, stack) — não deve ser editado a cada selo.
+
 ---
 
 ## Infraestrutura viva
@@ -129,38 +131,15 @@ Thresholds: excellent ≥ 0.8 · acceptable ≥ 0.5 · reobserve < 0.2
 
 ---
 
-## Hooks & Skills
+## Skills (`.claude/skills/`)
 
-**Hooks** (`.claude/settings.local.json`):
-- `SessionStart`: `adsentice-session-start.py` + `adsentice_boa_score.py --save`
-- `PreCompact`: `adsentice-pre-compact.py`
-- `PostCompact`: `adsentice-session-start.py`
-
-**Skills** (`.claude/skills/`):
 - `adsentice-chat` — construir, evoluir e operar o pipeline de discovery e o chat
 - `adsentice-dag` — KG-first grounded recall (5 passos: KG→git→filesystem→síntese→persistir)
 - `adsentice-site-audit` — auditoria de site (Firecrawl + DataForSEO ONPAGE + DOMAIN_ANALYTICS)
 - `adsentice-spec` — autorar specs e ADRs
 
-## Métricas do Ecossistema
-
-| Métrica | Valor | Fonte |
-|---------|:-----:|-------|
-| Commits | 172 | `git log --oneline --all \| wc -l` |
-| ADRs | 20 (13 acc, 2 sup, 5 prop) | `docs/adr/` |
-| Lib modules | 26 (6,228 LOC) | `apps/web/src/lib/*.ts` |
-| Brain modules | 7 (676 LOC) | `apps/web/src/lib/brain/*.ts` |
-| API routes | 10 | `apps/web/src/app/api/*/` |
-| Corpus A (self) | 2,469 pontos | Qdrant `adsentice-self` |
-| Corpus C (conversa) | 54,897 pontos | Qdrant `adsentice-conversation` |
-| Corpus design | ~847 pontos (open-design + 21st) | Qdrant `adsentice-self` filter `source=open-design/*` + `21st-magic-ui` |
-| Materio tokens | 36 | Qdrant `adsentice-materio` |
-| Marketing skills embedados | 43 | Qdrant `adsentice-self` filter `source=marketingskills/*` |
-| Redis keys | 46 | `redis-cli -p 6396 DBSIZE` |
-| Containers | 3 (Redis, Qdrant, Embed) | `docker ps` |
-| :3000 | Next.js 15 + MUI/Materio | `npm run dev` |
-
 ---
+
 
 ## Comandos de diagnóstico rápido
 
