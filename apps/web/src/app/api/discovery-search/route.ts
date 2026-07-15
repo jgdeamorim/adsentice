@@ -463,7 +463,13 @@ export async function POST(request: NextRequest) {
       // Market holds — time-series snapshot a cada busca
       if (categories.length === 1) {
         const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
-        const city = "Rio de Janeiro" // default — futuro: geo resolver
+        // Extrai cidade real dos listings (mais frequente, fallback "Brasil")
+        const cityCounts = new Map<string, number>()
+        for (const l of enrichedListings) {
+          const c = (l as any).city
+          if (c) cityCounts.set(c, (cityCounts.get(c) || 0) + 1)
+        }
+        const city = [...cityCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Brasil"
         appendMarketHolds([
           { category: cat, city, metric: "avg_score", value: distribution.avgScore, searchId: saved?.searchId },
           { category: cat, city, metric: "total_businesses", value: result.total_count, searchId: saved?.searchId },
