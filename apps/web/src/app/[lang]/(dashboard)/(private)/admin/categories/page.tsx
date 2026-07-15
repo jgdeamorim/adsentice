@@ -21,7 +21,9 @@ import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
-import { getCategoryAnalytics } from '@/lib/discovery-persistence'
+import { getAdminClient } from '@/lib/supabase-admin'
+
+export const dynamic = 'force-dynamic'
 
 // ═══ Mapeamento: código GMB → label Discovery ═══
 const CATEGORY_INFO: Record<string, { label: string; market: string; tier: number; segment: string; why: string }> = {
@@ -89,17 +91,45 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
   let dataSource: 'supabase' | 'redis' | 'none' = 'none'
 
   try {
-    const analytics = await getCategoryAnalytics()
+    const supabase = getAdminClient()
+    const { data: listings, error } = await supabase.from("discovery_listings").select("place_id,category,score_compound,enrichment_level,schwartz_level").limit(3000)
 
-    if (analytics.length > 0) {
+    if (!error && listings?.length) {
       dataSource = 'supabase'
-      categories = analytics.map((c) => ({
-        category: c.category, label: CATEGORY_INFO[c.category]?.label || c.category,
-        total_listings: c.total_listings, unique_businesses: c.unique_businesses,
-        avg_score: c.avg_score, pain_pct: c.pain_pct,
-        solution_aware_plus: c.solution_aware_plus,
-        product_aware_plus: c.product_aware_plus, most_aware: c.most_aware,
-      }))
+      // Aggregar por categoria (dedup por place_id)
+      const byCategory: Record<string, { places: Set<string>; scores: number[]; pains: number; qual: number; prod: number; most: number }> = {}
+      const deduped = new Map<string, { category: string; score: number; el: number; sl: number }>()
+      for (const r of listings) {
+        const pid = r.place_id
+        if (!pid) continue
+        const existing = deduped.get(pid)
+        if (!existing || (r.enrichment_level || 0) > existing.el) {
+          deduped.set(pid, { category: r.category || "?", score: r.score_compound || 0, el: r.enrichment_level || 0, sl: r.schwartz_level || 1 })
+        }
+      }
+      for (const [pid, info] of deduped) {
+        const c = info.category
+        if (!byCategory[c]) byCategory[c] = { places: new Set(), scores: [], pains: 0, qual: 0, prod: 0, most: 0 }
+        byCategory[c].places.add(pid)
+        byCategory[c].scores.push(info.score)
+        if (info.sl >= 3) byCategory[c].pains++
+        if (info.sl >= 4) byCategory[c].prod++
+        if (info.sl >= 5) byCategory[c].most++
+      }
+      const catList = Object.entries(byCategory)
+        .map(([cat, data]) => ({
+          category: cat,
+          label: CATEGORY_INFO[cat]?.label || cat,
+          total_listings: 0,
+          unique_businesses: data.places.size,
+          avg_score: Math.round(data.scores.reduce((a: number,b: number)=>a+b,0)/Math.max(data.scores.length,1)),
+          pain_pct: Math.round((data.pains/Math.max(data.places.size,1))*100),
+          solution_aware_plus: data.pains,
+          product_aware_plus: data.prod,
+          most_aware: data.most,
+        }))
+        .sort((a, b) => b.pain_pct - a.pain_pct)
+      categories = catList
     }
   } catch { /* Supabase offline */ }
 
