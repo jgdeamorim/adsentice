@@ -303,3 +303,27 @@ export async function googleReviews(params: {
   }
   return null
 }
+
+// ── Market Holds (rsxt-t0 append) ──
+
+export interface MarketHoldInput {
+  tenant?: string; category: string; city: string
+  metric: string; value: number; source?: string; searchId?: string
+  metadata?: Record<string, unknown>
+}
+
+export async function appendMarketHolds(holds: MarketHoldInput[]): Promise<void> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tdigauruusdhnpvppixb.supabase.co'}/rest/v1/market_holds`
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  await Promise.all(holds.map(hold =>
+    fetch(url, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        tenant: hold.tenant || 'adsentice', category: hold.category, city: hold.city,
+        metric: hold.metric, value: hold.value, source: hold.source || 'supabase_aggregate',
+        search_id: hold.searchId || null, metadata: hold.metadata || {},
+      }),
+    }).catch(() => {})
+  ))
+}

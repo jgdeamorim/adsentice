@@ -50,9 +50,8 @@ export { keywordHistorical } from "./tools/keyword-historical"
 export { businessQA } from "./tools/business-qa"
 export { serpMaps } from "./tools/serp-maps"
 
-// Market intelligence (t0 holds)
-export { appendMarketHold, appendMarketHolds, cacheMarketSnapshot, queryMarketTrends } from "./market-holds"
-export type { MarketHold, MarketMetric, MarketTrendPoint } from "./market-holds"
+// Market holds: use provider-core-adapter.ts (apps/web) — precisa de process.env Next.js
+// export { appendMarketHold, ... } from "./market-holds"
 
 // Types
 export type * from "./types"

@@ -19,7 +19,7 @@ import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/sco
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
 import { vaultWriteBatch } from "@/lib/r2-vault"
-import { appendMarketHolds } from "@adsentice/provider-core"
+import { appendMarketHolds } from "@/lib/provider-core-adapter"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
