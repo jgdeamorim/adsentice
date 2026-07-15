@@ -24,3 +24,6 @@ apps/web/src/prisma/*.db
 __pycache__/
 *.pyc
 vendor/
+
+# Auto-generated S10 previews
+docs/preview/
