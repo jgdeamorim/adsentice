@@ -160,8 +160,8 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
   const integrations = [
     {
       name: 'MCP Servers (5 slots)', icon: 'ri-plug-2-line', statusColor: 'success' as const,
-      detail: '5 MCP servers no .mcp.json: adsentice-redis, adsentice-qdrant, adsentice-kg, adsentice-conversation, context7. dataforseo MCP removido — substituído por provider-core direto.',
-      items: ['adsentice-redis (npx)', 'adsentice-qdrant (uv run)', 'adsentice-kg (uv run)', 'adsentice-conversation (uv run)', 'context7 (npx, docs)', 'dataforseo → provider-core (npx, REMOVIDO)'],
+      detail: '5 MCP servers ativos no .mcp.json: adsentice-redis, adsentice-qdrant, adsentice-kg, adsentice-conversation, context7. dataforseo MCP DESABILITADO — substituído por provider-core v2.0 (HTTP direto, sem MCP).',
+      items: ['adsentice-redis (npx)', 'adsentice-qdrant (uv run)', 'adsentice-kg (uv run)', 'adsentice-conversation (uv run)', 'context7 (npx, docs)', 'dataforseo → disabled: true (provider-core substitui)'],
     },
     {
       name: 'provider-core v2.0 · 21 tools DataForSEO', icon: 'ri-flashlight-line', statusColor: 'primary' as const,

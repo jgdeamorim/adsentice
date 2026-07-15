@@ -35,11 +35,8 @@
     "dataforseo": {
       "command": "npx",
       "args": ["-y", "dataforseo-mcp-server@2.8.10"],
-      "env": {
-        "DATAFORSEO_LOGIN": "${DATAFORSEO_LOGIN}",
-        "DATAFORSEO_PASSWORD": "${DATAFORSEO_PASSWORD}",
-        "ENABLED_MODULES": "SERP,KEYWORDS_DATA,ONPAGE,DATAFORSEO_LABS,BACKLINKS,DOMAIN_ANALYTICS,BUSINESS_DATA,CONTENT_ANALYSIS,AI_OPTIMIZATION"
-      }
+      "disabled": true,
+      "description": "SUBSTITUIDO por provider-core v2.0 (packages/provider-core/). DataForSEO chamado direto via HTTP, 1 hop, sem MCP intermediario."
     },
     "context7": {
       "command": "npx",
