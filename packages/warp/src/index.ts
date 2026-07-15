@@ -38,6 +38,7 @@ export { DesignPipeline } from './pipeline'
 export { DesignRuntime } from './runtime'
 export { embedText, embedBatch } from './embed'
 export { S10RaioXPipeline } from './s10-raio-x'
+export { MarketIntelligence } from './market-intel'
 export { PluginRegistry, pluginRegistry, aestheticEnforcementPlugin, mcpConnectorPlugins } from './plugins'
 export type { Plugin, PluginManifest, DesignContext } from './plugins'
 export {
