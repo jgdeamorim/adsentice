@@ -62,20 +62,25 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       docUrl: 'https://developers.cloudflare.com/r2/api/s3/',
     },
     {
-      name: 'EVO-API', icon: 'ri-plug-line',
-      status: e.evoApiOnline, statusLabel: e.evoApiOnline ? '✅ Online' : '❌ Offline',
-      statusColor: e.evoApiOnline ? 'success' as const : 'error' as const,
-      detail: e.evoApiOnline ? `Porta :7700 · ${e.capabilities} capabilities · ${e.mcpServers} MCP servers` : 'Não responde em :7700/health',
-      envVars: ['EVO_API_URL (default: http://127.0.0.1:7700)'], envStatus: ['✅ (default)'],
-      docUrl: 'https://github.com/jgdeamorim/EVO-API',
+      name: 'provider-core (DataForSEO)', icon: 'ri-search-line',
+      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ provider-core v1.0' : '❌ Não configurado',
+      statusColor: hasDataForSeo ? 'success' as const : 'error' as const,
+      detail: hasDataForSeo
+        ? `Login: ${process.env.DATAFORSEO_LOGIN} · Live + Sandbox · $${e.dataCostToday.toFixed(4)} hoje · packages/provider-core/`
+        : 'DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD ausentes',
+      envVars: ['DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'DATAFORSEO_MODE'],
+      envStatus: [hasDataForSeo ? '✅' : '⬜', hasDataForSeo ? '✅' : '⬜', process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 sandbox $0' : '✅ live'],
+      docUrl: 'https://docs.dataforseo.com/',
     },
     {
-      name: 'DataForSEO', icon: 'ri-search-line',
-      status: hasDataForSeo, statusLabel: hasDataForSeo ? '✅ Live' : '❌ Não configurado',
-      statusColor: hasDataForSeo ? 'success' as const : 'error' as const,
-      detail: hasDataForSeo ? `Login: ${process.env.DATAFORSEO_LOGIN} · $${e.dataCostToday.toFixed(4)} hoje` : 'Credenciais não configuradas',
-      envVars: ['DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD'], envStatus: [hasDataForSeo ? '✅' : '⬜', hasDataForSeo ? '✅' : '⬜'],
-      docUrl: 'https://docs.dataforseo.com/',
+      name: 'EVO-API', icon: 'ri-book-read-line',
+      status: e.evoApiOnline, statusLabel: e.evoApiOnline ? '📚 Referência' : '❌ Offline',
+      statusColor: e.evoApiOnline ? 'info' as const : 'error' as const,
+      detail: e.evoApiOnline
+        ? `Porta :7700 · ${e.capabilities} capabilities mapeadas · Shapes + Translators + Cost Registry como referência canônica`
+        : 'Não responde em :7700/health',
+      envVars: ['EVO_API_URL (default: http://127.0.0.1:7700) — referência, não runtime'], envStatus: ['📚 (referência)'],
+      docUrl: 'https://github.com/jgdeamorim/EVO-API',
     },
     {
       name: 'Qdrant KG', icon: 'ri-brain-line',
@@ -106,19 +111,19 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
   // ── Integration cards (Tab 2) ──
   const integrations = [
     {
-      name: 'MCP Servers (6 slots)', icon: 'ri-plug-2-line', statusColor: 'success' as const,
-      detail: '6 MCP servers configurados no .mcp.json: adsentice-redis, adsentice-qdrant, adsentice-kg, adsentice-conversation, dataforseo, context7. Todos respondendo.',
-      items: ['adsentice-redis (npx)', 'adsentice-qdrant (uv run)', 'adsentice-kg (uv run)', 'adsentice-conversation (uv run)', 'dataforseo (npx, 9 módulos)', 'context7 (npx, docs)'],
+      name: 'MCP Servers (5 slots)', icon: 'ri-plug-2-line', statusColor: 'success' as const,
+      detail: '5 MCP servers no .mcp.json: adsentice-redis, adsentice-qdrant, adsentice-kg, adsentice-conversation, context7. dataforseo MCP removido — substituído por provider-core direto.',
+      items: ['adsentice-redis (npx)', 'adsentice-qdrant (uv run)', 'adsentice-kg (uv run)', 'adsentice-conversation (uv run)', 'context7 (npx, docs)', 'dataforseo → provider-core (npx, REMOVIDO)'],
     },
     {
-      name: 'EVO-API Capabilities', icon: 'ri-stack-line', statusColor: 'info' as const,
-      detail: `76 capabilities disponíveis no tenant adsentice-dev. 4 em uso produtivo: business_listings_search, business_profile_gmb, on_page_instant_pages, domain_technologies.`,
-      items: ['L0: business_listings_search ($0.015)', 'L1: business_profile_gmb ($0.0054)', 'L2: on_page_instant_pages ($0.000125)', 'L2: domain_technologies ($0.01)', 'L3: domain_competitors (⬜ não wire)', 'L3/L4: 72 disponíveis'],
+      name: 'provider-core v1.0 · DataForSEO direto', icon: 'ri-flashlight-line', statusColor: 'primary' as const,
+      detail: 'Substitui EVO-API MCP como intermediário. 1 hop HTTP direto → api.dataforseo.com. Sandbox $0 para dev, live para prod. 6 tools implementadas, 5 disponíveis.',
+      items: ['✅ L0 business_listings_search ($0.015)', '✅ L1 business_profile_gmb ($0.0054) — custom', '✅ L2 on_page_instant_pages ($0.000125)', '✅ L2 domain_technologies ($0.01)', '✅ L3 backlinks_competitors ($0.02)', '⬜ L4 keywords/serp/trends (disponível)', '📦 packages/provider-core/ · 11 arquivos · ~400 linhas'],
     },
     {
-      name: 'DataForSEO MCP (9 módulos)', icon: 'ri-global-line', statusColor: 'primary' as const,
-      detail: '9 módulos DataForSEO disponíveis via MCP. 4 em uso, 5 não integrados.',
-      items: ['✅ business_data (listings + profile)', '✅ on_page (instant_pages)', '✅ domain_analytics (technologies)', '✅ backlinks (competitors)', '⬜ serp_organic', '⬜ keywords_data', '⬜ content_analysis', '⬜ dataforseo_labs', '⬜ domain_analytics_whois'],
+      name: 'EVO-API · Referência canônica', icon: 'ri-book-open-line', statusColor: 'info' as const,
+      detail: 'Não mais usado como runtime de chamadas DataForSEO. Permanece como referência de arquitetura: 76 capabilities mapeadas, shapes completos, cost-registry, translators, e padrão de 3-stage gate (Shape→Sandbox→Live).',
+      items: ['📚 Shape catalog: 111 endpoints (6 clusters)', '📚 Translators: 50+ pares request/response', '📚 Cost Registry: 50+ capabilities precificadas', '📚 Sandbox-first pattern: $0 com shapes reais', '📚 Canonical I/O: input/output schema por capability', '🔌 Runtime: substituído por provider-core direto'],
     },
     {
       name: 'OpenStreetMap Nominatim', icon: 'ri-map-pin-2-line', statusColor: 'warning' as const,
@@ -131,24 +136,26 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       items: ['Host: aws-0-ca-central-1.pooler.supabase.com', 'Porta: 6543 (PgBouncer)', 'Database: postgres', 'Max connections: 5 (lib), 3 (market-intel)', 'Timeout: 5s connection', 'SSL: required (rejectUnauthorized: false)'],
     },
     {
-      name: 'DeepSeek (árbitro)', icon: 'ri-robot-2-line', statusColor: 'info' as const,
-      detail: 'LLM cost-capped para síntese de estratégia. NÃO é extrator de dados — o DataForSEO/EVO-API extrai. DeepSeek só interpreta. Fail-closed: sem chave → sem LLM.',
-      items: ['Modelo: DeepSeek V4', 'Cap: $0.02 por chamada', 'Árbitro, não extrator', 'Uso: síntese de diagnóstico', 'Fallback: Qwen 2.5 1.5B local ($0)'],
+      name: 'DeepSeek (copywriter S10)', icon: 'ri-robot-2-line', statusColor: 'info' as const,
+      detail: 'LLM cost-capped para copywriting de relatórios Raio-X (S10). NÃO é extrator de dados — o provider-core extrai via DataForSEO. DeepSeek só gera copy estratégica (headline, subtitle, CTA). Fail-closed: sem chave → template fallback.',
+      items: ['Modelo: DeepSeek V4 Flash', 'Cap: ~$0.001/query', 'Árbitro copywriter, não extrator', 'Uso: S10 Raio-X copy pt-BR', 'Temperature: 0.8', 'Fallback: PERSONA_FALLBACK templates'],
     },
   ]
 
   // ── Feature cards (Tab 3) ──
   const features = [
     {
-      name: 'Enrichment Engine (L0-L2.5)', icon: 'ri-rocket-2-line', color: 'primary' as const,
-      detail: 'Pipeline de enriquecimento progressivo. 37 sinais de scoring em 9 dimensões. 4 camadas ativas, 2 futuras.',
+      name: 'Enrichment Engine (L0-L3 via provider-core)', icon: 'ri-rocket-2-line', color: 'primary' as const,
+      detail: 'Pipeline de enriquecimento progressivo direto via DataForSEO (sem EVO-API). 37 sinais de scoring em 9 dimensões. 5 camadas ativas.',
       metrics: [
         { label: 'L0 GMB Search', value: '$0.015/busca', chip: '11 campos' },
-        { label: 'L1 GMB Profile', value: '$0.0054/lead', chip: '27 campos' },
-        { label: 'L2 Website Audit', value: '$0.010/lead', chip: '8 sinais W' },
-        { label: 'L2.5 Content Gap', value: '$0 (zero API)', chip: '5 sinais C' },
-        { label: 'Custo full-stack', value: '$0.0305', chip: 'L0→L2.5' },
+        { label: 'L1 GMB Profile', value: '$0.0054/lead', chip: '27 campos (custom)' },
+        { label: 'L2 Website Audit', value: '$0.010/lead', chip: 'on_page + technologies' },
+        { label: 'L2.5 Content Gap', value: '$0 (zero API)', chip: '8 sinais C' },
+        { label: 'L3 Competitive', value: '$0.02/lead', chip: 'backlinks_competitors' },
+        { label: 'Custo full-stack', value: '~$0.05', chip: 'L0→L3' },
         { label: 'Sinais ativos', value: '37', chip: '9 dimensões' },
+        { label: 'Runtime', value: 'provider-core', chip: '1 hop direto' },
       ],
     },
     {
@@ -423,7 +430,7 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               {[
                 { label: 'Infra (Redis+Qdrant+Embed)', count: [e.qdrantOnline, e.redisOnline, e.embedOnline].filter(Boolean).length, total: 3 },
-                { label: 'APIs (EVO-API+DataForSEO)', count: [e.evoApiOnline, hasDataForSeo].filter(Boolean).length, total: 2 },
+                { label: 'DataForSEO (provider-core)', count: hasDataForSeo ? 1 : 0, total: 1 },
                 { label: 'Auth (Supabase)', count: (!!user ? 1 : 0) + (hasServiceRole ? 1 : 0), total: 2 },
                 { label: 'Storage (R2)', count: r2Ready ? 1 : 0, total: 1 },
                 { label: 'MCP Servers', count: 6, total: 6 },
@@ -493,19 +500,19 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       <Grid size={{ xs: 12 }}>
         <Alert severity={hasServiceRole ? 'success' : 'info'} variant='outlined'>
           <Typography variant='body2' fontWeight={600} gutterBottom>
-            {hasServiceRole ? '🟢 Pipeline de Persistência Ativo' : '🟡 Pipeline de Persistência Parcial'}
+            {hasServiceRole ? '🟢 provider-core + Supabase Ativos' : '🟡 Pipeline Parcial'}
           </Typography>
           <Typography variant='caption'>
             {hasServiceRole
-              ? 'Dados pagos do DataForSEO persistidos permanentemente no Supabase. Toda busca Discovery grava: discovery_searches + discovery_listings (leads com score composto + Schwartz + Content Maturity + Architecture + Schema). Redis (cache 24h) + Memory (30min) como fallback rápido.'
+              ? 'provider-core v1.0 chama DataForSEO direto (1 hop). Dados persistidos no Supabase: discovery_searches + discovery_listings. Sandbox $0 para dev (mesmos shapes, dados fake). Redis (cache 24h) + Memory (30min) como fallback rápido. EVO-API mantido como referência canônica de arquitetura (shapes, translators, cost-registry).'
               : 'Falta SUPABASE_SERVICE_ROLE_KEY. Dados pagos em Redis (24h) + Memory (30min) — risco de perda.'}
           </Typography>
           <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip label='provider-core: DIRETO' size='small' color='primary' variant='filled' />
             <Chip label='Supabase: DURÁVEL' size='small' color={hasServiceRole ? 'success' : 'default'} variant={hasServiceRole ? 'filled' : 'outlined'} />
             <Chip label='Redis: Cache 24h' size='small' color='warning' variant='filled' />
-            <Chip label='Memory: Cache 30min' size='small' color='info' variant='outlined' />
-            <Chip label={`R2: ${r2Ready ? '✅' : '⬜'}`} size='small' color={r2Ready ? 'success' : 'default'} variant={r2Ready ? 'filled' : 'outlined'} />
-            <Chip label='Migrations: 001+002+003' size='small' color='success' variant='filled' />
+            <Chip label='EVO-API: Referência' size='small' color='info' variant='outlined' />
+            <Chip label={`Sandbox: ${process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 $0' : '🔴 live'}`} size='small' color={process.env.DATAFORSEO_MODE === 'sandbox' ? 'info' : 'error'} variant='filled' />
           </Box>
         </Alert>
       </Grid>

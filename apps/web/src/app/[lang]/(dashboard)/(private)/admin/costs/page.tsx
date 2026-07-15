@@ -22,17 +22,18 @@ import { Pool } from 'pg'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
-// Preços REAIS DataForSEO (fonte: api.dataforseo.com/pricing — 2026)
+// Preços REAIS DataForSEO (fonte: packages/provider-core/cost-registry.yaml + api.dataforseo.com)
 const CAPABILITIES = [
-  { capability: 'business_listings_search', costPerCall: 0.015, endpoint: 'business_data/business_listings/search/live', used: true },
-  { capability: 'business_profile_gmb', costPerCall: 0.0054, endpoint: 'business_data/google/my_business_info/live', used: true },
-  { capability: 'on_page_instant_audit', costPerCall: 0.000125, endpoint: 'on_page/instant_pages/live', used: true },
-  { capability: 'domain_technologies', costPerCall: 0.01, endpoint: 'domain_analytics/technologies/domain_technologies/live', used: true },
-  { capability: 'keyword_research', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/keyword_overview/live', used: false },
-  { capability: 'on_page_lighthouse', costPerCall: 0.00425, endpoint: 'on_page/lighthouse/live', used: false },
-  { capability: 'domain_competitors', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/competitors_domain/live', used: false },
-  { capability: 'serp_organic', costPerCall: 0.01, endpoint: 'serp/google/organic/live/advanced', used: false },
-  { capability: 'backlinks_summary', costPerCall: 0.02, endpoint: 'backlinks/summary/live', used: false },
+  { capability: 'business_listings_search', costPerCall: 0.015, endpoint: 'business_data/business_listings/search/live', layer: 'L0', used: true, provider: 'provider-core' },
+  { capability: 'business_profile_gmb', costPerCall: 0.0054, endpoint: 'business_data/google/my_business_info/live', layer: 'L1', used: true, provider: 'provider-core (custom)' },
+  { capability: 'on_page_instant_pages', costPerCall: 0.000125, endpoint: 'on_page/instant_pages', layer: 'L2', used: true, provider: 'provider-core' },
+  { capability: 'domain_technologies', costPerCall: 0.01, endpoint: 'domain_analytics/technologies/domain_technologies/live', layer: 'L2', used: true, provider: 'provider-core' },
+  { capability: 'backlinks_competitors', costPerCall: 0.02, endpoint: 'backlinks/competitors/live', layer: 'L3', used: false, provider: 'provider-core' },
+  { capability: 'keyword_research', costPerCall: 0.02, endpoint: 'dataforseo_labs/google/keyword_overview/live', layer: 'L4', used: false, provider: 'disponível' },
+  { capability: 'serp_organic', costPerCall: 0.002, endpoint: 'serp/google/organic/live/advanced', layer: 'L4', used: false, provider: 'disponível' },
+  { capability: 'domain_competitors', costPerCall: 0.0101, endpoint: 'dataforseo_labs/google/competitors_domain/live', layer: 'L4', used: false, provider: 'disponível' },
+  { capability: 'keyword_trends', costPerCall: 0.009, endpoint: 'keywords_data/google_trends/explore/live', layer: 'L4', used: false, provider: 'disponível' },
+  { capability: 'keyword_volume', costPerCall: 0.075, endpoint: 'keywords_data/google_ads/search_volume/live', layer: 'L4', used: false, provider: 'disponível' },
 ]
 
 const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
@@ -145,9 +146,13 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
         <Typography variant='h4'>💰 Centro de Custos</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            DataForSEO spend · Dados REAIS do Supabase (discovery_searches)
+            DataForSEO spend via provider-core · Dados REAIS do Supabase (discovery_searches)
           </Typography>
-          <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip label='Dados REAIS' size='small' color='success' variant='tonal' />
+            <Chip label={process.env.DATAFORSEO_MODE === 'sandbox' ? '🧪 Sandbox $0' : '🔴 Live'} size='small' color={process.env.DATAFORSEO_MODE === 'sandbox' ? 'info' : 'error'} variant='tonal' />
+            <Chip label='provider-core v1.0' size='small' color='primary' variant='tonal' />
+          </Box>
         </Box>
       </Grid>
 
@@ -238,20 +243,24 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
             <Grid key={item.capability} size={{ xs: 12, sm: 6, md: 4 }}>
               <Card>
                 <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Typography variant='subtitle2' fontWeight={600} sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                      {item.capability}
-                    </Typography>
-                    <Chip label={item.used ? '✅ Em uso' : '⬜ Disponível'} size='small'
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box>
+                      <Typography variant='subtitle2' fontWeight={600} sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        {item.capability}
+                      </Typography>
+                      <Chip label={item.layer} size='small' color='primary' variant='tonal' sx={{ mr: 1 }} />
+                    </Box>
+                    <Chip label={item.used ? '✅ provider-core' : '⬜ Disponível'} size='small'
                       color={item.used ? 'success' : 'default'} variant='tonal' />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant='caption' color='text.secondary'>Preço por chamada</Typography>
+                    <Typography variant='caption' color='text.secondary'>Preço</Typography>
                     <Typography variant='body2' fontWeight={700}>${item.costPerCall.toFixed(4)}</Typography>
                   </Box>
-                  <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.65rem', display: 'block', mb: 1 }}>
+                  <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.6rem', display: 'block', mb: 1 }}>
                     {item.endpoint}
                   </Typography>
+                  <Chip label={item.provider} size='small' variant='outlined' sx={{ fontSize: '0.6rem' }} />
                   {item.used && (
                     <Box sx={{ mt: 1 }}>
                       {item.capability === 'business_listings_search' && (
@@ -259,12 +268,6 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
                       )}
                       {item.capability === 'business_profile_gmb' && (
                         <Chip label={`${l1Calls} chamadas · $${(l1Calls * 0.0054).toFixed(4)}`} size='small' color='warning' variant='tonal' />
-                      )}
-                      {item.capability === 'on_page_instant_audit' && (
-                        <Chip label={`${l2Calls} chamadas · $${(l2Calls * 0.000125).toFixed(6)}`} size='small' color='info' variant='tonal' />
-                      )}
-                      {item.capability === 'domain_technologies' && (
-                        <Chip label={`${l2Calls} chamadas · $${(l2Calls * 0.01).toFixed(4)}`} size='small' color='info' variant='tonal' />
                       )}
                     </Box>
                   )}
