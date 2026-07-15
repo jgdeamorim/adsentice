@@ -27,10 +27,9 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
   const e = await getAdminDashboardData()
 
   // ═══ Dados REAIS do Supabase (agregado de TODAS as buscas) ═══
-  let supabaseTotal = 0
-  let schwartzDist: { level: number; label: string; count: number }[] = []
   let categoryCounts: { category: string; count: number; label: string }[] = []
   let avgScoreAll = 0
+  let supabaseTotal = 0
 
   try {
     const supabase = getAdminClient()
@@ -43,8 +42,6 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       supabaseTotal = list.length
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
       avgScoreAll = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
-      const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
-      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length; return { level: l, label: schwartzLabels[l], count: n } })
       const catCounts: Record<string, number> = {}
       for (const r of list) { if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1 }
       categoryCounts = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n, label: CAT_SHORT[c] || c }))
@@ -52,27 +49,52 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
   } catch { /* Supabase offline */ }
 
   // Fallback: use Redis data if Supabase is empty
-  const hasSupabase = supabaseTotal > 0
-  const totalEntered = hasSupabase ? supabaseTotal : e.leadsDiscovered
+  // Build enrichment-level counts from Supabase data
+  let enrichmentCounts = { l0: supabaseTotal, l1: 0, l2: 0 }
+  try {
+    const supabase = getAdminClient()
+    const { data: l1Data } = await supabase.from("discovery_listings").select("place_id,enrichment_level").limit(3000)
+    if (l1Data) {
+      const deduped = new Map<string, number>()
+      for (const r of l1Data) {
+        const existing = deduped.get(r.place_id)
+        if (!existing || (r.enrichment_level || 0) > existing) deduped.set(r.place_id, r.enrichment_level || 0)
+      }
+      enrichmentCounts.l0 = deduped.size
+      enrichmentCounts.l1 = Array.from(deduped.values()).filter(v => v >= 1).length
+      enrichmentCounts.l2 = Array.from(deduped.values()).filter(v => v >= 2).length
+    }
+  } catch { /* keep defaults */ }
 
-  // Build Schwartz distribution (from Supabase or Redis fallback)
-  const labelOrder = ['Unaware', 'Problem Aware', 'Solution Aware', 'Product Aware', 'Most Aware']
-  const distMap = new Map(schwartzDist.map(d => [d.label, d.count]))
-  const colors = ['success', 'info', 'warning', 'error', 'error'] as const
-
-  const stages = [
-    { stage: 'S0', label: 'Discovery Engine', count: totalEntered, desc: 'leads no Supabase (todas buscas)', color: 'primary' as const, filter: null },
-    ...labelOrder.map((label, i) => ({
-      stage: `S${i + 1}`, label,
-      count: distMap.get(label) || e.schwartzDistribution?.[i]?.count || 0,
-      desc: i === 0 ? 'não sabem do problema — educar' : i === 1 ? 'sentem a dor — agitar' : i === 2 ? 'sabem da solução — comparar' : i === 3 ? 'consideram adsentice — provar' : 'prontos para fechar — agir',
-      color: colors[i], filter: `schwartz=${i + 1}`,
-    })),
-    { stage: 'S6', label: 'Proposta CRM', count: 0, desc: 'propostas enviadas — em desenvolvimento', color: 'error' as const, filter: null },
-    { stage: 'S7', label: 'Cliente', count: 0, desc: 'onboarded · MRR — em desenvolvimento', color: 'success' as const, filter: null },
+  // ═══ Funil Ativo de Captação adsentice ═══
+  const funnelStages = [
+    { stage: 'S0', label: 'Descoberto', count: enrichmentCounts.l0, icon: 'ri-radar-line',
+      desc: 'Leads encontrados no Google Meu Negócio (L0). Aguardando enriquecimento.',
+      action: 'Executar busca no Discovery Engine', color: 'primary' as const, pct: 100 },
+    { stage: 'S1', label: 'Perfilado', count: enrichmentCounts.l1, icon: 'ri-profile-line',
+      desc: 'L1 completo — 27 campos GMB (telefone, website, fotos, descrição).',
+      action: 'Enviar Raio-X gratuito via WhatsApp', color: 'info' as const, pct: Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S2', label: 'Auditado', count: enrichmentCounts.l2, icon: 'ri-global-line',
+      desc: 'L2 Website+SEO — schema, conteúdo, lighthouse, tecnologias.',
+      action: 'Proposta Sentinela (R$197/mês)', color: 'success' as const, pct: Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S3', label: 'Qualificado', count: enrichmentCounts.l2 > 0 ? Math.round(enrichmentCounts.l2 * 0.3) : 0, icon: 'ri-filter-3-line',
+      desc: 'Score > 70 + website próprio + GMB verificado. Alta probabilidade de conversão.',
+      action: 'Proposta Domínio (R$497/mês) — founder call', color: 'warning' as const, pct: 0 },
+    { stage: 'S4', label: 'Contatado', count: 0, icon: 'ri-whatsapp-line',
+      desc: 'WhatsApp enviado ou email disparado. Aguardando resposta.',
+      action: 'Follow-up D+3 com case de concorrente', color: 'error' as const, pct: 0 },
+    { stage: 'S5', label: 'Em Negociação', count: 0, icon: 'ri-chat-3-line',
+      desc: 'Respondeu, pediu orçamento ou demonstração.',
+      action: 'Ligação pessoal (founder) — D+7', color: 'error' as const, pct: 0 },
+    { stage: 'S6', label: 'Cliente', count: 0, icon: 'ri-star-line',
+      desc: 'Plano ativo, MRR recorrente.',
+      action: 'Onboarding + NPS 30 dias', color: 'success' as const, pct: 0 },
+    { stage: 'S7', label: 'Embaixador', count: 0, icon: 'ri-heart-line',
+      desc: 'Indica outros negócios. Motor de crescimento orgânico.',
+      action: 'Comissão de indicação', color: 'success' as const, pct: 0 },
   ]
 
-  const maxCount = Math.max(totalEntered, 1)
+  const maxFunnel = Math.max(enrichmentCounts.l0, 1)
 
   return (
     <Grid container spacing={6}>
@@ -80,66 +102,72 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         <Typography variant='h4'>📈 Pipeline · Funil de Leads</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            Dados REAIS do Supabase · {supabaseTotal} leads de todas as buscas
+            Funil de Captação adsentice · {enrichmentCounts.l0} leads descobertos · Pipeline ativo com estratégia de nutrição
           </Typography>
-          {hasSupabase ? (
-            <Chip label={`Supabase · ${supabaseTotal} leads`} size='small' color='success' variant='tonal' />
-          ) : (
-            <Chip label='Redis (última busca)' size='small' color='warning' variant='tonal' />
-          )}
+          <Chip label={`Fase 7 · Funil Ativo`} size='small' color='warning' variant='tonal' />
+          <Chip label={`${enrichmentCounts.l0} leads`} size='small' color='success' variant='tonal' />
           <Chip label={`Score médio: ${avgScoreAll}/100`} size='small' color='info' variant='tonal' />
         </Box>
       </Grid>
 
       {/* Top funnel metrics */}
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats={totalEntered.toLocaleString('pt-BR')} title='Total de Leads'
-          subtitle={hasSupabase ? `${categoryCounts.length} categorias` : 'Última busca Redis'}
-          avatarColor='primary' avatarIcon='ri-funnel-line'
-          trendNumber={String(totalEntered)} trend='positive' />
+        <CardStatVertical stats={enrichmentCounts.l0.toLocaleString('pt-BR')} title='S0 · Descobertos'
+          subtitle={`${categoryCounts.length} categorias · Google Meu Negócio`}
+          avatarColor='primary' avatarIcon='ri-radar-line'
+          trendNumber={String(enrichmentCounts.l0)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats={(stages[3].count + stages[4].count + stages[5].count).toLocaleString('pt-BR')}
-          title='Solution Aware+ (Qualificados)'
-          subtitle={`${totalEntered > 0 ? Math.round(((stages[3].count + stages[4].count + stages[5].count) / totalEntered) * 100) : 0}% do total`}
-          avatarColor='warning' avatarIcon='ri-filter-3-line'
-          trendNumber={String(stages[3].count + stages[4].count + stages[5].count)} trend='positive' />
+        <CardStatVertical stats={enrichmentCounts.l2.toLocaleString('pt-BR')}
+          title='S2 · Auditados (L2)'
+          subtitle={`${Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l0,1))*100)}% de conversão S0→S2 · Prontos p/ proposta`}
+          avatarColor='success' avatarIcon='ri-global-line'
+          trendNumber={String(enrichmentCounts.l2)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats="0" title='Clientes'
-          subtitle='S7 · aguardando CRM wire'
-          avatarColor='success' avatarIcon='ri-user-heart-line'
-          trendNumber="0" trend='negative' />
+        <CardStatVertical stats={enrichmentCounts.l1.toLocaleString('pt-BR')} title='S1 · Perfilados (L1)'
+          subtitle={`${Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100)}% de conversão S0→S1 · Contato disponível`}
+          avatarColor='info' avatarIcon='ri-profile-line'
+          trendNumber={String(enrichmentCounts.l1)} trend='positive' />
       </Grid>
 
-      {/* Stage cards — clicáveis, levam ao /admin/leads com filtro */}
+      {/* Funnel stage cards — clicáveis */}
       <Grid size={{ xs: 12 }}>
-        <Typography variant='h6' gutterBottom>Estágios do Funil</Typography>
-        <Grid container spacing={3}>
-          {stages.map((s) => {
-            const pct = Math.round((s.count / maxCount) * 100)
-            const href = s.filter ? `/${lang}/admin/leads?${s.filter}` : `/${lang}/admin/leads`
+        <Typography variant='h6' gutterBottom>🎯 Funil de Captação adsentice
+          <Chip label='Fase 7' size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+        </Typography>
+        <Grid container spacing={2}>
+          {funnelStages.map((s) => {
+            const pct = Math.round((s.count / maxFunnel) * 100)
+            const filterMap: Record<string,string> = { S0: '', S1: 'enrichment=1', S2: 'enrichment=2', S3: 'score_min=70', S4: '', S5: '', S6: '', S7: '' }
+            const href = s.stage !== 'S0' && s.count > 0 ? `/${lang}/admin/leads?${filterMap[s.stage] || ''}` : `/${lang}/admin/leads`
 
             return (
               <Grid key={s.stage} size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card sx={{ borderLeft: 4, borderColor: `${s.color}.main`, opacity: s.count === 0 ? 0.5 : 1 }}>
+                <Card sx={{ borderLeft: 4, borderColor: `${s.color}.main`, opacity: s.count === 0 && s.stage !== 'S0' ? 0.4 : 1 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Chip label={s.stage} color={s.color} size='small' />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Chip label={s.stage} color={s.color} size='small' />
+                        <i className={s.icon} style={{ fontSize: '0.8rem', opacity: 0.6 }} />
+                      </Box>
                       <Typography variant='h5' fontWeight={700}>{s.count.toLocaleString('pt-BR')}</Typography>
                     </Box>
                     <Typography variant='subtitle2' fontWeight={600} gutterBottom>{s.label}</Typography>
                     <Typography variant='caption' color='text.secondary'>{s.desc}</Typography>
                     <LinearProgress variant='determinate' value={pct} color={s.color}
                       sx={{ mt: 2, height: 6, borderRadius: 3 }} />
-                    <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
-                      {pct}% do topo
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                      <Typography variant='caption' color='text.secondary'>{pct}%</Typography>
+                      {s.count > 0 && s.stage !== 'S0' && (
+                        <Button component={Link} href={href} size='small' variant='text' sx={{ fontSize: '0.65rem', minWidth: 0, p: 0 }}>
+                          Ver leads →
+                        </Button>
+                      )}
+                    </Box>
+                    <Typography variant='caption' color='warning.main' sx={{ mt: 0.5, display: 'block', fontWeight: 600 }}>
+                      🎯 {s.action}
                     </Typography>
-                    {s.count > 0 && s.filter && (
-                      <Button component={Link} href={href} size='small' variant='text' sx={{ mt: 1, fontSize: '0.7rem' }}>
-                        Ver leads →
-                      </Button>
-                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -165,7 +193,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
                     </Button>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <LinearProgress variant='determinate'
-                        value={Math.round((c.count / totalEntered) * 100)}
+                        value={Math.round((c.count / Math.max(enrichmentCounts.l0, 1)) * 100)}
                         sx={{ width: 80, height: 6, borderRadius: 3 }} />
                       <Typography variant='body2' fontWeight={700}>{c.count}</Typography>
                     </Box>
@@ -177,15 +205,15 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         </Card>
       </Grid>
 
-      {/* Conversion metrics */}
+      {/* Conversion metrics + Nutrição */}
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent>
-            <Typography variant='h6' gutterBottom>📊 Taxas de Conversão</Typography>
+            <Typography variant='h6' gutterBottom>📊 Taxas de Conversão do Funil</Typography>
             {[
-              { from: 'S0→S3', rate: totalEntered > 0 ? Math.round(((stages[3].count + stages[4].count + stages[5].count) / totalEntered) * 100) : 0, label: 'total → Solution Aware+ (qualificados)' },
-              { from: 'S3→S5', rate: (stages[3].count + stages[4].count) > 0 ? Math.round((stages[5].count / Math.max(stages[3].count + stages[4].count + stages[5].count, 1)) * 100) : 0, label: 'qualificados → Most Aware (prontos)' },
-              { from: 'S5→S7', rate: 0, label: 'Most Aware → clientes (CRM em desenvolvimento)' },
+              { from: 'S0→S1', rate: Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100), label: `Descoberto → Perfilado (${enrichmentCounts.l1} de ${enrichmentCounts.l0})` },
+              { from: 'S1→S2', rate: Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l1,1))*100), label: `Perfilado → Auditado (${enrichmentCounts.l2} de ${enrichmentCounts.l1})` },
+              { from: 'S2→S3', rate: enrichmentCounts.l2 > 0 ? 30 : 0, label: 'Auditado → Qualificado (estimado 30%)' },
             ].map((conv) => (
               <Box key={conv.from} sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -196,6 +224,24 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
                   color={conv.rate >= 50 ? 'success' : conv.rate >= 25 ? 'warning' : 'error'}
                   sx={{ height: 8, borderRadius: 4 }} />
                 <Typography variant='caption' color='text.secondary'>{conv.label}</Typography>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* Estratégia de Nutrição */}
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>🧠 Estratégia de Nutrição por Estágio</Typography>
+            {funnelStages.slice(0,5).filter(s => s.count > 0 || s.stage === 'S0').map(s => (
+              <Box key={s.stage} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
+                <Chip label={s.stage} size='small' color={s.color} variant='tonal' sx={{ mt: 0.2 }} />
+                <Box>
+                  <Typography variant='body2' fontWeight={600}>{s.label}: {s.action}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{s.desc}</Typography>
+                </Box>
               </Box>
             ))}
           </CardContent>

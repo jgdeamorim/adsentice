@@ -475,5 +475,64 @@ Todos os arquivos que leem `process.env.X` devem migrar para `getSecret("X")`:
 
 ---
 
+---
+
+## §12 · FASE 7 — Pipeline de Captação adsentice (funil ativo)
+
+**Objetivo:** Transformar o pipeline de passivo (contador de Schwartz) para ativo (motor de vendas da adsentice). Cada lead avança por estágios conforme é enriquecido e nutrido com estratégia de marketing.
+
+**Status:** Em implementação · 2026-07-15
+
+### 12.1 · Estágios do Funil adsentice
+
+| Estágio | O que é | Como avança | Ação de nutrição |
+|---------|---------|-------------|-----------------|
+| **S0 · Descoberto** | Lead encontrado no GMB (L0) | Score composto > 0 | Nenhuma — aguardando enriquecimento |
+| **S1 · Perfilado** | L1 completo (27 campos GMB) | `enrichment_level >= 1` | Raio-X gratuito → WhatsApp |
+| **S2 · Auditado** | L2 Website+SEO (schema, conteúdo, lighthouse) | `enrichment_level >= 2` | Proposta Sentinela (R$197/mês) |
+| **S3 · Qualificado** | Score > 70 + website + claimed | Múltiplos sinais de dor | Proposta Domínio (R$497/mês) |
+| **S4 · Contatado** | WhatsApp enviado / email disparado | Ação registrada | Follow-up D+3, D+7 |
+| **S5 · Em negociação** | Respondeu, pediu orçamento | Interação registrada | Case de sucesso + objeções |
+| **S6 · Cliente** | Plano ativo, MRR recorrente | Pagamento confirmado | Onboarding + NPS 30 dias |
+| **S7 · Embaixador** | Indica outros negócios | Indicação registrada | Comissão de indicação |
+
+### 12.2 · Estratégia de Nutrição por Estágio
+
+| Estágio | Canal | Mensagem | Timing |
+|---------|-------|----------|--------|
+| S0→S1 | Automático | Enriquecimento L1 via API | Imediato após busca |
+| S1→S2 | Automático | Enriquecimento L2 via API | Imediato após L1 |
+| S2→S3 | WhatsApp | "Dra. [Nome], seu Raio-X está pronto. 4.9★ e 77 avaliações — mas seu site não aparece no Google. Veja: [link]" | D+0 |
+| S3→S4 | Email | Relatório completo + 3 gaps + plano de ação | D+1 |
+| S4→S5 | WhatsApp | "Concorrentes em [bairro] estão aparecendo no Google. Seu score é [X]/100. Quer ver como chegar em 85+?" | D+3 |
+| S5→S6 | Ligação | Founder call — proposta personalizada | D+7 |
+
+### 12.3 · Métricas do Funil (visíveis no /admin/pipeline)
+
+```
+S0 Descoberto:  5404 (100%)
+S1 Perfilado:    210 (3.9%)
+S2 Auditado:      12 (0.2%)
+S3 Qualificado:     5
+S4 Contatado:       0
+S5 Negociação:      0
+S6 Cliente:         0
+S7 Embaixador:      0
+```
+
+**Taxa de conversão alvo:** S0→S1 = 5%, S1→S2 = 10%, S2→S3 = 50% (quem chega no L2 já está pronto)
+
+### 12.4 · Implementação
+
+| # | O quê | Onde | Status |
+|---|-------|------|--------|
+| 1 | Badge L0/L1/L2 na tabela de leads | `leads/LeadTable.tsx` + `leads/page.tsx` | 🔴 Implementar |
+| 2 | Funil ativo com estágios + nutrição | `pipeline/page.tsx` | 🔴 Implementar |
+| 3 | Coluna `funnel_stage` no Supabase | migration 006 | ⏳ Planejado |
+| 4 | Registro de ações (WhatsApp, email, call) | `lead-actions.ts` | ⏳ Planejado |
+| 5 | Automação de follow-up (Cloudflare Workers cron) | `workers/nurture.ts` | ⏳ Planejado |
+
+---
+
 *Fases Provider-Core DataForSEO · 2026-07-15 · medido=verdade*
-*8/40 caps implementadas (20%) · 6 fases planejadas · Pipeline alvo: $0.594/lead · Fase 0 (pré-deploy) documentada*
+*21/40 caps implementadas (52.5%) · 7 fases planejadas · Pipeline alvo: $0.594/lead · Fase 0 + Fase 7 documentadas*
