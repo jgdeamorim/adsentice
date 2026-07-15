@@ -1,0 +1,42 @@
+# adsentice · Cost Registry
+# Preços DataForSEO por capability ($USD). medido=verdade.
+# Fonte: EVO-API canonical/provider-costs.yaml (provider + measured)
+# Regra: cost = MAX(provider_base, measured) — nunca subestima.
+#
+# confidence levels:
+#   provider       — preço oficial DataForSEO (docs.dataforseo.com)
+#   measured       — medido em chamada real (live probe)
+#   provider+measured — ambos confirmam (maior confiança)
+
+provider: dataforseo
+updated: 2026-07-15
+
+costs:
+  # ── L0 · Discovery ──
+  business.listings.search:          { cost_usd: "0.015",   confidence: provider }
+
+  # ── L1 · Profile ──
+  business.profile.gmb:              { cost_usd: "0.0054",  confidence: provider }
+
+  # ── L2 · Website+SEO ──
+  on_page.instant_pages:             { cost_usd: "0.000125", confidence: provider }
+  domain.technologies:               { cost_usd: "0.01",    confidence: provider }
+
+  # ── L3 · Competitive ──
+  backlinks.competitors:             { cost_usd: "0.02",    confidence: provider }
+  domain.ranked_keywords:            { cost_usd: "0.0101",  confidence: measured }
+  domain.competitors:                { cost_usd: "0.0101",  confidence: measured }
+  domain.keyword_gap:                { cost_usd: "0.0101",  confidence: measured }
+
+  # ── L4 · Keywords ──
+  keyword.volume:                    { cost_usd: "0.075",   confidence: provider }
+  keyword.research:                  { cost_usd: "0.02",    confidence: measured }
+  keyword.trends:                    { cost_usd: "0.009",   confidence: measured }
+
+  # ── Serp ──
+  serp.organic:                      { cost_usd: "0.002",   confidence: measured }
+
+  # ── Pipeline completo (1 lead, L0→L3) ──
+  pipeline.full_enrichment:
+    cost_usd: "0.050225"   # L0(0.015) + L1(0.0054) + L2(0.000125+0.01) + L3(0.02)
+    confidence: provider

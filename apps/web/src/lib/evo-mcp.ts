@@ -144,6 +144,18 @@ export function extractDomain(url: string | null | undefined): string | null {
   } catch { return null }
 }
 
+/** Parse MCP content text safely. If text is not JSON (e.g., EVO-API
+ *  kill-switch message), throws a clean error instead of a confusing
+ *  SyntaxError that leaks raw text. */
+function parseContentJSON(text: string, toolName: string): any {
+  try {
+    return JSON.parse(text)
+  } catch {
+    // Text is a plain error/status message from EVO-API — not JSON
+    throw new Error(`EVO-API: ${text.slice(0, 200)} [tool: ${toolName}]`)
+  }
+}
+
 // ── L2 MCP Client Functions ──────────────────────────────────
 
 /** OnPage Instant Audit: single-page SEO audit via EVO-API ($0.000125/call). */
@@ -184,7 +196,7 @@ export async function onPageInstantAudit(url: string): Promise<SEOInstantAudit |
   const content = (call.result as any)?.content?.[0]?.text
   if (!content) return null
 
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "on_page_instant_pages")
   const output = data.canonical_output || {}
 
   return {
@@ -245,7 +257,7 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
   const content = (call.result as any)?.content?.[0]?.text
   if (!content) return null
 
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "domain_technologies")
   const output = data.canonical_output || {}
 
   return {
@@ -280,7 +292,7 @@ export async function domainCompetitors(target: string): Promise<{ domain: strin
   }, sid || undefined)
   const content = (call.result as any)?.content?.[0]?.text
   if (!content) return []
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "backlinks_competitors")
   const output = data.canonical_output || {}
   return (output.competitors || output.items || []).map((c: any) => ({
     domain: c.domain || c.target || "?",
@@ -308,7 +320,7 @@ export async function businessReviewsGoogle(placeId: string): Promise<{ reviews:
   }, sid || undefined)
   const content = (call.result as any)?.content?.[0]?.text
   if (!content) return { reviews: [], totalCount: 0, avgRating: 0 }
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "business_reviews_google")
   const output = data.canonical_output || {}
   return {
     reviews: (output.reviews || output.items || []).map((r: any) => ({
@@ -365,7 +377,7 @@ export async function businessProfileGmb(params: {
 
   if (!content) return null
 
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "business_profile_gmb")
   const output = data.canonical_output || {}
 
   return {
@@ -467,7 +479,7 @@ export async function businessListingsSearch(params: {
 
   if (!content) throw new Error("MCP: no content in response")
 
-  const data = JSON.parse(content)
+  const data = parseContentJSON(content, "business_listings_search")
 
   let cost_usd = 0
   const bill = data.billing_event

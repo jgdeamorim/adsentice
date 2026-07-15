@@ -1,0 +1,17 @@
+{
+  "name": "@adsentice/provider-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DataForSEO direct client — zero intermediaries, medido=verdade",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'OK: provider-core manual test'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "~5.7.0"
+  }
+}
