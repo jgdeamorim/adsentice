@@ -66,12 +66,20 @@ export async function saveDiscoverySearch(params: {
     const searchId = searchData[0]?.id
     if (!searchId) return null
 
-    // 2 — POST discovery_listings in batch (max 50 per request)
+    // 2 — POST discovery_listings (bulk insert via REST)
     let savedCount = 0
-    const listings = params.listings.map(l => ({
-      search_id: searchId,
-      place_id: l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
-      title: l.title || null, category: l.category || null, address: l.address || null,
+    const listings = params.listings
+      .filter(l => l.place_id)  // só salva listings com place_id real
+      .map(l => ({
+        search_id: searchId,
+        place_id: l.place_id!,    // garantido pelo filter acima
+        title: l.title || null, category: l.category || null, address: l.address || null,
+        rating_value: l.rating_value ?? null, rating_votes: l.rating_votes ?? null,
+        is_claimed: l.is_claimed ?? null, latitude: l.latitude ?? null, longitude: l.longitude ?? null,
+        score_compound: l.score.compound, score_fit: l.score.fit.normalized,
+        score_engagement: l.score.engagement.normalized, score_intent: l.score.intent.normalized,
+        schwartz_level: l.score.schwartz.level, schwartz_label: l.score.schwartz.label,
+        signals_detected: [...l.score.fit.signalsDetected, ...l.score.engagement.signalsDetected, ...l.score.intent.signalsDetected],
       rating_value: l.rating_value ?? null, rating_votes: l.rating_votes ?? null,
       is_claimed: l.is_claimed ?? null, latitude: l.latitude ?? null, longitude: l.longitude ?? null,
       score_compound: l.score.compound, score_fit: l.score.fit.normalized,
@@ -105,38 +113,21 @@ export async function saveDiscoverySearch(params: {
       l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
     }))
 
-    const BATCH = 25
-    for (let i = 0; i < listings.length; i += BATCH) {
-      const batch = listings.slice(i, i + BATCH)
-      const res = await fetch(`${SFX}/rest/v1/discovery_listings`, {
-        method: "POST",
-        headers: { ...sbHeaders(), Prefer: "return=minimal" },
-        body: JSON.stringify(batch), signal: AbortSignal.timeout(15000),
-      })
-      if (res.ok) {
-        savedCount += batch.length
-      } else {
-        const errText = await res.text().catch(() => "")
-        console.error(`[discovery-persistence] Batch POST failed (${res.status}):`, errText.slice(0, 300))
-        // UPSERT: DELETE old + INSERT new for each item
-        for (const item of batch) {
-          try {
-            // DELETE any existing row with same place_id
-            await fetch(`${SFX}/rest/v1/discovery_listings?place_id=eq.${encodeURIComponent(item.place_id)}`, {
-              method: "DELETE",
-              headers: { ...sbHeaders(), Prefer: "return=minimal" },
-              signal: AbortSignal.timeout(5000),
-            })
-            // INSERT fresh
-            const insRes = await fetch(`${SFX}/rest/v1/discovery_listings`, {
-              method: "POST",
-              headers: { ...sbHeaders(), Prefer: "return=minimal" },
-              body: JSON.stringify(item), signal: AbortSignal.timeout(5000),
-            })
-            if (insRes.ok) savedCount++
-          } catch { /* skip individual errors */ }
-        }
-      }
+    // 3 — Bulk insert (one POST per listing)
+    const skipped = params.listings.length - listings.length
+    if (skipped > 0) console.log(`[discovery-persistence] Skipped ${skipped} listings without place_id`)
+
+    for (const listing of listings) {
+      try {
+        await fetch(`${SFX}/rest/v1/discovery_listings?search_id=eq.${encodeURIComponent(searchId)}&place_id=eq.${encodeURIComponent(listing.place_id)}`, {
+          method: "DELETE", headers: { ...sbHeaders(), Prefer: "return=minimal" }, signal: AbortSignal.timeout(5000),
+        })
+        const insRes = await fetch(`${SFX}/rest/v1/discovery_listings`, {
+          method: "POST", headers: { ...sbHeaders(), Prefer: "return=minimal" },
+          body: JSON.stringify(listing), signal: AbortSignal.timeout(5000),
+        })
+        if (insRes.ok) savedCount++
+      } catch { /* skip individual failures */ }
     }
     console.log(`[discovery-persistence] Saved ${savedCount}/${listings.length} listings for search ${searchId}`)
 
