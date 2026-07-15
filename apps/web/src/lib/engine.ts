@@ -107,7 +107,7 @@ export interface EngineData {
   embedOnline: boolean
   evoApiOnline: boolean
   mcpServers: number
-  capabilities: number
+  capabilities: number | string  // provider-core tool count (+ EVO-API ref if online)
 
   corpusSelf: number
   corpusConversation: number
@@ -157,13 +157,24 @@ export async function getAdminDashboardData(): Promise<EngineData> {
     qdrantCount("adsentice-materio"),
   ])
 
-  // ═══ Infra Health ═══
-  const [qdrantOk, embedOk, evoOk, capabilities] = await Promise.all([
+  // ═══ Infra Health + Provider-Core Tool Count ═══
+  let providerCoreTools = 21; // fallback
+  try {
+    const { readdirSync: rd } = await import("fs")
+    const toolsDir = join(process.cwd(), "..", "packages", "provider-core", "src", "tools")
+    providerCoreTools = rd(toolsDir).filter(f => f.endsWith(".ts") && f !== "index.ts").length
+  } catch { /* fallback */ }
+
+  const [qdrantOk, embedOk, evoOk] = await Promise.all([
     healthCheck("http://127.0.0.1:6352/healthz"),
     healthCheck("http://127.0.0.1:8081/healthz"),
     healthCheck("http://127.0.0.1:7700/health"),
-    fetchEvoApiCapabilities(),
   ])
+
+  // Capabilities = provider-core tools + EVO-API reference count
+  const capabilities = evoOk
+    ? `${providerCoreTools}+${await fetchEvoApiCapabilities()}`
+    : `${providerCoreTools}`
 
   // MCP server count from config file
   const mcpServers = countMcpServers()
@@ -185,10 +196,11 @@ export async function getAdminDashboardData(): Promise<EngineData> {
     adrCount = readdirSync(adrDir).filter((f: string) => f.endsWith(".md")).length
   } catch { /* fallback */ }
 
-  // ═══ Scoring v0.2 — Supabase (primary) → Redis (fallback) ═══
+  // ═══ Scoring v0.2 — Supabase admin client (primary) → Redis (fallback) ═══
   let lastScoreStats: ScoreStats | null = null
 
   try {
+    // Tenta RPC primeiro (get_score_distribution)
     const { getScoreDistribution } = await import("./discovery-persistence")
     const supabaseDist = await getScoreDistribution()
 
@@ -203,12 +215,37 @@ export async function getAdminDashboardData(): Promise<EngineData> {
         mostAware: supabaseDist.mostAware,
       }
     }
-  } catch { /* Supabase offline */ }
+  } catch { /* RPC offline */ }
 
+  // Fallback: query Supabase directly via admin client
+  if (!lastScoreStats) {
+    try {
+      const { getAdminClient } = await import("./supabase-admin")
+      const supabase = getAdminClient()
+      const { data, error, count } = await supabase.from("discovery_listings").select("place_id,score_compound,schwartz_level", { count: "exact", head: false }).limit(3000)
+      if (!error && data?.length) {
+        const deduped = new Map<string, any>()
+        for (const r of data) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
+        const list = Array.from(deduped.values())
+        const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
+        const avg = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
+        lastScoreStats = {
+          total: list.length,
+          avgScore: avg,
+          unaware: list.filter((r: any) => r.schwartz_level === 1).length,
+          problemAware: list.filter((r: any) => r.schwartz_level === 2).length,
+          solutionAware: list.filter((r: any) => r.schwartz_level === 3).length,
+          productAware: list.filter((r: any) => r.schwartz_level === 4).length,
+          mostAware: list.filter((r: any) => r.schwartz_level === 5).length,
+        }
+      }
+    } catch { /* Supabase offline */ }
+  }
+
+  // Last resort: Redis cache
   if (!lastScoreStats) {
     try {
       const raw = redisCli("GET adsentice:discovery:last_score_stats")
-
       if (raw) lastScoreStats = JSON.parse(raw)
     } catch { /* no data yet */ }
   }
