@@ -46,6 +46,9 @@ export { serpOrganic } from "./tools/serp-organic"
 export { serpLocalFinder } from "./tools/serp-local-finder"
 export { googleReviews } from "./tools/reviews-google"
 export { contentSentiment } from "./tools/content-sentiment"
+export { keywordHistorical } from "./tools/keyword-historical"
+export { businessQA } from "./tools/business-qa"
+export { serpMaps } from "./tools/serp-maps"
 
 // Market intelligence (t0 holds)
 export { appendMarketHold, appendMarketHolds, cacheMarketSnapshot, queryMarketTrends } from "./market-holds"

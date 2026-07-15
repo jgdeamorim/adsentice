@@ -19,6 +19,7 @@ import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/sco
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
 import { vaultWriteBatch } from "@/lib/r2-vault"
+import { appendMarketHolds } from "@adsentice/provider-core"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -420,6 +421,16 @@ export async function POST(request: NextRequest) {
       listings: enrichedListings,
       distribution,
     }).then((saved) => {
+      // Market holds — time-series snapshot a cada busca
+      if (categories.length === 1) {
+        const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
+        const city = "Rio de Janeiro" // default — futuro: geo resolver
+        appendMarketHolds([
+          { category: cat, city, metric: "avg_score", value: distribution.avgScore, searchId: saved?.searchId },
+          { category: cat, city, metric: "total_businesses", value: result.total_count, searchId: saved?.searchId },
+          { category: cat, city, metric: "claimed_pct", value: enrichedListings.filter((l: any) => l.is_claimed).length / Math.max(enrichedListings.length, 1) * 100, searchId: saved?.searchId },
+        ]).catch(() => {})
+      }
 
       // Also add content gap to response listings array (listings was modified in-place)
       for (let i = 0; i < enrichedListings.length; i++) {
