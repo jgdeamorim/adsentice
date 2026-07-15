@@ -425,5 +425,55 @@ interface MarketAlert {
 
 ---
 
+---
+
+## §11 · Secret Rotation + CI/CD Production Readiness (FASE 0 · pré-deploy)
+
+**Status:** Planejado para o primeiro deploy em produção (Hetzner CAX11).
+
+### 11.1 · Rotação de secrets comprometidos
+
+Keys que já apareceram em commits públicos (DEVEM ser rotacionadas ANTES de produção):
+
+| Secret | Onde estava exposto | Ação |
+|--------|-------------------|------|
+| `SUPABASE_DB_PASSWORD` | 4 arquivos `.ts` com senha hardcoded | 🔴 Rotacionar no Supabase Dashboard → Settings → Database |
+| `DATAFORSEO_PASSWORD` | `.env` não foi commitado, mas circulou em logs | 🟡 Rotacionar em app.dataforseo.com → Profile |
+| `DEEPSEEK_API_KEY` | `docs/secret/.env.DEEPSEEK` tracked (removido em `28d95ef`) | 🟡 Rotacionar em platform.deepseek.com → API Keys |
+| `SUPABASE_SERVICE_ROLE_KEY` | `.env` gitignored, mas o JWT expõe project ref | 🟢 Rotacionar no Supabase Dashboard → API |
+
+### 11.2 · CI/CD Pipeline (Cloudflare Workers + GitHub Actions)
+
+```
+Git push → GitHub Actions →
+  1. secrets: Cloudflare Workers Secrets (wrangler secret put)
+  2. build: npm run build (Next.js output)
+  3. deploy: wrangler deploy (Cloudflare Workers)
+  4. vault: Supabase Vault (pgsodium) para secrets em repouso
+```
+
+### 11.3 · Migração de process.env → getSecret()
+
+Todos os arquivos que leem `process.env.X` devem migrar para `getSecret("X")`:
+
+| Arquivo | Secrets usados | Prioridade |
+|---------|---------------|------------|
+| `provider-core-adapter.ts` | DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD, DEEPSEEK_API_KEY | 🔴 |
+| `supabase-admin.ts` | NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY | 🔴 |
+| `dataforseo.ts` | DATAFORSEO_PASSWORD | 🟡 |
+| `r2-vault.ts` | CLOUDFLARE_R2_* | 🟡 |
+| `engine.ts` | (health checks, sem secrets) | 🟢 |
+
+### 11.4 · Checklist pré-deploy
+
+- [ ] Todos os secrets rotacionados (sem keys expostas em commits)
+- [ ] `getSecret()` usado em todo o código (zero `process.env.X` direto)
+- [ ] Cloudflare Workers Secrets configurados (wrangler secret put)
+- [ ] Supabase Vault (pgsodium) configurado para criptografia em repouso
+- [ ] `.env` local validado com `auditSecrets()` — sem missing required
+- [ ] CI/CD pipeline testada em staging antes de produção
+
+---
+
 *Fases Provider-Core DataForSEO · 2026-07-15 · medido=verdade*
-*8/40 caps implementadas (20%) · 6 fases planejadas · Pipeline alvo: $0.594/lead*
+*8/40 caps implementadas (20%) · 6 fases planejadas · Pipeline alvo: $0.594/lead · Fase 0 (pré-deploy) documentada*
