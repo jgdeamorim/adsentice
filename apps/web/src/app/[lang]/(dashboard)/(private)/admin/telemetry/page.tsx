@@ -1,5 +1,4 @@
 
-export const dynamic = 'force-dynamic'
 
 // adsentice · Admin / Telemetry — Finding Alerts + Route Health + Event Log
 // Padrão EVO-API :7700/health + capital.RS capital-observability
@@ -23,6 +22,8 @@ import Paper from '@mui/material/Paper'
 
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAlerts, getEvents, getRouteStats } from '@/lib/telemetry'
+
+export const dynamic = 'force-dynamic'
 
 const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params

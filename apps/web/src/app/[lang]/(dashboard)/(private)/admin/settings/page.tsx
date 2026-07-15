@@ -3,7 +3,6 @@
 // v2.0: Abas (Infra · Integrações · Features · Inteligência)
 import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -22,6 +21,8 @@ import TableRow from '@mui/material/TableRow'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminDashboardData } from '@/lib/engine'
 import { listMarketCategories } from '@/lib/market-intel'
+
+export const dynamic = 'force-dynamic'
 
 const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params

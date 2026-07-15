@@ -1,5 +1,4 @@
 
-export const dynamic = 'force-dynamic'
 
 // adsentice · Admin / Pipeline — dados REAIS do Supabase (agregado de TODAS as buscas)
 import { redirect } from 'next/navigation'
@@ -19,6 +18,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminDashboardData } from '@/lib/engine'
+
+export const dynamic = 'force-dynamic'
 
 const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params

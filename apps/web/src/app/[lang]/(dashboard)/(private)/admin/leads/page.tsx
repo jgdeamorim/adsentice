@@ -1,5 +1,4 @@
 
-export const dynamic = 'force-dynamic'
 
 // adsentice · Admin / Leads — dados REAIS do Supabase com paginação e filtros
 import { redirect } from 'next/navigation'
@@ -18,6 +17,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import LeadTable from './LeadTable'
+
+export const dynamic = 'force-dynamic'
 
 interface LeadRow {
   id: string; title: string | null; category: string | null

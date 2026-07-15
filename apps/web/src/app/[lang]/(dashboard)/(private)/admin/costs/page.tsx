@@ -1,5 +1,4 @@
 
-export const dynamic = 'force-dynamic'
 
 // adsentice · Admin / Costs — centro de custos (medido=verdade)
 // Fontes: cost-registry.yaml + Supabase REST + Redis + plans.ts canônico
@@ -20,6 +19,8 @@ import Alert from '@mui/material/Alert'
 
 import { getSessionUser } from '@/libs/supabase/server'
 import { STRATEGIC_PLANS, type StrategicPlan } from '@/lib/plans'
+
+export const dynamic = 'force-dynamic'
 
 // ── Types ──
 

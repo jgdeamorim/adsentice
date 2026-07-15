@@ -1,5 +1,4 @@
 
-export const dynamic = 'force-dynamic'
 
 // adsentice · Admin / Market Intelligence — ADR-0009
 // Agrega dados existentes por categoria × região (ZERO novas APIs)
@@ -18,6 +17,8 @@ import Alert from '@mui/material/Alert'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { nicheIntelligence, listMarketCategories } from '@/lib/market-intel'
+
+export const dynamic = 'force-dynamic'
 
 // ── Market Holds (rsxt-t0 time-series) ──
 
