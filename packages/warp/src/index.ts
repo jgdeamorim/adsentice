@@ -34,6 +34,8 @@ import { WarpCache, warpCache as defaultCache } from './7-cache'
 import { WarpTracker, warpTracker as defaultTracker } from './6-telemetry'
 import { TokenComposer, tokenComposer as defaultTokenComposer } from './tokens-composer'
 import { AgentRouter, agentRouter as defaultAgentRouter } from './8-agents'
+import { RecommendEngine, recommendEngine as defaultRecommendEngine } from './recommend-engine'
+import { L3CompetitorAnalyzer, l3Analyzer as defaultL3Analyzer } from './l3-competitor-keywords'
 
 // ═══════════════════════════════════════════════════════════════
 // Re-exports
@@ -45,6 +47,8 @@ export { Composer } from './4-composer'
 export { WarpCache } from './7-cache'
 export { WarpTracker } from './6-telemetry'
 export { TokenComposer, composeTokens } from './tokens-composer'
+export { RecommendEngine } from './recommend-engine'
+export { L3CompetitorAnalyzer } from './l3-competitor-keywords'
 export {
   AgentRouter,
   ClaudeCodeAdapter,
@@ -113,6 +117,19 @@ export type {
   CacheEntry,
 } from './7-cache'
 
+export type {
+  RecommendAction,
+  RecommendResult,
+  BattleCardOutput,
+} from './recommend-engine'
+
+export type {
+  CompetitorProfile as L3CompetitorProfile,
+  KeywordOpportunity as L3KeywordOpportunity,
+  MarketPosition as L3MarketPosition,
+  L3CompetitiveLandscape,
+} from './l3-competitor-keywords'
+
 // ═══════════════════════════════════════════════════════════════
 // WarpAPI — interface unificada
 // ═══════════════════════════════════════════════════════════════
@@ -125,6 +142,8 @@ export class WarpAPI {
   tracker: WarpTracker
   tokens: TokenComposer
   agents: AgentRouter
+  recommend: RecommendEngine
+  l3: L3CompetitorAnalyzer
 
   constructor() {
     this.cache = defaultCache
@@ -134,6 +153,8 @@ export class WarpAPI {
     this.composer = new Composer(this.registry, this.cache)
     this.tokens = defaultTokenComposer
     this.agents = defaultAgentRouter
+    this.recommend = defaultRecommendEngine
+    this.l3 = defaultL3Analyzer
   }
 }
 
