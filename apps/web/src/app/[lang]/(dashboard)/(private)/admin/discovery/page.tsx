@@ -225,12 +225,13 @@ const DiscoveryPage = () => {
   // ── Map Pins (ADR-0022 Layer 1) ──
   const [mapPins, setMapPins] = useState<any[]>([])
   const [pinsLoaded, setPinsLoaded] = useState(false)
+  const [pinsVersion, setPinsVersion] = useState(0)
   useEffect(() => {
     fetch('/api/coverage/pins')
       .then(r => r.json())
       .then(d => { setMapPins(d.pins || []); setPinsLoaded(true) })
       .catch(() => {})
-  }, [results]) // recarrega pins quando nova busca termina
+  }, [pinsVersion]) // recarrega pins quando pinsVersion incrementa
 
   // Fetch coverage when category or city changes
   const activeCategory = selected.length === 1 ? selected[0] : null
@@ -306,6 +307,7 @@ const DiscoveryPage = () => {
       setScores(data.scores || [])
       setDistribution(data.distribution || null)
       setTotalCount(data.total_count || 0)
+      setPinsVersion(v => v + 1) // recarrega pins do mapa
       setCostUsd(data.cost_usd || 0)
       setFromCache(data.fromCache || false)
       setCostToday(data.costToday || 0)
