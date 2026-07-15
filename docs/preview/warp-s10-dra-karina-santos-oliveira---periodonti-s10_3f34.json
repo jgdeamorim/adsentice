@@ -1,0 +1,52 @@
+{
+  "traceId": "s10_3f3492a3f3c0",
+  "lead": "Dra. Karina Santos Oliveira - Periodontista e Ortodontista",
+  "category": "dentist",
+  "segment": "saude",
+  "score": 64,
+  "nicho": {
+    "name": "Dentista",
+    "specialties": [
+      "Periodontia",
+      "Ortodontia",
+      "Implantodontia",
+      "Clínico Geral",
+      "Estética Dental"
+    ],
+    "audience": "Adultos 30-55, classes B/A",
+    "tone": "Autoridade com acolhimento",
+    "keywords": [
+      "dentista [bairro]",
+      "implante dentário",
+      "clareamento dental"
+    ]
+  },
+  "tokens": {
+    "primary": "#2563EB",
+    "secondary": "#1E40AF",
+    "accent": "#3B82F6",
+    "hue": 220,
+    "heading": "Inter",
+    "body": "Inter",
+    "emotion": "Confiança, higiene, profissionalismo",
+    "spacing": "1.5rem",
+    "radius": "0.5rem"
+  },
+  "design_hint": "Barbearia | Design System Completo",
+  "gaps": [
+    {
+      "title": "Reputação excepcional — ative essa força",
+      "severity": "✅ Força"
+    },
+    {
+      "title": "Diferenciação no mercado local",
+      "severity": "✅ Oportunidade"
+    }
+  ],
+  "copy_model": "template-fallback",
+  "copy_tokens": 0,
+  "headline": "Agências cobram R$2.000/mês por SEO. Nosso diagnóstico é gratuito e automático — veja seus gaps em 30 segundos.",
+  "computedAt": "2026-07-15T07:21:53Z",
+  "city": "Rio de Janeiro",
+  "district": "Madureira"
+}

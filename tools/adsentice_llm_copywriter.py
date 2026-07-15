@@ -2,15 +2,19 @@
 """
 adsentice_llm_copywriter.py — LLM Copywriter para S10 Raio-X
 ═══════════════════════════════════════════════════════════
-Usa Qwen 2.5 1.5B local (GGUF, $0) para gerar copy personalizada
-para cada lead, substituindo templates hardcoded.
+Gera copy personalizada via DeepSeek V4 Flash ($0.001/query, ~3s).
+Fallback: Qwen 2.5 1.5B local ($0, ~100s).
 
 Arquitetura:
-  Qwen local (llama-cli, :8089 futuro) → copy pt-BR natural
-  Fallback: templates do NICHO_MAP/PERSONA_MAP
+  DeepSeek API (primário) → copy pt-BR natural, personalizada
+  Qwen local (fallback)   → copy básica $0
+  Templates (fallback)    → NICHO_MAP/PERSONA_MAP
 
-Uso:
-  python3 tools/adsentice_llm_copywriter.py --lead data.json
+Calibração:
+  model: deepseek-v4-flash (cheap, fast)
+  temperature: 0.6 (sweet spot — criativo mas estável)
+  response_format: json_object
+  max_tokens: 250 (headline + subtitle + cta)
 
 medido=verdade · 2026-07-15 · adsentice
 """
@@ -18,12 +22,31 @@ medido=verdade · 2026-07-15 · adsentice
 import json, os, subprocess, re, sys, time
 from pathlib import Path
 
-LLAMA_CLI = "/media/jeffer/RSXT/llama-runtime/bin/llama-cli"
-LLAMA_LIB = "/media/jeffer/RSXT/llama-runtime/bin"
-MODEL = "/media/jeffer/RSXT/models/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+# ═══════════════════════════════════════════════════════════════
+# DEEPSEEK — produção (~$0.001/query, ~3s)
+# ═══════════════════════════════════════════════════════════════
 
-def build_prompt(lead: dict, gaps: list) -> str:
-    """Constrói o prompt para o Qwen usando o template chat Qwen 2.5."""
+DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek-v4-flash"
+
+def _load_deepseek_key():
+    for path in [
+        Path(__file__).parent.parent / "docs" / "secret" / ".env.DEEPSEEK",
+        Path(os.path.expanduser("~")) / ".deepseek" / ".env",
+    ]:
+        if path.exists():
+            with open(path) as f:
+                for line in f:
+                    if line.startswith("DEEPSEEK_API_KEY="):
+                        return line.strip().split("=", 1)[1]
+    return os.environ.get("DEEPSEEK_API_KEY", "")
+
+def generate_copy_deepseek(lead: dict, gaps: list, temperature=0.6, timeout=15) -> dict | None:
+    """Gera copy via DeepSeek V4 Flash. Custo: ~$0.001/query."""
+    key = _load_deepseek_key()
+    if not key:
+        return None
+
     name = lead.get("title", "Empreendedor")
     cat = lead.get("category", "negócio")
     score = lead.get("score_compound", 50)
@@ -33,80 +56,88 @@ def build_prompt(lead: dict, gaps: list) -> str:
     rating = lead.get("rating_value", 0) or 0
     reviews = lead.get("rating_votes", 0) or 0
 
-    # Schwartz level → tone hint
-    tone_hints = {
-        "Unaware": "Tom educativo: ela não sabe que tem um problema. Explique de forma simples o que está perdendo.",
-        "Problem Aware": "Tom de urgência: ela sabe que tem poucos pacientes mas não sabe resolver. Mostre que a solução existe.",
-        "Solution Aware": "Tom comparativo: ela já ouviu falar de SEO/Google Ads. Mostre que adsentice é melhor e mais barato que agências.",
-        "Product Aware": "Tom de prova social: ela conhece adsentice. Use cases de sucesso e depoimentos.",
-        "Most Aware": "Tom de fechamento: ela já decidiu. Remova a última objeção.",
+    # Tone por Schwartz
+    tones = {
+        "Unaware": "Tom educativo. Ela nao sabe que tem um problema — mostre de forma simples o que esta perdendo.",
+        "Problem Aware": "Tom de urgencia. Ela sabe que tem poucos pacientes mas nao sabe resolver. Mostre que a solucao existe e e simples.",
+        "Solution Aware": "Tom comparativo. Ela ja ouviu falar de agencias de marketing. Mostre que o adsentice e melhor e mais barato (R$197 vs R$2.000/mes de agencia).",
+        "Product Aware": "Tom de prova social. Ela conhece o adsentice. Use cases de sucesso e depoimentos.",
+        "Most Aware": "Tom de fechamento. Ela ja decidiu. Remova a ultima objecao.",
     }
-    tone = tone_hints.get(level, tone_hints["Problem Aware"])
+    tone = tones.get(level, tones["Problem Aware"])
 
     gaps_text = "\n".join(f"- {g['title']} ({g['severity']})" for g in gaps[:3])
 
-    return f"""<|im_start|>system
-Você é um copywriter sênior especializado em marketing digital para pequenos negócios brasileiros. Você escreve copy para relatórios de diagnóstico digital (Raio-X).
+    try:
+        import httpx
+        r = httpx.post(DEEPSEEK_API, json={
+            "model": DEEPSEEK_MODEL,
+            "messages": [
+                {"role": "system", "content": f"Voce e um copywriter senior especializado em marketing digital para SMBs brasileiros. Voce escreve copy para relatorios de diagnostico digital (Raio-X) que ajudam donos de negocios locais. REGRAS: portugues brasileiro natural, use o primeiro nome da pessoa, mencione o bairro e a especialidade, sem jargao tecnico (SEO, schema, backlink, trafego), frases curtas, foco em BENEFICIO. {tone}"},
+                {"role": "user", "content": f"Gere um objeto JSON com chaves headline, subtitle, cta para o relatorio de diagnostico de: {name}, {cat} em {district}, {city}. Score {score}/100. {rating} estrelas, {reviews} avaliacoes. Nivel: {level}.\n\nGaps detectados:\n{gaps_text}"},
+            ],
+            "max_tokens": 250,
+            "temperature": temperature,
+            "response_format": {"type": "json_object"},
+        }, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
 
-REGRAS:
-- Português brasileiro natural, como se estivesse conversando pessoalmente
-- Use o primeiro nome da pessoa quando mencionado
-- Mencione o bairro e a especialidade
-- Sem jargão técnico (SEO, schema, backlink, SERP)
-- Foco em BENEFÍCIO para o cliente, não em termos técnicos
-- Frases curtas (até 20 palavras)
-- Headline: 1 frase impactante (até 100 caracteres)
-- Subtitle: 1-2 frases explicativas (até 150 caracteres)
-- CTA: 1 chamada para ação clara (até 60 caracteres)
-- {tone}<|im_end|>
+        data = r.json()
+        content = data["choices"][0]["message"]["content"].strip()
+        result = json.loads(content)
+        tokens = data["usage"]["total_tokens"]
+
+        return {
+            "headline": str(result.get("headline", "")),
+            "subtitle": str(result.get("subtitle", "")),
+            "cta": str(result.get("cta", "")),
+            "tokens": tokens,
+            "model": DEEPSEEK_MODEL,
+        }
+    except Exception:
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# QWEN LOCAL — fallback $0 (~100s CPU)
+# ═══════════════════════════════════════════════════════════════
+
+LLAMA_CLI = "/media/jeffer/RSXT/llama-runtime/bin/llama-cli"
+LLAMA_LIB = "/media/jeffer/RSXT/llama-runtime/bin"
+MODEL = "/media/jeffer/RSXT/models/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+
+def generate_copy_qwen(lead: dict, gaps: list, timeout=120) -> dict | None:
+    """Fallback $0 via Qwen 2.5 1.5B local GGUF."""
+    if not Path(LLAMA_CLI).exists() or not Path(MODEL).exists():
+        return None
+
+    name = lead.get("title", "Empreendedor")
+    cat = lead.get("category", "negócio")
+    score = lead.get("score_compound", 50)
+    level = lead.get("schwartz_label", "Problem Aware")
+    district = lead.get("district", "sua região") or "sua região"
+    city = lead.get("city", "sua cidade") or "sua cidade"
+
+    gaps_text = "\n".join(f"- {g['title']}" for g in gaps[:3])
+
+    prompt = f"""<|im_start|>system
+Voce e um copywriter pt-BR para SMBs. Gere APENAS JSON com headline, subtitle, cta. Use nome+bairro+especialidade. Sem jargao. Frases curtas. Tom pessoal.<|im_end|>
 <|im_start|>user
-Escreva APENAS um JSON com headline, subtitle, cta para o relatório de diagnóstico de:
-- Nome: {name}
-- Especialidade: {cat}
-- Bairro: {district}, {city}
-- Score de presença digital: {score}/100
-- Avaliação no Google: {rating} estrelas, {reviews} avaliações
-- Nível: {level}
-
-Gaps encontrados:
-{gaps_text}
-
-Responda APENAS o JSON, sem aspas extras, sem explicações.<|im_end|>
+{name}, {cat} em {district}/{city}. Score {score}/100. Nivel {level}. Gaps: {gaps_text}. Gere JSON.<|im_end|>
 <|im_start|>assistant
-""" + "{"
-
-def generate_copy(lead: dict, gaps: list, timeout=120) -> dict:
-    """Gera copy via Qwen local. Retorna {headline, subtitle, cta} ou None se falhar."""
-    prompt = build_prompt(lead, gaps)
+{{"""
 
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = LLAMA_LIB
 
     try:
         proc = subprocess.Popen(
-            [LLAMA_CLI,
-             "-m", MODEL,
-             "-n", "300",
-             "-t", "4",
-             "--temp", "0.7",
-             "--top-p", "0.9",
-             "--ctx-size", "2048"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=env,
-            text=True,
+            [LLAMA_CLI, "-m", MODEL, "-n", "250", "-t", "4", "--temp", "0.7", "--top-p", "0.9", "--ctx-size", "2048"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            env=env, text=True,
         )
+        out, _ = proc.communicate(input=prompt + "\n/exit\n", timeout=timeout)
 
-        # Send prompt + exit command
-        full_input = prompt + "\n/exit\n"
-        stdout, _ = proc.communicate(input=full_input, timeout=timeout)
-
-        # Extract JSON from output.
-        # llama-cli generates the same response twice (prompt echo + actual).
-        # Find ALL JSON objects with "headline" and take the first one.
-        import re
-        matches = re.findall(r'\{[^{}]*"headline"[^{}]*\}', stdout)
+        matches = re.findall(r'\{[^{}]*"headline"[^{}]*\}', out)
         for m in matches:
             try:
                 result = json.loads(m)
@@ -115,22 +146,43 @@ def generate_copy(lead: dict, gaps: list, timeout=120) -> dict:
                         "headline": str(result.get("headline", "")),
                         "subtitle": str(result.get("subtitle", "")),
                         "cta": str(result.get("cta", "")),
+                        "tokens": 0,
+                        "model": "qwen2.5-1.5b-local",
                     }
             except json.JSONDecodeError:
                 continue
-
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
-        pass  # fallback to templates
+    except Exception:
+        pass
 
     return None
 
 
 # ═══════════════════════════════════════════════════════════════
-# MAIN — test standalone
+# UNIFIED API
+# ═══════════════════════════════════════════════════════════════
+
+def generate_copy(lead: dict, gaps: list, prefer_local=False) -> dict:
+    """
+    Gera copy para o S10. Tenta DeepSeek primeiro, fallback Qwen local, fallback None.
+    Retorna {headline, subtitle, cta, tokens, model} ou None.
+    """
+    if not prefer_local:
+        result = generate_copy_deepseek(lead, gaps)
+        if result:
+            return result
+
+    result = generate_copy_qwen(lead, gaps)
+    if result:
+        return result
+
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# MAIN — test
 # ═══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    # Test lead from Supabase
     test_lead = {
         "title": "Dra. Karina Santos Oliveira - Periodontista e Ortodontista",
         "category": "dentist",
@@ -142,23 +194,22 @@ if __name__ == "__main__":
         "city": "Rio de Janeiro",
     }
     test_gaps = [
-        {"title": "Sem Schema LocalBusiness no site", "severity": "🔴 Crítico"},
-        {"title": "Reputação excepcional (4.9★) não usada no site", "severity": "✅ Força"},
-        {"title": "Oportunidade: 'periodontista Madureira' sem concorrência", "severity": "✅ Oportunidade"},
+        {"title": "Site invisivel para o Google", "severity": "🔴 Crítico"},
+        {"title": "Reputacao 4.9★ nao usada no site", "severity": "✅ Força"},
+        {"title": "Oportunidade: periodontista Madureira sem concorrencia", "severity": "✅ Oportunidade"},
     ]
 
-    print("🧠 LLM COPYWRITER — Qwen 2.5 1.5B ($0)")
-    print(f"   Lead: {test_lead['title']}")
-    print()
+    print("🧠 LLM COPYWRITER — DeepSeek V4 Flash + Qwen 1.5B fallback\n")
+    print(f"   Lead: {test_lead['title']}\n")
 
     t0 = time.time()
-    copy = generate_copy(test_lead, test_gaps)
+    result = generate_copy(test_lead, test_gaps)
     elapsed = time.time() - t0
 
-    if copy:
-        print(f"✅ Copy gerada em {elapsed:.1f}s:")
-        print(f"   Headline: {copy['headline']}")
-        print(f"   Subtitle: {copy['subtitle']}")
-        print(f"   CTA:      {copy['cta']}")
+    if result:
+        print(f"✅ {result['model']} · {elapsed:.1f}s · {result.get('tokens', '?')} tokens")
+        print(f"   Headline: {result['headline']}")
+        print(f"   Subtitle: {result['subtitle']}")
+        print(f"   CTA:      {result['cta']}")
     else:
-        print(f"❌ Falhou. Usando template fallback.")
+        print(f"❌ Todos os provedores falharam. Use templates.")
