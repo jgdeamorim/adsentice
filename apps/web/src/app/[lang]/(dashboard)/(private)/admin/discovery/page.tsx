@@ -745,9 +745,7 @@ return arr
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {CATS.map(cat => {
               const active = selected.includes(cat.id)
-
-              
-return (
+              return (
                 <Chip key={cat.id} label={cat.label} clickable color={active ? 'primary' : 'default'}
                   variant={active ? 'filled' : 'outlined'} onClick={() => toggle(cat.id)}
                   sx={active ? {} : { opacity: 0.7 }} />
