@@ -39,16 +39,68 @@ export interface NicheIntelligence {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  dentist: "Dentista", orthodontist: "Ortodontista",
-  medical_aesthetic_clinic: "Clinica Estetica", medical_clinic: "Clinica Medica",
-  restaurant: "Restaurante", gym: "Academia", lawyer: "Advogado",
-  beauty_salon: "Salao de Beleza", pharmacy: "Farmacia", veterinarian: "Veterinario",
-  pet_store: "Pet Shop", accountant: "Contador", car_repair: "Oficina Mecanica",
-  psychologist: "Psicologo", physical_therapist: "Fisioterapeuta",
-  electrician: "Eletricista", plumber: "Encanador", cleaning_service: "Servico de Limpeza",
-  school: "Escola", driving_school: "Autoescola", hotel: "Pousada/Hotel",
-  barber_shop: "Barbearia", architect: "Arquiteto", interior_designer: "Designer de Interiores",
-  ophthalmologist: "Oftalmologista", cardiologist: "Cardiologista", real_estate_agency: "Imobiliaria",
+  dentist: "🦷 Dentista", orthodontist: "🦷 Ortodontista",
+  medical_aesthetic_clinic: "💉 Clinica Estetica", medical_clinic: "🏥 Clinica Medica",
+  veterinarian: "🐾 Veterinario", psychologist: "🧠 Psicologo",
+  physical_therapist: "🦴 Fisioterapeuta", ophthalmologist: "👁️ Oftalmologista",
+  cardiologist: "🫀 Cardiologista",
+  restaurant: "🍽️ Restaurante", gym: "🏋️ Academia", lawyer: "⚖️ Advogado",
+  beauty_salon: "💇 Salao de Beleza", pharmacy: "💊 Farmacia",
+  pet_store: "🐶 Pet Shop", accountant: "📊 Contador", car_repair: "🔧 Oficina Mecanica",
+  electrician: "🔌 Eletricista", plumber: "🔧 Encanador", cleaning_service: "🧹 Servico de Limpeza",
+  school: "📚 Escola", driving_school: "🚗 Autoescola", hotel: "🏨 Pousada/Hotel",
+  barber_shop: "💈 Barbearia", architect: "🏗️ Arquiteto", interior_designer: "🎨 Designer de Interiores",
+  real_estate_agency: "🏠 Imobiliaria", pizza_restaurant: "🍕 Pizzaria", bakery: "🥖 Padaria",
+}
+
+/** Mapeia categorias do DataForSEO GMB → slug adsentice.
+ *  DataForSEO retorna nomes em inglês com capitalização inconsistente.
+ *  Ex: "Dentist", "Dental clinic", "Oral surgeon" → "dentist" */
+const CATEGORY_ALIASES: Record<string, string> = {
+  // Saúde — converge pro slug canônico
+  dentist: "dentist", dental_clinic: "dentist", "dental clinic": "dentist",
+  orthodontist: "orthodontist", endodontist: "dentist",
+  oral_surgeon: "dentist", "oral surgeon": "dentist",
+  dental_implants_provider: "dentist", "dental implants provider": "dentist",
+  periodontist: "dentist", prosthodontist: "dentist",
+  medical_aesthetic_clinic: "medical_aesthetic_clinic", "medical aesthetic clinic": "medical_aesthetic_clinic",
+  medical_clinic: "medical_clinic", "medical clinic": "medical_clinic",
+  surgeon: "medical_clinic", pediatric_dentist: "dentist", "pediatric dentist": "dentist",
+  veterinarian: "veterinarian", psychologist: "psychologist",
+  physical_therapist: "physical_therapist", ophthalmologist: "ophthalmologist",
+  cardiologist: "cardiologist",
+  // Beleza
+  beauty_salon: "beauty_salon", "beauty salon": "beauty_salon",
+  barber_shop: "barber_shop", "barber shop": "barber_shop",
+  gym: "gym", hair_care: "beauty_salon", "hair care": "beauty_salon",
+  // Serviços
+  lawyer: "lawyer", accountant: "accountant",
+  architect: "architect", interior_designer: "interior_designer", "interior designer": "interior_designer",
+  real_estate_agency: "real_estate_agency", "real estate agency": "real_estate_agency",
+  // Alimentação
+  restaurant: "restaurant", pizza_restaurant: "pizza_restaurant", "pizza restaurant": "pizza_restaurant",
+  bakery: "bakery",
+  // Comércio
+  pet_store: "pet_store", "pet store": "pet_store",
+  car_repair: "car_repair", "car repair": "car_repair",
+  pharmacy: "pharmacy",
+  electrician: "electrician", plumber: "plumber",
+  cleaning_service: "cleaning_service", "cleaning service": "cleaning_service",
+  // Educação
+  school: "school", driving_school: "driving_school", "driving school": "driving_school",
+  hotel: "hotel",
+}
+
+/** Normaliza nome de categoria GMB → slug adsentice. Case-insensitive, trim. */
+export function normalizeCategory(gmbCategory: string): string {
+  const key = gmbCategory.trim().toLowerCase().replace(/\s+/g, "_")
+  return CATEGORY_ALIASES[key] || CATEGORY_ALIASES[gmbCategory.trim()] || key
+}
+
+/** Label legível para qualquer slug ou nome GMB. */
+export function categoryLabel(raw: string): string {
+  const slug = normalizeCategory(raw)
+  return CATEGORY_LABELS[slug] || raw
 }
 const CATEGORY_TICKETS: Record<string, number> = {
   dentist: 500, orthodontist: 800, medical_aesthetic_clinic: 700, medical_clinic: 300,
@@ -96,8 +148,18 @@ function dedupByPlaceId(rows: any[]): any[] {
 
 export async function aggregateByCategory(cat: string, city?: string | null): Promise<MarketOverview | null> {
   try {
+    const slug = normalizeCategory(cat)
     const supabase = getAdminClient()
-    let q = supabase.from("discovery_listings").select("place_id,score_compound,rating_value,total_photos,is_claimed,website,l2_has_analytics,enrichment_level,schwartz_level,l2_content_maturity").ilike("category", `${cat}%`).limit(2000)
+    // Busca por TODAS as variantes GMB que mapeiam pro mesmo slug
+    const patterns = [...new Set([cat, ...Object.entries(CATEGORY_ALIASES)
+      .filter(([, s]) => s === slug)
+      .map(([alias]) => alias)])]
+    let q = supabase.from("discovery_listings").select("place_id,score_compound,rating_value,total_photos,is_claimed,website,l2_has_analytics,enrichment_level,schwartz_level,l2_content_maturity,category").limit(3000)
+    if (patterns.length === 1) {
+      q = q.ilike("category", `${patterns[0]}%`)
+    } else {
+      q = q.or(patterns.map(p => `category.ilike.${p}%`).join(","))
+    }
     if (city) q = q.ilike("city", `%${city}%`)
     const { data, error } = await q
     if (error || !data?.length) return null
@@ -110,7 +172,7 @@ export async function aggregateByCategory(cat: string, city?: string | null): Pr
     const cmList = list.filter(r => r.l2_content_maturity != null)
     const cmDist = [0, 1, 2, 3, 4].map(l => { const n = cmList.filter(r => r.l2_content_maturity === l).length; return { level: l, label: ML[l], count: n, pct: cmList.length ? Math.round((n / cmList.length) * 100) : 0 } })
     return {
-      category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "Todas as regioes",
+      category: slug, categoryLabel: CATEGORY_LABELS[slug] || cat, city: city || "Todas as regioes",
       totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
       avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
       avgPhotos: Math.round(avg(photos)),
@@ -124,8 +186,17 @@ export async function aggregateByCategory(cat: string, city?: string | null): Pr
 
 export async function marketGapAnalysis(cat: string, city?: string | null): Promise<MarketGap[]> {
   try {
+    const slug = normalizeCategory(cat)
+    const patterns = [...new Set([cat, ...Object.entries(CATEGORY_ALIASES)
+      .filter(([, s]) => s === slug)
+      .map(([alias]) => alias)])]
     const supabase = getAdminClient()
-    let q = supabase.from("discovery_listings").select("place_id,signals_detected,enrichment_level,l2_seo_checks,is_claimed,l2_has_analytics").ilike("category", `${cat}%`).limit(2000)
+    let q = supabase.from("discovery_listings").select("place_id,signals_detected,enrichment_level,l2_seo_checks,is_claimed,l2_has_analytics,category").limit(3000)
+    if (patterns.length === 1) {
+      q = q.ilike("category", `${patterns[0]}%`)
+    } else {
+      q = q.or(patterns.map(p => `category.ilike.${p}%`).join(","))
+    }
     if (city) q = q.ilike("city", `%${city}%`)
     const { data, error } = await q
     if (error || !data?.length) return []
@@ -150,22 +221,36 @@ export async function marketGapAnalysis(cat: string, city?: string | null): Prom
 
 export async function marketOpportunity(cat: string, city?: string | null): Promise<MarketOpportunity | null> {
   try {
+    const slug = normalizeCategory(cat)
+    const patterns = [...new Set([cat, ...Object.entries(CATEGORY_ALIASES)
+      .filter(([, s]) => s === slug)
+      .map(([alias]) => alias)])]
     const supabase = getAdminClient()
-    const { count, error } = await supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).ilike("category", `${cat}%`).limit(1)
+    let q = supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).limit(1)
+    if (patterns.length === 1) q = q.ilike("category", `${patterns[0]}%`)
+    else q = q.or(patterns.map(p => `category.ilike.${p}%`).join(","))
+    const { count, error } = await q
     if (error || !count) return null
-    const ticket = CATEGORY_TICKETS[cat] || 200; const tam = count * 0.05 * (ticket >= 500 ? 497 : 197)
-    return { category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "Todas as regioes", totalAddressableMarket: count, penetratedBusinesses: 0, penetrationPct: 0, avgTicketEstimate: ticket, revenuePotentialMRR: Math.round(tam) }
+    const ticket = CATEGORY_TICKETS[slug] || 200; const tam = count * 0.05 * (ticket >= 500 ? 497 : 197)
+    return { category: slug, categoryLabel: CATEGORY_LABELS[slug] || cat, city: city || "Todas as regioes", totalAddressableMarket: count, penetratedBusinesses: 0, penetrationPct: 0, avgTicketEstimate: ticket, revenuePotentialMRR: Math.round(tam) }
   } catch (e: any) { console.error("[market-intel] opportunity:", e.message); return null }
 }
 
 export async function competitiveDensity(cat: string, city?: string | null): Promise<CompetitiveDensity | null> {
   try {
+    const slug = normalizeCategory(cat)
+    const patterns = [...new Set([cat, ...Object.entries(CATEGORY_ALIASES)
+      .filter(([, s]) => s === slug)
+      .map(([alias]) => alias)])]
     const supabase = getAdminClient()
-    const { count, error } = await supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).ilike("category", `${cat}%`).limit(1)
+    let q = supabase.from("discovery_listings").select("place_id", { count: "exact", head: true }).limit(1)
+    if (patterns.length === 1) q = q.ilike("category", `${patterns[0]}%`)
+    else q = q.or(patterns.map(p => `category.ilike.${p}%`).join(","))
+    const { count, error } = await q
     if (error || !count) return null
     const d = city ? Math.round(count / 100 * 10) / 10 : Math.round(count / 500 * 10) / 10
     const sat = d > 10 ? "saturada" : d > 5 ? "alta" : d > 2 ? "media" : "baixa"
-    return { category: cat, categoryLabel: CATEGORY_LABELS[cat] || cat, city: city || "SP", totalCompetitors: count, areaKm2: city ? 100 : 500, densityPerKm2: d, saturation: sat as any, avgRating: 3.5, topRatedPct: 0 }
+    return { category: slug, categoryLabel: CATEGORY_LABELS[slug] || cat, city: city || "SP", totalCompetitors: count, areaKm2: city ? 100 : 500, densityPerKm2: d, saturation: sat as any, avgRating: 3.5, topRatedPct: 0 }
   } catch (e: any) { console.error("[market-intel] density:", e.message); return null }
 }
 
@@ -181,10 +266,14 @@ export async function nicheIntelligence(cat: string, city?: string | null): Prom
 export async function listMarketCategories(): Promise<{ category: string; label: string; count: number }[]> {
   try {
     const supabase = getAdminClient()
-    const { data, error } = await supabase.from("discovery_listings").select("category").not("category", "is", null).limit(2000)
+    const { data, error } = await supabase.from("discovery_listings").select("category").not("category", "is", null).limit(5000)
     if (error || !data) return []
-    const c: Record<string, number> = {}; for (const r of data) { const k = r.category || "?"; c[k] = (c[k] || 0) + 1 }
-    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([cat, n]) => ({ category: cat, label: CATEGORY_LABELS[cat] || cat, count: n }))
+    const c: Record<string, number> = {}
+    for (const r of data) {
+      const slug = normalizeCategory((r.category || "").toLowerCase().replace(/\s+/g, "_"))
+      c[slug] = (c[slug] || 0) + 1
+    }
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([slug, n]) => ({ category: slug, label: CATEGORY_LABELS[slug] || slug, count: n }))
   } catch { return [] }
 }
 
