@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
     const dfData = await dfRes.json() as { tasks?: Array<{ result?: Array<{ items?: Record<string, unknown>[], items_count?: number }> }> }
     const items = (dfData.tasks?.[0]?.result?.[0]?.items || []).map((item: Record<string, unknown>) => {
       const rating = (item.rating || {}) as Record<string, unknown>
+      const addrInfo = (item.address_info || {}) as Record<string, unknown>
       return {
         title: (item.title as string) || null,
         category: (item.category as string) || null,
@@ -295,6 +296,10 @@ export async function POST(request: NextRequest) {
         latitude: (item.latitude as number) ?? null,
         longitude: (item.longitude as number) ?? null,
         is_claimed: (item.is_claimed as boolean) ?? null,
+        // Extra fields from address_info (L0 já tem borough e city!)
+        city: (addrInfo.city as string) || null,
+        district: (addrInfo.borough as string) || null,
+        website: (item.url as string) || null,
       }
     })
 
