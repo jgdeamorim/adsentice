@@ -1,12 +1,11 @@
 // ══════════════════════════════════════════════════════════════════
-// ADSENTICE · Discovery Persistence — Supabase Postgres (durável)
-// Usa o Pooler direto (pg) — bypass RLS, permissão garantida.
+// ADSENTICE · Discovery Persistence — Supabase REST API
+// Porta 6543 (PgBouncer) BLOQUEADA → usa REST API (443, sempre online).
 // Dados PAGOS do DataForSEO NUNCA são perdidos.
-// Fluxo: EVO-API → Supabase (permanente) + Redis (cache 24h) + Memory (30min)
+// Fluxo: DataForSEO → Supabase REST (permanente) + Redis (cache 24h) + Memory (30min)
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
-import { Pool } from "pg"
 
 import type { ScoreData } from "./scoring"
 import type { GMBListing } from "./provider-core-adapter"
@@ -14,247 +13,161 @@ import type { GMBListing } from "./provider-core-adapter"
 // ── Types ───────────────────────────────────────────────────
 
 export interface CategoryAnalytics {
-  category: string
-  total_listings: number
-  unique_businesses: number
-  avg_score: number
-  problem_aware_plus: number
-  solution_aware_plus: number
-  product_aware_plus: number
-  most_aware: number
-  pain_pct: number
-  last_seen: string
+  category: string; total_listings: number; unique_businesses: number
+  avg_score: number; problem_aware_plus: number; solution_aware_plus: number
+  product_aware_plus: number; most_aware: number; pain_pct: number; last_seen: string
 }
 
-// ── Postgres Pool (singleton) ─────────────────────────────────
+// ── Supabase REST helpers ──
 
-let _pool: Pool | null = null
+const SFX = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
-function getPool(): Pool | null {
-  if (_pool) return _pool
-
-  try {
-    _pool = new Pool({
-      host: "aws-0-ca-central-1.pooler.supabase.com",
-      port: 6543,
-      database: "postgres",
-      user: "postgres.tdigauruusdhnpvppixb",
-      password: process.env.SUPABASE_DB_PASSWORD || "",
-      ssl: { rejectUnauthorized: false },
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-    })
-
-    return _pool
-  } catch {
-
-    return null
-  }
+function sbHeaders(): Record<string, string> {
+  return { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" }
 }
 
 // ── Save Search ─────────────────────────────────────────────
 
 export async function saveDiscoverySearch(params: {
-  categories: string[]
-  lat: number
-  lng: number
-  radiusKm: number
-  totalCount: number
-  costUsd: number
+  categories: string[]; lat: number; lng: number; radiusKm: number
+  totalCount: number; costUsd: number
   listings: (GMBListing & { score: ScoreData })[]
   distribution: { unaware: number; problemAware: number; solutionAware: number; productAware: number; mostAware: number; avgScore: number }
 }): Promise<{ searchId: string; savedCount: number } | null> {
-  const pool = getPool()
-
-  if (!pool) return null
-
-  const client = await pool.connect()
-
   try {
     const avgScore = params.distribution.avgScore
 
-    // 1 — Insert search record
-    const searchRes = await client.query(
-      `INSERT INTO discovery_searches (categories, lat, lng, radius_km, total_count, cost_usd, avg_score, unaware, problem_aware, solution_aware, product_aware, most_aware)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id`,
-      [
-        params.categories, params.lat, params.lng, params.radiusKm,
-        params.totalCount, params.costUsd, avgScore,
-        params.distribution.unaware, params.distribution.problemAware,
-        params.distribution.solutionAware, params.distribution.productAware,
-        params.distribution.mostAware,
-      ]
-    )
+    // 1 — POST discovery_searches (REST API com Prefer: return=representation)
+    const searchBody = {
+      categories: params.categories, lat: params.lat, lng: params.lng,
+      radius_km: params.radiusKm, total_count: params.totalCount,
+      cost_usd: params.costUsd, avg_score: avgScore,
+      unaware: params.distribution.unaware, problem_aware: params.distribution.problemAware,
+      solution_aware: params.distribution.solutionAware, product_aware: params.distribution.productAware,
+      most_aware: params.distribution.mostAware,
+    }
+    const searchRes = await fetch(`${SFX}/rest/v1/discovery_searches`, {
+      method: "POST",
+      headers: { ...sbHeaders(), Prefer: "return=representation" },
+      body: JSON.stringify(searchRes ? searchBody : searchBody), signal: AbortSignal.timeout(10000),
+    })
+    if (!searchRes.ok) {
+      console.error("[discovery-persistence] search insert failed:", searchRes.status, await searchRes.text().catch(() => ""))
+      return null
+    }
+    const searchData = await searchRes.json() as { id: string }[]
+    const searchId = searchData[0]?.id
+    if (!searchId) return null
 
-    const searchId = searchRes.rows[0].id
-
-    // 2 — Insert listings with scores (batch via prepared statement + loop)
+    // 2 — POST discovery_listings in batch (max 50 per request)
     let savedCount = 0
+    const listings = params.listings.map(l => ({
+      search_id: searchId,
+      place_id: l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
+      title: l.title || null, category: l.category || null, address: l.address || null,
+      rating_value: l.rating_value ?? null, rating_votes: l.rating_votes ?? null,
+      is_claimed: l.is_claimed ?? null, latitude: l.latitude ?? null, longitude: l.longitude ?? null,
+      score_compound: l.score.compound, score_fit: l.score.fit.normalized,
+      score_engagement: l.score.engagement.normalized, score_intent: l.score.intent.normalized,
+      schwartz_level: l.score.schwartz.level, schwartz_label: l.score.schwartz.label,
+      signals_detected: [...l.score.fit.signalsDetected, ...l.score.engagement.signalsDetected, ...l.score.intent.signalsDetected],
+      website: (l as any).website || null, phone: (l as any).phone || null,
+      total_photos: (l as any).total_photos || null, description: (l as any).description || null,
+      business_status: (l as any).business_status || null,
+      city: (l as any).city || null, district: (l as any).district || null,
+      postal_code: (l as any).postal_code || null, country_code: (l as any).country_code || null,
+      categories_arr: (l as any).categories || null, price_level: (l as any).price_level || null,
+      contact_methods: (l as any).contact_methods || null,
+      enrichment_level: (l as any).enrichment_level ?? ((l as any).l2_onpage_score ? 2 : (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0),
+      l2_onpage_score: (l as any).l2_onpage_score || null,
+      l2_meta_title: (l as any).l2_meta_title || null, l2_meta_description: (l as any).l2_meta_description || null,
+      l2_word_count: (l as any).l2_word_count || null,
+      l2_internal_links_count: (l as any).l2_internal_links_count || null,
+      l2_external_links_count: (l as any).l2_external_links_count || null,
+      l2_images_count: (l as any).l2_images_count || null,
+      l2_seo_checks: (l as any).l2_seo_checks ? JSON.stringify((l as any).l2_seo_checks) : null,
+      l2_cms: (l as any).l2_cms || null, l2_has_analytics: (l as any).l2_has_analytics ?? null,
+      l2_technology_categories: (l as any).l2_technology_categories || null,
+      l2_domain_rank: (l as any).l2_domain_rank || null, l2_country_iso_code: (l as any).l2_country_iso_code || null,
+      l2_lighthouse_performance: (l as any).l2_lighthouse_performance || null,
+      l2_lighthouse_accessibility: (l as any).l2_lighthouse_accessibility || null,
+      l2_lighthouse_best_practices: (l as any).l2_lighthouse_best_practices || null,
+      l2_lighthouse_seo: (l as any).l2_lighthouse_seo || null, l2_lighthouse_pwa: (l as any).l2_lighthouse_pwa || null,
+      l2_enriched_at: (l as any).l2_enriched_at || null, l2_cost_usd: (l as any).l2_cost_usd || 0,
+      l2_content_maturity: (l as any).l2_content_maturity ?? null,
+      l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
+    }))
 
-    for (const l of params.listings) {
-      try {
-        await client.query(
-          `INSERT INTO discovery_listings (search_id, place_id, title, category, address,
-            rating_value, rating_votes, is_claimed, latitude, longitude,
-            score_compound, score_fit, score_engagement, score_intent,
-            schwartz_level, schwartz_label, signals_detected,
-            website, phone, total_photos, description, business_status,
-            city, district, postal_code, country_code, categories_arr, price_level,
-            contact_methods, enrichment_level,
-            l2_onpage_score, l2_meta_title, l2_meta_description, l2_word_count,
-            l2_internal_links_count, l2_external_links_count, l2_images_count,
-            l2_seo_checks, l2_cms, l2_has_analytics, l2_technology_categories,
-            l2_domain_rank, l2_country_iso_code,
-            l2_lighthouse_performance, l2_lighthouse_accessibility,
-            l2_lighthouse_best_practices, l2_lighthouse_seo, l2_lighthouse_pwa,
-            l2_enriched_at, l2_cost_usd,
-            l2_content_maturity, l2_content_gaps)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
-           ON CONFLICT (search_id, place_id) DO UPDATE SET
-            score_compound=EXCLUDED.score_compound, score_fit=EXCLUDED.score_fit,
-            score_engagement=EXCLUDED.score_engagement, score_intent=EXCLUDED.score_intent,
-            schwartz_level=EXCLUDED.schwartz_level, schwartz_label=EXCLUDED.schwartz_label,
-            website=EXCLUDED.website, phone=EXCLUDED.phone,
-            total_photos=EXCLUDED.total_photos, description=EXCLUDED.description,
-            business_status=EXCLUDED.business_status,
-            city=EXCLUDED.city, district=EXCLUDED.district,
-            postal_code=EXCLUDED.postal_code, country_code=EXCLUDED.country_code,
-            categories_arr=EXCLUDED.categories_arr, price_level=EXCLUDED.price_level,
-            contact_methods=EXCLUDED.contact_methods, enrichment_level=EXCLUDED.enrichment_level,
-            l2_onpage_score=EXCLUDED.l2_onpage_score, l2_meta_title=EXCLUDED.l2_meta_title,
-            l2_meta_description=EXCLUDED.l2_meta_description, l2_word_count=EXCLUDED.l2_word_count,
-            l2_internal_links_count=EXCLUDED.l2_internal_links_count, l2_external_links_count=EXCLUDED.l2_external_links_count,
-            l2_images_count=EXCLUDED.l2_images_count, l2_seo_checks=EXCLUDED.l2_seo_checks,
-            l2_cms=EXCLUDED.l2_cms, l2_has_analytics=EXCLUDED.l2_has_analytics,
-            l2_technology_categories=EXCLUDED.l2_technology_categories,
-            l2_domain_rank=EXCLUDED.l2_domain_rank, l2_country_iso_code=EXCLUDED.l2_country_iso_code,
-            l2_lighthouse_performance=EXCLUDED.l2_lighthouse_performance,
-            l2_lighthouse_accessibility=EXCLUDED.l2_lighthouse_accessibility,
-            l2_lighthouse_best_practices=EXCLUDED.l2_lighthouse_best_practices,
-            l2_enriched_at=EXCLUDED.l2_enriched_at, l2_cost_usd=EXCLUDED.l2_cost_usd,
-            l2_content_maturity=EXCLUDED.l2_content_maturity, l2_content_gaps=EXCLUDED.l2_content_gaps`,
-          [
-            searchId,
-            l.place_id || `unknown_${Math.random().toString(36).slice(2, 10)}`,
-            l.title, l.category, l.address,
-            l.rating_value, l.rating_votes, l.is_claimed, l.latitude, l.longitude,
-            l.score.compound, l.score.fit.normalized, l.score.engagement.normalized, l.score.intent.normalized,
-            l.score.schwartz.level, l.score.schwartz.label,
-            [...l.score.fit.signalsDetected, ...l.score.engagement.signalsDetected, ...l.score.intent.signalsDetected],
-            (l as any).website || null,
-            (l as any).phone || null,
-            (l as any).total_photos || null,
-            (l as any).description || null,
-            (l as any).business_status || null,
-            (l as any).city || null,
-            (l as any).district || null,
-            (l as any).postal_code || null,
-            (l as any).country_code || null,
-            (l as any).categories || null,
-            (l as any).price_level || null,
-            (l as any).contact_methods || null,
-            (l as any).enrichment_level ?? ((l as any).l2_onpage_score ? 2 : (l as any).website || (l as any).phone || (l as any).total_photos ? 1 : 0),
-            // L2 fields ($31-$50)
-            (l as any).l2_onpage_score || null,
-            (l as any).l2_meta_title || null,
-            (l as any).l2_meta_description || null,
-            (l as any).l2_word_count || null,
-            (l as any).l2_internal_links_count || null,
-            (l as any).l2_external_links_count || null,
-            (l as any).l2_images_count || null,
-            (l as any).l2_seo_checks ? JSON.stringify((l as any).l2_seo_checks) : null,
-            (l as any).l2_cms || null,
-            (l as any).l2_has_analytics ?? null,
-            (l as any).l2_technology_categories || null,
-            (l as any).l2_domain_rank || null,
-            (l as any).l2_country_iso_code || null,
-            (l as any).l2_lighthouse_performance || null,
-            (l as any).l2_lighthouse_accessibility || null,
-            (l as any).l2_lighthouse_best_practices || null,
-            (l as any).l2_lighthouse_seo || null,
-            (l as any).l2_lighthouse_pwa || null,
-            (l as any).l2_enriched_at || null,
-            (l as any).l2_cost_usd || 0,
-            (l as any).l2_content_maturity ?? null,
-            (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
-          ]
-        )
-        savedCount++
-      } catch { /* individual row errors don't block the batch */ }
+    const BATCH = 50
+    for (let i = 0; i < listings.length; i += BATCH) {
+      const batch = listings.slice(i, i + BATCH)
+      const res = await fetch(`${SFX}/rest/v1/discovery_listings`, {
+        method: "POST",
+        headers: { ...sbHeaders(), Prefer: "return=minimal" },
+        body: JSON.stringify(batch), signal: AbortSignal.timeout(15000),
+      })
+      if (res.ok) savedCount += batch.length
+      else {
+        // tenta upsert individual (ON CONFLICT via REST não suportado — usa PUT com place_id)
+        for (const item of batch) {
+          try {
+            const putRes = await fetch(`${SFX}/rest/v1/discovery_listings?place_id=eq.${encodeURIComponent(item.place_id)}`, {
+              method: "PATCH",
+              headers: { ...sbHeaders(), Prefer: "return=minimal" },
+              body: JSON.stringify(item), signal: AbortSignal.timeout(5000),
+            })
+            if (putRes.ok) savedCount++
+          } catch { /* skip */ }
+        }
+      }
     }
 
     return { searchId, savedCount }
   } catch (err: any) {
     console.error("[discovery-persistence] Save failed:", err.message)
-
     return null
-  } finally {
-    client.release()
   }
 }
 
 // ── Read Category Analytics ──────────────────────────────────
 
 export async function getCategoryAnalytics(): Promise<CategoryAnalytics[]> {
-  const pool = getPool()
-
-  if (!pool) return []
-
   try {
-    const { rows } = await pool.query(
-      `SELECT * FROM category_analytics ORDER BY pain_pct DESC`
-    )
-
+    const res = await fetch(`${SFX}/rest/v1/category_analytics?order=pain_pct.desc`, {
+      headers: sbHeaders(), signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return []
+    const rows = await res.json() as any[]
     return rows.map((r: any) => ({
-      category: r.category,
-      total_listings: Number(r.total_listings) || 0,
-      unique_businesses: Number(r.unique_businesses) || 0,
-      avg_score: Number(r.avg_score) || 0,
+      category: r.category, total_listings: Number(r.total_listings) || 0,
+      unique_businesses: Number(r.unique_businesses) || 0, avg_score: Number(r.avg_score) || 0,
       problem_aware_plus: Number(r.problem_aware_plus) || 0,
       solution_aware_plus: Number(r.solution_aware_plus) || 0,
       product_aware_plus: Number(r.product_aware_plus) || 0,
-      most_aware: Number(r.most_aware) || 0,
-      pain_pct: Number(r.pain_pct) || 0,
+      most_aware: Number(r.most_aware) || 0, pain_pct: Number(r.pain_pct) || 0,
       last_seen: r.last_seen || "",
     }))
-  } catch {
-
-    return []
-  }
+  } catch { return [] }
 }
 
 // ── Get Score Distribution ──────────────────────────────────
 
 export async function getScoreDistribution(): Promise<{
-  total: number
-  avgScore: number
-  unaware: number
-  problemAware: number
-  solutionAware: number
-  productAware: number
-  mostAware: number
+  total: number; avgScore: number; unaware: number; problemAware: number
+  solutionAware: number; productAware: number; mostAware: number
 } | null> {
-  const pool = getPool()
-
-  if (!pool) return null
-
   try {
-    const { rows } = await pool.query("SELECT * FROM get_score_distribution()")
-    const d = rows[0] as any
-
+    const res = await fetch(`${SFX}/rest/v1/rpc/get_score_distribution`, {
+      method: "POST", headers: sbHeaders(), signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return null
+    const d = (await res.json()) as any
     return {
-      total: Number(d.total || 0),
-      avgScore: Number(d.avg || d.avg_score || 0),
-      unaware: Number(d.unaware || 0),
-      problemAware: Number(d.problem_aware || 0),
-      solutionAware: Number(d.solution_aware || 0),
-      productAware: Number(d.product_aware || 0),
+      total: Number(d.total || 0), avgScore: Number(d.avg || d.avg_score || 0),
+      unaware: Number(d.unaware || 0), problemAware: Number(d.problem_aware || 0),
+      solutionAware: Number(d.solution_aware || 0), productAware: Number(d.product_aware || 0),
       mostAware: Number(d.most_aware || 0),
     }
-  } catch {
-
-    return null
-  }
+  } catch { return null }
 }
