@@ -104,6 +104,7 @@ export async function businessListingsSearch(params: {
   limit?: number; offset?: number; order_by?: string[]; filters?: unknown[]
 }) {
   const c = getClient()
+  console.log(`[adapter:L0] mode=${c.mode}, hasAuth=${!!c.authHeader}, coord=${toCoord(params.lat, params.lng, params.radiusKm)}`)
   const body = [{
     categories: params.categories,
     location_coordinate: toCoord(params.lat, params.lng, params.radiusKm),
@@ -114,6 +115,7 @@ export async function businessListingsSearch(params: {
     filters: params.filters || undefined,
   }]
   const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/business_data/business_listings/search/live", body)
+  console.log(`[adapter:L0] raw keys: ${Object.keys(data).join(',')}, items: ${(data.items || []).length}, status: ${(data as any).status_code || '?'}`)
   const items = data.items || []
   const listings: BusinessListing[] = items.map(item => {
     const rating = (item.rating || {}) as Record<string, unknown>
