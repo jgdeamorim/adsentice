@@ -1,5 +1,4 @@
 
-
 // adsentice · Admin / Telemetry — Finding Alerts + Route Health + Event Log
 // Padrão EVO-API :7700/health + capital.RS capital-observability
 import { redirect } from 'next/navigation'
@@ -21,8 +20,7 @@ import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 
 import { getSessionUser } from '@/libs/supabase/server'
-import { getAlerts, getEvents, getRouteStats } from '@/lib/telemetry'
-import { execSync } from 'child_process'
+import { getAlerts, getEvents, getRouteStats, getArbiterVerdict } from '@/lib/telemetry'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,12 +35,8 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
   const stats = getRouteStats()
   const recentErrors = events.filter(e => e.status >= 400)
 
-  // Árbitro DeepSeek verdict (Redis, TTL 2h)
-  let arbiterVerdict: any = null
-  try {
-    const raw = execSync("redis-cli -p 6396 --no-auth-warning GET adsentice:telemetry:arbiter_verdict", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
-    if (raw) arbiterVerdict = JSON.parse(raw)
-  } catch { /* offline */ }
+  // Árbitro DeepSeek verdict (delegado ao telemetry.ts)
+  const arbiterVerdict = getArbiterVerdict()
 
   const healthStatus = activeAlerts.length > 0 ? '⚠️ Degraded' : '✅ Healthy'
   const healthColor = activeAlerts.filter(a => a.level === 'critical').length > 0 ? 'error' as const

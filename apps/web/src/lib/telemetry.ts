@@ -177,6 +177,18 @@ export function ackAlert(id: string): void {
   } catch { /* Redis offline */ }
 }
 
+/** Lê o veredito do árbitro DeepSeek do Redis. */
+export function getArbiterVerdict(): any {
+  try {
+    const raw = execSync(
+      "redis-cli -p 6396 --no-auth-warning GET adsentice:telemetry:arbiter_verdict",
+      { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }
+    ).toString().trim()
+    if (raw) return JSON.parse(raw)
+  } catch { /* offline */ }
+  return null
+}
+
 /** Estatísticas de telemetria por rota. */
 export function getRouteStats(): Record<string, { total: number; errors: number; avg_latency_ms: number }> {
   try {
