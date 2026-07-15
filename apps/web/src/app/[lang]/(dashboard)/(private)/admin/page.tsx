@@ -34,7 +34,7 @@ import { getAdminDashboardData } from '@/lib/engine'
 const RECENT_ACTIVITY = [
   { action: 'Dashboard v0.2 deployed', detail: 'Score Composto (Fit×0.40+Eng×0.35+Int×0.25) + Schwartz + Benchmark', time: 'hoje', chip: 'v0.2' },
   { action: 'Pain Criteria v1.2', detail: 'Schwartz awareness levels substituem thresholds. Scoring engine em scoring.ts', time: 'hoje', chip: 'v1.2' },
-  { action: 'EVO-API MCP LIVE testado', detail: 'Dados REAIS: 5.761 dentistas em SP ($0.0149)', time: 'hoje 02:32', chip: 'LIVE' },
+  { action: 'provider-core v2.0 ativo', detail: '21 tools L0→L4 · DataForSEO direto 1 hop · Pipeline ~$0.272/lead', time: 'hoje', chip: 'v2.0' },
   { action: 'Category Ranker calibrado', detail: 'Pain Criteria v1.1 — 20 sinais, 3 tiers', time: 'hoje 01:15', chip: 'v1.1' },
   { action: 'business_listings_search fix', detail: 'Adicionado location_coordinate ao translator', time: 'hoje 00:45', chip: 'fix' },
   { action: 'business.profile.gmb estendido', detail: '10 → 27 campos canônicos (place_id, website, lat/lng, ...)', time: 'ontem 19:30', chip: 'feat' },
@@ -104,8 +104,8 @@ const AdminDashboard = async ({ params }: { params: Promise<{ lang: string }> })
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical
           stats={`${e.capabilities}`}
-          title='Capabilities EVO-API'
-          subtitle={`${e.mcpServers} MCP servers online`}
+          title='Provider-Core Tools'
+          subtitle={`${e.mcpServers} MCP servers ativos · DataForSEO direto`}
           avatarColor='success'
           avatarIcon='ri-plug-line'
           trendNumber={String(e.mcpServers)}

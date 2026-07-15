@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
 // ADSENTICE · Engine Data — server-side bridge entre o dashboard
-// e os motores reais (Redis :6396 · Qdrant :6352 · EVO-API :7700).
+// e os motores reais (Redis :6396 · Qdrant :6352 · provider-core).
 // Usa child_process + fetch — zero dependências novas.
 // ══════════════════════════════════════════════════════════════════
 
@@ -69,17 +69,14 @@ function countMcpServers(): number {
   }
 }
 
-/** Fetch EVO-API capabilities count from health endpoint metadata. */
+/** Fetch EVO-API capabilities count from health endpoint (reference only). */
 async function fetchEvoApiCapabilities(): Promise<number> {
   try {
     const res = await fetch("http://127.0.0.1:7700/health", { signal: AbortSignal.timeout(3000) })
     const json = await res.json()
-
-    // EVO-API returns capabilities in health endpoint
-    return json?.capabilities ?? json?.total_capabilities ?? 76
+    return json?.capabilities ?? json?.total_capabilities ?? 0
   } catch {
-
-    return 76 // fallback — canonical EVO-API count
+    return 0 // EVO-API offline — reference not available
   }
 }
 
