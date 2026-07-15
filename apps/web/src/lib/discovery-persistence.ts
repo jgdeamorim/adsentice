@@ -105,7 +105,7 @@ export async function saveDiscoverySearch(params: {
       l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
     }))
 
-    const BATCH = 50
+    const BATCH = 25
     for (let i = 0; i < listings.length; i += BATCH) {
       const batch = listings.slice(i, i + BATCH)
       const res = await fetch(`${SFX}/rest/v1/discovery_listings`, {
@@ -113,21 +113,32 @@ export async function saveDiscoverySearch(params: {
         headers: { ...sbHeaders(), Prefer: "return=minimal" },
         body: JSON.stringify(batch), signal: AbortSignal.timeout(15000),
       })
-      if (res.ok) savedCount += batch.length
-      else {
-        // tenta upsert individual (ON CONFLICT via REST não suportado — usa PUT com place_id)
+      if (res.ok) {
+        savedCount += batch.length
+      } else {
+        const errText = await res.text().catch(() => "")
+        console.error(`[discovery-persistence] Batch POST failed (${res.status}):`, errText.slice(0, 300))
+        // UPSERT: DELETE old + INSERT new for each item
         for (const item of batch) {
           try {
-            const putRes = await fetch(`${SFX}/rest/v1/discovery_listings?place_id=eq.${encodeURIComponent(item.place_id)}`, {
-              method: "PATCH",
+            // DELETE any existing row with same place_id
+            await fetch(`${SFX}/rest/v1/discovery_listings?place_id=eq.${encodeURIComponent(item.place_id)}`, {
+              method: "DELETE",
+              headers: { ...sbHeaders(), Prefer: "return=minimal" },
+              signal: AbortSignal.timeout(5000),
+            })
+            // INSERT fresh
+            const insRes = await fetch(`${SFX}/rest/v1/discovery_listings`, {
+              method: "POST",
               headers: { ...sbHeaders(), Prefer: "return=minimal" },
               body: JSON.stringify(item), signal: AbortSignal.timeout(5000),
             })
-            if (putRes.ok) savedCount++
-          } catch { /* skip */ }
+            if (insRes.ok) savedCount++
+          } catch { /* skip individual errors */ }
         }
       }
     }
+    console.log(`[discovery-persistence] Saved ${savedCount}/${listings.length} listings for search ${searchId}`)
 
     return { searchId, savedCount }
   } catch (err: any) {
