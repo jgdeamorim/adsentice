@@ -92,6 +92,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0018` | Familia Warp — Design System Vivo com Composicao por Intent Semantico (9 modulos) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ✅ accepted (2026-07-14) |
+| `ADS.COR.adr.0021` | **NOVO** — Dual Embed e0+e1 — Arquitetura multilíngue (EN code + PT prose) para busca semântica | ✅ accepted (2026-07-15) |
 
 ### ADS.COR.design — Corpus de Design (embedado no Qdrant)
 

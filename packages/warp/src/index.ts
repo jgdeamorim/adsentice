@@ -36,6 +36,7 @@ import { TokenComposer, tokenComposer as defaultTokenComposer } from './tokens-c
 import { AgentRouter, agentRouter as defaultAgentRouter } from './8-agents'
 import { RecommendEngine, recommendEngine as defaultRecommendEngine } from './recommend-engine'
 import { L3CompetitorAnalyzer, l3Analyzer as defaultL3Analyzer } from './l3-competitor-keywords'
+import { EmbedRouter, embedRouter as defaultEmbedRouter } from './embed-router'
 
 // ═══════════════════════════════════════════════════════════════
 // Re-exports
@@ -49,6 +50,7 @@ export { WarpTracker } from './6-telemetry'
 export { TokenComposer, composeTokens } from './tokens-composer'
 export { RecommendEngine } from './recommend-engine'
 export { L3CompetitorAnalyzer } from './l3-competitor-keywords'
+export { EmbedRouter } from './embed-router'
 export {
   AgentRouter,
   ClaudeCodeAdapter,
@@ -144,6 +146,7 @@ export class WarpAPI {
   agents: AgentRouter
   recommend: RecommendEngine
   l3: L3CompetitorAnalyzer
+  embed: EmbedRouter
 
   constructor() {
     this.cache = defaultCache
@@ -155,6 +158,7 @@ export class WarpAPI {
     this.agents = defaultAgentRouter
     this.recommend = defaultRecommendEngine
     this.l3 = defaultL3Analyzer
+    this.embed = defaultEmbedRouter
   }
 }
 

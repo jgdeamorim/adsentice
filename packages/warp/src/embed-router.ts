@@ -335,3 +335,33 @@ export async function embedWithRouter(text: string, kind: EmbedContentKind = 'pr
   const data = (await res.json()) as { vectors: number[][] }
   return data.vectors[0] ?? []
 }
+
+// ═══════════════════════════════════════════════════════════════
+// EmbedRouter — unified API
+// ═══════════════════════════════════════════════════════════════
+
+export class EmbedRouter {
+  /**
+   * Embed a single text with content-kind routing (e0 or e1).
+   */
+  async embed(text: string, kind: EmbedContentKind = 'prose'): Promise<number[]> {
+    return embedWithRouter(text, kind)
+  }
+
+  /**
+   * Embed a batch with automatic routing.
+   */
+  async embedBatch(items: BatchEmbedItem[]): Promise<{ vectors: number[][]; model: string }> {
+    return embedBatch(items)
+  }
+
+  /**
+   * Check PT-BR text quality before embedding.
+   */
+  checkQuality(text: string): TextQualityReport {
+    return checkPtBrTextQuality(text)
+  }
+}
+
+/** Singleton */
+export const embedRouter = new EmbedRouter()
