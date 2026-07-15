@@ -28,9 +28,17 @@ export { businessProfileGmb } from "./tools/business-profile-gmb"
 // L2 — Website+SEO
 export { onPageInstantPages } from "./tools/instant-pages"
 export { domainTechnologies } from "./tools/domain-technologies"
+export { onPageLighthouse } from "./tools/lighthouse"
 
 // L3 — Competitive
 export { backlinksCompetitors, extractDomain } from "./tools/backlinks-competitors"
 
+// L4 — Keywords, SERP, Reviews
+export { serpOrganic } from "./tools/serp-organic"
+export { googleReviews } from "./tools/reviews-google"
+
 // Types
 export type * from "./types"
+export type { LighthouseScores, LighthouseAudit } from "./tools/lighthouse"
+export type { GoogleReview, GoogleReviewsResult } from "./tools/reviews-google"
+export type { SerpOrganicItem, SerpOrganicResult } from "./tools/serp-organic"

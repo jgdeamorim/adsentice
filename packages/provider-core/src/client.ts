@@ -21,22 +21,17 @@ const DEFAULT_BASE_URL = "https://api.dataforseo.com"
  *   - live: custo real, dados reais (https://api.dataforseo.com)
  */
 export class DataForSEOClient {
-  private authHeader: string
-  private baseUrl: string
-  private sandboxUrl: string
+  public authHeader: string
+  public activeUrl: string
   public mode: "sandbox" | "live"
 
   constructor(config: DataForSEOConfig) {
     const encoded = Buffer.from(`${config.login}:${config.password}`).toString("base64")
     this.authHeader = `Basic ${encoded}`
-    this.baseUrl = config.baseUrl || DEFAULT_BASE_URL
-    this.sandboxUrl = "https://sandbox.dataforseo.com"
     this.mode = config.mode || "live"
-  }
-
-  /** Base URL ativa conforme modo. */
-  private get activeUrl(): string {
-    return this.mode === "sandbox" ? this.sandboxUrl : this.baseUrl
+    this.activeUrl = this.mode === "sandbox"
+      ? "https://sandbox.dataforseo.com"
+      : (config.baseUrl || DEFAULT_BASE_URL)
   }
 
   /**

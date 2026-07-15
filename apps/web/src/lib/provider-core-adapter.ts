@@ -219,3 +219,87 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
     country_iso_code: (item.country_iso_code as string) || "",
   }
 }
+
+// ── FASE 1 · L2-L4 (medido=verdade) ──
+
+/** L2: Lighthouse Audit — $0.00425/call */
+export async function onPageLighthouse(url: string): Promise<{ performance: number; accessibility: number; best_practices: number; seo: number } | null> {
+  const c = getClient()
+  const body = JSON.stringify([{ url }])
+  const res = await fetch(`${c.activeUrl}/v3/on_page/lighthouse/live/json`, {
+    method: "POST",
+    headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
+    body,
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { tasks?: Array<{ result?: Array<{ categories?: Record<string, { score: number }> }> }> }
+  const result = data.tasks?.[0]?.result?.[0]
+  if (!result?.categories) return null
+  const cats = result.categories
+  return {
+    performance: cats.performance?.score ?? 0,
+    accessibility: cats.accessibility?.score ?? 0,
+    best_practices: cats["best-practices"]?.score ?? 0,
+    seo: cats.seo?.score ?? 0,
+  }
+}
+
+/** L4: SERP Organic — $0.002/call */
+export async function serpOrganic(keyword: string, depth = 10): Promise<{ domain: string; position: number; title: string }[]> {
+  const c = getClient()
+  const body = JSON.stringify([{ keyword, location_code: 2076, language_code: "pt", depth }])
+  const res = await fetch(`${c.activeUrl}/v3/serp/google/organic/live/regular`, {
+    method: "POST",
+    headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
+    body,
+  })
+  if (!res.ok) return []
+  const data = await res.json() as { tasks?: Array<{ result?: Array<{ items?: Record<string, unknown>[] }> }> }
+  const items = data.tasks?.[0]?.result?.[0]?.items || []
+  return items
+    .filter(item => (item.type as string) === "organic")
+    .map(item => {
+      const url = (item.url as string) || ""
+      return {
+        domain: extractDomain(url),
+        position: (item.rank_absolute as number) ?? (item.rank_group as number) ?? 0,
+        title: (item.title as string) || "",
+      }
+    })
+}
+
+/** L4: Google Reviews — $0.00075/call (task-based) */
+export async function googleReviews(params: {
+  keyword: string; location_code?: number; language_code?: string; depth?: number
+}): Promise<{ rating_value: number | null; reviews_count: number; reviews: { rating: number; review_text: string; reviewer_name: string | null }[] } | null> {
+  const c = getClient()
+  const postBody = JSON.stringify([{ keyword: params.keyword, location_code: params.location_code || 2076, language_code: params.language_code || "pt", depth: params.depth || 10 }])
+  const postRes = await fetch(`${c.activeUrl}/v3/business_data/google/reviews/task_post`, {
+    method: "POST", headers: { Authorization: c.authHeader, "Content-Type": "application/json" }, body: postBody,
+  })
+  if (!postRes.ok) return null
+  const postData = await postRes.json() as { tasks?: Array<{ id?: string }> }
+  const taskId = postData.tasks?.[0]?.id
+  if (!taskId) return null
+  for (let i = 0; i < 8; i++) {
+    await new Promise(r => setTimeout(r, 3000))
+    const pollRes = await fetch(`${c.activeUrl}/v3/business_data/google/reviews/task_get/${taskId}`, { headers: { Authorization: c.authHeader } })
+    if (!pollRes.ok) continue
+    const pollData = await pollRes.json() as { tasks?: Array<{ status_code?: number; result?: Array<Record<string, unknown>> }> }
+    const task = pollData.tasks?.[0]
+    if (task?.status_code === 20000 && task.result) {
+      const block = task.result[0]
+      const items = (block?.items || []) as Record<string, unknown>[]
+      return {
+        rating_value: (block?.rating_value as number) ?? null,
+        reviews_count: (block?.reviews_count as number) ?? items.length,
+        reviews: items.map(r => {
+          const rObj = (r.rating || {}) as Record<string, unknown>
+          return { rating: (rObj.value as number) ?? 0, review_text: (r.review_text as string) || "", reviewer_name: (r.profile_name as string) || null }
+        }),
+      }
+    }
+    if (task?.status_code === 40601) break
+  }
+  return null
+}
