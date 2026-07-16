@@ -466,7 +466,7 @@ return arr
         <Typography variant='h4'>🔍 Discovery Engine</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            Dados REAIS via EVO-API MCP · Pain Criteria v1.2 · Score Composto (Fit×0.40 + Eng×0.35 + Int×0.25)
+            Dados REAIS via provider-core (DataForSEO direto) · Pipeline L0→L1→L2 · Score Composto (Fit×0.40 + Eng×0.35 + Int×0.25)
           </Typography>
           {costTotal > 0 && (
             <Chip label={`💰 Hoje: $${costToday.toFixed(4)} · Total: $${costTotal.toFixed(4)}`}

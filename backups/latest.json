@@ -1,13 +1,13 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-16-024927",
+  "backup_id": "2026-07-16-122719",
   "date": "2026-07-16",
-  "timestamp": "2026-07-16T024927Z",
-  "mode": "INCREMENTAL",
-  "parent_backup": "2026-07-16-010059",
+  "timestamp": "2026-07-16T122719Z",
+  "mode": "NOOP",
+  "parent_backup": "2026-07-16-122630",
   "collections": {
-    "adsentice-self": 18324,
-    "adsentice-conversation": 78336,
+    "adsentice-self": 18332,
+    "adsentice-conversation": 79170,
     "claude-memory": 33,
     "adsentice-materio": 36
   },
@@ -15,40 +15,25 @@
   "supabase_rows": 419,
   "checksums": {
     "qdrant": {
-      "adsentice-self": "9f34457ffaab",
-      "adsentice-conversation": "3206a69284f7",
+      "adsentice-self": "8ea29c614f7a",
+      "adsentice-conversation": "dd20f95eb674",
       "claude-memory": "a415a217e390",
-      "adsentice-materio": "c077f7f8b476"
+      "adsentice-materio": "58aef25a6f43"
     },
-    "redis": "3a50a7218e05",
+    "redis": "ddf90e8ea711",
     "supabase": {
       "discovery_searches": "06ca6f3ac683",
       "discovery_listings": "9c0e50836fa9",
       "market_holds": "2cb1892c492f"
     }
   },
-  "uploaded_to_r2": [
-    "backup/2026-07-16/adsentice-backup-2026-07-16-024927.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-self.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-conversation.json.gz",
-    "backup/2026-07-16/qdrant/claude-memory.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-materio.json.gz",
-    "backup/2026-07-16/redis.json.gz",
-    "backup/2026-07-16/supabase/discovery_listings.json.gz"
-  ],
+  "uploaded_to_r2": [],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-024927.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-122719.json.gz"
   ],
   "changed": {
-    "qdrant": [
-      "adsentice-self",
-      "adsentice-conversation",
-      "claude-memory",
-      "adsentice-materio"
-    ],
-    "redis": true,
-    "supabase": [
-      "discovery_listings"
-    ]
+    "qdrant": [],
+    "redis": false,
+    "supabase": []
   }
 }
