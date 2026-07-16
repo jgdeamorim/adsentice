@@ -43,7 +43,7 @@ async function enrichTopLeads(
 
   // DataForSEO limits: 2000 req/min, max 30 simultaneous, 20 tasks/POST, max 5 same-domain URLs
   // Strategy: batch 20 tasks per POST (API limit), cap concurrency at 30
-  const CONCURRENCY = 50  // DataForSEO allows 30 concurrent; we batch via POST tasks
+  const CONCURRENCY = 30  // DataForSEO limit: max 30 simultaneous
   let enrichmentCost = 0
 
   const results = await Promise.allSettled(
@@ -536,18 +536,18 @@ export async function POST(request: NextRequest) {
     const shouldEnrich = enrich || force
 
     if (shouldEnrich) {
-      const enriched = await enrichTopLeads(listings, scores, 50)
+      const enriched = await enrichTopLeads(listings, scores, enrich || 100)
 
       listings = enriched.enrichedListings
       scores = enriched.enrichedScores
       enrichmentCost = enriched.enrichmentCost
-      enrichedCount = listings.filter((l: any) => l.phone || l.website || l.total_photos != null).length
+      enrichedCount = listings.filter((l: any) => (l.enrichment_level || 0) >= 1).length
 
       if (enrichmentCost > 0) {
         trackCost({
           categories: [...categories, "L1_enrichment"],
           lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10,
-          costUsd: enrichmentCost, totalCount: 50,
+          costUsd: enrichmentCost, totalCount: enrichedCount,
         })
       }
 
