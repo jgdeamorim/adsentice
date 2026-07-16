@@ -89,14 +89,14 @@ export default function DiscoveryAutoPilot(props: {
             {autoQueue.targets.length > 0 && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant='subtitle2' fontWeight={600} gutterBottom>
-                  {autoModeType === 'coverage' ? `🗺️ Distritos (${autoQueue.targets.length})` : `🎯 Priorizados (${autoQueue.targets.length})`}
+                  {autoModeType === 'coverage' ? `🗺️ Municípios (${autoQueue.targets.length})` : `🎯 Priorizados (${autoQueue.targets.length})`}
                 </Typography>
                 <TableContainer component={Paper} variant='outlined'>
                   <Table size='small'>
                     <TableHead>
                       <TableRow>
                         <TableCell width={30}>#</TableCell>
-                        <TableCell>Distrito</TableCell>
+                        <TableCell>Município</TableCell>
                         {autoModeType === 'intelligence' ? (
                           <>
                             <TableCell width={60}>Score</TableCell>
@@ -111,10 +111,10 @@ export default function DiscoveryAutoPilot(props: {
                     </TableHead>
                     <TableBody>
                       {autoQueue.targets.slice(0, autoModeType === 'coverage' ? 12 : 8).map((t: any, i: number) => (
-                        <TableRow key={t.district} sx={{ bgcolor: i === 0 ? 'success.50' : i < 3 ? 'warning.50' : undefined }}>
+                        <TableRow key={t.municipality} sx={{ bgcolor: i === 0 ? 'success.50' : i < 3 ? 'warning.50' : undefined }}>
                           <TableCell><Typography fontWeight={700}>{i + 1}</Typography></TableCell>
                           <TableCell>
-                            <Typography variant='body2' fontWeight={600}>{t.district}</Typography>
+                            <Typography variant='body2' fontWeight={600}>{t.municipality}</Typography>
                             <Typography variant='caption' color='text.secondary'>~{t.estimatedLeads} leads · {t.suggestedRadius}km</Typography>
                           </TableCell>
                           {autoModeType === 'intelligence' ? (
@@ -134,7 +134,7 @@ export default function DiscoveryAutoPilot(props: {
                           )}
                           <TableCell>
                             <Button variant='contained' size='small' color={i === 0 ? 'success' : 'primary'}
-                              onClick={() => onMapDistrict(t.district, t.city, t.suggestedRadius)}
+                              onClick={() => onMapDistrict(t.municipality, t.city, t.suggestedRadius)}
                               sx={{ fontSize: '0.7rem' }}>{i === 0 ? '🎯 Ir' : 'Mapear'}</Button>
                           </TableCell>
                         </TableRow>

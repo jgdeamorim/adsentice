@@ -19,9 +19,9 @@ import { normalizeCategory } from "./market-intel"
 
 // ── Types ──
 
-export interface DistrictTarget {
+export interface MunicipalityTarget {
   city: string
-  district: string
+  municipality: string
   category: string
   categoryLabel: string
   score: number           // 0-100 composto
@@ -40,7 +40,7 @@ export interface DistrictTarget {
 }
 
 export interface AutoDiscoveryQueue {
-  targets: DistrictTarget[]
+  targets: MunicipalityTarget[]
   meta: {
     totalGaps: number
     priorityTargets: number
@@ -63,39 +63,30 @@ const TICKETS: Record<string, number> = {
   school: 800, driving_school: 250, hotel: 200,
 }
 
-// ── Distritos oficiais SP + RJ ──
+// ── Municípios das RMs (fallback hardcoded — primário: Supabase district_registry) ──
 
-const OFFICIAL_DISTRICTS: Record<string, string[]> = {
-  "Rio de Janeiro": [
-    "Centro", "Zona Sul", "Tijuca", "Vila Isabel", "Zona Norte",
-    "Ramos", "Penha", "Madureira", "Jacarepagua", "Barra da Tijuca",
-    "Bangu", "Campo Grande", "Santa Cruz", "Ilha do Governador",
-    "Portuaria", "Pavuna", "Zona Oeste",
-  ],
-  "São Paulo": [
-    "Pinheiros", "Itaim Bibi", "Vila Mariana", "Mooca", "Tatuapé",
-    "Santana", "Lapa", "Perdizes", "Butantã", "Morumbi",
-    "Santo Amaro", "Jabaquara", "Ipiranga", "Saúde",
-    "Penha", "São Miguel Paulista", "Itaquera", "Guaianases",
-    "Campo Limpo", "Capão Redondo", "Brasilândia", "Pirituba",
-  ],
+const OFFICIAL_MUNICIPALITIES: Record<string, string[]> = {
+  "São Paulo": ["São Paulo", "Osasco", "Guarulhos", "São Bernardo do Campo", "Santo André", "Barueri", "Taboão da Serra", "Cotia", "Itaquaquecetuba", "Suzano", "Mogi das Cruzes"],
+  "Rio de Janeiro": ["Rio de Janeiro", "Niterói", "Duque de Caxias", "Nova Iguaçu", "São Gonçalo", "Belford Roxo", "São João de Meriti", "Nilópolis", "Mesquita"],
+  "Belo Horizonte": ["Belo Horizonte", "Contagem", "Betim", "Nova Lima", "Santa Luzia", "Ribeirão das Neves"],
+  "Curitiba": ["Curitiba", "São José dos Pinhais", "Colombo", "Araucária", "Pinhais"],
 }
 
-async function getDistricts(city: string): Promise<string[]> {
-  // 1 — Try Supabase district_registry (migration 008)
+async function getMunicipalities(city: string): Promise<string[]> {
+  // 1 — Try Supabase district_registry (populated by IBGE RM sync)
   try {
     const supabase = getAdminClient()
     const { data } = await supabase
       .from("district_registry")
       .select("district")
       .ilike("city", `%${city}%`)
-      .limit(100)
+      .limit(200)
     if (data?.length) return data.map((r: any) => r.district)
   } catch (e: any) { /* fallback */ }
 
-  // 2 — Fallback: hardcoded (SP, RJ only — pre-migration)
-  for (const [key, districts] of Object.entries(OFFICIAL_DISTRICTS)) {
-    if (city.includes(key)) return districts
+  // 2 — Fallback: hardcoded (minimal set)
+  for (const [key, municipalities] of Object.entries(OFFICIAL_MUNICIPALITIES)) {
+    if (city.includes(key)) return municipalities
   }
   return []
 }
@@ -110,11 +101,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // ── Core: Score a district for a category ──
 
-export async function scoreDistrictTarget(
+export async function scoreMunicipalityTarget(
   category: string,
   city: string,
-  district: string
-): Promise<DistrictTarget | null> {
+  municipality: string
+): Promise<MunicipalityTarget | null> {
   try {
     const supabase = getAdminClient()
     const slug = normalizeCategory(category)
@@ -143,7 +134,7 @@ export async function scoreDistrictTarget(
     const { data: districtData } = await supabase
       .from("discovery_listings")
       .select("place_id")
-      .ilike("district", `%${district}%`)
+      .ilike("district", `%${municipality}%`)
       .limit(500)
 
     const districtCount = districtData?.length || 0
@@ -234,7 +225,7 @@ export async function buildDiscoveryQueue(
   category: string,
   city: string
 ): Promise<AutoDiscoveryQueue> {
-  const districts = await getDistricts(city)
+  const districts = await getMunicipalities(city)
   const slug = normalizeCategory(category)
 
   // Get already-mapped districts
@@ -242,7 +233,7 @@ export async function buildDiscoveryQueue(
   const { data: mapped } = await supabase
     .from("discovery_listings")
     .select("district")
-    .not("district", "is", null)
+    .not("municipality", "is", null)
     .ilike("city", `%${city}%`)
     .limit(3000)
 
@@ -255,9 +246,9 @@ export async function buildDiscoveryQueue(
   )
 
   // Score each gap
-  const targets: DistrictTarget[] = []
+  const targets: MunicipalityTarget[] = []
   for (const district of gaps.slice(0, 12)) {
-    const t = await scoreDistrictTarget(category, city, district)
+    const t = await scoreMunicipalityTarget(category, city, district)
     if (t) targets.push(t)
   }
 
