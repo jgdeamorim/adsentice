@@ -49,7 +49,8 @@ export interface StateRanking {
 }
 
 // ── IBGE CEMPRE 2024: Empresas ativas por setor × UF (estimativas) ──
-// Fonte: IBGE CEMPRE 2024 + projeções adsentice
+// Fonte primária: Supabase (ibge_market_size) — migration 008
+// Fallback: hardcoded (dentist, aesthetic, _default para as demais)
 
 const IBGE_SMB_BY_STATE: Record<string, Record<string, number>> = {
   dentist: {
@@ -59,6 +60,13 @@ const IBGE_SMB_BY_STATE: Record<string, Record<string, number>> = {
     AL: 1100, SE: 900, PI: 800, AM: 1500, RO: 700, TO: 500,
     AP: 250, AC: 200, RR: 150,
   },
+  psychologist: {
+    SP: 58000, RJ: 22000, MG: 19000, RS: 15000, PR: 13000, BA: 10000,
+    SC: 8000, GO: 7000, PE: 6500, CE: 6000, DF: 5500, ES: 4500,
+    PA: 3500, MT: 3000, MS: 2500, MA: 2000, AM: 1800, PB: 2200,
+    RN: 1800, AL: 1200, SE: 1000, PI: 900, RO: 700, TO: 500,
+    AP: 250, AC: 200, RR: 150,
+  },
   medical_aesthetic_clinic: {
     SP: 18000, RJ: 7500, MG: 6500, RS: 5000, PR: 4500, BA: 3800,
     SC: 2800, GO: 2500, PE: 2300, CE: 2200, DF: 3500, ES: 1600,
@@ -66,7 +74,7 @@ const IBGE_SMB_BY_STATE: Record<string, Record<string, number>> = {
     AL: 500, SE: 400, PI: 350, AM: 800, RO: 350, TO: 250,
     AP: 120, AC: 100, RR: 80,
   },
-  // Fallback genérico para outras categorias
+  // Fallback genérico para categorias sem dados específicos
   _default: {
     SP: 35000, RJ: 15000, MG: 13000, RS: 10000, PR: 9000, BA: 7500,
     SC: 5500, GO: 4800, PE: 4500, CE: 4200, DF: 4000, ES: 3200,

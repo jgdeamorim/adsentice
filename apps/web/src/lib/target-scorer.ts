@@ -81,7 +81,19 @@ const OFFICIAL_DISTRICTS: Record<string, string[]> = {
   ],
 }
 
-function getDistricts(city: string): string[] {
+async function getDistricts(city: string): Promise<string[]> {
+  // 1 — Try Supabase district_registry (migration 008)
+  try {
+    const supabase = getAdminClient()
+    const { data } = await supabase
+      .from("district_registry")
+      .select("district")
+      .ilike("city", `%${city}%`)
+      .limit(100)
+    if (data?.length) return data.map((r: any) => r.district)
+  } catch (e: any) { /* fallback */ }
+
+  // 2 — Fallback: hardcoded (SP, RJ only — pre-migration)
   for (const [key, districts] of Object.entries(OFFICIAL_DISTRICTS)) {
     if (city.includes(key)) return districts
   }
@@ -222,7 +234,7 @@ export async function buildDiscoveryQueue(
   category: string,
   city: string
 ): Promise<AutoDiscoveryQueue> {
-  const districts = getDistricts(city)
+  const districts = await getDistricts(city)
   const slug = normalizeCategory(category)
 
   // Get already-mapped districts
