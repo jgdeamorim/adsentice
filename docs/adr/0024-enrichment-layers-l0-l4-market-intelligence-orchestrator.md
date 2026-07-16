@@ -1,7 +1,7 @@
 ---
 id: adr-0024
 title: Camadas de Enriquecimento L0→L4 + Market Intelligence Orchestrator
-status: proposed
+status: accepted
 date: 2026-07-16
 deciders: founder, claude
 extends: [adr-0008, adr-0009, adr-0022, adr-0023]
