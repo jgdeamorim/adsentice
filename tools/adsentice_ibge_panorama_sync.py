@@ -32,7 +32,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 ENV_FILE = PROJECT_ROOT / "apps" / "web" / ".env"
 IBGE_IND = "https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores"
 
-# Capitais das 22 RMs (código 7 dígitos IBGE → código 6 dígitos API)
+# Capitais das 27 RMs (código 7 dígitos IBGE → código 6 dígitos API)
 CAPITAIS = {
     "3550308": ("São Paulo", "SP"),
     "3304557": ("Rio de Janeiro", "RJ"),
@@ -55,7 +55,13 @@ CAPITAIS = {
     "2800308": ("Aracaju", "SE"),
     "1501402": ("Belém", "PA"),
     "5103403": ("Cuiabá", "MT"),
-    "2706307": ("Palmeira dos Índios", "AL"),
+    "5300108": ("Brasília", "DF"),
+    "5002704": ("Campo Grande", "MS"),
+    "2211001": ("Teresina", "PI"),
+    "1100205": ("Porto Velho", "RO"),
+    "1600303": ("Macapá", "AP"),
+    "1400100": ("Boa Vista", "RR"),
+    "1200401": ("Rio Branco", "AC"),
 }
 
 # Indicadores que queremos (ID → nome amigável)
