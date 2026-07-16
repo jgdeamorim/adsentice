@@ -946,6 +946,7 @@ return (
                     ))}
                   </Grid>
                 </>
+              )}
 
               {/* ═══ L2 REDES SOCIAIS + CONTATOS (v1.0) ═══ */}
               {((selectedLead as any).l2_social_links?.length > 0 || (selectedLead as any).l2_emails?.length > 0) && (
