@@ -18,9 +18,9 @@ import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { nicheIntelligence, listMarketCategories, listMarketCities, marketOverview } from '@/lib/market-intel'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 
-const MarketCoverageMap = dynamic(() => import('@/components/MarketCoverageMap'), { ssr: false })
+const MarketCoverageMap = nextDynamic(() => import('@/components/MarketCoverageMap'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
