@@ -121,6 +121,7 @@ async function enrichTopLeadsL2(
 
   if (toEnrich.length === 0) return { l2EnrichedListings, l2EnrichedScores, l2Cost: 0 }
 
+  let l2Cost = 0
   // 🔥 Parallelize ALL (50 at once — DataForSEO handles concurrency)
   const results = await Promise.allSettled(
     toEnrich.map(async ({ listing, index }) => {
@@ -250,6 +251,7 @@ async function enrichTopLeadsL3(
 
   if (toEnrich.length === 0) return { l3EnrichedListings, l3EnrichedScores, l3Cost: 0 }
 
+  let l3Cost = 0
   // 🔥 Parallelize ALL + reuse L2 cache for domain_technologies
   const results = await Promise.allSettled(
     toEnrich.map(async ({ listing, index }) => {
