@@ -542,7 +542,10 @@ export async function POST(request: NextRequest) {
 
     // ═══ SUPABASE PERSISTENCE (durável — dados pagos NUNCA perdidos) ═══
     // Compute contact_methods + content gap for ALL listings before saving
-    const enrichedListings = listings.map((l: any, i: number) => {
+    // Attach scores + contact_methods + content_gap to listings IN-PLACE (no .map)
+    const enrichedListings: any[] = []
+    for (let i = 0; i < listings.length; i++) {
+      const l: any = listings[i]
       const input: ScoringInput = {
         title: l.title, category: l.category, address: l.address,
         rating_value: l.rating_value, rating_votes: l.rating_votes,
@@ -578,32 +581,14 @@ export async function POST(request: NextRequest) {
         recommendations: generateContentGapRecommendations(input, contentGap),
       } : null
 
-      return {
-        ...l,
-        score: scores[i],
-        contact_methods: detectContactMethods(input),
-        enrichment_level: l.enrichment_level >= 3 ? 3 : l.enrichment_level >= 2 ? 2 : enrichLevel,  // preserve L2/L3
-        l2_content_maturity,
-        l2_content_gaps,
-        // Ensure L2 fields survive spread (explicit carry-through)
-        l2_onpage_score: l.l2_onpage_score ?? null,
-        l2_meta_title: l.l2_meta_title ?? null,
-        l2_meta_description: l.l2_meta_description ?? null,
-        l2_cms: l.l2_cms ?? null,
-        l2_has_analytics: l.l2_has_analytics ?? null,
-        // Ensure L3 fields survive spread
-        l3_whatsapp: l.l3_whatsapp ?? null,
-        l3_emails: l.l3_emails ?? null,
-        l3_social_links: l.l3_social_links ?? null,
-        // Ensure L4 fields survive spread
-        l4_ibge_populacao: l.l4_ibge_populacao ?? null,
-        l4_ibge_pib_per_capita: l.l4_ibge_pib_per_capita ?? null,
-        l4_ibge_densidade: l.l4_ibge_densidade ?? null,
-        l4_ibge_renda_media: l.l4_ibge_renda_media ?? null,
-      }
-    })
+      // Mutate in-place (like L4 does — preserves all existing fields)
+      l.score = scores[i]
+      l.contact_methods = detectContactMethods(input)
+      l.l2_content_maturity = l2_content_maturity
+      l.l2_content_gaps = l2_content_gaps
+      enrichedListings.push(l)
+    }
 
-    // ═══ RESPONSE PAYLOAD (construído antes de persistir) ═══
     const payload = {
       ...result,  // total_count, cost_usd
       listings,   // enriched listings (sobrescreve result.listings)
@@ -626,7 +611,7 @@ export async function POST(request: NextRequest) {
     // Se Supabase falhar, o blob no R2 é a verdade. Restaurável.
     const searchIdForVault = `search_${Date.now().toString(36)}`
     try {
-      const r2Result = await vaultWriteBatch(searchIdForVault, enrichedListings)
+      const r2Result = await vaultWriteBatch(searchIdForVault, listings)
       if (r2Result.succeeded > 0) console.log(`[r2-vault] ${r2Result.succeeded}/${r2Result.attempted} blobs saved`)
     } catch { /* R2 offline — Redis já tem o payload */ }
 
@@ -639,7 +624,7 @@ export async function POST(request: NextRequest) {
       radiusKm: radiusKm || 10,
       totalCount: result.total_count,
       costUsd: searchCost + enrichmentCost + l2Cost + l3Cost,
-      listings: enrichedListings,
+      listings: listings,
       distribution,
     }).catch((err) => {
       console.error("[persistence] Supabase FAILED — dados salvos no Redis (7d) + R2:", err.message)
@@ -650,7 +635,7 @@ export async function POST(request: NextRequest) {
       if (categories.length === 1) {
         const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
         const cityCounts = new Map<string, number>()
-        for (const l of enrichedListings) {
+        for (const l of listings) {
           const c = (l as any).city
           if (c) cityCounts.set(c, (cityCounts.get(c) || 0) + 1)
         }
@@ -658,11 +643,11 @@ export async function POST(request: NextRequest) {
         appendMarketHolds([
           { category: cat, city, metric: "avg_score", value: distribution.avgScore, searchId: saved?.searchId },
           { category: cat, city, metric: "total_businesses", value: result.total_count, searchId: saved?.searchId },
-          { category: cat, city, metric: "claimed_pct", value: enrichedListings.filter((l: any) => l.is_claimed).length / Math.max(enrichedListings.length, 1) * 100, searchId: saved?.searchId },
+          { category: cat, city, metric: "claimed_pct", value: listings.filter((l: any) => l.is_claimed).length / Math.max(listings.length, 1) * 100, searchId: saved?.searchId },
         ]).catch(() => {})
       }
 
-      for (let i = 0; i < enrichedListings.length; i++) {
+      for (let i = 0; i < listings.length; i++) {
         (listings[i] as any).l2_content_maturity = enrichedListings[i].l2_content_maturity
         ;(listings[i] as any).l2_content_gaps = enrichedListings[i].l2_content_gaps
       }
