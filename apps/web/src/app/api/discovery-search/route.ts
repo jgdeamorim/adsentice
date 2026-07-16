@@ -389,7 +389,8 @@ async function enrichTopLeadsL4(
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, order_by, offset, filters } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, order_by, offset, filters, paginate } = body
+  const shouldPaginate = paginate !== false  // default true — paginate all pages
 
   if (!categories?.length) {
     return NextResponse.json({ error: "categories required" }, { status: 400 })
@@ -438,9 +439,10 @@ export async function POST(request: NextRequest) {
       offsets_used: [0],
     }
 
-    let offset = (limit || 100)
+    let pagOffset = (limit || 100)
     const seenPids = new Set(items.map((i: any) => i.place_id).filter(Boolean))
-    while (items.length >= (limit || 100) && offset < totalCount) {
+    if (shouldPaginate) {
+    while (items.length >= (limit || 100) && pagOffset < totalCount) {
       const nextResult = await businessListingsSearch({ ...searchParams, offset })
       const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
       for (const i of newItems) seenPids.add(i.place_id)
@@ -450,6 +452,7 @@ export async function POST(request: NextRequest) {
       searchMetadata.pages_fetched++
       searchMetadata.fetched_count += nextResult.listings.length
       searchMetadata.remaining = Math.max(0, totalCount - searchMetadata.fetched_count)
+    }
       searchMetadata.offsets_used.push(offset - (limit || 100))
       if (nextResult.listings.length < (limit || 100)) break
     }

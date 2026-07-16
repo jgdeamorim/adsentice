@@ -306,7 +306,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force: false, enrich: 50, // cache 24h — mesma busca não gasta de novo
+          limit: 50, force: false, enrich: 50, paginate: false, // cache 24h — mesma busca não gasta de novo
         }),
       })
 
