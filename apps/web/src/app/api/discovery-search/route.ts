@@ -431,8 +431,9 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
+  const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
 
   if (!categories?.length) {
     return NextResponse.json({ error: "categories required" }, { status: 400 })
@@ -441,7 +442,8 @@ export async function POST(request: NextRequest) {
   const cacheKey = `discovery:${categories.sort().join(',')}:${lat}:${lng}:${radiusKm}`
 
   // ═══ CACHE CHECK ═══
-  if (!force) {
+  // Continuation requests (offset > 0) skip cache — always fetch fresh page
+  if (!force && startOffset === 0) {
     const cached = getCached(cacheKey) || getPersistedResults(cacheKey)
 
     if (cached) {
@@ -461,7 +463,7 @@ export async function POST(request: NextRequest) {
       lng: lng || -46.6333,
       radiusKm: radiusKm || 10,
       limit: limit || 100,  // doc oficial: default=100, max=1000
-      offset: 0,
+      offset: startOffset,
       language_code: "pt",
     }
 
@@ -480,7 +482,7 @@ export async function POST(request: NextRequest) {
       fetched_count: items.length,
       pages_fetched: 1,
       remaining: Math.max(0, totalCount - items.length),
-      offsets_used: [0],
+      offsets_used: [startOffset],
     }
 
     let pagOffset = (limit || 100)
@@ -662,6 +664,7 @@ export async function POST(request: NextRequest) {
       l3EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 3).length,
       totalCost: searchCost + enrichmentCost + l2Cost + l3Cost,
       fromCache: false,
+      fetchedCount: searchMetadata.fetched_count,  // total real de listings nesta busca (todas as páginas ou página única)
       costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
     }
 
