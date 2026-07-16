@@ -107,6 +107,14 @@ export async function saveDiscoverySearch(params: {
       l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
       l2_emails: (l as any).l2_emails || null,
       l2_social_links: (l as any).l2_social_links ? JSON.stringify((l as any).l2_social_links) : null,
+      // L3: Social & Contacts (ADR-0024)
+      l3_emails: (l as any).l3_emails || null,
+      l3_social_links: (l as any).l3_social_links ? JSON.stringify((l as any).l3_social_links) : null,
+      // L4: IBGE Context (ADR-0024)
+      l4_ibge_populacao: (l as any).l4_ibge_populacao || null,
+      l4_ibge_pib_per_capita: (l as any).l4_ibge_pib_per_capita || null,
+      l4_ibge_densidade: (l as any).l4_ibge_densidade || null,
+      l4_ibge_renda_media: (l as any).l4_ibge_renda_media || null,
     }))
 
     // 3 — Bulk insert (one POST per listing)

@@ -21,6 +21,7 @@ import { scoreContentGap, generateContentGapRecommendations } from "@/lib/conten
 import { vaultWriteBatch } from "@/lib/r2-vault"
 import { appendMarketHolds } from "@/lib/provider-core-adapter"
 import { pushEvent } from "@/lib/telemetry"
+import { getAdminClient } from "@/lib/supabase-admin"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -104,7 +105,11 @@ async function enrichTopLeads(
   return { enrichedListings, enrichedScores, enrichmentCost }
 }
 
-/** L2: Website+SEO + social/contact crawl. Runs on ALL leads with website. $0.010625/lead. */
+// ── L2: Website & SEO técnico (ADR-0024) ──
+// on_page_instant_audit + domain_technologies. $0.010125/lead.
+// Puramente SEO: onpage score, meta tags, CMS, analytics, word count.
+// Redes sociais e contatos foram extraídos para L3.
+
 async function enrichTopLeadsL2(
   listings: any[],
   scores: ScoreData[],
@@ -113,7 +118,6 @@ async function enrichTopLeadsL2(
   const l2EnrichedListings = [...listings]
   const l2EnrichedScores = [...scores]
 
-  // All leads with website (score >= 0 — remove old gate)
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
     .filter(({ listing }) => !!listing.website)
@@ -131,64 +135,26 @@ async function enrichTopLeadsL2(
     const results = await Promise.allSettled(
       batchItems.map(async ({ listing, index }) => {
         const domain = extractDomain(listing.website)
-        const [audit, tech, contacts] = await Promise.allSettled([
+        const [audit, tech] = await Promise.allSettled([
           onPageInstantAudit(listing.website),
           domain ? domainTechnologies(domain) : Promise.resolve(null),
-          parseWebsiteContacts(listing.website),
         ])
-        return {
-          audit: audit.status === "fulfilled" ? audit.value : null,
-          tech: tech.status === "fulfilled" ? tech.value : null,
-          contacts: contacts.status === "fulfilled" ? contacts.value : null,
-          listing, index, domain,
-        }
+        return { audit: audit.status === "fulfilled" ? audit.value : null, tech: tech.status === "fulfilled" ? tech.value : null, listing, index, domain }
       })
     )
 
     for (const r of results) {
       if (r.status === "rejected") continue
-      const { audit, tech, contacts, listing, index } = r.value
+      const { audit, tech, listing, index } = r.value
       if (!audit) continue
 
-      const costPerLead = 0.000125 + (tech ? 0.01 : 0) + (contacts ? 0.0005 : 0)
+      const costPerLead = 0.000125 + (tech ? 0.01 : 0)
       l2Cost += costPerLead
 
-      // Extract L2 signals
       const l2_https = listing.website?.startsWith("https") ?? false
       const hasAnalytics = tech ? !!(tech.technologies?.marketing?.analytics?.length || tech.technologies?.advertising?.analytics?.length) : null
-      const cmsName: string | null = (() => {
-        const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms
-        return Array.isArray(cms) && cms.length > 0 ? cms[0] : null
-      })()
+      const cmsName: string | null = (() => { const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms; return Array.isArray(cms) && cms.length > 0 ? cms[0] : null })()
       const techCategories = tech ? Object.keys(tech.technologies || {}).filter(k => Object.keys(tech.technologies[k] || {}).length > 0) : null
-
-      // ── Merge contacts from website → fill GMB gaps ──
-      let mergedPhone = listing.phone
-      let mergedEmails: string[] = []
-      let mergedSocials: { platform: string; url: string }[] = []
-
-      // Domain technologies already gives phone_numbers + emails
-      if (tech) {
-        const techPhones = tech.phone_numbers || []
-        const techEmails = tech.emails || []
-        if (!mergedPhone && techPhones.length > 0) mergedPhone = techPhones[0]
-        mergedEmails.push(...techEmails)
-      }
-
-      // Content parsing gives social links + additional contacts
-      if (contacts) {
-        mergedSocials.push(...contacts.social_links)
-        mergedEmails.push(...contacts.emails.filter((e: string) => !mergedEmails.includes(e)))
-        if (!mergedPhone && contacts.phones.length > 0) mergedPhone = contacts.phones[0]
-        // WhatsApp from social links (wa.me) or phone parsing
-        if (!listing.phone && contacts.whatsapp_numbers.length > 0) {
-          mergedPhone = contacts.whatsapp_numbers[0]
-        }
-      }
-
-      // Dedup
-      mergedEmails = [...new Set(mergedEmails)].slice(0, 5)
-      mergedSocials = mergedSocials.slice(0, 10)
 
       const enriched: any = {
         ...listing,
@@ -206,12 +172,8 @@ async function enrichTopLeadsL2(
         l2_domain_rank: tech?.domain_rank || null,
         l2_country_iso_code: tech?.country_iso_code || null,
         l2_enriched_at: new Date().toISOString(),
-        l2_cost_usd: costPerLead,
+        l2_cost_usd: (listing.l2_cost_usd || 0) + costPerLead,
         enrichment_level: 2,
-        // Contact enrichment extras
-        l2_emails: mergedEmails,
-        l2_social_links: mergedSocials,
-        phone: mergedPhone || listing.phone,  // fill GMB phone gap if found
       }
 
       const input: ScoringInput = {
@@ -247,6 +209,146 @@ async function enrichTopLeadsL2(
 
   console.log(`[enrichment] L2: ${toEnrich.length} leads with website enriched, cost $${l2Cost.toFixed(4)}`)
   return { l2EnrichedListings, l2EnrichedScores, l2Cost }
+}
+
+// ── L3: Social & Contacts (ADR-0024) ──
+// parseWebsiteContacts + domain_technologies phone/email merge. $0.0005/lead.
+// Extrai redes sociais (Instagram, Facebook, WhatsApp, etc.), emails e telefones
+// do HTML do website. Preenche gaps do GMB (phone, email ausentes).
+
+async function enrichTopLeadsL3(
+  listings: any[],
+  scores: ScoreData[],
+  maxEnrich: number = 30
+): Promise<{ l3EnrichedListings: any[]; l3EnrichedScores: ScoreData[]; l3Cost: number }> {
+  const l3EnrichedListings = [...listings]
+  const l3EnrichedScores = [...scores]
+
+  // All leads with website
+  const toEnrich = listings
+    .map((l, i) => ({ listing: l, score: scores[i], index: i }))
+    .filter(({ listing }) => !!listing.website)
+    .sort((a, b) => b.score.compound - a.score.compound)
+    .slice(0, maxEnrich)
+
+  if (toEnrich.length === 0) return { l3EnrichedListings, l3EnrichedScores, l3Cost: 0 }
+
+  const BATCH_SIZE = 5
+  let l3Cost = 0
+
+  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
+    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
+
+    const results = await Promise.allSettled(
+      batchItems.map(async ({ listing, index }) => {
+        const domain = extractDomain(listing.website)
+        const [tech, contacts] = await Promise.allSettled([
+          domain ? domainTechnologies(domain) : Promise.resolve(null),
+          parseWebsiteContacts(listing.website),
+        ])
+        return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contacts.status === "fulfilled" ? contacts.value : null, listing, index }
+      })
+    )
+
+    for (const r of results) {
+      if (r.status === "rejected") continue
+      const { tech, contacts, listing, index } = r.value
+
+      let mergedPhone = listing.phone
+      let mergedEmails: string[] = []
+      let mergedSocials: { platform: string; url: string }[] = []
+
+      // Domain technologies gives phone_numbers + emails
+      if (tech) {
+        const techPhones = tech.phone_numbers || []
+        const techEmails = tech.emails || []
+        if (!mergedPhone && techPhones.length > 0) mergedPhone = techPhones[0]
+        mergedEmails.push(...techEmails)
+      }
+
+      // Content parsing gives social links + additional contacts
+      if (contacts) {
+        mergedSocials.push(...contacts.social_links)
+        for (const e of contacts.emails) { if (!mergedEmails.includes(e)) mergedEmails.push(e) }
+        if (!mergedPhone && contacts.phones.length > 0) mergedPhone = contacts.phones[0]
+        if (!listing.phone && contacts.whatsapp_numbers.length > 0) mergedPhone = contacts.whatsapp_numbers[0]
+      }
+
+      mergedEmails = [...new Set(mergedEmails)].slice(0, 5)
+      mergedSocials = mergedSocials.slice(0, 10)
+
+      const costPerLead = (tech ? 0.01 : 0) + (contacts ? 0.0005 : 0)
+      l3Cost += costPerLead
+
+      const enriched: any = {
+        ...listing,
+        l3_emails: mergedEmails.length > 0 ? mergedEmails : null,
+        l3_social_links: mergedSocials.length > 0 ? mergedSocials : null,
+        phone: mergedPhone || listing.phone,
+        enrichment_level: Math.max(listing.enrichment_level || 0, 3),
+      }
+
+      l3EnrichedListings[index] = enriched
+    }
+  }
+
+  console.log(`[enrichment] L3: ${toEnrich.length} leads crawled for social/contacts, cost $${l3Cost.toFixed(4)}`)
+  return { l3EnrichedListings, l3EnrichedScores, l3Cost }
+}
+
+// ── L4: Market Context (ADR-0024) ──
+// IBGE panorama + income via Supabase. $0/lead.
+// Enriquece TODOS os leads com PIB per capita, renda média, densidade,
+// população do município onde o negócio está localizado.
+
+async function enrichTopLeadsL4(
+  listings: any[],
+  scores: ScoreData[],
+): Promise<{ l4EnrichedListings: any[]; l4EnrichedScores: ScoreData[]; l4Cost: number }> {
+  const l4EnrichedListings = [...listings]
+  const l4EnrichedScores = [...scores]
+
+  // Build city→IBGE cache (1 query, não N queries)
+  const citySet = new Set<string>()
+  for (const l of listings) { if (l.city) citySet.add(l.city.toLowerCase().trim()) }
+
+  let ibgeByCity: Record<string, any> = {}
+  try {
+    const supabase = getAdminClient()
+    const { data: panoramaRows } = await supabase.from("ibge_panorama").select("municipio_nome,populacao,pib_per_capita,densidade_demografica,uf").limit(500)
+    if (panoramaRows) {
+      for (const r of panoramaRows) {
+        ibgeByCity[r.municipio_nome?.toLowerCase()?.trim()] = r
+      }
+    }
+
+    // Income by UF
+    const { data: incomeRows } = await supabase.from("ibge_income").select("uf,avg_household_income").limit(30)
+    const incomeByUf: Record<string, number> = {}
+    if (incomeRows) { for (const r of incomeRows) incomeByUf[r.uf] = r.avg_household_income }
+
+    // Enrich each listing
+    for (let i = 0; i < listings.length; i++) {
+      const l = listings[i]
+      if (!l.city) continue
+      const key = l.city.toLowerCase().trim()
+      const ibge = ibgeByCity[key]
+
+      if (ibge) {
+        const enriched: any = {
+          ...l,
+          l4_ibge_populacao: ibge.populacao || null,
+          l4_ibge_pib_per_capita: ibge.pib_per_capita || null,
+          l4_ibge_densidade: ibge.densidade_demografica || null,
+          l4_ibge_renda_media: ibge.uf ? (incomeByUf[ibge.uf] || null) : null,
+        }
+        l4EnrichedListings[i] = enriched
+      }
+    }
+  } catch (e: any) { console.warn("[enrichment] L4 IBGE offline:", e.message) }
+
+  console.log(`[enrichment] L4: IBGE context enriched for ${Object.keys(ibgeByCity).length} cities ($0)`)
+  return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 }
 
 export async function POST(request: NextRequest) {
@@ -353,25 +455,29 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // ═══ L2: WEBSITE+SEO + SOCIAL/CONTACT CRAWL ($0.010625/lead, ALL com website) ═══
+      // ═══ L2: WEBSITE & SEO TÉCNICO (ADR-0024 · $0.010125/lead, ALL com website) ═══
       if (enrichedCount > 0) {
         const l2Result = await enrichTopLeadsL2(listings, scores, 30)
-
         listings = l2Result.l2EnrichedListings
         scores = l2Result.l2EnrichedScores
         l2Cost = l2Result.l2Cost
-
-        if (l2Cost > 0) {
-          trackCost({
-            categories: [...categories, "L2_enrichment"],
-            lat: lat || -23.55,
-            lng: lng || -46.63,
-            radiusKm: radiusKm || 10,
-            costUsd: l2Cost,
-            totalCount: Math.min(typeof enrich === 'number' ? enrich : 3, 3),
-          })
-        }
+        if (l2Cost > 0) { trackCost({ categories: [...categories, "L2_enrichment"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l2Cost, totalCount: 30 }) }
       }
+
+      // ═══ L3: SOCIAL & CONTACTS (ADR-0024 · $0.0005/lead) ═══
+      let l3Cost = 0
+      if (enrichedCount > 0) {
+        const l3Result = await enrichTopLeadsL3(listings, scores, 30)
+        listings = l3Result.l3EnrichedListings
+        scores = l3Result.l3EnrichedScores
+        l3Cost = l3Result.l3Cost
+        if (l3Cost > 0) { trackCost({ categories: [...categories, "L3_social"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l3Cost, totalCount: 30 }) }
+      }
+
+      // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
+      const l4Result = await enrichTopLeadsL4(listings, scores)
+      listings = l4Result.l4EnrichedListings
+      scores = l4Result.l4EnrichedScores
     }
 
     // ═══ FINAL SCORING + DISTRIBUTION ═══
