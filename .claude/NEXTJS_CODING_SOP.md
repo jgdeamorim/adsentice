@@ -14,8 +14,11 @@
 Antes de escrever código, buscar no KG:
 
 ```
-DAG: "nextjs server component [padrão] [pattern]"
-     → Qdrant adsentice-self (tag=nextjs-15): 10 regras
+DAG: "nextjs [padrão] [pattern] [erro]"
+     → Qdrant adsentice-self:
+       ① tag=nextjs-official-practices (10 docs, Vercel oficial via context7)
+       ② tag=nextjs-15 (10 regras empíricas, 7 SWC fixes)
+       ③ tag=swc-compiler (9 docs, error.rs oficial + cross-reference)
      → Qdrant adsentice-conversation: histórico de erros similares
      → claude-memory: decisões SWC
 ```
