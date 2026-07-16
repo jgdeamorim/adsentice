@@ -27,16 +27,27 @@ export async function GET() {
       })
     }
 
-    // Resolve city name from lat/lng (usando heurística simples)
-    const resolveCity = (lat: number): string => {
-      if (Math.abs(lat + 23.55) < 1) return "São Paulo"
-      if (Math.abs(lat + 22.9) < 1) return "Rio de Janeiro"
-      if (Math.abs(lat + 19.9) < 1) return "Belo Horizonte"
-      if (Math.abs(lat + 15.8) < 1) return "Brasília"
-      if (Math.abs(lat + 12.9) < 1) return "Salvador"
-      if (Math.abs(lat + 25.4) < 1) return "Curitiba"
-      if (Math.abs(lat + 30.0) < 1) return "Porto Alegre"
-      return `${lat.toFixed(1)}, Brasil`
+    // Resolve city name from lat/lng (nearest capital heuristic)
+    const CAPITALS: [string, number, number][] = [
+      ["São Paulo", -23.55, -46.63],
+      ["Rio de Janeiro", -22.91, -43.17],
+      ["Belo Horizonte", -19.92, -43.93],
+      ["Brasília", -15.78, -47.93],
+      ["Salvador", -12.97, -38.50],
+      ["Fortaleza", -3.72, -38.54],
+      ["Curitiba", -25.43, -49.27],
+      ["Porto Alegre", -30.03, -51.22],
+      ["Recife", -8.05, -34.88],
+      ["Manaus", -3.12, -60.02],
+    ]
+    const resolveCity = (lat: number, lng: number): string => {
+      let best = CAPITALS[0]
+      let bestDist = Infinity
+      for (const c of CAPITALS) {
+        const d = Math.abs(lat - c[1]) + Math.abs(lng - c[2]) * 0.5 // lng weighted less
+        if (d < bestDist) { bestDist = d; best = c }
+      }
+      return bestDist < 3 ? best[0] : `${lat.toFixed(1)}, BR`
     }
 
     const pins = data.map((r: any) => ({
@@ -45,7 +56,7 @@ export async function GET() {
       lng: parseFloat(r.lng as any),
       radiusKm: r.radius_km || 10,
       categories: r.categories || [],
-      city: resolveCity(parseFloat(r.lat as any)),
+      city: resolveCity(parseFloat(r.lat as any), parseFloat(r.lng as any)),
       totalCount: r.total_count || 0,
       avgScore: r.avg_score || 0,
       createdAt: r.created_at,

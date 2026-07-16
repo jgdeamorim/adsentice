@@ -323,14 +323,25 @@ async function getMapPins() {
       .order("created_at", { ascending: false })
       .limit(50)
     if (!data) return []
-    return data.map((s: any) => {
-      const lat = parseFloat(s.lat)
-      return {
-        id: s.id, lat, lng: parseFloat(s.lng), radiusKm: s.radius_km || 10,
-        categories: s.categories || [], city: Math.abs(lat + 22.9) < 1 ? 'RJ' : 'BR',
-        totalCount: s.total_count || 0, avgScore: s.avg_score || 0,
-      }
-    })
+	    const caps: [string, number, number][] = [
+	      ["São Paulo", -23.55, -46.63], ["Rio de Janeiro", -22.91, -43.17],
+	    ]
+	    const resolve = (lat: number, lng: number): string => {
+	      let best = caps[0]; let bestD = Infinity
+	      for (const c of caps) {
+	        const d = Math.abs(lat - c[1]) + Math.abs(lng - c[2]) * 0.5
+	        if (d < bestD) { bestD = d; best = c }
+	      }
+	      return bestD < 3 ? best[0] : "BR"
+	    }
+	    return data.map((s: any) => {
+	      const lat = parseFloat(s.lat); const lng = parseFloat(s.lng)
+	      return {
+	        id: s.id, lat, lng, radiusKm: s.radius_km || 10,
+	        categories: s.categories || [], city: resolve(lat, lng),
+	        totalCount: s.total_count || 0, avgScore: s.avg_score || 0,
+	      }
+	    })
   } catch (e: any) { return [] }
 }
 
