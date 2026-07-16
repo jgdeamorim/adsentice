@@ -1,6 +1,6 @@
 'use client'
 
-// adsentice · Admin / Discovery v0.3 — Mapa Brasil + Auto-Pilot + Schwartz
+// adsentice · Admin / Discovery v0.4 — Mapa Brasil + Auto-Pilot + Tracker + L0→L4
 // ADR-0022 + ADR-0023 · Pain Criteria v1.2 · medido=verdade
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
@@ -291,9 +291,10 @@ const DiscoveryPage = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const l0Cost = selected.length * 0.015          // L0: business_listings_search
-  const l1Cost = 50 * 0.0054                         // L1: ALL 50 leads enriquecidos (27 campos GMB)
-  const l2Estimate = 15 * 0.010625                     // L2: ~30% têm website (SEO + social crawl)
-  const totalCost = l0Cost + l1Cost + l2Estimate       // Total estimado L0+L1+L2
+  const l1Cost = 100 * 0.0054                        // L1: ALL leads enriquecidos (27 campos GMB)
+  const l2Estimate = 30 * 0.010125                    // L2: ~30% têm website (SEO técnico)
+  const l3Estimate = 30 * 0.0005                      // L3: ~30% têm website (social + contacts)
+  const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0→L4+L3 (L4 = $0)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = false, offsetOverride?: number) => {
@@ -505,7 +506,7 @@ return arr
         <Typography variant='h4'>🔍 Discovery Engine</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            Dados REAIS via provider-core (DataForSEO direto) · Pipeline L0→L1→L2 · Score Composto (Fit×0.40 + Eng×0.35 + Int×0.25)
+            Dados REAIS via provider-core · Pipeline L0→L1→L2→L3→L4 · Score Composto · ADR-0024
           </Typography>
           {costTotal > 0 && (
             <Chip label={`💰 Hoje: $${costToday.toFixed(4)} · Total: $${costTotal.toFixed(4)}`}
@@ -646,7 +647,7 @@ return arr
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L2)`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0→L4)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -702,7 +703,7 @@ return arr
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>🤖 Pipeline Automático L0→L1→L2</DialogTitle>
+        <DialogTitle>🤖 Pipeline Automático L0→L1→L2→L3→L4</DialogTitle>
         <DialogContent>
           <Typography variant='body1' gutterBottom>
             Chamada <strong>LIVE</strong> ao DataForSEO via provider-core.
@@ -714,15 +715,17 @@ return arr
               💰 Custo: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
             </Typography>
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (até 50 listings, 11 campos)</Typography>
-              <Typography variant='caption'>📋 L1 Enrichment: ${l1Cost.toFixed(4)} (ALL 50 leads, 27 campos GMB)</Typography>
-              <Typography variant='caption'>🌐 L2 Website+SEO+Social: ~${l2Estimate.toFixed(4)} (~30% com website, SEO + redes sociais + emails)</Typography>
+              <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (100 listings, API DataForSEO)</Typography>
+              <Typography variant='caption'>📋 L1 Profile: ${l1Cost.toFixed(4)} (ALL leads, 27 campos GMB)</Typography>
+              <Typography variant='caption'>🌐 L2 SEO: ~${l2Estimate.toFixed(4)} (~30% websites, onpage + CMS + analytics)</Typography>
+              <Typography variant='caption'>📱 L3 Social: ~${l3Estimate.toFixed(4)} (~30% websites, redes sociais + WhatsApp + emails)</Typography>
+              <Typography variant='caption'>📊 L4 IBGE: $0.00 (população, PIB, renda — via Supabase)</Typography>
             </Box>
           </Box>
           <Alert severity='info' sx={{ mt: 1 }}>
             <Typography variant='caption'>
-              <strong>Pipeline automático:</strong> L0 (50 listings) → L1 (ALL enriquecidos) → L2 (websites: SEO + redes sociais + emails) → Supabase + Redis.
-              Com L2, Content Maturity, W1-W11 e analytics são populados no /admin/market.
+              <strong>Pipeline ADR-0024:</strong> L0 (100 listings) → L1 (perfil GMB) → L2 (SEO técnico) → L3 (social + WhatsApp) → L4 (IBGE $0) → Supabase + Redis + R2.
+              Search Tracker registra quantos foram capturados e quantos faltam. Paginação sob demanda.
             </Typography>
           </Alert>
         </DialogContent>
@@ -773,7 +776,8 @@ return (
           <Grid size={{ xs: 6, sm: 2.4 }}>
             <Card><CardContent sx={{ textAlign: 'center' }}>
               <Typography variant='h5' fontWeight={800} color={regionalTotal > 0 ? 'success.main' : 'text.secondary'}>
-                {regionalTotal > 0 ? `${((extractedTotal / regionalTotal) * 100).toFixed(1)}%` : '—'}
+                {searchMeta ? `${((searchMeta.fetched_count / searchMeta.total_in_region) * 100).toFixed(1)}%`
+                  : regionalTotal > 0 ? `${((extractedTotal / regionalTotal) * 100).toFixed(1)}%` : '—'}
               </Typography>
               <Typography variant='caption' color='text.secondary'>Mercado Coberto</Typography>
             </CardContent></Card>
@@ -801,9 +805,9 @@ return (
           <Grid size={{ xs: 6, sm: 2.4 }}>
             <Card><CardContent sx={{ textAlign: 'center' }}>
               <Typography variant='h5' fontWeight={800} color='info.main'>
-                {extractedTotal}/{regionalTotal}
+                {searchMeta ? `${searchMeta.fetched_count}/${searchMeta.total_in_region}` : `${extractedTotal}/${regionalTotal}`}
               </Typography>
-              <Typography variant='caption' color='text.secondary'>Extraídos/Total</Typography>
+              <Typography variant='caption' color='text.secondary'>Extraídos/Total{searchMeta?.remaining ? ` · faltam ${searchMeta.remaining}` : ''}</Typography>
             </CardContent></Card>
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
@@ -847,7 +851,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Pipeline L0→L1→L2 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline L0→L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
