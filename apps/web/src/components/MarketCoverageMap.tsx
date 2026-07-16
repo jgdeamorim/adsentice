@@ -16,7 +16,7 @@ const iconGentle = L.divIcon({
   iconAnchor: [5, 5],
 })
 
-export default function MarketCoverageMap({ pins }: { pins: CoveragePin[] }) {
+export default function MarketCoverageMap({ pins }: { pins: any[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
 

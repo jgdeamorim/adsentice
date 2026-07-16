@@ -2,6 +2,7 @@
 
 // adsentice · Admin / Market Intelligence — ADR-0009
 // Agrega dados existentes por categoria × região (ZERO novas APIs)
+import React from 'react'
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -60,7 +61,7 @@ const MarketPage = async ({ params, searchParams }: {
   const holds = filterCity && filterCategory ? await fetchMarketHolds(filterCategory, filterCity) : []
 
   // Carrega pins para o mapa
-  const pins: { id: string; lat: number; lng: number; radiusKm: number; categories: string[]; city: string; totalCount: number; avgScore: number }[] = []
+  const pins: any[] = []
   try {
     const supabase = getAdminClient()
     const { data: searches } = await supabase
@@ -70,16 +71,13 @@ const MarketPage = async ({ params, searchParams }: {
       .order("created_at", { ascending: false })
       .limit(50)
     if (searches) {
-      for (const s of searches) {
-        const lat = parseFloat(s.lat); const reg = Math.abs(lat + 23.55) < 1 ? 'São Paulo' : Math.abs(lat + 22.9) < 1 ? 'Rio de Janeiro' : 'Brasil'
-        pins.push({
-          id: s.id, lat, lng: parseFloat(s.lng), radiusKm: s.radius_km || 10,
-          categories: s.categories || [], city: reg, totalCount: s.total_count || 0,
-          avgScore: s.avg_score || 0,
-        })
+      for (const s of searches as any[]) {
+        const lat = parseFloat(s.lat)
+        const reg = Math.abs(lat + 23.55) < 1 ? 'SP' : Math.abs(lat + 22.9) < 1 ? 'RJ' : 'BR'
+        pins.push({ id: s.id, lat, lng: parseFloat(s.lng), radiusKm: s.radius_km || 10, categories: s.categories || [], city: reg, totalCount: s.total_count || 0, avgScore: s.avg_score || 0 })
       }
     }
-  } catch {}
+  } catch (_e: unknown) { void _e }
 
   // Agrupa holds por métrica para mini time-series
   const holdGroups = new Map<string, MarketHoldRow[]>()
