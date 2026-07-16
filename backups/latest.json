@@ -1,39 +1,54 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-16-010059",
+  "backup_id": "2026-07-16-024927",
   "date": "2026-07-16",
-  "timestamp": "2026-07-16T010059Z",
-  "mode": "FULL",
-  "parent_backup": "2026-07-16-010252",
+  "timestamp": "2026-07-16T024927Z",
+  "mode": "INCREMENTAL",
+  "parent_backup": "2026-07-16-010059",
   "collections": {
-    "adsentice-self": 18286,
-    "adsentice-conversation": 77505,
-    "claude-memory": 30,
+    "adsentice-self": 18324,
+    "adsentice-conversation": 78336,
+    "claude-memory": 33,
     "adsentice-materio": 36
   },
   "redis_keys": 65,
   "supabase_rows": 419,
   "checksums": {
     "qdrant": {
-      "adsentice-self": "6ecc99b8f683",
-      "adsentice-conversation": "938e2836d505",
-      "claude-memory": "bd8dd3f0d877",
-      "adsentice-materio": "da313ab52610"
+      "adsentice-self": "9f34457ffaab",
+      "adsentice-conversation": "3206a69284f7",
+      "claude-memory": "a415a217e390",
+      "adsentice-materio": "c077f7f8b476"
     },
-    "redis": "8a6fc9b8f162",
+    "redis": "3a50a7218e05",
     "supabase": {
       "discovery_searches": "06ca6f3ac683",
-      "discovery_listings": "875d4814e9b9",
+      "discovery_listings": "9c0e50836fa9",
       "market_holds": "2cb1892c492f"
     }
   },
-  "uploaded_to_r2": [],
+  "uploaded_to_r2": [
+    "backup/2026-07-16/adsentice-backup-2026-07-16-024927.json.gz",
+    "backup/2026-07-16/qdrant/adsentice-self.json.gz",
+    "backup/2026-07-16/qdrant/adsentice-conversation.json.gz",
+    "backup/2026-07-16/qdrant/claude-memory.json.gz",
+    "backup/2026-07-16/qdrant/adsentice-materio.json.gz",
+    "backup/2026-07-16/redis.json.gz",
+    "backup/2026-07-16/supabase/discovery_listings.json.gz"
+  ],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-010059.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-024927.json.gz"
   ],
   "changed": {
-    "qdrant": [],
-    "redis": false,
-    "supabase": []
+    "qdrant": [
+      "adsentice-self",
+      "adsentice-conversation",
+      "claude-memory",
+      "adsentice-materio"
+    ],
+    "redis": true,
+    "supabase": [
+      "discovery_listings"
+    ]
   }
 }
