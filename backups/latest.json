@@ -1,8 +1,8 @@
 {
   "version": "v1.0.0",
-  "backup_id": "2026-07-16-005537",
+  "backup_id": "2026-07-16-010059",
   "date": "2026-07-16",
-  "timestamp": "2026-07-16T005537Z",
+  "timestamp": "2026-07-16T010059Z",
   "collections": {
     "adsentice-self": 18286,
     "adsentice-conversation": 77505,
@@ -11,18 +11,8 @@
   },
   "redis_keys": 65,
   "supabase_rows": 419,
-  "uploaded_to_r2": [
-    "backup/2026-07-16/adsentice-backup-2026-07-16-005537.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-self.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-conversation.json.gz",
-    "backup/2026-07-16/qdrant/claude-memory.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-materio.json.gz",
-    "backup/2026-07-16/redis.json.gz",
-    "backup/2026-07-16/supabase/discovery_searches.json.gz",
-    "backup/2026-07-16/supabase/discovery_listings.json.gz",
-    "backup/2026-07-16/supabase/market_holds.json.gz"
-  ],
+  "uploaded_to_r2": [],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-005537.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-010059.json.gz"
   ]
 }
