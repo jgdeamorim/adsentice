@@ -1,17 +1,17 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-16-191758",
+  "backup_id": "2026-07-16-192258",
   "date": "2026-07-16",
-  "timestamp": "2026-07-16T191758Z",
+  "timestamp": "2026-07-16T192258Z",
   "mode": "INCREMENTAL",
-  "parent_backup": "2026-07-16-151435",
+  "parent_backup": "2026-07-16-191758",
   "collections": {
     "adsentice-self": 18352,
     "adsentice-conversation": 80025,
     "claude-memory": 34,
     "adsentice-materio": 36
   },
-  "redis_keys": 65,
+  "redis_keys": 67,
   "supabase_rows": 687,
   "checksums": {
     "qdrant": {
@@ -20,7 +20,7 @@
       "claude-memory": "885a6a96acb3",
       "adsentice-materio": "dbc5d553c3e5"
     },
-    "redis": "d0f7726c4beb",
+    "redis": "99b66022076d",
     "supabase": {
       "discovery_searches": "d5a389e9a248",
       "discovery_listings": "a3fb06d11260",
@@ -28,31 +28,15 @@
     }
   },
   "uploaded_to_r2": [
-    "backup/2026-07-16/adsentice-backup-2026-07-16-191758.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-self.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-conversation.json.gz",
-    "backup/2026-07-16/qdrant/claude-memory.json.gz",
-    "backup/2026-07-16/qdrant/adsentice-materio.json.gz",
-    "backup/2026-07-16/redis.json.gz",
-    "backup/2026-07-16/supabase/discovery_searches.json.gz",
-    "backup/2026-07-16/supabase/discovery_listings.json.gz",
-    "backup/2026-07-16/supabase/market_holds.json.gz"
+    "backup/2026-07-16/adsentice-backup-2026-07-16-192258.json.gz",
+    "backup/2026-07-16/redis.json.gz"
   ],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-191758.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-192258.json.gz"
   ],
   "changed": {
-    "qdrant": [
-      "adsentice-self",
-      "adsentice-conversation",
-      "claude-memory",
-      "adsentice-materio"
-    ],
+    "qdrant": [],
     "redis": true,
-    "supabase": [
-      "discovery_searches",
-      "discovery_listings",
-      "market_holds"
-    ]
+    "supabase": []
   }
 }

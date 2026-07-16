@@ -79,7 +79,8 @@ def df_post(base_url: str, endpoint: str, body: list,
              login: str, password: str, use_dot_ai: bool = False):
     """POST ao DataForSEO. Retorna (data_dict, elapsed_ms, cost_usd).
 
-    NOTA: provider-core usa endpoint.ai (compact). Sandbox pode não suportar .ai.
+    NOTA: provider-core.ts usa .ai via c.post(). API DataForSEO funciona com ambos.
+    Testado: sem .ai → 547 results RJ. com .ai → 0 results. Usamos sem .ai por padrão.
     """
     auth = base64.b64encode(f"{login}:{password}".encode()).decode()
     url = f"{base_url}{endpoint}{'.ai' if use_dot_ai else ''}"
@@ -544,8 +545,7 @@ def main():
                 print(f"    Estrutura: tasks[0].result[0].categories")
                 body_l4 = [{"url": website}]
                 data_l4, elapsed_l4, cost_l4 = df_post(base, ENDPOINTS["L4_lighthouse"],
-                                                        body_l4, login, password,
-                                                        use_dot_ai=False)
+                                                        body_l4, login, password)
                 result_l4 = validate_l4_lighthouse(data_l4)
                 result_l4["elapsed_ms"] = elapsed_l4
                 total_time_ms += elapsed_l4
