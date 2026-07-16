@@ -112,7 +112,7 @@ return { enrichedListings, enrichedScores, enrichmentCost }
 // Puramente SEO: onpage score, meta tags, CMS, analytics, word count.
 // Redes sociais e contatos foram extraídos para L3.
 
-async function enrichTopLeadsL2(
+async function _enrichTopLeadsL2(
   listings: any[],
   scores: ScoreData[],
   maxEnrich: number = 30
@@ -259,7 +259,7 @@ return { l2EnrichedListings, l2EnrichedScores, l2Cost }
 // do HTML do website. WhatsApp é campo SEPARADO (l3_whatsapp), não misturado com phone.
 // Preenche gaps do GMB (phone, email ausentes).
 
-async function enrichTopLeadsL3(
+async function _enrichTopLeadsL3(
   listings: any[],
   scores: ScoreData[],
   maxEnrich: number = 30
@@ -529,8 +529,8 @@ export async function POST(request: NextRequest) {
     let enrichedCount = 0
 
     console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
-    let l2Cost = 0
-    let l3Cost = 0
+    const l2Cost = 0
+    const l3Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field GMB profile, $0.0054/lead, ALL 50) ═══
     const shouldEnrich = enrich || force
@@ -551,25 +551,10 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // ═══ L2: WEBSITE & SEO TÉCNICO (ADR-0024 · $0.010125/lead, ALL com website) ═══
-      if (enrichedCount > 0) {
-        const l2Result = await enrichTopLeadsL2(listings, scores, 30)
-
-        listings = l2Result.l2EnrichedListings
-        scores = l2Result.l2EnrichedScores
-        l2Cost = l2Result.l2Cost
-        if (l2Cost > 0) { trackCost({ categories: [...categories, "L2_enrichment"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l2Cost, totalCount: 30 }) }
-      }
-
-      // ═══ L3: SOCIAL & CONTACTS (ADR-0024 · $0.0005/lead) ═══
-      if (enrichedCount > 0) {
-        const l3Result = await enrichTopLeadsL3(listings, scores, 30)
-
-        listings = l3Result.l3EnrichedListings
-        scores = l3Result.l3EnrichedScores
-        l3Cost = l3Result.l3Cost
-        if (l3Cost > 0) { trackCost({ categories: [...categories, "L3_social"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l3Cost, totalCount: 30 }) }
-      }
+      // ═══ L2 + L3: ADIADO para pós-conversão ═══
+      // Estratégia: L0+L1+L4 → Raio-X Warp (lead magnet) → conversão → L2 (SEO) + L3 (Social)
+      // Executar L2/L3 só quando o lead já engajou — economia de ~30% por Discovery
+      // Para ativar: descomentar blocos abaixo e ajustar custos no payload
 
       // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
       const l4Result = await enrichTopLeadsL4(listings, scores)

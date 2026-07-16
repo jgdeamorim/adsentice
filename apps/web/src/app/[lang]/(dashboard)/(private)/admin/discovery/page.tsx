@@ -298,9 +298,9 @@ const DiscoveryPage = () => {
 
   const l0Cost = selected.length * 0.015          // L0: business_listings_search
   const l1Cost = 100 * 0.0054                        // L1: ALL leads enriquecidos (27 campos GMB)
-  const l2Estimate = 30 * 0.010125                    // L2: ~30% têm website (SEO técnico)
-  const l3Estimate = 30 * 0.0005                      // L3: ~30% têm website (social + contacts)
-  const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0→L4+L3 (L4 = $0)
+  const l2Estimate = 0                                // L2: ADIADO (pós-conversão — Raio-X Warp primeiro)
+  const l3Estimate = 0                                // L3: ADIADO (pós-conversão — Raio-X Warp primeiro)
+  const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0+L1+L4 (L4 = $0)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (_force = false, offsetOverride?: number) => {
@@ -530,7 +530,7 @@ return colors[level ?? 0] || colors[0]
         <Typography variant='h4'>🔍 Discovery Engine</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            Dados REAIS via provider-core · Pipeline L0→L1→L2→L3→L4 · Score Composto · ADR-0024
+            Dados REAIS via provider-core · Pipeline L0+L1+L4 · Score Composto · ADR-0024
           </Typography>
           {costTotal > 0 && (
             <Chip label={`💰 Hoje: $${costToday.toFixed(4)} · Total: $${costTotal.toFixed(4)}`}
@@ -675,7 +675,7 @@ return colors[level ?? 0] || colors[0]
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0→L4)`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L4)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -733,7 +733,7 @@ return (
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>🤖 Pipeline Automático L0→L1→L2→L3→L4</DialogTitle>
+        <DialogTitle>🤖 Pipeline Automático L0 → L1 → L4</DialogTitle>
         <DialogContent>
           <Typography variant='body1' gutterBottom>
             Chamada <strong>LIVE</strong> ao DataForSEO via provider-core.
@@ -747,14 +747,14 @@ return (
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (100 listings, API DataForSEO)</Typography>
               <Typography variant='caption'>📋 L1 Profile: ${l1Cost.toFixed(4)} (ALL leads, 27 campos GMB)</Typography>
-              <Typography variant='caption'>🌐 L2 SEO: ~${l2Estimate.toFixed(4)} (~30% websites, onpage + CMS + analytics)</Typography>
-              <Typography variant='caption'>📱 L3 Social: ~${l3Estimate.toFixed(4)} (~30% websites, redes sociais + WhatsApp + emails)</Typography>
+              <Typography variant='caption'>📱 L2 SEO + L3 Social: <strong>ADIADO</strong> (pós-conversão — Raio-X Warp → engajamento → ações automáticas)</Typography>
               <Typography variant='caption'>📊 L4 IBGE: $0.00 (população, PIB, renda — via Supabase)</Typography>
             </Box>
           </Box>
           <Alert severity='info' sx={{ mt: 1 }}>
             <Typography variant='caption'>
-              <strong>Pipeline ADR-0024:</strong> L0 (100 listings) → L1 (perfil GMB) → L2 (SEO técnico) → L3 (social + WhatsApp) → L4 (IBGE $0) → Supabase + Redis + R2.
+              <strong>Pipeline ADR-0024:</strong> L0 (100 listings) → L1 (perfil GMB) → L4 (IBGE $0) → Supabase + Redis + R2.
+              L2 (SEO) + L3 (Social) adiados para pós-conversão. Raio-X Warp gratuito primeiro, depois ações automáticas.
               Search Tracker registra quantos foram capturados e quantos faltam. Paginação sob demanda.
             </Typography>
           </Alert>
@@ -882,7 +882,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Pipeline L0→L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline L0+L1+L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
