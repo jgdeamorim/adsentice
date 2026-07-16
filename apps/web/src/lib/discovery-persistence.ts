@@ -35,6 +35,7 @@ export async function saveDiscoverySearch(params: {
   totalCount: number; costUsd: number
   listings: (GMBListing & { score: ScoreData })[]
   distribution: { unaware: number; problemAware: number; solutionAware: number; productAware: number; mostAware: number; avgScore: number }
+  searchMetadata?: { tracker_id: string; total_in_region: number; fetched_count: number; pages_fetched: number; remaining: number; offsets_used: number[] }
 }): Promise<{ searchId: string; savedCount: number } | null> {
   try {
     const avgScore = params.distribution.avgScore
@@ -47,6 +48,7 @@ export async function saveDiscoverySearch(params: {
       unaware: params.distribution.unaware, problem_aware: params.distribution.problemAware,
       solution_aware: params.distribution.solutionAware, product_aware: params.distribution.productAware,
       most_aware: params.distribution.mostAware,
+      search_metadata: params.searchMetadata || null,
     }
     const searchRes = await fetch(`${SFX}/rest/v1/discovery_searches`, {
       method: "POST",

@@ -426,6 +426,38 @@ export async function POST(request: NextRequest) {
 
     let result = { total_count: totalCount, listings: items as any[], cost_usd: searchResult.cost_usd || 0.015 }
 
+    // ═══ PAGINATION: fetch remaining pages (offset 100,200...) ═══
+    // DataForSEO max 100 per call. RJ 5km = 538 dentists = 5 pages.
+    // Tracker: search_metadata records what pages were fetched and how many remain.
+    const searchMetadata = {
+      tracker_id: `discovery_${Date.now().toString(36)}`,
+      total_in_region: totalCount,
+      fetched_count: items.length,
+      pages_fetched: 1,
+      remaining: Math.max(0, totalCount - items.length),
+      offsets_used: [0],
+    }
+
+    let offset = (limit || 100)
+    const seenPids = new Set(items.map((i: any) => i.place_id).filter(Boolean))
+    while (items.length >= (limit || 100) && offset < totalCount) {
+      const nextResult = await businessListingsSearch({ ...searchParams, offset })
+      const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
+      for (const i of newItems) seenPids.add(i.place_id)
+      result.listings.push(...newItems)
+      result.cost_usd += nextResult.cost_usd || 0
+      offset += (limit || 100)
+      searchMetadata.pages_fetched++
+      searchMetadata.fetched_count += nextResult.listings.length
+      searchMetadata.remaining = Math.max(0, totalCount - searchMetadata.fetched_count)
+      searchMetadata.offsets_used.push(offset - (limit || 100))
+      if (nextResult.listings.length < (limit || 100)) break
+    }
+
+    // Attach metadata to result (survives to response + persistence)
+    ;(result as any).search_metadata = searchMetadata
+    console.log(`[discovery:L0] tracker=${searchMetadata.tracker_id} · ${searchMetadata.fetched_count}/${totalCount} fetched in ${searchMetadata.pages_fetched} pages · ${searchMetadata.remaining} remaining`)
+
     const l0Latency = Date.now() - t0
     console.log(`[discovery:L0:inline] ${result.listings.length}/${totalCount} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
     pushEvent({ route: "/api/discovery-search", status: 200, latency_ms: l0Latency, provider: "DataForSEO", detail: `${result.listings.length}/${totalCount} listings` })
@@ -600,6 +632,7 @@ export async function POST(request: NextRequest) {
       costUsd: searchCost + enrichmentCost + l2Cost + l3Cost,
       listings: listings,
       distribution,
+      searchMetadata,
     }).catch((err) => {
       console.error("[persistence] Supabase FAILED — dados salvos no Redis (7d) + R2:", err.message)
       return null
