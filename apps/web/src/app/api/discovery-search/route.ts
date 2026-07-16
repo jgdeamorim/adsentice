@@ -450,7 +450,47 @@ export async function POST(request: NextRequest) {
     })
 
     const totalCount = dfData.tasks?.[0]?.result?.[0]?.items_count || items.length
-    const result = { total_count: totalCount, listings: items, cost_usd: 0.015 }
+    let result = { total_count: totalCount, listings: items, cost_usd: 0.015 }
+
+    // ═══ PAGINATION: fetch remaining leads up to depth 700 (API limit) ═══
+    // DataForSEO returns max 50 per call. If market has 5.404 dentists,
+    // we fetch offset=50,100,150... up to 700 depth to avoid burning money
+    // on repeat searches. Deduplicates by place_id across pages.
+    const MAX_DEPTH = 700
+    let offset = 50
+    const seenPids = new Set(items.map((i: any) => i.place_id).filter(Boolean))
+    while (items.length >= 50 && offset < MAX_DEPTH && offset < totalCount) {
+      const offsetBody = JSON.stringify([{ categories, location_coordinate: dfCoord, language_code: "pt", limit: 50, offset }])
+      const offsetRes = await fetch("https://api.dataforseo.com/v3/business_data/business_listings/search/live", {
+        method: "POST", headers: { Authorization: dfAuth, "Content-Type": "application/json" }, body: offsetBody,
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!offsetRes.ok) break
+      const offsetData = await offsetRes.json()
+      const offsetItems = (offsetData.tasks?.[0]?.result?.[0]?.items || []).map((item: any) => {
+        const rating = (item.rating || {}) as Record<string, unknown>
+        const addrInfo = (item.address_info || {}) as Record<string, unknown>
+        return {
+          title: (item.title as string) || null, category: (item.category as string) || null,
+          address: (item.address as string) || null,
+          rating_value: (rating.value as number) ?? null, rating_votes: (rating.votes_count as number) ?? null,
+          place_id: (item.place_id as string) || null, cid: (item.cid as string) || null,
+          latitude: (item.latitude as number) ?? null, longitude: (item.longitude as number) ?? null,
+          is_claimed: (item.is_claimed as boolean) ?? null,
+          city: (addrInfo.city as string) || null, district: (addrInfo.borough as string) || null,
+          website: (item.url as string) || null,
+        }
+      })
+      // Dedup: only add new place_ids
+      const newItems = offsetItems.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
+      for (const i of newItems) seenPids.add(i.place_id)
+      result.listings.push(...newItems)
+      result.cost_usd += 0.0003 * offsetItems.length  // $0.0003 per listing in pagination
+      offset += 50
+      if (offsetItems.length < 50) break  // no more results
+    }
+    console.log(`[discovery:L0] ${result.listings.length} unique/${totalCount} total (${offset/50} pages, ${seenPids.size} unique PIDs)`)
+    result.total_count = totalCount  // preserve original total for UI display
 
     const l0Latency = Date.now() - t0
     console.log(`[discovery:L0:inline] ${result.listings.length}/${totalCount} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
