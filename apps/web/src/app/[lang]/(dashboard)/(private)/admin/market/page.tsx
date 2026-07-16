@@ -123,7 +123,7 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
             <CardStatVertical stats={`${overview.avgScore}/100`} title='Score Medio'
-              subtitle={`${overview.enrichedBusinesses} enriquecidos`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
+              subtitle={`L1 ${(overview as any).l1Count || overview.enrichedBusinesses} · L2 ${(overview as any).l2Count || 0} enriquecidos`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
               trendNumber={String(overview.avgScore)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>

@@ -798,7 +798,14 @@ return (
                         </Tooltip>
                       </TableCell>
                       <TableCell>
-                        <Typography fontWeight={600} fontSize='0.85rem' noWrap sx={{ maxWidth: 200 }}>{l.title || '—'}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography fontWeight={600} fontSize='0.85rem' noWrap sx={{ maxWidth: 180 }}>{l.title || '—'}</Typography>
+                          {(l as any).enrichment_level >= 2 ? (
+                            <Chip label='L2' size='small' color='info' variant='tonal' sx={{ height: 18, fontSize: '0.6rem', fontFamily: 'monospace' }} />
+                          ) : (l as any).enrichment_level >= 1 ? (
+                            <Chip label='L1' size='small' color='success' variant='tonal' sx={{ height: 18, fontSize: '0.6rem', fontFamily: 'monospace' }} />
+                          ) : null}
+                        </Box>
                         <Typography variant='caption' color='text.secondary' noWrap sx={{ maxWidth: 200 }}>{l.address?.slice(0, 40)}</Typography>
                       </TableCell>
                       <TableCell><Chip label={l.category || '?'} size='small' variant='outlined' /></TableCell>
@@ -937,6 +944,36 @@ return (
                         </Box>
                       </Grid>
                     ))}
+                  </Grid>
+                </>
+
+              {/* ═══ L2 REDES SOCIAIS + CONTATOS (v1.0) ═══ */}
+              {((selectedLead as any).l2_social_links?.length > 0 || (selectedLead as any).l2_emails?.length > 0) && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='#e91e63'>📱 Redes Sociais & Contatos Extras</Typography>
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    {(selectedLead as any).l2_social_links?.length > 0 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant='caption' color='text.secondary'>Redes Sociais</Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                          {(selectedLead as any).l2_social_links.map((s: any) => (
+                            <Chip key={s.url} label={s.platform} size='small' color='info' variant='tonal'
+                              component='a' href={s.url} target='_blank' clickable
+                              sx={{ fontSize: '0.7rem' }} />
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
+                    {(selectedLead as any).l2_emails?.length > 0 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant='caption' color='text.secondary'>Emails</Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                          {(selectedLead as any).l2_emails.map((e: string) => (
+                            <Chip key={e} label={e} size='small' variant='outlined' sx={{ fontSize: '0.7rem', fontFamily: 'monospace' }} />
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
                   </Grid>
                 </>
               )}

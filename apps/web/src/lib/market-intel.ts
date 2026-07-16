@@ -11,6 +11,7 @@ import { getAdminClient } from "./supabase-admin"
 export interface MarketOverview {
   category: string; categoryLabel: string; city: string
   totalBusinesses: number; enrichedBusinesses: number
+  l1Count?: number; l2Count?: number
   avgScore: number; avgRating: number; avgPhotos: number
   claimedPct: number; hasWebsitePct: number; hasAnalyticsPct: number
   schwartzDistribution: { level: number; label: string; count: number; pct: number }[]
@@ -174,6 +175,8 @@ export async function aggregateByCategory(cat: string, city?: string | null): Pr
     return {
       category: slug, categoryLabel: CATEGORY_LABELS[slug] || cat, city: city || "Todas as regioes",
       totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
+      l1Count: list.filter(r => r.enrichment_level >= 1).length,
+      l2Count: list.filter(r => r.enrichment_level >= 2).length,
       avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
       avgPhotos: Math.round(avg(photos)),
       claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
@@ -255,7 +258,7 @@ export async function competitiveDensity(cat: string, city?: string | null): Pro
 }
 
 /** Visão geral agregada de TODAS as categorias e cidades. Sem filtro. */
-export async function marketOverview(): Promise<MarketOverview & { categoryCount: number; cityCount: number }> {
+export async function marketOverview(): Promise<MarketOverview & { categoryCount: number; cityCount: number; l1Count: number; l2Count: number }> {
   try {
     const supabase = getAdminClient()
     const { data, error } = await supabase
@@ -291,6 +294,8 @@ export async function marketOverview(): Promise<MarketOverview & { categoryCount
     return {
       category: "all", categoryLabel: "Todas as categorias", city: `${citySet.size} cidades`,
       totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
+      l1Count: list.filter(r => r.enrichment_level >= 1).length,
+      l2Count: list.filter(r => r.enrichment_level >= 2).length,
       avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
       avgPhotos: Math.round(avg(list.map(r => r.total_photos || 0))),
       claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
