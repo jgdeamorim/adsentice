@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.8.0"
+version: "1.9.0"
 date: 2026-07-11
-updated: 2026-07-15T16:30:00-03:00
+updated: 2026-07-16T00:45:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.8.0
+# Base-Matriz do Ecossistema adsentice v1.9.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
@@ -93,6 +93,8 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0019` | Fontes de Conhecimento — context7 (primaria, enabled) vs 21st-magic (inspiracao, disabled) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0020` | Compositor de Tokens Semânticos — Design System Morph por Intent de Mercado (M9 Warp) | ✅ accepted (2026-07-14) |
 | `ADS.COR.adr.0021` | Dual Embed e0+e1 — Arquitetura multilíngue (EN code + PT prose) para busca semântica | ✅ accepted (2026-07-15) |
+| `ADS.COR.adr.0022` | Geo Intelligence Engine — Turf.js + H3 + Leaflet para Discovery Geoespacial ($0, 3 fases) | ✅ accepted (2026-07-15) |
+| `ADS.COR.adr.0023` | Discovery Auto-Pilot — Cobertura Geoespacial + Localização Automática + Conversão Intelligence (3 camadas) | ✅ accepted (2026-07-15) |
 
 ### ADS.COR.llm — Inteligência de Linguagem
 
