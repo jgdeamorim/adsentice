@@ -1,17 +1,17 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-16-122719",
+  "backup_id": "2026-07-16-151435",
   "date": "2026-07-16",
-  "timestamp": "2026-07-16T122719Z",
-  "mode": "NOOP",
-  "parent_backup": "2026-07-16-122630",
+  "timestamp": "2026-07-16T151435Z",
+  "mode": "INCREMENTAL",
+  "parent_backup": "2026-07-16-122719",
   "collections": {
     "adsentice-self": 18332,
     "adsentice-conversation": 79170,
     "claude-memory": 33,
     "adsentice-materio": 36
   },
-  "redis_keys": 65,
+  "redis_keys": 64,
   "supabase_rows": 419,
   "checksums": {
     "qdrant": {
@@ -20,20 +20,23 @@
       "claude-memory": "a415a217e390",
       "adsentice-materio": "58aef25a6f43"
     },
-    "redis": "ddf90e8ea711",
+    "redis": "f3ac87408c6b",
     "supabase": {
       "discovery_searches": "06ca6f3ac683",
       "discovery_listings": "9c0e50836fa9",
       "market_holds": "2cb1892c492f"
     }
   },
-  "uploaded_to_r2": [],
+  "uploaded_to_r2": [
+    "backup/2026-07-16/adsentice-backup-2026-07-16-151435.json.gz",
+    "backup/2026-07-16/redis.json.gz"
+  ],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-122719.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-151435.json.gz"
   ],
   "changed": {
     "qdrant": [],
-    "redis": false,
+    "redis": true,
     "supabase": []
   }
 }
