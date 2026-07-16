@@ -52,7 +52,7 @@ PRIORITY_RM_IDS = [
     "04101",  # RM Aracaju (4 mun)
     "00601",  # RM Belém (7 mun)
     "07601",  # RM Cuiabá (6 mun)
-    "03601",  # RM Campo Grande? (not in list — use state capital)
+    "03601",  # RM Palmeira dos Índios (AL)
 ]
 
 def _load_env():
@@ -123,32 +123,25 @@ def main(dry_run=False):
     total_municipios = 0
 
     for rm_id in PRIORITY_RM_IDS:
-        rm = rm_by_id.get(rm_id)
-        if not rm:
-            # Fallback: fetch directly
-            rm_data = fetch_json(f"{IBGE_BASE}/localidades/regioes-metropolitanas/{rm_id}")
-            if not rm_data:
-                print(f"  {rm_id}: RM não encontrada")
-                continue
-            # RM fetched directly returns municipalities nested
-            municipios = rm_data.get("municipios", [])
-            rm_name = rm_data.get("nome", f"RM-{rm_id}")
-            uf_sigla = rm_data.get("UF", {}).get("sigla", "?")
-        else:
-            # Fetch full RM detail with municipality list
-            rm_detail = fetch_json(f"{IBGE_BASE}/localidades/regioes-metropolitanas/{rm_id}/municipios")
-            rm_name = rm.get("nome", f"RM-{rm_id}")
-            uf_sigla = rm.get("UF", {}).get("sigla", "?")
-            if rm_detail and isinstance(rm_detail, list):
-                municipios = rm_detail
-            else:
-                print(f"  {rm_name}: sem lista de municípios")
-                continue
+        # Fetch RM detail (returns [{id, nome, UF, municipios}])
+        rm_data_list = fetch_json(f"{IBGE_BASE}/localidades/regioes-metropolitanas/{rm_id}")
+        if not rm_data_list or not isinstance(rm_data_list, list) or len(rm_data_list) == 0:
+            print(f"  {rm_id}: RM não encontrada")
+            continue
 
-        # Capital name = first municipality (usually the anchor)
-        capital_name = municipios[0].get("nome", rm_name) if municipios else rm_name
+        rm_data = rm_data_list[0]
+        rm_name = rm_data.get("nome", f"RM-{rm_id}")
+        uf_sigla = rm_data.get("UF", {}).get("sigla", "?")
+        municipios = rm_data.get("municipios", [])
 
-        print(f"  {uf_sigla} {rm_name}: {len(municipios)} municípios")
+        if not municipios:
+            print(f"  {rm_name}: sem municípios")
+            continue
+
+        # Capital name = first word after "Região Metropolitana de/da/do"
+        capital_name = rm_name.replace("Região Metropolitana de ", "").replace("Região Metropolitana da ", "").replace("Região Metropolitana do ", "").replace("Região Metropolitana ", "").replace("Grande ", "").replace("Área de Expansão Metropolitana de ", "").replace("Colar Metropolitano de ", "").replace("Colar Metropolitano ", "")
+
+        print(f"  {uf_sigla} {rm_name}: {len(municipios)} municípios (capital: {capital_name})")
 
         for m in municipios:
             all_rows.append({
