@@ -42,12 +42,16 @@ async function enrichTopLeads(
     .slice(0, maxEnrich)
 
   // DataForSEO limits: 2000 req/min, max 30 simultaneous, 20 tasks/POST, max 5 same-domain URLs
-  // Strategy: batch 20 tasks per POST (API limit), cap concurrency at 30
-  const CONCURRENCY = 30  // DataForSEO limit: max 30 simultaneous
+  // Strategy: batch 30 per wave (API limit), iterate até maxEnrich
+  const BATCH = 30  // DataForSEO limit: max 30 simultaneous
   let enrichmentCost = 0
 
+  // Process in waves of BATCH (30) to respect API concurrency limits
+  for (let offset = 0; offset < toEnrich.length; offset += BATCH) {
+    const batchItems = toEnrich.slice(offset, offset + BATCH)
+
   const results = await Promise.allSettled(
-    toEnrich.slice(0, CONCURRENCY).map(async ({ listing, index }) => {
+      batchItems.map(async ({ listing, index }) => {
       const profile = await businessProfileGmb({
         keyword: listing.title,
         location_code: 2076,
@@ -101,8 +105,11 @@ return { profile, listing, index }
     enrichedListings[index] = enriched
     enrichedScores[index] = newScores[0]
   }
+  }  // end batch wave
 
-  console.log(`[enrichment] L1: ${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
+  const actualEnriched = enrichedListings.filter((l: any) => (l.enrichment_level || 0) >= 1).length
+
+  console.log(`[enrichment] L1: ${actualEnriched}/${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
   
 return { enrichedListings, enrichedScores, enrichmentCost }
 }
