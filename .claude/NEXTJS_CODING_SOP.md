@@ -64,5 +64,49 @@ tail -20 /tmp/nextjs-output.log | grep -i "error\|Error\|Unexpected"
 3. **Se HTTP 500, leia o log ANTES de tentar outro fix**
 4. **7 erros SWC = 7 padrões aprendidos. Não repita.**
 
+## Regras Absorvidas (Next.js Best Practices filtrado)
+
+Extraídas de template de 45 seções, absorvidas só as que impactam SWC e segurança:
+
+| # | Regra | Por que importa pra nós |
+|---|-------|------------------------|
+| 1 | **Componente < 200 linhas** | `discovery/page.tsx` com 1200+ linhas foi a causa de metade dos erros SWC. Extrair sub-componentes REDUZ superfície de crash |
+| 2 | **Guard Clauses em vez de `if` aninhado** | Código linear = SWC não se perde em nested blocks. `if (!x) return` no topo |
+| 3 | **Nunca `any` — usar `unknown`** | `any` silencia erros que o SWC poderia detectar. `unknown` força type narrowing |
+| 4 | **Server Actions em `actions/`** | Lógica de escrita isolada das rotas. Menos complexidade no Server Component |
+| 5 | **Imports ordenados** | React → Next → libs → `@/` alias → relativos. Evita circular imports que quebram SWC |
+| 6 | **Nunca expor secrets** | `process.env` só no server. Já temos Secrets Manager. Reforçar. |
+
+### Exemplo: Guard Clause (antes vs depois)
+
+```tsx
+// ❌ if aninhado (SWC-unfriendly, 4 níveis de indentação)
+if (data) {
+  if (data.items) {
+    if (data.items.length > 0) {
+      return <List items={data.items} />
+    }
+  }
+}
+return <Empty />
+
+// ✅ Guard Clause (SWC-friendly, linear)
+if (!data?.items?.length) return <Empty />
+return <List items={data.items} />
+```
+
+### Exemplo: Componente grande → Extrair
+
+```tsx
+// ❌ 1200 linhas no mesmo arquivo
+// discovery/page.tsx — SWC perde contexto, quebra em mudanças pequenas
+
+// ✅ Extrair sub-componentes (máx 200 linhas cada)
+// discovery/page.tsx        → 400 linhas (shell + lógica principal)
+// DiscoveryAutoPilot.tsx     → 180 linhas (extraído, nunca mais quebrou)
+// BrazilDiscoveryMap.tsx     → 110 linhas (Leaflet isolado)
+// DiscoveryLeadDetail.tsx    → seria extraído do modal de 500 linhas
+```
+
 ---
-*v1.0 · 2026-07-16 · adsentice*
+*v2.0 · 2026-07-16 · adsentice*
