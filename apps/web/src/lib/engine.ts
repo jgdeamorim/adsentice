@@ -74,7 +74,9 @@ async function fetchEvoApiCapabilities(): Promise<number> {
   try {
     const res = await fetch("http://127.0.0.1:7700/health", { signal: AbortSignal.timeout(3000) })
     const json = await res.json()
-    return json?.capabilities ?? json?.total_capabilities ?? 0
+
+    
+return json?.capabilities ?? json?.total_capabilities ?? 0
   } catch {
     return 0 // EVO-API offline — reference not available
   }
@@ -156,9 +158,11 @@ export async function getAdminDashboardData(): Promise<EngineData> {
 
   // ═══ Infra Health + Provider-Core Tool Count ═══
   let providerCoreTools = 21; // fallback
+
   try {
     const { readdirSync: rd } = await import("fs")
     const toolsDir = join(process.cwd(), "..", "packages", "provider-core", "src", "tools")
+
     providerCoreTools = rd(toolsDir).filter(f => f.endsWith(".ts") && f !== "index.ts").length
   } catch { /* fallback */ }
 
@@ -219,13 +223,19 @@ export async function getAdminDashboardData(): Promise<EngineData> {
     try {
       const { getAdminClient } = await import("./supabase-admin")
       const supabase = getAdminClient()
-      const { data, error, count } = await supabase.from("discovery_listings").select("place_id,score_compound,schwartz_level", { count: "exact", head: false }).limit(3000)
+      const { data, error, count: _count } = await supabase.from("discovery_listings").select("place_id,score_compound,schwartz_level", { count: "exact", head: false }).limit(3000)
+
       if (!error && data?.length) {
         const deduped = new Map<string, any>()
-        for (const r of data) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
+
+        for (const r of data) { const e = deduped.get(r.place_id);
+
+ if (!e) deduped.set(r.place_id, r) }
+
         const list = Array.from(deduped.values())
         const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
         const avg = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
+
         lastScoreStats = {
           total: list.length,
           avgScore: avg,
@@ -243,6 +253,7 @@ export async function getAdminDashboardData(): Promise<EngineData> {
   if (!lastScoreStats) {
     try {
       const raw = redisCli("GET adsentice:discovery:last_score_stats")
+
       if (raw) lastScoreStats = JSON.parse(raw)
     } catch { /* no data yet */ }
   }

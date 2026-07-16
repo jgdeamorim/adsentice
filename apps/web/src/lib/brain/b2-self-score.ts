@@ -26,7 +26,7 @@ export function computeCertainty(
   hits: RankedHit[],
   commitsFound: number,
   filesystemSources: number,
-  question: string,
+  _question: string,
 ): CertaintyResult {
   // Facts: quantos hits de alta autoridade temos?
   const highAuthHits = hits.filter(h => h.authority >= 0.60).length

@@ -46,5 +46,6 @@ export function suggestRadiusByPop(populationApprox: number): { radiusKm: number
   if (populationApprox >= 2_000_000) return { radiusKm: 25, label: "Megacidade (>2M) — 25km" }
   if (populationApprox >= 500_000) return { radiusKm: 20, label: "Grande (500K-2M) — 20km" }
   if (populationApprox >= 100_000) return { radiusKm: 15, label: "Média (100K-500K) — 15km" }
-  return { radiusKm: 10, label: "Pequena (<100K) — 10km" }
+  
+return { radiusKm: 10, label: "Pequena (<100K) — 10km" }
 }

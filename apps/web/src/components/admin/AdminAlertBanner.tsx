@@ -1,13 +1,17 @@
 "use client"
 
-import { useAlerts } from "@/contexts/AlertContext"
+import { useState } from "react"
+
 import Box from "@mui/material/Box"
+
 import Typography from "@mui/material/Typography"
 import Chip from "@mui/material/Chip"
 import Button from "@mui/material/Button"
 import Collapse from "@mui/material/Collapse"
 import IconButton from "@mui/material/IconButton"
-import { useState } from "react"
+
+import { useAlerts } from "@/contexts/AlertContext"
+
 
 /** Banner vermelho no topo de TODA página admin quando há findings ativos.
  *  Igual ao error overlay do Next.js — mas para o ecossistema adsentice. */

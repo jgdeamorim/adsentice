@@ -24,18 +24,22 @@ function authority(source: string): number {
   if (source.includes("/adr/") || source.includes("/spec/")) return 0.80
   if (source.includes("/handoff/") || source.includes("HANDOFF-")) return 0.60
   if (source.endsWith(".ts") || source.endsWith(".tsx") || source.endsWith(".rs")) return 0.45
-  return 0.35
+  
+return 0.35
 }
 
 /** Recencia como chave sortavel (YYYYMMDD do path). */
 function recencyKey(source: string): number {
   if (source.includes("base-matriz")) return 20_261_231 // o mapa VIVO (sempre o mais novo)
   const m = source.match(/HANDOFF-(\d{4})-(\d{2})-(\d{2})/)
+
   if (m) return parseInt(m[1] + m[2] + m[3])
   const base = source.split("/").pop() || source
   const num = base.replace(/\D/g, "").slice(0, 4)
+
   if (num.length === 4) return 20_250_000 + parseInt(num)
-  return 20_240_101 // outro · antigo por default
+  
+return 20_240_101 // outro · antigo por default
 }
 
 /** Termos salientes da pergunta (o "grep" lexical). */
@@ -43,7 +47,9 @@ function salientTerms(query: string): string[] {
   const STOP = new Set(["que", "qual", "quais", "como", "onde", "porque", "para", "sobre",
     "the", "and", "foi", "sao", "uma", "com", "dos", "das", "nos", "nas", "isso",
     "esse", "essa", "seu", "sua", "nao", "sim", "mais", "pra", "num", "seja", "ser", "tem"])
-  return query.toLowerCase()
+
+  
+return query.toLowerCase()
     .split(/[^a-záàâãéêíóôõúç0-9]/)
     .filter(w => w.length > 2 && !STOP.has(w))
 }
@@ -61,8 +67,11 @@ export function c1Rerank(
   // Floor: descarta ruido tangencial
   const filtered = hits.filter(h => {
     const floor = h.source.endsWith(".rs") || h.source.endsWith(".ts") ? 0.42 : 0.24
-    return h.score >= floor
+
+    
+return h.score >= floor
   })
+
   if (filtered.length === 0) return []
 
   const terms = salientTerms(query)
@@ -76,8 +85,10 @@ export function c1Rerank(
     const cmax = (h.source.endsWith(".ts") || h.source.endsWith(".rs")) ? codeMax : proseMax
     const simNorm = h.score / cmax
     const recNorm = (recencyKey(h.source) - rmin) / rspan
+
     const lex = terms.length === 0 ? 0
       : terms.filter(t => h.content.toLowerCase().includes(t)).length / terms.length
+
     const isThread = h.source.includes("/handoff/") || h.source.includes("HANDOFF-") || h.source.includes("base-matriz")
     const recallBoost = (mode === "ask-recall" && isThread) ? 0.06 + 0.16 * recNorm : 0
 
@@ -90,5 +101,6 @@ export function c1Rerank(
   })
 
   ranked.sort((a, b) => b.finalScore - a.finalScore)
-  return ranked.slice(0, k)
+  
+return ranked.slice(0, k)
 }

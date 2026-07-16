@@ -19,21 +19,24 @@ export interface VaultBlob {
   signals: string[]
 }
 
-function r2Endpoint(): string {
+function _r2Endpoint(): string {
   const accountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID
+
   if (!accountId) throw new Error("R2: CLOUDFLARE_R2_ACCOUNT_ID not set")
-  return `https://${accountId}.r2.cloudflarestorage.com`
+  
+return `https://${accountId}.r2.cloudflarestorage.com`
 }
 
-function r2Headers(method: string, key: string, body?: string): Record<string, string> {
+function _r2Headers(method: string, key: string, _body?: string): Record<string, string> {
   const accessKey = process.env.CLOUDFLARE_R2_ACCESS_KEY
   const secretKey = process.env.CLOUDFLARE_R2_SECRET_KEY
+
   if (!accessKey || !secretKey) throw new Error("R2: credentials not set")
   const bucket = process.env.CLOUDFLARE_R2_BUCKET || "adsentice-vault"
 
   // Simple signature for S3 REST (V2 pre-signed style via Authorization header)
   const date = new Date().toUTCString()
-  const stringToSign = `${method}\n\napplication/json\n${date}\n/${bucket}/${key}`
+  const _stringToSign = `${method}\n\napplication/json\n${date}\n/${bucket}/${key}`
 
   return {
     "Content-Type": "application/json",
@@ -70,9 +73,11 @@ export async function vaultWriteListing(
     const bucket = process.env.CLOUDFLARE_R2_BUCKET || "adsentice-vault"
     const accessKey = process.env.CLOUDFLARE_R2_ACCESS_KEY
     const secretKey = process.env.CLOUDFLARE_R2_SECRET_KEY
+
     if (!accountId || !accessKey || !secretKey) return false
 
     const placeId = listing.place_id || "unknown"
+
     const blob: VaultBlob = {
       place_id: placeId,
       title: listing.title || "?",
@@ -139,9 +144,13 @@ export async function vaultWriteBatch(
   listings: Record<string, unknown>[],
 ): Promise<{ attempted: number; succeeded: number }> {
   let succeeded = 0
+
   for (const l of listings) {
     const ok = await vaultWriteListing(searchId, l as any)
+
     if (ok) succeeded++
   }
-  return { attempted: listings.length, succeeded }
+
+  
+return { attempted: listings.length, succeeded }
 }

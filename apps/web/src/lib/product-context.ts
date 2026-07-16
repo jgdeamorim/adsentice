@@ -7,7 +7,7 @@
 
 import "server-only"
 import type { ScoringInput } from "./scoring"
-import { ICP_CATEGORIES, ICP_CATEGORY_LABELS, detectDomainType, classifyCMSRisk } from "./scoring"
+import { ICP_CATEGORY_LABELS, detectDomainType, classifyCMSRisk } from "./scoring"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -102,6 +102,7 @@ export function generateProductContext(input: ScoringInput): ProductContext {
 
   // ── Pains ──
   const detectedPains: string[] = []
+
   if (!hasWebsite) detectedPains.push("Sem site profissional — perde clientes que buscam online")
   if (input.is_claimed === false) detectedPains.push("Nao controla o proprio perfil do Google Meu Negocio")
   if (input.rating_value != null && input.rating_value <= 3.5) detectedPains.push("Reputacao online prejudicada — avaliacoes baixas afastam clientes")

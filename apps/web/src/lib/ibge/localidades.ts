@@ -39,6 +39,7 @@ const _municipiosCache = new Map<number, Municipio[]>()
 export async function getEstados(): Promise<Estado[]> {
   if (_estadosCache) return _estadosCache
   const data = await ibgeFetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados`, 86400)
+
   if (!data || !Array.isArray(data)) return []
   _estadosCache = data.map((e: any) => ({
     id: e.id,
@@ -46,17 +47,21 @@ export async function getEstados(): Promise<Estado[]> {
     nome: e.nome,
     regiao: e.regiao?.nome || "",
   }))
-  return _estadosCache
+  
+return _estadosCache
 }
 
 /** Lista todos os municípios de um estado. Cache 24h. */
 export async function getMunicipios(uf: string): Promise<Municipio[]> {
   const ufId = UF_TO_IBGE_ID[uf]
+
   if (!ufId) return []
   const cached = _municipiosCache.get(ufId)
+
   if (cached) return cached
 
   const data = await ibgeFetch(localidadesMunicipiosUrl(ufId), 86400)
+
   if (!data || !Array.isArray(data)) return []
 
   const municipios: Municipio[] = data.map((m: any) => ({
@@ -66,16 +71,20 @@ export async function getMunicipios(uf: string): Promise<Municipio[]> {
     microrregiao: m.microrregiao?.nome || "",
     mesorregiao: m.mesorregiao?.nome || "",
   }))
+
   _municipiosCache.set(ufId, municipios)
-  return municipios
+  
+return municipios
 }
 
 /** Busca detalhes de um município específico pelo ID IBGE. */
 export async function getMunicipio(id: number): Promise<Municipio | null> {
   const url = `https://servicodados.ibge.gov.br/api/v1/localidades/municipios/${id}`
   const data = await ibgeFetch(url, 86400)
+
   if (!data) return null
-  return {
+  
+return {
     id: data.id,
     nome: data.nome,
     uf: data.microrregiao?.mesorregiao?.UF?.sigla || "?",

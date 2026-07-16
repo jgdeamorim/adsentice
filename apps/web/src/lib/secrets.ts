@@ -24,12 +24,14 @@ export function getSecret(name: string): string {
   // Server-side: Next.js injects .env into process.env
   if (typeof process !== "undefined" && process.env) {
     const v = process.env[name]
+
     if (v) return v
   }
 
   // Cloudflare Workers: env bindings
   try {
     const ctx = (globalThis as any).__cf_env
+
     if (ctx?.[name]) return ctx[name]
   } catch { /* not in CF Workers */ }
 
@@ -69,9 +71,12 @@ export const REQUIRED_SECRETS = {
 export function auditSecrets(): { set: string[]; missing: string[] } {
   const set: string[] = []
   const missing: string[] = []
+
   for (const [name, cfg] of Object.entries(REQUIRED_SECRETS)) {
     if (hasSecret(name)) set.push(name)
     else if (cfg.required) missing.push(name)
   }
-  return { set, missing }
+
+  
+return { set, missing }
 }

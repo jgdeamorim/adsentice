@@ -20,33 +20,42 @@ export interface CensoData {
 export async function getPopulacao(municipioId: string): Promise<number> {
   try {
     const data = await ibgeFetch(sidraUrl("6579", municipioId, "9324"), 86400 * 30)
+
     if (data && Array.isArray(data) && data.length >= 2) {
       return parseFloat(data[1].V || "0") || 0
     }
   } catch {}
-  return 0
+
+  
+return 0
 }
 
 /** Domicílios (Censo 2022 — SIDRA tabela 4714). */
 export async function getDomicilios(municipioId: string): Promise<number> {
   try {
     const data = await ibgeFetch(sidraUrl("4714", municipioId, "606"), 86400 * 180)
+
     if (data && Array.isArray(data) && data.length >= 2) {
       return parseFloat(data[1].V || "0") || 0
     }
   } catch {}
-  return 0
+
+  
+return 0
 }
 
 /** Renda média domiciliar per capita (SIDRA tabela 6751). */
 export async function getRendaMedia(municipioId: string): Promise<number> {
   try {
     const data = await ibgeFetch(sidraUrl("6751", municipioId, "1173"), 86400 * 60)
+
     if (data && Array.isArray(data) && data.length >= 2) {
       return parseFloat(data[1].V || "0") || 0
     }
   } catch {}
-  return 0
+
+  
+return 0
 }
 
 /** Panorama completo do município (agregado via SIDRA). */
@@ -71,7 +80,8 @@ export async function getCenso(municipioId: string): Promise<CensoData | null> {
     }
   } catch (e: any) {
     console.warn("[ibge.censo]", e.message)
-    return null
+    
+return null
   }
 }
 
@@ -99,8 +109,10 @@ export const CAPITAL_RENDA: Record<string, number> = {
 /** Híbrido: tenta SIDRA, fallback hardcoded. */
 export async function getBestPopulacao(municipioId: string, ufFallback: string): Promise<number> {
   const pop = await getPopulacao(municipioId)
+
   if (pop > 0) return pop
-  return CAPITAL_POPULACAO[ufFallback] || 500000
+  
+return CAPITAL_POPULACAO[ufFallback] || 500000
 }
 
 export async function getBestRenda(_municipioId: string, ufFallback: string): Promise<number> {

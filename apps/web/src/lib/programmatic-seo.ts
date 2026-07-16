@@ -82,6 +82,7 @@ export function generateProgrammaticSEOPlaybook(
   }
 
   const sampleHood = neighborhoods[0] || city
+
   const serviceInNeighborhood = {
     title: `${seeds.primary} ${sampleHood} — ${catLabel} no ${sampleHood}`,
     metaDescription: `${catLabel} no bairro ${sampleHood}, ${city}. ${seeds.primary} perto de voce. Agende hoje mesmo.`,

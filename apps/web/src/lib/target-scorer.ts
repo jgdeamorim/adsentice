@@ -76,11 +76,13 @@ async function getMunicipalities(city: string): Promise<string[]> {
   // 1 — Try Supabase district_registry (populated by IBGE RM sync)
   try {
     const supabase = getAdminClient()
+
     const { data } = await supabase
       .from("district_registry")
       .select("district")
       .ilike("city", `%${city}%`)
       .limit(200)
+
     if (data?.length) return data.map((r: any) => r.district)
   } catch (e: any) { /* fallback */ }
 
@@ -88,7 +90,9 @@ async function getMunicipalities(city: string): Promise<string[]> {
   for (const [key, municipalities] of Object.entries(OFFICIAL_MUNICIPALITIES)) {
     if (city.includes(key)) return municipalities
   }
-  return []
+
+  
+return []
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -138,6 +142,8 @@ export async function scoreMunicipalityTarget(
       .limit(500)
 
     const districtCount = districtData?.length || 0
+
+
     // Menos listings = menos concorrência = melhor score
     const densityScore = districtCount === 0 ? 100
       : districtCount < 5 ? 80
@@ -155,14 +161,18 @@ export async function scoreMunicipalityTarget(
       .limit(300)
 
     let easyFixCount = 0; let hardFixCount = 0
+
     for (const r of (signalsData || [])) {
       const signals: string[] = r.signals_detected || []
+
       for (const s of signals) {
         const prefix = s.split(":")[0]
+
         if (["E4", "F3", "F4", "F5", "I1", "E1", "W1"].includes(prefix)) easyFixCount++
         if (["W2", "W3", "W9", "C1", "C3", "S1"].includes(prefix)) hardFixCount++
       }
     }
+
     const totalSignals = easyFixCount + hardFixCount || 1
     const fixabilityScore = Math.round((easyFixCount / totalSignals) * 100)
 
@@ -183,6 +193,7 @@ export async function scoreMunicipalityTarget(
 
     // ── Strategy ──
     const tags: string[] = []
+
     if (painScore > 60) tags.push("alta dor")
     if (ticket > 500) tags.push("ticket alto")
     if (densityScore > 70) tags.push("baixa concorrência")
@@ -215,7 +226,8 @@ export async function scoreMunicipalityTarget(
     }
   } catch (e: any) {
     console.error("[target-scorer]", e.message)
-    return null
+    
+return null
   }
 }
 
@@ -230,6 +242,7 @@ export async function buildDiscoveryQueue(
 
   // Get already-mapped districts
   const supabase = getAdminClient()
+
   const { data: mapped } = await supabase
     .from("discovery_listings")
     .select("district")
@@ -247,14 +260,17 @@ export async function buildDiscoveryQueue(
 
   // Score each gap
   const targets: MunicipalityTarget[] = []
+
   for (const district of gaps.slice(0, 12)) {
     const t = await scoreMunicipalityTarget(category, city, district)
+
     if (t) targets.push(t)
   }
 
   targets.sort((a, b) => b.score - a.score)
 
   const totalCost = targets.length * 0.015  // ~$0.015 por busca L0
+
   const estimatedMRR = targets.slice(0, 5).reduce((sum, t) =>
     sum + (TICKETS[slug] || 200) * Math.min(5, Math.round(t.estimatedLeads * 0.05)),
   0)

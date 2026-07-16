@@ -40,8 +40,10 @@ export function AlertProvider({ children, initialAlerts = [] }: {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/health", { signal: AbortSignal.timeout(5000) })
+
       if (!res.ok) return
       const data = await res.json()
+
       if (data.alerts?.active > 0 || (alerts.length === 0 && data.recent_errors?.length > 0)) {
         // Fetch full alerts list from telemetry endpoint or use embedded
         setAlerts(data.alerts?.items || [])
@@ -52,8 +54,10 @@ export function AlertProvider({ children, initialAlerts = [] }: {
 
   useEffect(() => {
     const id = setInterval(refresh, 30_000) // poll every 30s
+
     window.addEventListener("focus", refresh)
-    return () => { clearInterval(id); window.removeEventListener("focus", refresh) }
+    
+return () => { clearInterval(id); window.removeEventListener("focus", refresh) }
   }, [refresh])
 
   const ackAlert = useCallback((id: string) => {

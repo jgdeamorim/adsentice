@@ -2,6 +2,7 @@
 // adsentice · Admin / Market Intelligence — ADR-0009
 // Agrega dados existentes por categoria × região (ZERO novas APIs)
 import { Suspense } from 'react'
+
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -11,13 +12,12 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
-import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { nicheIntelligence, listMarketCategories, listMarketCities, marketOverview } from '@/lib/market-intel'
+import { nicheIntelligence, listMarketCategories, marketOverview } from '@/lib/market-intel'
 import MarketCoverageMapWrapper from '@/components/MarketCoverageMapWrapper'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +27,7 @@ export const dynamic = 'force-dynamic'
 export default async function MarketPage(props: { params: Promise<{ lang: string }>; searchParams: Promise<{ category?: string; city?: string }> }) {
   const { lang } = await props.params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   return (
@@ -66,8 +67,10 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
 
   const holdGroups = new Map<string, { metric: string; value: number; recorded_at: string; source: string }[]>()
   const latestHolds = new Map<string, { metric: string; value: number; recorded_at: string; source: string }>()
+
   for (const h of holds) {
     const g = holdGroups.get(h.metric) || []
+
     g.push(h)
     holdGroups.set(h.metric, g)
     latestHolds.set(h.metric, h)
@@ -274,7 +277,9 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
                 <Typography variant='subtitle2' gutterBottom>📊 Métricas</Typography>
                 {['avg_score', 'total_businesses', 'claimed_pct'].map(metric => {
                   const h = latestHolds.get(metric)
-                  return (
+
+                  
+return (
                     <Box key={metric} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
                       <Typography variant='caption' sx={{ fontFamily: 'monospace' }}>{metric}</Typography>
                       <Typography variant='body2' fontWeight={700}>
@@ -290,7 +295,9 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
                   {(holdGroups.get('avg_score') || []).slice(-20).map((h, i) => {
                     const pct = Math.max(2, ((h.value || 0) / 100) * 100)
                     const color = h.value > 60 ? '#4caf50' : h.value > 40 ? '#ffa726' : '#ef5350'
-                    return <Box key={i} sx={{ flex: 1, height: `${pct}px`, bgcolor: color, borderRadius: '2px 2px 0 0', minWidth: 8, opacity: 0.8 }} />
+
+                    
+return <Box key={i} sx={{ flex: 1, height: `${pct}px`, bgcolor: color, borderRadius: '2px 2px 0 0', minWidth: 8, opacity: 0.8 }} />
                   })}
                 </Box>
               </Grid>
@@ -316,27 +323,39 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
 async function getMapPins() {
   try {
     const supabase = getAdminClient()
+
     const { data } = await supabase
       .from("discovery_searches")
       .select("id,categories,lat,lng,radius_km,total_count,avg_score")
       .not("total_count", "eq", 0)
       .order("created_at", { ascending: false })
       .limit(50)
+
     if (!data) return []
+
 	    const caps: [string, number, number][] = [
 	      ["São Paulo", -23.55, -46.63], ["Rio de Janeiro", -22.91, -43.17],
 	    ]
+
 	    const resolve = (lat: number, lng: number): string => {
 	      let best = caps[0]; let bestD = Infinity
+
 	      for (const c of caps) {
 	        const d = Math.abs(lat - c[1]) + Math.abs(lng - c[2]) * 0.5
+
 	        if (d < bestD) { bestD = d; best = c }
 	      }
-	      return bestD < 3 ? best[0] : "BR"
+
+	      
+return bestD < 3 ? best[0] : "BR"
 	    }
-	    return data.map((s: any) => {
+
+	    
+return data.map((s: any) => {
 	      const lat = parseFloat(s.lat); const lng = parseFloat(s.lng)
-	      return {
+
+	      
+return {
 	        id: s.id, lat, lng, radiusKm: s.radius_km || 10,
 	        categories: s.categories || [], city: resolve(lat, lng),
 	        totalCount: s.total_count || 0, avgScore: s.avg_score || 0,
@@ -348,11 +367,15 @@ async function getMapPins() {
 async function fetchMarketHolds(category: string, city: string, limit = 20) {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tdigauruusdhnpvppixb.supabase.co'}/rest/v1/market_holds`
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
   try {
     const params = new URLSearchParams({ category: `eq.${category}`, city: `eq.${city}`, order: 'recorded_at.desc', limit: String(limit), select: 'metric,value,recorded_at,source' })
     const res = await fetch(`${url}?${params}`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) })
+
     if (!res.ok) return []
     const data = (await res.json()) as { metric: string; value: number; recorded_at: string; source: string }[]
-    return data.reverse()
+
+    
+return data.reverse()
   } catch { return [] }
 }

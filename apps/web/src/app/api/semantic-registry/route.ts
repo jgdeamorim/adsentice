@@ -4,8 +4,9 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server"
+
 import { registryResolve, incrementMutation, getMutationId, ensureSeeded, getAllNodes } from "@/lib/brain/semantic-registry"
-import { computeSGAHealth, setResolutionStats } from "@/lib/sga-score"
+import { computeSGAHealth } from "@/lib/sga-score"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -18,13 +19,16 @@ export async function POST(req: Request) {
   if (action === "mutate" && body.nodeIds) {
     ensureSeeded()
     const mid = incrementMutation(body.nodeIds)
-    return NextResponse.json({ action: "mutated", mutationId: mid, affectedNodes: body.nodeIds })
+
+    
+return NextResponse.json({ action: "mutated", mutationId: mid, affectedNodes: body.nodeIds })
   }
 
   // ── Seed: inicializa o registro ──
   if (action === "seed") {
     ensureSeeded()
-    return NextResponse.json({ action: "seeded", registrySize: getAllNodes().length, mutationId: getMutationId() })
+    
+return NextResponse.json({ action: "seeded", registrySize: getAllNodes().length, mutationId: getMutationId() })
   }
 
   // ── Score: SGA Health (4 dimensões, determinístico) ──
@@ -32,7 +36,9 @@ export async function POST(req: Request) {
     ensureSeeded()
     const allNodes = getAllNodes()
     const result = computeSGAHealth(allNodes)
-    return NextResponse.json(result)
+
+    
+return NextResponse.json(result)
   }
 
   // ── Query: intent → nodes ──
@@ -41,6 +47,7 @@ export async function POST(req: Request) {
   }
 
   ensureSeeded()
+
   const result = await registryResolve({
     intent: intent || undefined,
     component: component || undefined,

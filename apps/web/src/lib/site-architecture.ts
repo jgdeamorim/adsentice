@@ -62,13 +62,17 @@ export function detectArchitectureAntiPatterns(result: ArchitectureResult): Arch
   } else if (s.a2_orphan_risk && !s.a1_flat_structure) {
     patterns.push({ name: "Orphaned Content", description: "Conteudo existe mas nao esta linkado ao resto do site.", fix: "Adicionar links do menu principal e de paginas relacionadas para o conteudo orfao." })
   }
+
   if (internalLinks === 0 && externalLinks === 0) {
     patterns.push({ name: "Isolated Page", description: "Pagina sem nenhum link — nem interno nem externo.", fix: "Adicionar menu de navegacao. Linkar para redes sociais e Google Maps." })
   }
+
   if (s.a4_deep_nesting) {
     patterns.push({ name: "Deep URL Nesting", description: "URLs com 4+ niveis de profundidade.", fix: "Achatar estrutura para no maximo 2-3 niveis." })
   }
-  return patterns
+
+  
+return patterns
 }
 
 // ── Scoring ───────────────────────────────────────────────────
@@ -84,6 +88,7 @@ export function scoreArchitecture(input: ScoringInput): ArchitectureResult | nul
 
   const signals = { a1_flat_structure: false, a2_orphan_risk: false,
     a3_no_navigation: false, a4_deep_nesting: false }
+
   const gapsDetected: string[] = []
   const gapsAbsent: string[] = []
   let painRaw = 0
@@ -118,11 +123,14 @@ export function scoreArchitecture(input: ScoringInput): ArchitectureResult | nul
 /** Classify architecture maturity from 0-100 score. */
 export function classifyArchitectureMaturity(maturityScore: number): ArchitectureMaturityLevel {
   let level: 0 | 1 | 2 | 3 | 4
+
   if (maturityScore >= 81) level = 4
   else if (maturityScore >= 61) level = 3
   else if (maturityScore >= 41) level = 2
   else if (maturityScore >= 21) level = 1
   else level = 0
   const def = ARCHITECTURE_MATURITY_LEVELS[level]
-  return { level, ...def }
+
+  
+return { level, ...def }
 }

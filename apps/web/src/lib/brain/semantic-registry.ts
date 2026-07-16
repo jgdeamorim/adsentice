@@ -40,17 +40,23 @@ const NODE_DB: Map<string, SemanticNode> = new Map()
 let _globalMutation = 0
 let _seeded = false
 
-function nextMutationId(): number { _globalMutation++; return _globalMutation }
+function nextMutationId(): number { _globalMutation++; 
+
+return _globalMutation }
 
 export function getMutationId(): number { return _globalMutation }
 
 export function incrementMutation(nodeIds: string[]): number {
   const mid = nextMutationId()
+
   for (const id of nodeIds) {
     const node = NODE_DB.get(id)
+
     if (node) { node.mutationId = mid; node.version++ }
   }
-  return mid
+
+  
+return mid
 }
 
 function seedRegistry() {
@@ -117,36 +123,45 @@ function seedRegistry() {
 function vectorSearch(intent: string, maxResults: number = 10): SemanticNode[] {
   const query = intent.toLowerCase()
   const scored: { node: SemanticNode; score: number }[] = []
+
   for (const node of NODE_DB.values()) {
     let score = 0
     const nameLow = node.name.toLowerCase()
     const descLow = node.description.toLowerCase()
     const intentLow = node.intent.toLowerCase()
     const tagsLow = node.tags.join(" ").toLowerCase()
+
     for (const w of query.split(/\s+/)) {
       if (intentLow.includes(w)) score += 4
       if (nameLow.includes(w)) score += 3
       if (descLow.includes(w)) score += 2
       if (tagsLow.includes(w)) score += 1
     }
+
     if (score > 0) scored.push({ node, score })
   }
+
   scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, maxResults).map(s => s.node)
+  
+return scored.slice(0, maxResults).map(s => s.node)
 }
 
 // ── Graph Resolver: BFS 1 nivel ──
 function resolveEdges(node: SemanticNode): SemanticNode[] {
   const resolved: SemanticNode[] = [node]
   const seen = new Set<string>([node.id])
+
   for (const edgeId of node.edges) {
     if (seen.has(edgeId)) continue
     const edgeNode = NODE_DB.get(edgeId)
+
     if (!edgeNode) continue
     seen.add(edgeId)
     resolved.push(edgeNode)
   }
-  return resolved
+
+  
+return resolved
 }
 
 // ── Cache ──
@@ -159,21 +174,25 @@ function cacheKey(query: RegistryQuery): string {
 // ── Registry Resolve ──
 export async function registryResolve(query: RegistryQuery): Promise<RegistryResult> {
   const t0 = Date.now()
+
   if (!_seeded) { seedRegistry(); _seeded = true }
 
   const key = cacheKey(query)
   const cached = RESOLVE_CACHE.get(key)
+
   if (cached && cached.mutationId === _globalMutation) {
     return { nodes: cached.nodes, resolved: true, mutationId: _globalMutation, traceMs: Date.now() - t0, source: "cache", graphSummary: { totalNodes: cached.nodes.length, types: [...new Set(cached.nodes.map(n => n.type))], edges: cached.nodes.reduce((s, n) => s + n.edges.length, 0) } }
   }
 
   let nodes = vectorSearch(query.intent || "", query.maxResults || 10)
+
   if (query.tags && query.tags.length > 0) {
     nodes = nodes.filter(n => query.tags!.some(t => n.tags.includes(t)))
   }
 
   const resolvedIds = new Set<string>()
   const graphNodes: SemanticNode[] = []
+
   for (const node of nodes) {
     for (const n of resolveEdges(node)) {
       if (!resolvedIds.has(n.id)) { resolvedIds.add(n.id); graphNodes.push(n) }
@@ -181,7 +200,8 @@ export async function registryResolve(query: RegistryQuery): Promise<RegistryRes
   }
 
   RESOLVE_CACHE.set(key, { nodes: graphNodes, mutationId: _globalMutation, ts: Date.now() })
-  return { nodes: graphNodes, resolved: true, mutationId: _globalMutation, traceMs: Date.now() - t0, source: "composed", graphSummary: { totalNodes: graphNodes.length, types: [...new Set(graphNodes.map(n => n.type))], edges: graphNodes.reduce((s, n) => s + n.edges.length, 0) } }
+  
+return { nodes: graphNodes, resolved: true, mutationId: _globalMutation, traceMs: Date.now() - t0, source: "composed", graphSummary: { totalNodes: graphNodes.length, types: [...new Set(graphNodes.map(n => n.type))], edges: graphNodes.reduce((s, n) => s + n.edges.length, 0) } }
 }
 
 export function ensureSeeded() { if (!_seeded) { seedRegistry(); _seeded = true } }
@@ -189,5 +209,6 @@ export function ensureSeeded() { if (!_seeded) { seedRegistry(); _seeded = true 
 /** Export all nodes for SGA health scoring. */
 export function getAllNodes(): SemanticNode[] {
   ensureSeeded()
-  return [...NODE_DB.values()]
+  
+return [...NODE_DB.values()]
 }

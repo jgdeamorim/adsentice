@@ -97,6 +97,7 @@ export function parseSEOChecks(checks: Record<string, boolean | null> | null | u
 
   // Normalize keys to lowercase for matching
   const c: Record<string, boolean | null> = {}
+
   for (const [k, v] of Object.entries(checks)) { c[k.toLowerCase()] = v }
 
   return {
@@ -122,12 +123,14 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
   const signals = { c1_thin_content: false, c2_missing_metadata: false,
     c3_poor_architecture: false, c4_technology_gap: false, c5_no_content_strategy: false,
     c6_buyer_journey_gap: false, c7_low_content_diversity: false, c8_content_freshness: false }
+
   const gapsDetected: string[] = []
   const gapsAbsent: string[] = []
   let painRaw = 0
 
   // ── C1: Thin Content (10pts) ──
   const wordCount = input.l2_word_count ?? 0
+
   if (wordCount < 300) {
     painRaw += 10; signals.c1_thin_content = true; gapsDetected.push("C1")
   } else { gapsAbsent.push("C1") }
@@ -140,6 +143,7 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
   // ── C3: Poor Architecture (8pts) ──
   const internalLinks = input.l2_internal_links_count ?? 0
   const externalLinks = input.l2_external_links_count ?? 0
+
   if (internalLinks < 5 && externalLinks < 3) {
     painRaw += 8; signals.c3_poor_architecture = true; gapsDetected.push("C3")
   } else { gapsAbsent.push("C3") }
@@ -151,8 +155,10 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
 
   // ── C5: No Content Strategy (8pts) — ≥2 of {no_sitemap, no_robots, no_schema} ──
   const seoFlags = parseSEOChecks(input.l2_seo_checks)
+
   const infrastructureGaps = [seoFlags.has_sitemap, seoFlags.has_robots, seoFlags.has_schema]
     .filter(v => !v).length
+
   if (infrastructureGaps >= 2) {
     painRaw += 8; signals.c5_no_content_strategy = true; gapsDetected.push("C5")
   } else { gapsAbsent.push("C5") }
@@ -164,6 +170,7 @@ export function scoreContentGap(input: ScoringInput): ContentGapResult | null {
 
   // ── C7: Content Diversity — text only, no images (5pts) ──
   const imageCount = input.l2_images_count ?? 0
+
   if (input.l2_word_count != null && input.l2_word_count >= 300 && imageCount < 2) {
     painRaw += 5; signals.c7_low_content_diversity = true; gapsDetected.push("C7")
   } else { gapsAbsent.push("C7") }
@@ -191,7 +198,9 @@ export function classifyContentMaturity(maturityScore: number): ContentMaturityL
   else level = 0
 
   const def = CONTENT_MATURITY_LEVELS[level]
-  return { level, ...def }
+
+  
+return { level, ...def }
 }
 
 // ── Recommendation Generator ──────────────────────────────────
@@ -214,7 +223,8 @@ export function generateContentGapRecommendations(
       effort: "semanas",
       antiPattern: "All-five gap",
     })
-    return recs
+    
+return recs
   }
 
   // ── C1: Thin Content → single-page site anti-pattern ──
@@ -233,6 +243,7 @@ export function generateContentGapRecommendations(
   // ── C2: Missing Metadata → no-CTE anti-pattern ──
   if (s.c2_missing_metadata) {
     const missing: string[] = []
+
     if (!input.l2_has_title) missing.push("meta title (50-60 caracteres)")
     if (!input.l2_has_description) missing.push("meta description (150-160 caracteres)")
 
@@ -278,6 +289,7 @@ export function generateContentGapRecommendations(
         antiPattern: "No CMS",
       })
     }
+
     if (input.l2_has_analytics === false) {
       recs.push({
         priority: "alta", category: "seo_tecnico",
@@ -293,6 +305,7 @@ export function generateContentGapRecommendations(
   if (s.c5_no_content_strategy) {
     const missingInfra: string[] = []
     const flags = parseSEOChecks(input.l2_seo_checks)
+
     if (!flags.has_sitemap) missingInfra.push("sitemap.xml")
     if (!flags.has_robots) missingInfra.push("robots.txt")
     if (!flags.has_schema) missingInfra.push("Schema JSON-LD LocalBusiness")
@@ -328,6 +341,8 @@ export function generateContentGapRecommendations(
 
   return recs.sort((a, b) => {
     const order = { alta: 0, media: 1, baixa: 2 }
-    return order[a.priority] - order[b.priority]
+
+    
+return order[a.priority] - order[b.priority]
   })
 }

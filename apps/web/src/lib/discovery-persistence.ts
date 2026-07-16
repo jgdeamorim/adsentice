@@ -50,26 +50,34 @@ export async function saveDiscoverySearch(params: {
       most_aware: params.distribution.mostAware,
       search_metadata: params.searchMetadata || null,
     }
+
     const searchRes = await fetch(`${SFX}/rest/v1/discovery_searches`, {
       method: "POST",
       headers: { ...sbHeaders(), Prefer: "return=representation" },
       body: JSON.stringify(searchBody),
       signal: AbortSignal.timeout(10000),
     })
+
     if (!searchRes.ok) {
       const errBody = await searchRes.text().catch(() => "")
+
       console.error("[discovery-persistence] search insert failed:", searchRes.status, errBody)
+
       // ⚠️ Dispara telemetria — sensor de falha de persistência
       pushEvent({ route: "/api/discovery-search", status: searchRes.status, latency_ms: 0, provider: "Supabase", error: `INSERT discovery_searches: HTTP ${searchRes.status}`, detail: errBody.slice(0, 500) })
       pushAlert({ level: "critical", route: "/api/discovery-search", message: `Supabase persistência quebrada — HTTP ${searchRes.status}`, detail: errBody.slice(0, 300) })
-      return null
+      
+return null
     }
+
     const searchData = await searchRes.json() as { id: string }[]
     const searchId = searchData[0]?.id
+
     if (!searchId) return null
 
     // 2 — POST discovery_listings (bulk insert via REST)
     let savedCount = 0
+
     const listings = params.listings
       .filter(l => l.place_id)  // só salva listings com place_id real
       .map(l => ({
@@ -109,10 +117,12 @@ export async function saveDiscoverySearch(params: {
       l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
       l2_emails: (l as any).l2_emails ?? null,
       l2_social_links: (l as any).l2_social_links ? JSON.stringify((l as any).l2_social_links) : null,
+
       // L3: Social & Contacts (ADR-0024)
       l3_emails: (l as any).l3_emails ?? null,
       l3_social_links: (l as any).l3_social_links ? JSON.stringify((l as any).l3_social_links) : null,
       l3_whatsapp: (l as any).l3_whatsapp ?? null,
+
       // L4: IBGE Context (ADR-0024)
       l4_ibge_populacao: (l as any).l4_ibge_populacao ?? null,
       l4_ibge_pib_per_capita: (l as any).l4_ibge_pib_per_capita ?? null,
@@ -122,6 +132,7 @@ export async function saveDiscoverySearch(params: {
 
     // 3 — Bulk insert (one POST per listing)
     const skipped = params.listings.length - listings.length
+
     if (skipped > 0) console.log(`[discovery-persistence] Skipped ${skipped} listings without place_id`)
 
     for (const listing of listings) {
@@ -129,19 +140,23 @@ export async function saveDiscoverySearch(params: {
         await fetch(`${SFX}/rest/v1/discovery_listings?search_id=eq.${encodeURIComponent(searchId)}&place_id=eq.${encodeURIComponent(listing.place_id)}`, {
           method: "DELETE", headers: { ...sbHeaders(), Prefer: "return=minimal" }, signal: AbortSignal.timeout(5000),
         })
+
         const insRes = await fetch(`${SFX}/rest/v1/discovery_listings`, {
           method: "POST", headers: { ...sbHeaders(), Prefer: "return=minimal" },
           body: JSON.stringify(listing), signal: AbortSignal.timeout(5000),
         })
+
         if (insRes.ok) savedCount++
       } catch { /* skip individual failures */ }
     }
+
     console.log(`[discovery-persistence] Saved ${savedCount}/${listings.length} listings for search ${searchId}`)
 
     return { searchId, savedCount }
   } catch (err: any) {
     console.error("[discovery-persistence] Save failed:", err.message)
-    return null
+    
+return null
   }
 }
 
@@ -152,9 +167,12 @@ export async function getCategoryAnalytics(): Promise<CategoryAnalytics[]> {
     const res = await fetch(`${SFX}/rest/v1/category_analytics?order=pain_pct.desc`, {
       headers: sbHeaders(), signal: AbortSignal.timeout(8000),
     })
+
     if (!res.ok) return []
     const rows = await res.json() as any[]
-    return rows.map((r: any) => ({
+
+    
+return rows.map((r: any) => ({
       category: r.category, total_listings: Number(r.total_listings) || 0,
       unique_businesses: Number(r.unique_businesses) || 0, avg_score: Number(r.avg_score) || 0,
       problem_aware_plus: Number(r.problem_aware_plus) || 0,
@@ -176,9 +194,12 @@ export async function getScoreDistribution(): Promise<{
     const res = await fetch(`${SFX}/rest/v1/rpc/get_score_distribution`, {
       method: "POST", headers: sbHeaders(), signal: AbortSignal.timeout(8000),
     })
+
     if (!res.ok) return null
     const d = (await res.json()) as any
-    return {
+
+    
+return {
       total: Number(d.total || 0), avgScore: Number(d.avg || d.avg_score || 0),
       unaware: Number(d.unaware || 0), problemAware: Number(d.problem_aware || 0),
       solutionAware: Number(d.solution_aware || 0), productAware: Number(d.product_aware || 0),

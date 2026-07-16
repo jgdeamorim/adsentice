@@ -59,14 +59,17 @@ function estimateROI(input: ScoringInput): BattleCard["roiEstimate"] {
     lawyer: 3000, accountant: 2000, medical_clinic: 7000, car_repair: 4000,
     psychologist: 2000, pet_store: 3000, pharmacy: 5000,
   }
+
   const monthlySearches = categoryVolumes[input.category?.toLowerCase().replace(/\s+/g, "_") ?? ""] || 3000
   const ctrTop3 = 0.15 // CTR for top 3 position
   const ctrTop10 = 0.05 // CTR for position 4-10
   const ctrNow = input.l2_onpage_score != null && input.l2_onpage_score >= 50 ? ctrTop10 : ctrTop3 * 0.3
   const monthlyTraffic = Math.round(monthlySearches * ctrNow)
   const conversionRate = 0.05 // 5% website visitors convert
+
   const ticketValue = input.category?.includes("dentist") ? 500 : input.category?.includes("medical") ? 300 :
     input.category?.includes("lawyer") ? 800 : input.category?.includes("restaurant") ? 50 : 150
+
   const monthlyRevenue = Math.round(monthlyTraffic * conversionRate * ticketValue)
 
   return { monthlyTraffic, conversionRate, ticketValue, monthlyRevenue }
@@ -82,6 +85,7 @@ export function generateBattleCard(
   if (!input.title) return null
 
   const cat = input.category?.toLowerCase().replace(/\s+/g, "_") ?? ""
+
   const objections = OBJECTION_DB[cat] || [
     { objection: "Muito caro", response: `Investir em marketing digital para ${input.category} custa menos que 1 cliente por mes. Se voce ganhar 1 cliente novo com o marketing, ele ja pagou o investimento.`, proof: "ROI comprovado: 1 cliente cobre o custo mensal", followUp: "Quer ver quanto custa para comecar?" },
     { objection: "Nao sei se funciona", response: "Funciona porque seus clientes ja estao no Google buscando exatamente o que voce oferece. Voce so nao esta aparecendo para eles ainda.", proof: "Seus concorrentes que aparecem no Google estao captando esses clientes agora", followUp: "Vamos ver quem esta aparecendo no Google para sua categoria?" },

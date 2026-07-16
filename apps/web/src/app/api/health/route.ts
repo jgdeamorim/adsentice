@@ -5,6 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server"
+
 import { getAlerts, getRouteStats, getEvents } from "@/lib/telemetry"
 
 export const runtime = "nodejs"
@@ -13,7 +14,9 @@ export const dynamic = "force-dynamic"
 async function checkUrl(url: string, timeout = 3000): Promise<boolean> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(timeout) })
-    return res.ok
+
+    
+return res.ok
   } catch { return false }
 }
 
@@ -25,9 +28,11 @@ export async function GET() {
 
   // Redis check via redis-cli (TCP fetch não funciona para Redis)
   let redisOk = false
+
   try {
     const { execSync } = await import("child_process")
     const result = execSync("redis-cli -p 6396 --no-auth-warning PING", { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+
     redisOk = result === "PONG"
   } catch { /* Redis offline */ }
 

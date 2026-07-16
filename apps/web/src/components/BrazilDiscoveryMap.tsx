@@ -6,7 +6,8 @@
 // Leaflet + OpenStreetMap ($0) — sem API key, sem Google, sem Cloudflare
 // ══════════════════════════════════════════════════════════════════
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+
 import type { Map as LeafletMap } from 'leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -47,16 +48,18 @@ interface Props {
 
 // ── Cores ──
 
-function pinColor(avgScore: number): string {
+function _pinColor(avgScore: number): string {
   if (avgScore >= 50) return '#ef5350'
   if (avgScore >= 35) return '#ffa726'
-  return '#42a5f5'
+  
+return '#42a5f5'
 }
 
 function radiusColor(totalCount: number): string {
   if (totalCount >= 100) return '#4caf50'
   if (totalCount >= 20) return '#ffa726'
-  return '#42a5f5'
+  
+return '#42a5f5'
 }
 
 // ── Component ──
@@ -121,9 +124,11 @@ export default function BrazilDiscoveryMap({
 
     // Agrupa pins únicos
     const unique = new Map<string, SearchPin>()
+
     for (const p of pins) {
       const key = `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`
       const existing = unique.get(key)
+
       if (!existing || new Date(p.createdAt) > new Date(existing.createdAt)) {
         unique.set(key, p)
       }
@@ -141,6 +146,7 @@ export default function BrazilDiscoveryMap({
             <span style="font-size:0.7rem;color:#999">${p.createdAt?.slice(0, 16)}</span>
           </div>`)
         .addTo(map)
+
       markersRef.current.push(marker)
     }
 
@@ -153,6 +159,7 @@ export default function BrazilDiscoveryMap({
       weight: 2,
       dashArray: '6 3',
     }).bindPopup(`📍 Região selecionada · ${selectedRadius}km raio`).addTo(map)
+
     circlesRef.current.push(selCircle)
 
     // Círculos de cobertura
@@ -165,6 +172,7 @@ export default function BrazilDiscoveryMap({
         weight: 1,
         opacity: 0.5,
       }).addTo(map)
+
       circlesRef.current.push(c)
     }
   }, [pins, selectedLat, selectedLng, selectedRadius, ready])

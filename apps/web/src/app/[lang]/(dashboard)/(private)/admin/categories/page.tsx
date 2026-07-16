@@ -96,19 +96,25 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
 
     if (!error && listings?.length) {
       dataSource = 'supabase'
+
       // Aggregar por categoria (dedup por place_id)
       const byCategory: Record<string, { places: Set<string>; scores: number[]; pains: number; qual: number; prod: number; most: number }> = {}
       const deduped = new Map<string, { category: string; score: number; el: number; sl: number }>()
+
       for (const r of listings as any[]) {
         const pid = r.place_id
+
         if (!pid) continue
         const existing = deduped.get(pid)
+
         if (!existing || (r.enrichment_level || 0) > existing.el) {
           deduped.set(pid, { category: r.category || "?", score: r.score_compound || 0, el: r.enrichment_level || 0, sl: r.schwartz_level || 1 })
         }
       }
+
       for (const [pid, info] of deduped) {
         const c = info.category
+
         if (!byCategory[c]) byCategory[c] = { places: new Set(), scores: [], pains: 0, qual: 0, prod: 0, most: 0 }
         byCategory[c].places.add(pid)
         byCategory[c].scores.push(info.score)
@@ -116,6 +122,7 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
         if (info.sl >= 4) byCategory[c].prod++
         if (info.sl >= 5) byCategory[c].most++
       }
+
       const catList = Object.entries(byCategory)
         .map(([cat, data]) => ({
           category: cat,
@@ -129,6 +136,7 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
           most_aware: data.most,
         }))
         .sort((a, b) => b.pain_pct - a.pain_pct)
+
       categories = catList
     }
   } catch { /* Supabase offline */ }

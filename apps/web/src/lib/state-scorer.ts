@@ -12,7 +12,6 @@ import "server-only"
 import { getAdminClient } from "./supabase-admin"
 import { normalizeCategory } from "./market-intel"
 import { CAPITAL_RENDA } from "./ibge/censo"
-import { CAPITAL_IDS } from "./ibge/localidades"
 
 // ── Types ──
 
@@ -76,6 +75,7 @@ const IBGE_SMB_BY_STATE: Record<string, Record<string, number>> = {
     AL: 500, SE: 400, PI: 350, AM: 800, RO: 350, TO: 250,
     AP: 120, AC: 100, RR: 80,
   },
+
   // Fallback genérico para categorias sem dados específicos
   _default: {
     SP: 35000, RJ: 15000, MG: 13000, RS: 10000, PR: 9000, BA: 7500,
@@ -87,7 +87,7 @@ const IBGE_SMB_BY_STATE: Record<string, Record<string, number>> = {
 }
 
 // Renda média domiciliar por UF (IBGE PNAD 2024)
-const RENDA_MEDIA_UF: Record<string, number> = {
+const _RENDA_MEDIA_UF: Record<string, number> = {
   DF: 2900, SP: 2300, RJ: 2000, SC: 2100, RS: 2100, PR: 1900,
   MG: 1500, ES: 1600, GO: 1400, MS: 1500, MT: 1400,
   PE: 1000, CE: 1000, BA: 1000, PA: 900, AM: 900,
@@ -157,11 +157,15 @@ const TICKETS: Record<string, number> = {
 /** Detecta UF a partir de lat/lng (nearest capital). */
 export function detectState(lat: number, lng: number): string {
   let best = "SP"; let bestDist = Infinity
+
   for (const [uf, cap] of Object.entries(STATE_CAPITALS)) {
     const d = Math.abs(lat - cap.lat) + Math.abs(lng - cap.lng) * 0.5
+
     if (d < bestDist) { bestDist = d; best = uf }
   }
-  return bestDist < 5 ? best : "SP"
+
+  
+return bestDist < 5 ? best : "SP"
 }
 
 /** Ranqueia estados por potencial de prospecção para uma categoria. */
@@ -170,7 +174,11 @@ export async function rankStates(category: string): Promise<StateRanking | null>
     const slug = normalizeCategory(category)
     let ibgeData: Record<string, number> = IBGE_SMB_BY_STATE[slug] || IBGE_SMB_BY_STATE._default
     const supabase = getAdminClient()
-  try { const { data: rows } = await supabase.from("ibge_market_size").select("uf,businesses_estimate").eq("category", slug).limit(30); if (rows?.length) { ibgeData = {}; for (const r of rows) { ibgeData[r.uf] = r.businesses_estimate } } } catch {} /* usa hardcoded fallback */
+
+  try { const { data: rows } = await supabase.from("ibge_market_size").select("uf,businesses_estimate").eq("category", slug).limit(30);
+
+ if (rows?.length) { ibgeData = {}; for (const r of rows) { ibgeData[r.uf] = r.businesses_estimate } } } catch {} /* usa hardcoded fallback */
+
   /* ibgeData now has Supabase or fallback data */
     const ticket = TICKETS[slug] || 200
     const label = CATEGORY_LABELS[slug] || category
@@ -182,10 +190,12 @@ export async function rankStates(category: string): Promise<StateRanking | null>
       .limit(5000)
 
     const mappedByUf: Record<string, Set<string>> = {}
+
     if (listings) {
       for (const r of listings) {
         if (!r.latitude || !r.longitude || !r.place_id) continue
         const uf = detectState(r.latitude, r.longitude)
+
         if (!mappedByUf[uf]) mappedByUf[uf] = new Set()
         mappedByUf[uf].add(r.place_id)
       }
@@ -201,6 +211,7 @@ export async function rankStates(category: string): Promise<StateRanking | null>
       const gapPct = Math.round(((totalBiz - mapped) / Math.max(totalBiz, 1)) * 100)
       const renda = CAPITAL_RENDA[uf] || CAPITAL_RENDA["SP"] || 1000
       const cap = STATE_CAPITALS[uf]
+
       if (!cap) continue
 
       totalBR += totalBiz
@@ -254,6 +265,7 @@ export async function rankStates(category: string): Promise<StateRanking | null>
     }
   } catch (e: any) {
     console.error("[state-scorer]", e.message)
-    return null
+    
+return null
   }
 }

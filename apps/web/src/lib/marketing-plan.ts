@@ -43,8 +43,8 @@ export function generateMarketingPlan(
   battleCard: BattleCard | null,
   contentGap: ContentGapResult | null,
   architecture: ArchitectureResult | null,
-  schema: SchemaResult | null,
-  pseoPlaybook: PSEOPlaybook | null,
+  _schema: SchemaResult | null,
+  _pseoPlaybook: PSEOPlaybook | null,
 ): MarketingPlan {
   const businessName = input.title || "Negocio Local"
   const cat = input.category || "sua categoria"
@@ -105,6 +105,7 @@ export function generateMarketingPlan(
 
   // ── Revenue ──
   const roi = battleCard?.roiEstimate || { monthlyTraffic: 500, conversionRate: 0.05, ticketValue: 150, monthlyRevenue: 3750 }
+
   const revenue = {
     ticketEstimate: roi.ticketValue,
     monthlyProjection: roi.monthlyRevenue,

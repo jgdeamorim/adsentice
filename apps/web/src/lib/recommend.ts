@@ -7,7 +7,7 @@
 
 import "server-only"
 import type { ScoringInput, ScoreData } from "./scoring"
-import type { ContentGapResult, ContentGapRecommendation } from "./content-gap"
+import type { ContentGapResult } from "./content-gap"
 import type { ArchitectureResult } from "./site-architecture"
 import type { SchemaResult } from "./schema-scoring"
 import type { ProductContext } from "./product-context"
@@ -163,7 +163,9 @@ export function generateActionPlan(
   const quickWin = topActions.slice(0, 3).sort((a, b) => {
     const aScore = effortScore(a.effort) * 0.6 + (a.impact === "alto" ? 0.4 : 0.2)
     const bScore = effortScore(b.effort) * 0.6 + (b.impact === "alto" ? 0.4 : 0.2)
-    return bScore - aScore
+
+    
+return bScore - aScore
   })[0] || topActions[0]
 
   const maturitySummary = contentGap

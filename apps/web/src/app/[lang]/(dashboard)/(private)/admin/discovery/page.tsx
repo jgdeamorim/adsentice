@@ -7,16 +7,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
-import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
-import DiscoveryAutoPilot from '@/components/DiscoveryAutoPilot'
+
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-import InputAdornment from '@mui/material/InputAdornment'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -34,7 +31,9 @@ import TableSortLabel from '@mui/material/TableSortLabel'
 import LinearProgress from '@mui/material/LinearProgress'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
-import Slider from '@mui/material/Slider'
+
+import DiscoveryAutoPilot from '@/components/DiscoveryAutoPilot'
+import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
 
 import { BR_CAPITALS, suggestRadiusByPop } from '@/lib/geo-data'
 
@@ -198,18 +197,20 @@ const DiscoveryPage = () => {
   const [cityLng, setCityLng] = useState(-46.6333)
   const [cityLabel, setCityLabel] = useState('São Paulo (SP)')
   const [radius, setRadius] = useState(25)
-  const [geoQuery, setGeoQuery] = useState('')      // input de busca livre
-  const [geoSuggestions, setGeoSuggestions] = useState<{ lat: number; lng: number; displayName: string }[]>([])
-  const [geoSearching, setGeoSearching] = useState(false)
+  const [_geoQuery, setGeoQuery] = useState('')      // input de busca livre
+  const [_geoSuggestions, setGeoSuggestions] = useState<{ lat: number; lng: number; displayName: string }[]>([])
+  const [_geoSearching, setGeoSearching] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
   // ── Auto-Pilot (ADR-0023 Layer 2) ──
   const [autoMode, setAutoMode] = useState(false)
   const [autoModeType, setAutoModeType] = useState<'coverage' | 'intelligence'>('coverage')
+
   const [autoQueue, setAutoQueue] = useState<{
     targets: { city: string; district: string; category: string; categoryLabel: string; score: number; breakdown: { painScore: number; ticketScore: number; densityScore: number; fixabilityScore: number; coverageScore: number }; estimatedLeads: number; suggestedRadius: number; avgTicket: number; action: string; strategy: string }[]
     meta: { totalGaps: number; priorityTargets: number; estimatedCost: number; estimatedMRR: number }
   } | null>(null)
+
   const [autoLoading, setAutoLoading] = useState(false)
   const [stateRanking, setStateRanking] = useState<any>(null)  // State Scorer ranking
   const [autoSuggestion, setAutoSuggestion] = useState<{ state: string; city: string; reason: string; action: string } | null>(null)
@@ -218,6 +219,7 @@ const DiscoveryPage = () => {
   const [mapPins, setMapPins] = useState<any[]>([])
   const [pinsLoaded, setPinsLoaded] = useState(false)
   const [pinsVersion, setPinsVersion] = useState(0)
+
   useEffect(() => {
     fetch('/api/coverage/pins')
       .then(r => r.json())
@@ -227,10 +229,12 @@ const DiscoveryPage = () => {
 
   // Fetch auto-pilot queue when category or city changes
   const activeCategory = selected.length === 1 ? selected[0] : null
+
   useEffect(() => {
     if (!autoMode || !activeCategory) return
     const cityName = cityLabel.split('(')[0].trim()
     const isCapital = BR_CAPITALS.some(c => c.label === cityName)
+
     setAutoLoading(true)
 
     // State ranking quando não tem capital clara OU quando queremos visão Brasil
@@ -245,8 +249,10 @@ const DiscoveryPage = () => {
           setStateRanking(d.ranking)
           setAutoSuggestion(d.suggestion)
           if (d.queue?.targets) setAutoQueue(d.queue)
+
           // Auto-select best state on map
           const best = d.ranking?.topPick
+
           if (best && best.capitalLat) {
             setCityLat(best.capitalLat)
             setCityLng(best.capitalLng)
@@ -297,7 +303,7 @@ const DiscoveryPage = () => {
   const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0→L4+L3 (L4 = $0)
 
   // ═══ Search ═══
-  const doSearch = useCallback(async (force = false, offsetOverride?: number) => {
+  const doSearch = useCallback(async (_force = false, offsetOverride?: number) => {
     if (!selected.length) return
     setLoading(true); setError('')
 
@@ -314,10 +320,12 @@ const DiscoveryPage = () => {
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+
       if (!Array.isArray(data.listings)) {
         console.error('[discovery] data.listings is not an array', data)
         throw new Error(`API returned invalid listings: ${typeof data.listings}`)
       }
+
       console.log(`[discovery] Received ${data.listings.length} listings, ${data.scores?.length || 0} scores, distribution: ${data.distribution?.avgScore ?? 'null'}/100`)
       setResults(data.listings)
       setScores(data.scores || [])
@@ -330,19 +338,23 @@ const DiscoveryPage = () => {
       setCostTotal(data.costTotal || 0)
       setRegionalTotal(data.total_count || 0)
       setExtractedTotal((prev: number) => offsetOverride ? prev + data.listings.length : (data.fetchedCount || data.listings?.length || 0))
+
+
       // Search Tracker metadata (paginação)
       if (data.search_metadata) {
         setSearchMeta(data.search_metadata)
+
         if (data.search_metadata.remaining > 0) {
           setRegionalTotal(data.search_metadata.total_in_region)
         }
       }
+
       setPage(0)
       setSortBy('score')
       setSortDir('desc')
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
-  }, [selected, stateKey, cityLat, cityLng, radius])
+  }, [selected, cityLat, cityLng, radius])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -354,6 +366,7 @@ const DiscoveryPage = () => {
     setCityLng(c.lng)
     setCityLabel(`${c.label} (${c.uf})`)
     const r = suggestRadiusByPop(c.pop)
+
     setRadius(r.radiusKm)
   }
 
@@ -362,21 +375,32 @@ const DiscoveryPage = () => {
   // ═══ Geo search (busca livre: bairro, cidade, zona) ═══
   const handleGeoSearch = async (query: string) => {
     setGeoQuery(query)
-    if (query.length < 3) { setGeoSuggestions([]); return }
+
+    if (query.length < 3) { setGeoSuggestions([]); 
+
+return }
+
     setGeoSearching(true)
+
     try {
       const q = query.includes('São Paulo') || query.includes('SP') ? query
         : query.includes('Rio') || query.includes('RJ') ? query
         : `${query}, Brasil`
+
       const res = await fetch(`/api/geo/search?q=${encodeURIComponent(q)}`)
-      if (!res.ok) { setGeoSuggestions([]); return }
+
+      if (!res.ok) { setGeoSuggestions([]); 
+
+return }
+
       const data = await res.json()
+
       setGeoSuggestions(data.lat ? [data] : [])
     } catch { setGeoSuggestions([]) }
     finally { setGeoSearching(false) }
   }
 
-  const selectGeoResult = (r: { lat: number; lng: number; displayName: string }) => {
+  const _selectGeoResult = (r: { lat: number; lng: number; displayName: string }) => {
     setCityLat(r.lat)
     setCityLng(r.lng)
     setCityLabel(r.displayName)
@@ -457,7 +481,9 @@ return arr
 
   const contentMaturityColor = (level: number | null | undefined) => {
     const colors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#4caf50"]
-    return colors[level ?? 0] || colors[0]
+
+    
+return colors[level ?? 0] || colors[0]
   }
 
   const detectWApp = (ph: string | null | undefined) => ph ? /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(ph) : null
@@ -541,12 +567,16 @@ return arr
               selectedRadius={radius}
               onLocationSelect={(lat, lng, label) => {
                 setCityLat(lat); setCityLng(lng); setCityLabel(label); setStateKey('')
+
                 // Sugere raio automático baseado na capital mais próxima
                 let closest = BR_CAPITALS[0]; let minDist = Infinity
+
                 for (const c of BR_CAPITALS) {
                   const d = Math.abs(c.lat - lat) + Math.abs(c.lng - lng)
+
                   if (d < minDist) { minDist = d; closest = c }
                 }
+
                 if (minDist < 0.5) { setStateKey(closest.uf); setRadius(suggestRadiusByPop(closest.pop).radiusKm) }
               }}
               loading={loading}
@@ -651,7 +681,9 @@ return arr
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {CATS.map(cat => {
               const active = selected.includes(cat.id)
-              return (
+
+              
+return (
                 <Chip key={cat.id} label={cat.label} clickable color={active ? 'primary' : 'default'}
                   variant={active ? 'filled' : 'outlined'} onClick={() => toggle(cat.id)}
                   sx={active ? {} : { opacity: 0.7 }} />
@@ -827,6 +859,7 @@ return (
               <Button variant='contained' size='small' color='info'
                 onClick={() => {
                   const nextOffset = searchMeta.offsets_used[searchMeta.offsets_used.length - 1] + 50
+
                   doSearch(false, nextOffset)
                 }}>
                 📄 Continuar ({searchMeta.remaining} restantes)

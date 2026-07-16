@@ -44,12 +44,15 @@ export async function analyzeCompetitiveLandscape(
   input: ScoringInput,
 ): Promise<CompetitiveLandscape | null> {
   const website = input.website
+
   if (!website) return null
 
   const domain = extractDomain(website)
+
   if (!domain) return null
 
   let competitors: { domain: string; rank: number; intersections: number }[] = []
+
   try {
     competitors = await domainCompetitors(domain)
   } catch {
@@ -64,12 +67,14 @@ export async function analyzeCompetitiveLandscape(
   }))
 
   const totalPeers = competitors.length
+
   const avgRank = topCompetitors.length > 0
     ? topCompetitors.reduce((s, c) => s + c.rank, 0) / topCompetitors.length
     : 0
 
   const signals = { k1_competitor_gap: false, k2_market_leader_threat: false,
     k3_keyword_cannibalization: false, k4_uncontested_niche: false }
+
   const gapsDetected: string[] = []
   const gapsAbsent: string[] = []
   let painRaw = 0
@@ -86,6 +91,7 @@ export async function analyzeCompetitiveLandscape(
 
   // K3: Keyword Cannibalization — multiple competitors with high overlap (8pts)
   const highOverlap = topCompetitors.filter(c => c.keywordOverlap > 30)
+
   if (highOverlap.length >= 2) {
     painRaw += 8; signals.k3_keyword_cannibalization = true; gapsDetected.push("K3")
   } else { gapsAbsent.push("K3") }
@@ -97,6 +103,7 @@ export async function analyzeCompetitiveLandscape(
   } else { gapsAbsent.push("K4") }
 
   const painScore = Math.round((painRaw / MAX_PAIN) * 100)
+
   const marketPosition: CompetitiveLandscape["marketPosition"] =
     totalPeers === 0 ? "invisivel" :
     avgRank > 700 ? "dominante" :
@@ -112,8 +119,11 @@ export function competitiveQuickScan(input: ScoringInput): {
 } {
   if (!input.website) return { hasPotential: false, reason: "Sem website — sem superficie competitiva para analisar" }
   const dt = input.website?.toLowerCase() || ""
+
   if (dt.includes("linktr.ee") || dt.includes("facebook.com") || dt.includes("instagram.com")) {
     return { hasPotential: false, reason: "Site em plataforma social — nao compete em SEO tradicional" }
   }
-  return { hasPotential: true, reason: "Site proprio — superficie competitiva via SEO disponivel" }
+
+  
+return { hasPotential: true, reason: "Site proprio — superficie competitiva via SEO disponivel" }
 }

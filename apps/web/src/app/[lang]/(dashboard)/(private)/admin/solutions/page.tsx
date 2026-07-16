@@ -116,6 +116,7 @@ const PROJECTION = [
 const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   return (
@@ -233,11 +234,11 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 <Typography variant='caption' color='text.secondary'><strong>Idade:</strong> {p.age}</Typography>
                 <Typography variant='caption' color='text.secondary'><strong>Clinica:</strong> {p.clinic} · Ticket: {p.ticket}</Typography>
-                <Typography variant='caption' color='text.secondary'><strong>Dor:</strong> "{p.pain}"</Typography>
+                <Typography variant='caption' color='text.secondary'><strong>Dor:</strong> &ldquo;{p.pain}&rdquo;</Typography>
                 <Typography variant='caption' color='text.secondary'><strong>Comportamento:</strong> {p.behavior}</Typography>
                 <Box sx={{ mt: 1, p: 1.5, bgcolor: 'var(--pastel-sky)', borderRadius: 1 }}>
                   <Typography variant='caption' fontWeight={600}>🎯 Abordagem:</Typography>
-                  <Typography variant='caption' color='text.secondary'>"{p.approach}"</Typography>
+                  <Typography variant='caption' color='text.secondary'>&ldquo;{p.approach}&rdquo;</Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -364,7 +365,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
               <Grid size={{ xs: 12, sm: 3 }}>
                 <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
                   <Typography variant='caption' color='#71717a' component='div'>NarrativeCard</Typography>
-                  <Typography variant='body2' color='#fafafa' fontWeight={600} sx={{ mt: 0.5 }}>"Sua clinica esta invisivel para 5.000 pessoas"</Typography>
+                  <Typography variant='body2' color='#fafafa' fontWeight={600} sx={{ mt: 0.5 }}>&ldquo;Sua clinica esta invisivel para 5.000 pessoas&rdquo;</Typography>
                   <Typography variant='caption' color='#a1a1aa'>Explica O QUE acontece, nao apenas numeros</Typography>
                 </Box>
               </Grid>
@@ -382,7 +383,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
               <Grid size={{ xs: 12, sm: 3 }}>
                 <Box sx={{ p: 1.5, bgcolor: '#111113', borderRadius: 1, border: '1px solid #1f1f22' }}>
                   <Typography variant='caption' color='#71717a' component='div'>Copilot IA</Typography>
-                  <Typography variant='body2' color='#0070f3' fontWeight={600} sx={{ mt: 0.5, fontFamily: 'monospace', fontSize: '0.75rem' }}>"O que eu faco hoje?"</Typography>
+                  <Typography variant='body2' color='#0070f3' fontWeight={600} sx={{ mt: 0.5, fontFamily: 'monospace', fontSize: '0.75rem' }}>&ldquo;O que eu faco hoje?&rdquo;</Typography>
                   <Typography variant='caption' color='#a1a1aa'>Chat lateral com IA ancorada em dados reais</Typography>
                 </Box>
               </Grid>

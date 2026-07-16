@@ -21,7 +21,9 @@ function salientTerms(text: string): Set<string> {
     "the", "and", "foi", "sao", "uma", "com", "dos", "das", "nos", "nas", "isso",
     "esse", "essa", "seu", "sua", "nao", "sim", "mais", "pra", "num", "seja", "ser",
     "tem", "seus", "suas", "este", "esta", "entao", "pois"])
-  return new Set(
+
+  
+return new Set(
     text.toLowerCase()
       .split(/[^a-záàâãéêíóôõúç0-9]/)
       .filter(w => w.length > 3 && !STOP.has(w))
@@ -32,27 +34,37 @@ function salientTerms(text: string): Set<string> {
 function splitSentences(text: string): string[] {
   const out: string[] = []
   let cur = ""
+
   for (const ch of text) {
     cur += ch
+
     if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
       const t = cur.trim()
+
       if (t.length >= 12) { out.push(t); cur = "" }
     }
   }
+
   const tail = cur.trim()
+
   if (tail) out.push(tail)
-  return out
+  
+return out
 }
 
 /** D1: grounding check — overlap de palavras salientes entre resposta e fatos >= 2. */
 export function groundingCheck(reply: string, facts: string[]): { grounded: boolean; matchedTerms: string[] } {
   const r = salientTerms(reply)
   const f = new Set<string>()
+
   for (const fact of facts.slice(0, 5)) {
     for (const t of salientTerms(fact)) f.add(t)
   }
+
   const matched = [...r].filter(t => f.has(t))
-  return { grounded: matched.length >= 2, matchedTerms: matched }
+
+  
+return { grounded: matched.length >= 2, matchedTerms: matched }
 }
 
 /** c3: Honestidade — mantem so as frases ancoradas nos fatos.
@@ -77,13 +89,18 @@ export function c3Honesty(reply: string, facts: string[]): GroundingResult {
   }
 
   const d1 = groundingCheck(reply, facts)
-  return { grounded: d1.grounded, cleanReply: clean, prunedCount: pruned, totalSentences: total, matchedTerms: d1.matchedTerms }
+
+  
+return { grounded: d1.grounded, cleanReply: clean, prunedCount: pruned, totalSentences: total, matchedTerms: d1.matchedTerms }
 }
 
 /** Uma frase esta ANCORADA? >=2 termos salientes com lastro E >=15% dos termos tem lastro. */
 function sentenceGrounded(sentence: string, factsLow: string): boolean {
   const terms = [...salientTerms(sentence)]
+
   if (terms.length === 0) return true // conector puro ("a razao e que:") — mantem
   const matched = terms.filter(t => factsLow.includes(t)).length
-  return matched >= 2 && (matched / terms.length) >= 0.15
+
+  
+return matched >= 2 && (matched / terms.length) >= 0.15
 }

@@ -29,6 +29,7 @@ interface LeadRow {
   schwartz_label: string; schwartz_level: number
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
+
   // L2 fields (v0.3)
   l2_onpage_score?: number | null; l2_meta_title?: string | null
   l2_meta_description?: string | null; l2_word_count?: number | null
@@ -76,29 +77,46 @@ const LeadsPage = async ({ params, searchParams }: {
 
     // Build query
     let q = supabase.from("discovery_listings").select("*").order("enrichment_level", { ascending: false }).limit(2000)
+
     if (filterCategory) q = q.eq("category", filterCategory)
     if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
     if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
 
     const { data, error } = await q
+
     if (!error && data) {
       // Dedup by place_id (keep highest enrichment_level)
       const deduped = new Map<string, any>()
-      for (const r of data as any[]) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
+
+      for (const r of data as any[]) { const e = deduped.get(r.place_id);
+
+ if (!e) deduped.set(r.place_id, r) }
+
       const list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
+
       totalCount = list.length
       leads = list.slice(offset, offset + PER_PAGE) as LeadRow[]
 
       // Stats from the deduped list
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
+
       totalScore = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
       withWebsite = list.filter((r: any) => r.website).length
       withPhone = list.filter((r: any) => r.phone).length
       const catCounts: Record<string, number> = {}
-      for (const r of list) { if (r.category) { const k = r.category; catCounts[k] = (catCounts[k] || 0) + 1 } }
+
+      for (const r of list) { if (r.category) { const k = r.category;
+
+ catCounts[k] = (catCounts[k] || 0) + 1 } }
+
       categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n }))
       const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
-      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length; return { level: l, label: schwartzLabels[l], count: n } })
+
+      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length;
+
+ 
+
+return { level: l, label: schwartzLabels[l], count: n } })
     }
   } catch { /* Supabase offline */ }
 

@@ -9,7 +9,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain, parseWebsiteContacts } from "@/lib/provider-core-adapter"
+import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain, parseWebsiteContacts , appendMarketHolds } from "@/lib/provider-core-adapter"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
@@ -19,7 +19,6 @@ import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/sco
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
 import { vaultWriteBatch } from "@/lib/r2-vault"
-import { appendMarketHolds } from "@/lib/provider-core-adapter"
 import { pushEvent } from "@/lib/telemetry"
 import { getAdminClient } from "@/lib/supabase-admin"
 
@@ -54,13 +53,16 @@ async function enrichTopLeads(
         location_code: 2076,
         language_code: "pt",
       })
-      return { profile, listing, index }
+
+      
+return { profile, listing, index }
     })
   )
 
   for (const r of results) {
     if (r.status === 'rejected') { continue }
     const { profile, listing, index } = r.value
+
     if (!profile || !profile.place_id) continue
     enrichmentCost += 0.0054
 
@@ -93,6 +95,7 @@ async function enrichTopLeads(
     }
 
     const newScores = scoreLeads([input])
+
     enriched.contact_methods = detectContactMethods(input)
     enriched.enrichment_level = 1
     enrichedListings[index] = enriched
@@ -100,7 +103,8 @@ async function enrichTopLeads(
   }
 
   console.log(`[enrichment] L1: ${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
-  return { enrichedListings, enrichedScores, enrichmentCost }
+  
+return { enrichedListings, enrichedScores, enrichmentCost }
 }
 
 // ── L2: Website & SEO técnico (ADR-0024) ──
@@ -125,18 +129,24 @@ async function enrichTopLeadsL2(
   if (toEnrich.length === 0) return { l2EnrichedListings, l2EnrichedScores, l2Cost: 0 }
 
   let l2Cost = 0
+
+
   // 🔥 Parallelize ALL (50 at once — DataForSEO handles concurrency)
   const results = await Promise.allSettled(
     toEnrich.map(async ({ listing, index }) => {
       const domain = extractDomain(listing.website)
       const cacheKey = `l2:audit:${domain || listing.website}`
+
       // Try Redis cache first (website audits don't change frequently)
       let cachedAudit: any = null; let cachedTech: any = null
+
       try {
         const { execSync } = await import("child_process")
         const cached = execSync(`redis-cli -p 6396 --no-auth-warning GET "${cacheKey}"`, { timeout: 1000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+
         if (cached && cached !== "") {
           const parsed = JSON.parse(cached)
+
           cachedAudit = parsed.audit; cachedTech = parsed.tech
         }
       } catch {}
@@ -157,6 +167,7 @@ async function enrichTopLeadsL2(
       if (auditResult) {
         try {
           const { execSync } = await import("child_process")
+
           execSync(`redis-cli -p 6396 --no-auth-warning SETEX "${cacheKey}" 2592000 '${JSON.stringify({audit: auditResult, tech: techResult}).replace(/'/g, "'\\''")}'`, { timeout: 1000, stdio: "ignore" })
         } catch {}
       }
@@ -168,14 +179,22 @@ async function enrichTopLeadsL2(
   for (const r of results) {
       if (r.status === "rejected") continue
       const { audit, tech, listing, index } = r.value
+
       if (!audit) continue
 
       const costPerLead = 0.000125 + (tech ? 0.01 : 0)
+
       l2Cost += costPerLead
 
       const l2_https = listing.website?.startsWith("https") ?? false
       const hasAnalytics = tech ? !!(tech.technologies?.marketing?.analytics?.length || tech.technologies?.advertising?.analytics?.length) : null
-      const cmsName: string | null = (() => { const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms; return Array.isArray(cms) && cms.length > 0 ? cms[0] : null })()
+
+      const cmsName: string | null = (() => { const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms;
+
+ 
+
+return Array.isArray(cms) && cms.length > 0 ? cms[0] : null })()
+
       const techCategories = tech ? Object.keys(tech.technologies || {}).filter(k => Object.keys(tech.technologies[k] || {}).length > 0) : null
 
       const enriched: any = {
@@ -224,12 +243,14 @@ async function enrichTopLeadsL2(
       }
 
       const newScores = scoreLeads([input])
+
       l2EnrichedListings[index] = enriched
       l2EnrichedScores[index] = newScores[0]
   }
 
   console.log(`[enrichment] L2: ${toEnrich.length} leads with website enriched, cost $${l2Cost.toFixed(4)}`)
-  return { l2EnrichedListings, l2EnrichedScores, l2Cost }
+  
+return { l2EnrichedListings, l2EnrichedScores, l2Cost }
 }
 
 // ── L3: Social & Contacts (ADR-0024) ──
@@ -255,6 +276,8 @@ async function enrichTopLeadsL3(
   if (toEnrich.length === 0) return { l3EnrichedListings, l3EnrichedScores, l3Cost: 0 }
 
   let l3Cost = 0
+
+
   // 🔥 Parallelize ALL + reuse L2 cache for domain_technologies
   const results = await Promise.allSettled(
     toEnrich.map(async ({ listing, index }) => {
@@ -263,9 +286,11 @@ async function enrichTopLeadsL3(
 
       // Try Redis cache (same key as L2 — domain_technologies already cached)
       let cachedTech: any = null
+
       try {
         const { execSync } = await import("child_process")
         const cached = execSync(`redis-cli -p 6396 --no-auth-warning GET "${l2CacheKey}"`, { timeout: 1000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+
         if (cached && cached !== "") {
           cachedTech = JSON.parse(cached).tech
         }
@@ -275,7 +300,9 @@ async function enrichTopLeadsL3(
         cachedTech ? Promise.resolve(cachedTech) : (domain ? domainTechnologies(domain) : Promise.resolve(null)),
         parseWebsiteContacts(listing.website),
       ])
-      return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contacts.status === "fulfilled" ? contacts.value : null, listing, index, fromCache: !!cachedTech }
+
+      
+return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contacts.status === "fulfilled" ? contacts.value : null, listing, index, fromCache: !!cachedTech }
     })
   )
 
@@ -292,6 +319,8 @@ async function enrichTopLeadsL3(
       if (tech) {
         const techPhones = (tech.phone_numbers || []).filter((p: string) => p.length >= 10)
         const techEmails = tech.emails || []
+
+
         // Só preenche phone se GMB não tem
         if (!mergedPhone && techPhones.length > 0) mergedPhone = techPhones[0]
         mergedEmails.push(...techEmails)
@@ -300,10 +329,14 @@ async function enrichTopLeadsL3(
       if (contacts) {
         mergedSocials.push(...contacts.social_links)
         for (const e of contacts.emails) { if (!mergedEmails.includes(e)) mergedEmails.push(e) }
+
+
         // WhatsApp: campo SEPARADO (não joga no phone)
         if (contacts.whatsapp_numbers.length > 0) {
           mergedWhatsApp = contacts.whatsapp_numbers[0]
         }
+
+
         // Phone (voz/fixo): só do content_parsing.phones, NÃO do whatsapp_numbers
         if (!mergedPhone && contacts.phones.length > 0) {
           mergedPhone = contacts.phones[0]
@@ -314,6 +347,7 @@ async function enrichTopLeadsL3(
       mergedSocials = mergedSocials.slice(0, 10)
 
       const costPerLead = (tech ? 0.01 : 0) + (contacts ? 0.0005 : 0)
+
       l3Cost += costPerLead
 
       const enriched: any = {
@@ -329,7 +363,8 @@ async function enrichTopLeadsL3(
   }
 
   console.log(`[enrichment] L3: ${toEnrich.length} leads crawled for social/contacts, cost $${l3Cost.toFixed(4)}`)
-  return { l3EnrichedListings, l3EnrichedScores, l3Cost }
+  
+return { l3EnrichedListings, l3EnrichedScores, l3Cost }
 }
 
 // ── L4: Market Context (ADR-0024) ──
@@ -346,12 +381,15 @@ async function enrichTopLeadsL4(
 
   // Build city→IBGE cache (1 query, não N queries)
   const citySet = new Set<string>()
+
   for (const l of listings) { if (l.city) citySet.add(l.city.toLowerCase().trim()) }
 
-  let ibgeByCity: Record<string, any> = {}
+  const ibgeByCity: Record<string, any> = {}
+
   try {
     const supabase = getAdminClient()
     const { data: panoramaRows } = await supabase.from("ibge_panorama").select("municipio_nome,populacao,pib_per_capita,densidade_demografica,uf").limit(500)
+
     if (panoramaRows) {
       for (const r of panoramaRows as any[]) {
         ibgeByCity[r.municipio_nome?.toLowerCase()?.trim()] = r
@@ -361,11 +399,13 @@ async function enrichTopLeadsL4(
     // Income by UF
     const { data: incomeRows } = await supabase.from("ibge_income").select("uf,avg_household_income").limit(30)
     const incomeByUf: Record<string, number> = {}
+
     if (incomeRows) { for (const r of incomeRows as any[]) incomeByUf[r.uf] = r.avg_household_income }
 
     // Enrich each listing
     for (let i = 0; i < listings.length; i++) {
       const l = listings[i]
+
       if (!l.city) continue
       const key = l.city.toLowerCase().trim()
       const ibge = ibgeByCity[key]
@@ -378,18 +418,20 @@ async function enrichTopLeadsL4(
           l4_ibge_densidade: ibge.densidade_demografica || null,
           l4_ibge_renda_media: ibge.uf ? (incomeByUf[ibge.uf] || null) : null,
         }
+
         l4EnrichedListings[i] = enriched
       }
     }
   } catch (e: any) { console.warn("[enrichment] L4 IBGE offline:", e.message) }
 
   console.log(`[enrichment] L4: IBGE context enriched for ${Object.keys(ibgeByCity).length} cities ($0)`)
-  return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
+  
+return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, order_by, offset, filters, paginate } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
 
   if (!categories?.length) {
@@ -410,7 +452,8 @@ export async function POST(request: NextRequest) {
   // ═══ L0: LIVE SEARCH via provider-core ($0.0003/listing) ═══
   // Usa businessListingsSearch do provider-core-adapter (shape, tipos, custo).
   // DataForSEO: limit default 100, max 1000. Offset pagination disponível.
-  let t0 = Date.now()
+  const t0 = Date.now()
+
   try {
     const searchParams = {
       categories,
@@ -421,11 +464,12 @@ export async function POST(request: NextRequest) {
       offset: 0,
       language_code: "pt",
     }
+
     const searchResult = await businessListingsSearch(searchParams)
     const items = searchResult.listings
     const totalCount = searchResult.total_count
 
-    let result = { total_count: totalCount, listings: items as any[], cost_usd: searchResult.cost_usd || 0.015 }
+    const result = { total_count: totalCount, listings: items as any[], cost_usd: searchResult.cost_usd || 0.015 }
 
     // ═══ PAGINATION: fetch remaining pages (offset 100,200...) ═══
     // DataForSEO max 100 per call. RJ 5km = 538 dentists = 5 pages.
@@ -441,10 +485,12 @@ export async function POST(request: NextRequest) {
 
     let pagOffset = (limit || 100)
     const seenPids = new Set(items.map((i: any) => i.place_id).filter(Boolean))
+
     if (shouldPaginate) {
       while (result.listings.length >= (limit || 100) && pagOffset < totalCount) {
         const nextResult = await businessListingsSearch({ ...searchParams, offset: pagOffset })
         const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
+
         for (const i of newItems) seenPids.add(i.place_id)
         result.listings.push(...newItems)
         result.cost_usd += nextResult.cost_usd || 0
@@ -462,6 +508,7 @@ export async function POST(request: NextRequest) {
     console.log(`[discovery:L0] tracker=${searchMetadata.tracker_id} · ${searchMetadata.fetched_count}/${totalCount} fetched in ${searchMetadata.pages_fetched} pages · ${searchMetadata.remaining} remaining`)
 
     const l0Latency = Date.now() - t0
+
     console.log(`[discovery:L0:inline] ${result.listings.length}/${totalCount} listings in ${l0Latency}ms, first: ${result.listings[0]?.title?.slice(0,40)}`)
     pushEvent({ route: "/api/discovery-search", status: 200, latency_ms: l0Latency, provider: "DataForSEO", detail: `${result.listings.length}/${totalCount} listings` })
 
@@ -478,6 +525,7 @@ export async function POST(request: NextRequest) {
     let listings = result.listings
     let enrichmentCost = 0
     let enrichedCount = 0
+
     console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
     let l2Cost = 0
     let l3Cost = 0
@@ -504,6 +552,7 @@ export async function POST(request: NextRequest) {
       // ═══ L2: WEBSITE & SEO TÉCNICO (ADR-0024 · $0.010125/lead, ALL com website) ═══
       if (enrichedCount > 0) {
         const l2Result = await enrichTopLeadsL2(listings, scores, 30)
+
         listings = l2Result.l2EnrichedListings
         scores = l2Result.l2EnrichedScores
         l2Cost = l2Result.l2Cost
@@ -513,6 +562,7 @@ export async function POST(request: NextRequest) {
       // ═══ L3: SOCIAL & CONTACTS (ADR-0024 · $0.0005/lead) ═══
       if (enrichedCount > 0) {
         const l3Result = await enrichTopLeadsL3(listings, scores, 30)
+
         listings = l3Result.l3EnrichedListings
         scores = l3Result.l3EnrichedScores
         l3Cost = l3Result.l3Cost
@@ -521,6 +571,7 @@ export async function POST(request: NextRequest) {
 
       // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
       const l4Result = await enrichTopLeadsL4(listings, scores)
+
       listings = l4Result.l4EnrichedListings
       scores = l4Result.l4EnrichedScores
     }
@@ -553,8 +604,10 @@ export async function POST(request: NextRequest) {
     // Compute contact_methods + content gap for ALL listings before saving
     // Attach scores + contact_methods + content_gap to listings IN-PLACE (no .map)
     const enrichedListings: any[] = []
+
     for (let i = 0; i < listings.length; i++) {
       const l: any = listings[i]
+
       const input: ScoringInput = {
         title: l.title, category: l.category, address: l.address,
         rating_value: l.rating_value, rating_votes: l.rating_votes,
@@ -562,6 +615,7 @@ export async function POST(request: NextRequest) {
         is_claimed: l.is_claimed, phone: l.phone, website: l.website,
         total_photos: l.total_photos, description: l.description,
         business_status: l.business_status,
+
         // L2 fields for content gap analysis
         l2_onpage_score: l.l2_onpage_score,
         l2_https: l.website?.startsWith("https") ?? null,
@@ -575,12 +629,13 @@ export async function POST(request: NextRequest) {
         l2_seo_checks: l.l2_seo_checks || null,
       }
 
-      const enrichLevel = l.enrichment_level >= 2 ? 2
+      const _enrichLevel = l.enrichment_level >= 2 ? 2
         : (l.website || l.phone || l.total_photos != null) ? 1 : 0
 
       // Compute content gap for L2-enriched leads
       const contentGap = l.enrichment_level >= 2 ? scoreContentGap(input) : null
       const l2_content_maturity = contentGap?.maturity?.level ?? null
+
       const l2_content_gaps = contentGap ? {
         maturity_score: contentGap.maturityScore,
         pain_score: contentGap.painScore,
@@ -619,8 +674,10 @@ export async function POST(request: NextRequest) {
     // Layer 2: R2 VAULT (write-ahead blob — imutável, ~500ms)
     // Se Supabase falhar, o blob no R2 é a verdade. Restaurável.
     const searchIdForVault = `search_${Date.now().toString(36)}`
+
     try {
       const r2Result = await vaultWriteBatch(searchIdForVault, listings)
+
       if (r2Result.succeeded > 0) console.log(`[r2-vault] ${r2Result.succeeded}/${r2Result.attempted} blobs saved`)
     } catch { /* R2 offline — Redis já tem o payload */ }
 
@@ -638,18 +695,24 @@ export async function POST(request: NextRequest) {
       searchMetadata,
     }).catch((err) => {
       console.error("[persistence] Supabase FAILED — dados salvos no Redis (7d) + R2:", err.message)
-      return null
+      
+return null
     })
+
     if (saved) {
       // Market holds — time-series snapshot a cada busca
       if (categories.length === 1) {
         const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
         const cityCounts = new Map<string, number>()
+
         for (const l of listings) {
           const c = (l as any).city
+
           if (c) cityCounts.set(c, (cityCounts.get(c) || 0) + 1)
         }
+
         const city = [...cityCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Brasil"
+
         appendMarketHolds([
           { category: cat, city, metric: "avg_score", value: distribution.avgScore, searchId: saved?.searchId },
           { category: cat, city, metric: "total_businesses", value: result.total_count, searchId: saved?.searchId },
@@ -670,8 +733,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(payload)
   } catch (e: any) {
     const errLatency = Date.now() - t0
+
     pushEvent({ route: "/api/discovery-search", status: 500, latency_ms: errLatency, provider: "DataForSEO", error: e.message, detail: String(e.stack).slice(0, 500) })
-    return NextResponse.json(
+    
+return NextResponse.json(
       { error: e.message || "DataForSEO API unavailable" },
       { status: 500 }
     )

@@ -29,6 +29,7 @@ export function classifyIntent(question: string): IntentResult {
     /o que (?:já|ja) temos/i, /o que (?:já|ja) foi/i,
     /me lembre/i, /recall/i, /histórico/i, /historia/i,
   ]
+
   for (const p of recallPatterns) {
     if (p.test(q)) {
       return { intent: "ask-recall", confidence: 0.85, reasoning: "matched recall pattern" }
@@ -43,6 +44,7 @@ export function classifyIntent(question: string): IntentResult {
     /arquitetura/i, /design/i, /padrão/i, /pattern/i,
     /como.*(?:está|esta) estruturado/i,
   ]
+
   for (const p of explainPatterns) {
     if (p.test(q)) {
       return { intent: "ask-explicar", confidence: 0.80, reasoning: "matched explain pattern" }

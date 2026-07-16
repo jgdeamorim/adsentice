@@ -4,6 +4,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server"
+
 import { getCoverage } from "@/lib/coverage"
 
 export const runtime = "nodejs"
@@ -20,7 +21,9 @@ export async function GET(request: Request) {
 
   try {
     const report = await getCoverage(category, city || "Rio de Janeiro")
-    return NextResponse.json(report || { coveragePct: 0, districtsFound: 0, totalDistrictsEstimate: 0, mapped: [], gaps: [] })
+
+    
+return NextResponse.json(report || { coveragePct: 0, districtsFound: 0, totalDistrictsEstimate: 0, mapped: [], gaps: [] })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

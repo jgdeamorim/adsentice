@@ -12,6 +12,7 @@ class DataForSEOClient {
 
   constructor(login: string, password: string, mode: "sandbox" | "live" = "live") {
     const encoded = Buffer.from(`${login}:${password}`).toString("base64")
+
     this.authHeader = `Basic ${encoded}`
     this.mode = mode
   }
@@ -20,16 +21,21 @@ class DataForSEOClient {
 
   async post<T>(endpoint: string, body: unknown[]): Promise<T> {
     const url = `${this.baseUrl}${endpoint}.ai`
+
     const res = await fetch(url, {
       method: "POST",
       headers: { Authorization: this.authHeader, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
+
     if (!res.ok) {
       const text = await res.text().catch(() => "")
+
       throw new Error(`DataForSEO HTTP ${res.status}: ${text.slice(0, 300)}`)
     }
-    return res.json() as Promise<T>
+
+    
+return res.json() as Promise<T>
   }
 }
 
@@ -37,8 +43,10 @@ function getClient(): DataForSEOClient {
   const login = process.env.DATAFORSEO_LOGIN || ""
   const password = process.env.DATAFORSEO_PASSWORD || ""
   const mode = (process.env.DATAFORSEO_MODE as "sandbox" | "live") || "live"
+
   if (!login || !password) throw new Error("DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD required")
-  return new DataForSEOClient(login, password, mode)
+  
+return new DataForSEOClient(login, password, mode)
 }
 
 // _client is created fresh on every call in getClient() — no singleton cache needed
@@ -83,9 +91,12 @@ export interface CompetitorDomain { domain: string; rank: number; intersections:
 
 export function extractDomain(url: string | null | undefined): string | null {
   if (!url) return null
+
   try {
     const u = new URL(url.startsWith("http") ? url : `https://${url}`)
-    return u.hostname.replace(/^www\./, "")
+
+    
+return u.hostname.replace(/^www\./, "")
   } catch { return null }
 }
 
@@ -101,7 +112,9 @@ export async function businessListingsSearch(params: {
   limit?: number; offset?: number; order_by?: string[]; filters?: unknown[]
 }) {
   const c = getClient()
+
   console.log(`[adapter:L0] mode=${c.mode}, hasAuth=${!!c.authHeader}, coord=${toCoord(params.lat, params.lng, params.radiusKm)}`)
+
   const body = [{
     categories: params.categories,
     location_coordinate: toCoord(params.lat, params.lng, params.radiusKm),
@@ -111,14 +124,18 @@ export async function businessListingsSearch(params: {
     order_by: params.order_by || undefined,
     filters: params.filters || undefined,
   }]
+
   const data = await c.post<{ tasks?: Array<{ cost?: number; result?: Array<{ total_count?: number; items?: Record<string, unknown>[] }> }> }>("/v3/business_data/business_listings/search/live", body)
   const result = data.tasks?.[0]?.result?.[0]
   const items = result?.items || []
   const totalCount = result?.total_count || items.length
+
   const listings: BusinessListing[] = items.map(item => {
     const rating = (item.rating || {}) as Record<string, unknown>
     const addrInfo = (item.address_info || {}) as Record<string, unknown>
-    return {
+
+    
+return {
       title: (item.title as string) || null,
       category: (item.category as string) || null,
       address: (item.address as string) || null,
@@ -129,13 +146,16 @@ export async function businessListingsSearch(params: {
       latitude: (item.latitude as number) ?? null,
       longitude: (item.longitude as number) ?? null,
       is_claimed: (item.is_claimed as boolean) ?? null,
+
       // Extra fields from address_info (L0 — needed for L4 IBGE matching)
       city: (addrInfo.city as string) || null,
       district: (addrInfo.borough as string) || null,
       website: (item.url as string) || null,
     } as any
   })
-  return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || items.length * 0.0003 }
+
+  
+return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || items.length * 0.0003 }
 }
 
 /** L1: Google Business Profile — $0.0054/lead */
@@ -143,17 +163,22 @@ export async function businessProfileGmb(params: {
   keyword: string; location_code?: number; language_code?: string
 }): Promise<GMBProfile | null> {
   const c = getClient()
+
   const body = [{
     keyword: params.keyword,
     location_code: params.location_code || 2076,
     language_code: params.language_code || "pt",
   }]
+
   const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/business_data/google/my_business_info/live", body)
   const item = data.items?.[0]
+
   if (!item) return null
   const rating = (item.rating || {}) as Record<string, unknown>
   const addrInfo = (item.address_info || {}) as Record<string, unknown>
-  return {
+
+  
+return {
     title: (item.title as string) || "?",
     category: (item.category as string) || null,
     categories: (item.category_ids as string[]) || null,
@@ -186,12 +211,15 @@ export async function onPageInstantAudit(url: string): Promise<SEOInstantAudit |
   const body = [{ url, enable_javascript: false, accept_language: "pt-BR" }]
   const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/on_page/instant_pages", body)
   const item = data.items?.[0]
+
   if (!item) return null
   const resource = (item.resource || item) as Record<string, unknown>
   const meta = (resource.meta || {}) as Record<string, unknown>
   const content = (resource.content || {}) as Record<string, unknown>
   const checks = (resource.checks || resource.onpage_score_checks || {}) as Record<string, boolean | null>
-  return {
+
+  
+return {
     onpage_score: (resource.onpage_score as number) ?? 0,
     total_count: (resource.total_count as number) ?? 0,
     checks,
@@ -213,8 +241,10 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
   const body = [{ target: domain }]
   const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/domain_analytics/technologies/domain_technologies/live", body)
   const item = data.items?.[0]
+
   if (!item) return null
-  return {
+  
+return {
     domain: (item.domain as string) || domain,
     technologies: (item.technologies as Record<string, Record<string, string[]>>) || {},
     phone_numbers: (item.phone_numbers as string[]) || [],
@@ -231,17 +261,22 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
 export async function onPageLighthouse(url: string): Promise<{ performance: number; accessibility: number; best_practices: number; seo: number } | null> {
   const c = getClient()
   const body = JSON.stringify([{ url }])
+
   const res = await fetch(`${c.baseUrl}/v3/on_page/lighthouse/live/json`, {
     method: "POST",
     headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
     body,
   })
+
   if (!res.ok) return null
   const data = await res.json() as { tasks?: Array<{ result?: Array<{ categories?: Record<string, { score: number }> }> }> }
   const result = data.tasks?.[0]?.result?.[0]
+
   if (!result?.categories) return null
   const cats = result.categories
-  return {
+
+  
+return {
     performance: cats.performance?.score ?? 0,
     accessibility: cats.accessibility?.score ?? 0,
     best_practices: cats["best-practices"]?.score ?? 0,
@@ -253,19 +288,25 @@ export async function onPageLighthouse(url: string): Promise<{ performance: numb
 export async function serpOrganic(keyword: string, depth = 10): Promise<{ domain: string; position: number; title: string }[]> {
   const c = getClient()
   const body = JSON.stringify([{ keyword, location_code: 2076, language_code: "pt", depth }])
+
   const res = await fetch(`${c.baseUrl}/v3/serp/google/organic/live/regular`, {
     method: "POST",
     headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
     body,
   })
+
   if (!res.ok) return []
   const data = await res.json() as { tasks?: Array<{ result?: Array<{ items?: Record<string, unknown>[] }> }> }
   const items = data.tasks?.[0]?.result?.[0]?.items || []
-  return items
+
+  
+return items
     .filter(item => (item.type as string) === "organic")
     .map(item => {
       const url = (item.url as string) || ""
-      return {
+
+      
+return {
         domain: extractDomain(url) || "",
         position: (item.rank_absolute as number) ?? (item.rank_group as number) ?? 0,
         title: (item.title as string) || "",
@@ -279,34 +320,47 @@ export async function googleReviews(params: {
 }): Promise<{ rating_value: number | null; reviews_count: number; reviews: { rating: number; review_text: string; reviewer_name: string | null }[] } | null> {
   const c = getClient()
   const postBody = JSON.stringify([{ keyword: params.keyword, location_code: params.location_code || 2076, language_code: params.language_code || "pt", depth: params.depth || 10 }])
+
   const postRes = await fetch(`${c.baseUrl}/v3/business_data/google/reviews/task_post`, {
     method: "POST", headers: { Authorization: c.authHeader, "Content-Type": "application/json" }, body: postBody,
   })
+
   if (!postRes.ok) return null
   const postData = await postRes.json() as { tasks?: Array<{ id?: string }> }
   const taskId = postData.tasks?.[0]?.id
+
   if (!taskId) return null
+
   for (let i = 0; i < 8; i++) {
     await new Promise(r => setTimeout(r, 3000))
     const pollRes = await fetch(`${c.baseUrl}/v3/business_data/google/reviews/task_get/${taskId}`, { headers: { Authorization: c.authHeader } })
+
     if (!pollRes.ok) continue
     const pollData = await pollRes.json() as { tasks?: Array<{ status_code?: number; result?: Array<Record<string, unknown>> }> }
     const task = pollData.tasks?.[0]
+
     if (task?.status_code === 20000 && task.result) {
       const block = task.result[0]
       const items = (block?.items || []) as Record<string, unknown>[]
-      return {
+
+      
+return {
         rating_value: (block?.rating_value as number) ?? null,
         reviews_count: (block?.reviews_count as number) ?? items.length,
         reviews: items.map(r => {
           const rObj = (r.rating || {}) as Record<string, unknown>
-          return { rating: (rObj.value as number) ?? 0, review_text: (r.review_text as string) || "", reviewer_name: (r.profile_name as string) || null }
+
+          
+return { rating: (rObj.value as number) ?? 0, review_text: (r.review_text as string) || "", reviewer_name: (r.profile_name as string) || null }
         }),
       }
     }
+
     if (task?.status_code === 40601) break
   }
-  return null
+
+  
+return null
 }
 
 // ── Market Holds (rsxt-t0 append) ──
@@ -320,6 +374,7 @@ export interface MarketHoldInput {
 export async function appendMarketHolds(holds: MarketHoldInput[]): Promise<void> {
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tdigauruusdhnpvppixb.supabase.co'}/rest/v1/market_holds`
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
   await Promise.all(holds.map(hold =>
     fetch(url, {
       method: 'POST',
@@ -346,13 +401,16 @@ export interface WebsiteContacts {
 /** Extract social links, emails, phones from website HTML via DataForSEO content parsing. $0.0005/call */
 export async function parseWebsiteContacts(url: string): Promise<WebsiteContacts | null> {
   const c = getClient()
+
   try {
     const body = JSON.stringify([{ url, enable_javascript: false }])
+
     const res = await fetch(`${c.baseUrl}/v3/on_page/content_parsing/live`, {
       method: "POST",
       headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
       body,
     })
+
     if (!res.ok) return null
     const data = await res.json() as { tasks?: Array<{ result?: Array<{ items?: Array<{ type: string; url?: string; text?: string }> }> }> }
     const items = data.tasks?.[0]?.result?.[0]?.items || []
@@ -392,6 +450,7 @@ export async function parseWebsiteContacts(url: string): Promise<WebsiteContacts
       // Phones (Brazil pattern)
       for (const match of text.matchAll(PHONE_BR_RE)) {
         const phone = match[0].replace(/[^0-9]/g, "")
+
         if (phone.length >= 10) {
           if (phone.length === 11 && (phone.startsWith("9") || phone[2] === "9")) {
             if (!whatsapp_numbers.includes(phone)) whatsapp_numbers.push(phone)

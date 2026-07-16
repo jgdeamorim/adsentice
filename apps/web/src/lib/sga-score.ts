@@ -10,7 +10,7 @@
 
 import "server-only"
 import type { SemanticNode } from "./brain/semantic-registry"
-import { ensureSeeded, getMutationId } from "./brain/semantic-registry"
+import { ensureSeeded } from "./brain/semantic-registry"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ export interface SGAHealthResult {
 // ── Query Tracker ─────────────────────────────────────────────
 
 const _queryTimes: number[] = []
-const _cacheHits: number = 0
+const __cacheHits: number = 0
 let _cacheMisses: number = 0
 let _totalQueries: number = 0
 
@@ -39,13 +39,15 @@ export function trackQuery(resolveMs: number, source: "cache" | "qdrant" | "comp
   _totalQueries++
   if (source === "cache") { /* cacheHits tracked separately */ }
   else _cacheMisses++
+
   // Keep last 100 queries
   if (_queryTimes.length > 100) _queryTimes.shift()
 }
 
 export function getCacheHitRate(): number {
   if (_totalQueries === 0) return 0
-  return Math.round(((_totalQueries - _cacheMisses) / _totalQueries) * 100) / 100
+  
+return Math.round(((_totalQueries - _cacheMisses) / _totalQueries) * 100) / 100
 }
 
 // ── Expected Features (o que DEVERIA estar no grafo) ─────────
@@ -125,11 +127,13 @@ export function computeSGAHealth(allNodes: SemanticNode[]): SGAHealthResult {
   let orphanEdges = 0
 
   const nodeMap = new Map<string, SemanticNode>()
+
   for (const n of allNodes) nodeMap.set(n.id, n)
 
   for (const node of allNodes) {
     totalEdges += node.edges.length
     const sourceSchema = CAPABILITY_SCHEMAS[node.id]
+
     if (!sourceSchema || !sourceSchema.produces) {
       // Non-capability nodes (signals, hubs, products) — arestas sempre contam como estruturais
       confirmedEdges += node.edges.length
@@ -138,15 +142,20 @@ export function computeSGAHealth(allNodes: SemanticNode[]): SGAHealthResult {
 
     for (const edgeId of node.edges) {
       const target = nodeMap.get(edgeId)
+
       if (!target) { orphanEdges++; continue }
       const targetSchema = CAPABILITY_SCHEMAS[target.id]
+
       if (!targetSchema || !targetSchema.consumes) {
         // Target is signal/hub/product — count as structural edge
         confirmedEdges++
         continue
       }
+
+
       // k0_breath check: output ∩ input ≠ ∅
       const overlap = sourceSchema.produces.filter(f => targetSchema.consumes.includes(f))
+
       if (overlap.length > 0) {
         confirmedEdges++
       } else {
@@ -170,6 +179,7 @@ export function computeSGAHealth(allNodes: SemanticNode[]): SGAHealthResult {
 
   for (const [layer, expectedIds] of Object.entries(EXPECTED_FEATURES)) {
     const present = expectedIds.filter(id => nodeMap.has(`${layer === "capability" ? "cap" : layer === "signal" ? "signal" : layer === "hub" ? "hub" : "product"}.${id}`) || [...nodeMap.keys()].some(k => k.includes(id))).length
+
     coverageByLayer[layer] = { count: present, expected: expectedIds.length }
     totalExpected += expectedIds.length
     totalPresent += present
@@ -189,6 +199,7 @@ export function computeSGAHealth(allNodes: SemanticNode[]): SGAHealthResult {
   const minMut = mutationIds.length > 0 ? Math.min(...mutationIds) : 0
   const maxMut = mutationIds.length > 0 ? Math.max(...mutationIds) : 0
   const mutationGap = maxMut - minMut
+
   // Gap normalizado: ideal é tudo no mesmo mutationId (gap ~0)
   const freshnessScore = mutationGap <= 1 ? 1.0 : mutationGap <= 3 ? 0.8 : mutationGap <= 6 ? 0.6 : mutationGap <= 10 ? 0.4 : 0.2
 

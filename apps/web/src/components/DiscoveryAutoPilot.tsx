@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -26,7 +27,9 @@ export default function DiscoveryAutoPilot(props: {
   onMapDistrict: (district: string, city: string, radius: number) => void
 }) {
   const { autoMode, autoModeType, autoLoading, autoQueue, onToggleAuto, onToggleType, onMapDistrict } = props
-  return (
+
+  
+return (
     <Card sx={{ borderLeft: 4, borderColor: autoMode ? 'success.main' : 'divider' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>

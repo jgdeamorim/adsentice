@@ -219,10 +219,12 @@ export function classifyCMSRisk(cms: string | null | undefined, website: string 
   // ── Own domain — check L2 CMS data ──
   if (cms) {
     const c = cms.toLowerCase()
+
     if (c.includes("wordpress")) return { level: "medium", label: "WordPress — risco de plugins desatualizados", points: 5 }
     if (c.includes("wix")) return { level: "medium", label: "Wix (domínio próprio) — SEO limitado", points: 4 }
     if (c.includes("joomla") || c.includes("drupal")) return { level: "low", label: `${cms} — CMS legado`, points: 3 }
     if (c.includes("shopify") || c.includes("squarespace") || c.includes("webflow")) return { level: "none", label: `${cms} — plataforma moderna`, points: 0 }
+
     // Unknown CMS detected
     return { level: "low", label: `${cms} — CMS não identificado`, points: 2 }
   }
@@ -342,6 +344,7 @@ export function scoreFit(input: ScoringInput): DimensionScore {
 
   // ── W7 (L2): Sem Blog/Conteúdo — proxy: word_count < 300 (5pts) ──
   const hasL2 = input.l2_onpage_score != null
+
   if (hasL2) {
     if (input.l2_word_count != null && input.l2_word_count < 300) { raw += 5; detected.push("W7:sem_blog") }
     else if (input.l2_word_count != null) { missing.push("W7:tem_conteudo") }
@@ -415,6 +418,7 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
 
   // ── W2-W6, W8 (L2): Website+SEO engagement signals ──
   const hasL2 = input.l2_onpage_score != null
+
   if (hasL2) {
     // W2: Core Web Vitals Ruins — lighthouse_perf < 0.4 (10pts)
     if (input.l2_lighthouse_performance != null && input.l2_lighthouse_performance < 0.4) {
@@ -446,6 +450,7 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
 
     // W6: CMS/Plataforma de Risco — detecta Linktree, Wix, WP, etc. (5-8pts)
     const cmsRisk = classifyCMSRisk(input.l2_cms, input.website)
+
     if (cmsRisk.points > 0) {
       raw += cmsRisk.points; detected.push(`W6:${cmsRisk.level}_${cmsRisk.label.replace(/[^a-z0-9]/gi, '_').substring(0, 20)}`)
     } else if (cmsRisk.level === "none" && input.l2_cms) {
@@ -469,8 +474,10 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
 
     // W10: Content Readability — low readability from seo_checks (8pts)
     const seoChecks2 = input.l2_seo_checks || {}
+
     const hasReadabilityIssue = Object.entries(seoChecks2).some(([k, v]) =>
       (k.includes("readability") || k.includes("readable")) && v === true)
+
     if (hasReadabilityIssue) {
       raw += 8; detected.push("W10:baixa_leiturabilidade")
     } else if (Object.keys(seoChecks2).length > 0) {
@@ -533,6 +540,7 @@ export function scoreIntent(input: ScoringInput): DimensionScore {
 
   // ── W1 (L2): Sem HTTPS — HTTP apenas (20pts) ──
   const hasL2 = input.l2_onpage_score != null
+
   if (hasL2) {
     if (input.l2_https === false) { raw += 20; detected.push("W1:sem_https") }
     else if (input.l2_https === true) { missing.push("W1:tem_https") }
@@ -620,6 +628,7 @@ export function scoreLead(input: ScoringInput): ScoreData {
 
   // v0.5 Content Gap Analysis (only for L2-enriched leads)
   const contentGap = scoreContentGap(input)
+
   // v0.4 Site Architecture + Schema (only for L2-enriched leads)
   const architecture = scoreArchitecture(input)
   const schema = scoreSchema(input)
@@ -653,6 +662,7 @@ function computeConfidence(fit: DimensionScore, engagement: DimensionScore, inte
     fit.signalsMissing.some(s => s.startsWith("W")) ||
     engagement.signalsMissing.some(s => s.startsWith("W")) ||
     intent.signalsMissing.some(s => s.startsWith("W"))
+
   const totalSignals = hasL2Signals ? 28 : 20 // F1-F10(10) + E1-E7(7) + I1-I3(3) + W1-W8(8)
 
   const evaluated = fit.signalsDetected.length + fit.signalsMissing.length +

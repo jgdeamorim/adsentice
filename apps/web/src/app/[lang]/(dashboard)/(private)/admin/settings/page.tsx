@@ -27,6 +27,7 @@ export const dynamic = 'force-dynamic'
 const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   // Tab selection via URL hash or default to 0
@@ -43,6 +44,7 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
   // Cloudflare: R2 + Workers + Pages + KV + D1 + Queues + AI Gateway + Email Routing (ADR-0016)
   const hasCfAccount = !!process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_ACCOUNT_ID.length > 10
     || !!process.env.CLOUDFLARE_R2_ACCOUNT_ID && process.env.CLOUDFLARE_R2_ACCOUNT_ID.length > 10
+
   const hasCfToken = !!process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_API_TOKEN.length > 10
   const hasR2Account = !!process.env.CLOUDFLARE_R2_ACCOUNT_ID && process.env.CLOUDFLARE_R2_ACCOUNT_ID.length > 10
   const hasR2Access = !!process.env.CLOUDFLARE_R2_ACCESS_KEY && process.env.CLOUDFLARE_R2_ACCESS_KEY.length > 10

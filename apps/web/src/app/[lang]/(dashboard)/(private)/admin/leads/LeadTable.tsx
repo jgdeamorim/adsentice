@@ -32,6 +32,7 @@ interface LeadRow {
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
   place_id?: string | null
+
   // L2 fields (v0.3)
   l2_onpage_score?: number | null; l2_meta_title?: string | null
   l2_meta_description?: string | null; l2_word_count?: number | null
@@ -39,6 +40,7 @@ interface LeadRow {
   l2_images_count?: number | null; l2_cms?: string | null
   l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
   l2_country_iso_code?: string | null; l2_enriched_at?: string | null
+
   // Content Gap (v0.5)
   l2_content_maturity?: number | null; l2_content_gaps?: Record<string, unknown> | null
 }

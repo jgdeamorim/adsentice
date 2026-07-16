@@ -20,6 +20,7 @@ function cacheKey(url: string): string {
 export async function ibgeFetch(url: string, ttl: number = CACHE_TTL): Promise<any> {
   const key = cacheKey(url)
   const cached = _cache.get(key)
+
   if (cached && Date.now() - cached.ts < ttl * 1000) return cached.data
 
   const resp = await fetch(url, {
@@ -29,12 +30,15 @@ export async function ibgeFetch(url: string, ttl: number = CACHE_TTL): Promise<a
 
   if (!resp.ok) {
     console.warn(`[ibge] HTTP ${resp.status}: ${url}`)
-    return null
+    
+return null
   }
 
   const data = await resp.json()
+
   _cache.set(key, { data, ts: Date.now() })
-  return data
+  
+return data
 }
 
 /** SIDRA query helper: /t/{table}/n6/{municipioId}/v/all/p/last */

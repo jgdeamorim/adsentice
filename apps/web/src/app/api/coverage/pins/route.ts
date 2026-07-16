@@ -5,6 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server"
+
 import { getAdminClient } from "@/lib/supabase-admin"
 
 export const runtime = "nodejs"
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   try {
     const supabase = getAdminClient()
+
     const { data, error } = await supabase
       .from("discovery_searches")
       .select("id,categories,lat,lng,radius_km,total_count,avg_score,created_at")
@@ -40,14 +42,19 @@ export async function GET() {
       ["Recife", -8.05, -34.88],
       ["Manaus", -3.12, -60.02],
     ]
+
     const resolveCity = (lat: number, lng: number): string => {
       let best = CAPITALS[0]
       let bestDist = Infinity
+
       for (const c of CAPITALS) {
         const d = Math.abs(lat - c[1]) + Math.abs(lng - c[2]) * 0.5 // lng weighted less
+
         if (d < bestDist) { bestDist = d; best = c }
       }
-      return bestDist < 3 ? best[0] : `${lat.toFixed(1)}, BR`
+
+      
+return bestDist < 3 ? best[0] : `${lat.toFixed(1)}, BR`
     }
 
     const pins = data.map((r: any) => ({

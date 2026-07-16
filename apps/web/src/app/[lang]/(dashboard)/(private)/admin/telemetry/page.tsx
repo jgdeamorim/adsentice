@@ -1,6 +1,7 @@
 // adsentice · Admin / Telemetry — Finding Alerts + Route Health + Event Log
 // Padrão EVO-API :7700/health + capital.RS capital-observability
 import { Suspense } from 'react'
+
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -17,7 +18,6 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
 import CircularProgress from '@mui/material/CircularProgress'
 
 import { getSessionUser } from '@/libs/supabase/server'
@@ -29,9 +29,11 @@ export const dynamic = 'force-dynamic'
 
 function getHealthColor(activeAlerts: ReturnType<typeof getAlerts>) {
   const hasCritical = activeAlerts.filter(a => a.level === 'critical').length > 0
+
   if (hasCritical) return 'error' as const
   if (activeAlerts.length > 0) return 'warning' as const
-  return 'success' as const
+  
+return 'success' as const
 }
 
 function getHealthStatus(activeAlerts: ReturnType<typeof getAlerts>) {
@@ -55,6 +57,7 @@ export default function TelemetryPage(props: { params: Promise<{ lang: string }>
 async function TelemetryContent({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   const alerts = getAlerts()

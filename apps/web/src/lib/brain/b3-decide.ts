@@ -9,7 +9,7 @@ import { cacheGet, cachePut } from "./a3-cache"
 import { classifyIntent, type IntentResult } from "./c0-interpreter"
 import { c1Rerank, type RankedHit } from "./c1-retriever"
 import { computeCertainty, type CertaintyResult } from "./b2-self-score"
-import { groundingCheck, c3Honesty, type GroundingResult } from "./d1-grounding"
+import { c3Honesty, type GroundingResult } from "./d1-grounding"
 
 export type BrainTier = "bypass-score" | "bypass-cache" | "b3-claude"
 
@@ -61,6 +61,7 @@ export async function brainTurn(
 
   // ── A3: Cache check ──
   const cached = await cacheGet(question, intent.intent)
+
   if (cached && cached.watermark === cached.watermark) {
     return {
       reply: cached.reply, tier: "bypass-cache", intent, facts,
@@ -102,5 +103,6 @@ export async function brainTurn(
  *  Piso honesto para quando nada funciona. Inspirado no EVO-API dag.rs:438-447. */
 export function extractiveReply(facts: { source: string; excerpt: string }[]): string {
   if (facts.length === 0) return "Nao encontrei isso no que sei do ecossistema (KG · corpus-A). Pode reformular ou dar mais contexto?"
-  return "Segundo o Knowledge Graph do adsentice:\n\n" + facts.slice(0, 4).map(f => `• [${f.source}] ${f.excerpt.slice(0, 300)}`).join("\n\n")
+  
+return "Segundo o Knowledge Graph do adsentice:\n\n" + facts.slice(0, 4).map(f => `• [${f.source}] ${f.excerpt.slice(0, 300)}`).join("\n\n")
 }

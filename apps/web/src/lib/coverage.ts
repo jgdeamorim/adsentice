@@ -10,7 +10,6 @@
 
 import "server-only"
 import { getAdminClient } from "./supabase-admin"
-import { normalizeCategory } from "./market-intel"
 
 export interface DistrictCoverage {
   district: string
@@ -54,7 +53,9 @@ function estimatedDistricts(city: string): number {
   for (const [key, n] of Object.entries(CITY_DISTRICT_ESTIMATES)) {
     if (city.includes(key)) return n
   }
-  return CITY_DISTRICT_ESTIMATES.default
+
+  
+return CITY_DISTRICT_ESTIMATES.default
 }
 
 /** Retorna relatório de cobertura para uma categoria em uma cidade. */
@@ -74,10 +75,13 @@ export async function getCoverage(categorySlug: string, city: string): Promise<C
 
     // 2 — Agrupa por distrito (dedup place_id)
     const byDistrict = new Map<string, { places: Set<string>; scores: number[] }>()
+
     for (const r of listings) {
       const d = (r.district || "?").trim()
+
       if (!byDistrict.has(d)) byDistrict.set(d, { places: new Set(), scores: [] })
       const entry = byDistrict.get(d)!
+
       if (r.place_id) entry.places.add(r.place_id)
       if (r.score_compound != null) entry.scores.push(r.score_compound)
     }
@@ -92,6 +96,7 @@ export async function getCoverage(categorySlug: string, city: string): Promise<C
       const avg = data.scores.length
         ? Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length)
         : 0
+
       mapped.push({
         district,
         listings: data.scores.length,
@@ -112,6 +117,7 @@ export async function getCoverage(categorySlug: string, city: string): Promise<C
     //     Usamos referência fixa das regiões administrativas oficiais
     const officialDistricts = getOfficialDistricts(city)
     const mappedNames = new Set(mapped.map(m => m.district.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")))
+
     const gaps = officialDistricts
       .filter(d => !mappedNames.has(d.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")))
       .slice(0, 12)
@@ -138,7 +144,8 @@ export async function getCoverage(categorySlug: string, city: string): Promise<C
     }
   } catch (e: any) {
     console.error("[coverage]", e.message)
-    return null
+    
+return null
   }
 }
 
@@ -179,6 +186,7 @@ function getOfficialDistricts(city: string): string[] {
 export async function listCoveredCities(): Promise<{ city: string; districts: number; businesses: number }[]> {
   try {
     const supabase = getAdminClient()
+
     const { data, error } = await supabase
       .from("discovery_listings")
       .select("city,place_id,district")
@@ -188,10 +196,13 @@ export async function listCoveredCities(): Promise<{ city: string; districts: nu
     if (error || !data) return []
 
     const byCity = new Map<string, { places: Set<string>; districts: Set<string> }>()
+
     for (const r of data) {
       const c = r.city || "?"
+
       if (!byCity.has(c)) byCity.set(c, { places: new Set(), districts: new Set() })
       const e = byCity.get(c)!
+
       if (r.place_id) e.places.add(r.place_id)
       if (r.district) e.districts.add(r.district)
     }

@@ -24,6 +24,7 @@ export interface CEPEnriched extends CEPResult {
 export async function resolveCEP(cep: string): Promise<CEPEnriched | null> {
   // 1 — Busca CEP
   const cepData = await fetchCEP(cep)
+
   if (!cepData) return null
 
   // 2 — Geocoding (se ViaCEP, que não retorna coordenadas)
@@ -34,13 +35,16 @@ export async function resolveCEP(cep: string): Promise<CEPEnriched | null> {
     const geo = await geocodeAddress(
       cepData.logradouro, cepData.bairro, cepData.cidade, cepData.uf
     )
+
     if (geo) { lat = geo.lat; lng = geo.lng }
   }
 
   // 3 — IBGE Panorama do município
   let panorama: CEPEnriched["panorama"] = null
+
   try {
     const supabase = getAdminClient()
+
     const { data: ibgeRows } = await supabase
       .from("ibge_panorama")
       .select("populacao,pib_per_capita,densidade_demografica")
@@ -49,6 +53,7 @@ export async function resolveCEP(cep: string): Promise<CEPEnriched | null> {
 
     if (ibgeRows?.length) {
       const r = ibgeRows[0]
+
       panorama = {
         populacao: r.populacao ?? null,
         pib_per_capita: r.pib_per_capita ?? null,

@@ -6,6 +6,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server"
+
 import { buildDiscoveryQueue } from "@/lib/target-scorer"
 import { rankStates } from "@/lib/state-scorer"
 
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     // Sem cidade → retorna ranking de estados + fila do melhor estado
     if (!city) {
       const ranking = await rankStates(category)
+
       if (!ranking) {
         return NextResponse.json({ error: "no data" }, { status: 404 })
       }
@@ -48,7 +50,9 @@ export async function GET(request: Request) {
 
     // Com cidade → fila de distritos tradicional
     const queue = await buildDiscoveryQueue(category, city)
-    return NextResponse.json({ mode: "city-queue", queue })
+
+    
+return NextResponse.json({ mode: "city-queue", queue })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

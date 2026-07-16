@@ -20,5 +20,6 @@ export function getAdminClient() {
     auth: { persistSession: false, autoRefreshToken: false },
     db: { schema: "public" },
   })
-  return _admin
+  
+return _admin
 }

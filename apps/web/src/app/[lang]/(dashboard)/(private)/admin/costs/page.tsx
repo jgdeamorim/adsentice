@@ -3,10 +3,11 @@
 // adsentice · Admin / Costs — centro de custos (medido=verdade)
 // Fontes: cost-registry.yaml + Supabase REST + Redis + plans.ts canônico
 // ZERO pg Pool. ZERO CardStatVertical (forca trend desnecessario).
-import { redirect } from 'next/navigation'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { execSync } from 'child_process'
+
+import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -18,7 +19,7 @@ import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 
 import { getSessionUser } from '@/libs/supabase/server'
-import { STRATEGIC_PLANS, type StrategicPlan } from '@/lib/plans'
+import { STRATEGIC_PLANS } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +31,9 @@ interface CostEntry { id: string; cost_usd: number; confidence: string; layer: s
 
 function ensure(v: unknown, fallback: number): number {
   const n = Number(v)
-  return isNaN(n) || !isFinite(n) ? fallback : n
+
+  
+return isNaN(n) || !isFinite(n) ? fallback : n
 }
 
 // ── Cost Registry (YAML → dynamic, multiple path attempts) ──
@@ -41,19 +44,25 @@ function readCostRegistry(): CostEntry[] {
     resolve(process.cwd(), 'packages/provider-core/cost-registry.yaml'),
     resolve(process.cwd(), '../packages/provider-core/cost-registry.yaml'),
   ]
+
   let raw = ''
+
   for (const p of candidates) {
     try { raw = readFileSync(p, 'utf-8'); if (raw) break } catch { /* next */ }
   }
+
   if (!raw) return []
   const entries: CostEntry[] = []
   let inBlock = false
+
   for (const line of raw.split('\n')) {
     const t = line.trim()
+
     if (t === 'costs:') { inBlock = true; continue }
     if (!inBlock || !t || t.startsWith('#') || t.startsWith('provider:') || t.startsWith('updated:')) continue
     if (t.startsWith('pipeline.')) continue
     const m = t.match(/^(\S[\S.]*?):\s*\{\s*cost_usd:\s*"([\d.]+)"\s*,\s*confidence:\s*(\S+)/)
+
     if (m) entries.push({
       id: m[1], cost_usd: parseFloat(m[2]), confidence: m[3],
       layer: m[1].startsWith('business.listings') ? 'L0'
@@ -62,7 +71,9 @@ function readCostRegistry(): CostEntry[] {
         : m[1].startsWith('backlinks') ? 'L3' : 'L4',
     })
   }
-  return entries
+
+  
+return entries
 }
 
 // ── Redis ──
@@ -71,7 +82,9 @@ function redisRaw(key: string): string {
   try { return execSync(`redis-cli -p 6396 --no-auth-warning GET ${key}`, { timeout: 2000, stdio: ['ignore','pipe','ignore'] }).toString().trim() }
   catch { return '' }
 }
+
 function redisNum(key: string): number { return ensure(parseFloat(redisRaw(key)), 0) }
+
 function redisInt(key: string): number { return ensure(parseInt(redisRaw(key), 10), 0) }
 
 // ── Supabase REST ──
@@ -83,25 +96,32 @@ const SB_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 async function sbGet(path: string): Promise<any> {
   try {
     const key = SB_KEY || SB_ANON
+
     const res = await fetch(`${SFX}/rest/v1/${path}`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
       signal: AbortSignal.timeout(8000),
     })
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
+    
+return res.json()
   } catch { return null }
 }
 
 async function sbCount(path: string): Promise<number> {
   try {
     const key = SB_KEY || SB_ANON
+
     const res = await fetch(`${SFX}/rest/v1/${path}`, {
       headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact' },
       signal: AbortSignal.timeout(8000),
     })
+
     const range = res.headers.get('content-range') || ''
     const m = range.match(/\/(\d+)/)
-    return m ? parseInt(m[1], 10) : 0
+
+    
+return m ? parseInt(m[1], 10) : 0
   } catch { return 0 }
 }
 
@@ -113,8 +133,11 @@ async function querySupabase() {
     sbCount('discovery_listings?select=place_id&enrichment_level=gte.1&limit=1'),
     sbCount('discovery_listings?select=place_id&enrichment_level=gte.2&limit=1'),
   ])
+
   const rows = searches || []
-  return {
+
+  
+return {
     totalCost: ensure(rows.reduce((s, r) => s + ensure(r.cost_usd, 0), 0), 0),
     totalSearches: rows.length,
     l1Calls: l1Count,
@@ -127,6 +150,7 @@ const fmt = (n: number, d: number): string => n.toFixed(d)
 const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
+
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   // ═══ All dynamic data ═══
@@ -148,13 +172,16 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
 
   // ═══ DeepSeek Balance — fetch direto da API ═══
   let dsBal: any = null
+
   try {
     const key = process.env.DEEPSEEK_API_KEY
+
     if (key) {
       const balRes = await fetch("https://api.deepseek.com/user/balance", {
         headers: { Authorization: `Bearer ${key}` },
         signal: AbortSignal.timeout(10000),
       })
+
       if (balRes.ok) dsBal = await balRes.json()
     }
   } catch { /* API offline */ }
@@ -170,6 +197,7 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
     'keyword.volume', 'keyword.trends', 'keyword.related',
     'keyword.historical', 'content.sentiment.summary',
   ])
+
   const usedCaps = caps.filter(c => usedIds.has(c.id))
   const availCaps = caps.filter(c => !usedIds.has(c.id))
 
@@ -185,7 +213,9 @@ const CostsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
     const custoMensalBRL = leadsCustoEstimado * brl // em reais
     const margemBRL = p.priceNum - custoMensalBRL
     const margemPct = p.priceNum > 0 ? Math.round((margemBRL / p.priceNum) * 100) : 0
-    return { ...p, leadsCustoEstimado, custoMensalBRL, margemBRL, margemPct }
+
+    
+return { ...p, leadsCustoEstimado, custoMensalBRL, margemBRL, margemPct }
   })
 
   // ── Render ──

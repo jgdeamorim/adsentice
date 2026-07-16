@@ -79,7 +79,9 @@ export function generateLocalBusinessSchema(input: ScoringInput): string {
 
   // Remove undefined values
   const clean = JSON.parse(JSON.stringify(schema))
-  return JSON.stringify(clean, null, 2)
+
+  
+return JSON.stringify(clean, null, 2)
 }
 
 // ── Scoring ───────────────────────────────────────────────────
@@ -93,6 +95,7 @@ export function scoreSchema(input: ScoringInput): SchemaResult | null {
 
   const signals = { s1_missing_local_business: false,
     s2_missing_organization: false, s3_invalid_or_no_schema: false }
+
   const gapsDetected: string[] = []
   const gapsAbsent: string[] = []
   let painRaw = 0
@@ -104,6 +107,7 @@ export function scoreSchema(input: ScoringInput): SchemaResult | null {
     // Check if schema has LocalBusiness type (basic check)
     const knownFlags = Object.keys(checks)
     const hasLocalBizFlag = knownFlags.some(k => k.includes("local") || k.includes("LocalBusiness"))
+
     if (!hasLocalBizFlag) {
       painRaw += 8; signals.s1_missing_local_business = true; gapsDetected.push("S1:parcial")
     } else { gapsAbsent.push("S1") }
@@ -121,6 +125,7 @@ export function scoreSchema(input: ScoringInput): SchemaResult | null {
     // Check for known schema errors in seo_checks
     const schemaErrors = Object.entries(checks).filter(([k, v]) =>
       k.includes("schema") && (v === true || v === false))
+
     if (schemaErrors.length > 0) {
       painRaw += 4; signals.s3_invalid_or_no_schema = true; gapsDetected.push("S3:erros")
     } else { gapsAbsent.push("S3") }
@@ -139,10 +144,13 @@ export function scoreSchema(input: ScoringInput): SchemaResult | null {
 /** Classify schema maturity from 0-100 score. */
 export function classifySchemaMaturity(maturityScore: number): SchemaMaturityLevel {
   let level: 0 | 1 | 2 | 3
+
   if (maturityScore >= 81) level = 3
   else if (maturityScore >= 41) level = 2
   else if (maturityScore >= 21) level = 1
   else level = 0
   const def = SCHEMA_MATURITY_LEVELS[level]
-  return { level, ...def }
+
+  
+return { level, ...def }
 }

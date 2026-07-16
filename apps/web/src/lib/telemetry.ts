@@ -66,6 +66,7 @@ export function pushEvent(event: Omit<TelemetryEvent, "timestamp">): void {
       ...event,
       timestamp: new Date().toISOString(),
     }
+
     const json = JSON.stringify(e).replace(/'/g, "'\\''")
 
     // LPUSH + LTRIM = circular buffer (últimos 1000 eventos)
@@ -74,10 +75,13 @@ export function pushEvent(event: Omit<TelemetryEvent, "timestamp">): void {
 
     // Atualiza contador de status por rota
     const statusKey = `adsentice:telemetry:status:${event.route}`
+
     redisCli(`HINCRBY ${statusKey} total 1`)
+
     if (event.status >= 400) {
       redisCli(`HINCRBY ${statusKey} errors 1`)
     }
+
     redisCli(`HINCRBY ${statusKey} latency_ms ${event.latency_ms}`)
     redisCli(`EXPIRE ${statusKey} ${TTL_DAYS * 86400}`)
 
@@ -89,6 +93,8 @@ export function pushEvent(event: Omit<TelemetryEvent, "timestamp">): void {
         message: `${event.provider || "HTTP"} error ${event.status}${event.error ? `: ${event.error}` : ""}`,
         detail: event.detail,
       })
+
+
       // Dispara árbitro em background (fire-and-forget)
       try {
         execSync("python3 tools/adsentice_finding_arbiter.py", {
@@ -99,6 +105,7 @@ export function pushEvent(event: Omit<TelemetryEvent, "timestamp">): void {
 
     // Expira o evento mais antigo além do TTL
     const count = redisCli(`LLEN ${TELEMETRY_KEY}`)
+
     if (count && parseInt(count) > MAX_EVENTS) {
       redisCli(`EXPIRE ${TELEMETRY_KEY} ${TTL_DAYS * 86400}`)
     }
@@ -117,12 +124,14 @@ export function pushAlert(alert: Omit<FindingAlert, "id" | "count" | "first_seen
     if (dup) {
       // Incrementa contador
       const idx = existing.indexOf(dup)
+
       redisCli(`LSET ${ALERTS_KEY} ${idx} '${JSON.stringify({
         ...dup,
         count: dup.count + 1,
         last_seen: new Date().toISOString(),
       }).replace(/'/g, "'\\''")}'`)
-      return
+      
+return
     }
 
     const a: FindingAlert = {
@@ -133,7 +142,9 @@ export function pushAlert(alert: Omit<FindingAlert, "id" | "count" | "first_seen
       last_seen: new Date().toISOString(),
       acknowledged: false,
     }
+
     const json = JSON.stringify(a).replace(/'/g, "'\\''")
+
     redisCli(`LPUSH ${ALERTS_KEY} '${json}'`)
     redisCli(`LTRIM ${ALERTS_KEY} 0 ${MAX_ALERTS - 1}`)
     redisCli(`EXPIRE ${ALERTS_KEY} ${TTL_DAYS * 86400}`)
@@ -146,7 +157,9 @@ export function pushAlert(alert: Omit<FindingAlert, "id" | "count" | "first_seen
 export function getEvents(limit = 50): TelemetryEvent[] {
   try {
     const raw = redisCli(`LRANGE ${TELEMETRY_KEY} 0 ${limit - 1}`)
+
     if (!raw) return []
+
     // Redis returns each element on a new line
     return raw.split("\n").map(line => {
       try { return JSON.parse(line) } catch { return null }
@@ -158,8 +171,10 @@ export function getEvents(limit = 50): TelemetryEvent[] {
 export function getAlerts(): FindingAlert[] {
   try {
     const raw = redisCli(`LRANGE ${ALERTS_KEY} 0 ${MAX_ALERTS - 1}`)
+
     if (!raw) return []
-    return raw.split("\n").map(line => {
+    
+return raw.split("\n").map(line => {
       try { return JSON.parse(line) } catch { return null }
     }).filter(Boolean) as FindingAlert[]
   } catch { return [] }
@@ -170,6 +185,7 @@ export function ackAlert(id: string): void {
   try {
     const alerts = getAlerts()
     const idx = alerts.findIndex(a => a.id === id)
+
     if (idx >= 0) {
       alerts[idx].acknowledged = true
       redisCli(`LSET ${ALERTS_KEY} ${idx} '${JSON.stringify(alerts[idx]).replace(/'/g, "'\\''")}'`)
@@ -184,25 +200,33 @@ export function getArbiterVerdict(): any {
       "redis-cli -p 6396 --no-auth-warning GET adsentice:telemetry:arbiter_verdict",
       { timeout: 2000, stdio: ["ignore", "pipe", "ignore"] }
     ).toString().trim()
+
     if (raw) return JSON.parse(raw)
   } catch { /* offline */ }
-  return null
+
+  
+return null
 }
 
 /** Estatísticas de telemetria por rota. */
 export function getRouteStats(): Record<string, { total: number; errors: number; avg_latency_ms: number }> {
   try {
     const keys = redisCli("KEYS adsentice:telemetry:status:*")
+
     if (!keys) return {}
     const stats: Record<string, { total: number; errors: number; avg_latency_ms: number }> = {}
+
     for (const key of keys.split("\n")) {
       if (!key.trim()) continue
       const route = key.replace("adsentice:telemetry:status:", "")
       const total = parseInt(redisCli(`HGET ${key} total`) || "0")
       const errors = parseInt(redisCli(`HGET ${key} errors`) || "0")
       const latency = parseInt(redisCli(`HGET ${key} latency_ms`) || "0")
+
       stats[route] = { total, errors, avg_latency_ms: total > 0 ? Math.round(latency / total) : 0 }
     }
-    return stats
+
+    
+return stats
   } catch { return {} }
 }
