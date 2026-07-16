@@ -111,10 +111,10 @@ export async function businessListingsSearch(params: {
     order_by: params.order_by || undefined,
     filters: params.filters || undefined,
   }]
-  const data = await c.post<{ items: Record<string, unknown>[], tasks?: Array<{ result?: Array<{ items_count?: number }> }> }>("/v3/business_data/business_listings/search/live", body)
-  console.log(`[adapter:L0] raw keys: ${Object.keys(data).join(',')}, items: ${(data.items || []).length}`)
-  const items = data.items || []
-  const totalCount = data.tasks?.[0]?.result?.[0]?.items_count || items.length
+  const data = await c.post<{ tasks?: Array<{ cost?: number; result?: Array<{ total_count?: number; items?: Record<string, unknown>[] }> }> }>("/v3/business_data/business_listings/search/live", body)
+  const result = data.tasks?.[0]?.result?.[0]
+  const items = result?.items || []
+  const totalCount = result?.total_count || items.length
   const listings: BusinessListing[] = items.map(item => {
     const rating = (item.rating || {}) as Record<string, unknown>
     return {
@@ -130,7 +130,7 @@ export async function businessListingsSearch(params: {
       is_claimed: (item.is_claimed as boolean) ?? null,
     }
   })
-  return { total_count: totalCount, listings, cost_usd: items.length * 0.0003 }
+  return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || items.length * 0.0003 }
 }
 
 /** L1: Google Business Profile — $0.0054/lead */
