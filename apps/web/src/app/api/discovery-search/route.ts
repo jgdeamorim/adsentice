@@ -543,7 +543,7 @@ export async function POST(request: NextRequest) {
     const shouldEnrich = enrich || force
 
     if (shouldEnrich) {
-      const enriched = await enrichTopLeads(listings, scores, enrich || 100)
+      const enriched = await enrichTopLeads(listings, scores, enrich || 50)
 
       listings = enriched.enrichedListings
       scores = enriched.enrichedScores
