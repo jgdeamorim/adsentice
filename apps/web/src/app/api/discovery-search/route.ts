@@ -212,9 +212,10 @@ async function enrichTopLeadsL2(
 }
 
 // ── L3: Social & Contacts (ADR-0024) ──
-// parseWebsiteContacts + domain_technologies phone/email merge. $0.0005/lead.
+// parseWebsiteContacts + domain_technologies phone/email merge. $0.0005/content_parsing.
 // Extrai redes sociais (Instagram, Facebook, WhatsApp, etc.), emails e telefones
-// do HTML do website. Preenche gaps do GMB (phone, email ausentes).
+// do HTML do website. WhatsApp é campo SEPARADO (l3_whatsapp), não misturado com phone.
+// Preenche gaps do GMB (phone, email ausentes).
 
 async function enrichTopLeadsL3(
   listings: any[],
@@ -224,7 +225,6 @@ async function enrichTopLeadsL3(
   const l3EnrichedListings = [...listings]
   const l3EnrichedScores = [...scores]
 
-  // All leads with website
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
     .filter(({ listing }) => !!listing.website)
@@ -254,24 +254,31 @@ async function enrichTopLeadsL3(
       if (r.status === "rejected") continue
       const { tech, contacts, listing, index } = r.value
 
-      let mergedPhone = listing.phone
+      // ── Phone (voz/fixo): prioridade GMB → domain tech → content parsing ──
+      let mergedPhone = listing.phone  // GMB phone (L1) — primeira prioridade
+      let mergedWhatsApp: string | null = null
       let mergedEmails: string[] = []
       let mergedSocials: { platform: string; url: string }[] = []
 
-      // Domain technologies gives phone_numbers + emails
       if (tech) {
-        const techPhones = tech.phone_numbers || []
+        const techPhones = (tech.phone_numbers || []).filter((p: string) => p.length >= 10)
         const techEmails = tech.emails || []
+        // Só preenche phone se GMB não tem
         if (!mergedPhone && techPhones.length > 0) mergedPhone = techPhones[0]
         mergedEmails.push(...techEmails)
       }
 
-      // Content parsing gives social links + additional contacts
       if (contacts) {
         mergedSocials.push(...contacts.social_links)
         for (const e of contacts.emails) { if (!mergedEmails.includes(e)) mergedEmails.push(e) }
-        if (!mergedPhone && contacts.phones.length > 0) mergedPhone = contacts.phones[0]
-        if (!listing.phone && contacts.whatsapp_numbers.length > 0) mergedPhone = contacts.whatsapp_numbers[0]
+        // WhatsApp: campo SEPARADO (não joga no phone)
+        if (contacts.whatsapp_numbers.length > 0) {
+          mergedWhatsApp = contacts.whatsapp_numbers[0]
+        }
+        // Phone (voz/fixo): só do content_parsing.phones, NÃO do whatsapp_numbers
+        if (!mergedPhone && contacts.phones.length > 0) {
+          mergedPhone = contacts.phones[0]
+        }
       }
 
       mergedEmails = [...new Set(mergedEmails)].slice(0, 5)
@@ -284,6 +291,7 @@ async function enrichTopLeadsL3(
         ...listing,
         l3_emails: mergedEmails.length > 0 ? mergedEmails : null,
         l3_social_links: mergedSocials.length > 0 ? mergedSocials : null,
+        l3_whatsapp: mergedWhatsApp,  // campo SEPARADO de phone
         phone: mergedPhone || listing.phone,
         enrichment_level: Math.max(listing.enrichment_level || 0, 3),
       }

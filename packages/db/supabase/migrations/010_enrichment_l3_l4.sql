@@ -4,10 +4,11 @@
 -- medido=verdade · 2026-07-16
 -- ══════════════════════════════════════════════════════════════════
 
--- L3: Social & Contacts (redes sociais + emails do website)
+-- L3: Social & Contacts (redes sociais + emails + WhatsApp do website)
 ALTER TABLE IF EXISTS discovery_listings
   ADD COLUMN IF NOT EXISTS l3_emails TEXT[] DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS l3_social_links JSONB DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS l3_social_links JSONB DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS l3_whatsapp TEXT DEFAULT NULL;
 
 -- L4: IBGE Market Context (pop, PIB, renda, densidade do município)
 ALTER TABLE IF EXISTS discovery_listings

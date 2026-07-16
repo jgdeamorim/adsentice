@@ -965,7 +965,9 @@ return (
                   <Grid container spacing={1.5} sx={{ mb: 2 }}>
                     {[
                       ['📱 Telefone', selectedLead.phone],
-                      ['💬 WhatsApp', detectWApp(selectedLead.phone) === true ? '✅ WhatsApp detectado' : detectWApp(selectedLead.phone) === false ? '❌ Não é WhatsApp' : null],
+                      ['💬 WhatsApp', (selectedLead as any).l3_whatsapp
+                        ? `✅ ${(selectedLead as any).l3_whatsapp}`
+                        : detectWApp(selectedLead.phone) === true ? '✅ WhatsApp detectado (via regex)' : detectWApp(selectedLead.phone) === false ? '❌ Não é WhatsApp' : null],
                       ['🌐 Website', selectedLead.website],
                       ['🏗️ Tipo de Site', siteKind(selectedLead.website)],
                     ].filter(([, v]) => v).map(([label, value]) => (
@@ -1015,16 +1017,35 @@ return (
                 </>
               )}
 
-              {/* ═══ L2 REDES SOCIAIS + CONTATOS (v1.0) ═══ */}
-              {((selectedLead as any).l2_social_links?.length > 0 || (selectedLead as any).l2_emails?.length > 0) && (
+              {/* ═══ L3 REDES SOCIAIS + CONTATOS (ADR-0024) ═══ */}
+              {(isL2Enriched(selectedLead) || isEnriched(selectedLead)) && (
+                ((selectedLead as any).l3_social_links?.length > 0 ||
+                 (selectedLead as any).l3_emails?.length > 0 ||
+                 (selectedLead as any).l3_whatsapp ||
+                 (selectedLead as any).l2_social_links?.length > 0 ||  // fallback: dados antigos pré-ADR
+                 (selectedLead as any).l2_emails?.length > 0)
+              ) && (
                 <>
-                  <Typography variant='overline' fontWeight={700} color='#e91e63'>📱 Redes Sociais & Contatos Extras</Typography>
+                  <Typography variant='overline' fontWeight={700} color='#e91e63'>📱 Redes Sociais & Contatos (L3 · ADR-0024)</Typography>
                   <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    {(selectedLead as any).l2_social_links?.length > 0 && (
+                    {/* ── WhatsApp (L3, campo dedicado) ── */}
+                    {(selectedLead as any).l3_whatsapp && (
+                      <Grid size={{ xs: 12 }}>
+                        <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 1, border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip label='💬 WhatsApp' size='small' color='success' variant='filled' />
+                          <Typography variant='body2' fontWeight={700} sx={{ fontFamily: 'monospace' }}>
+                            {(selectedLead as any).l3_whatsapp}
+                          </Typography>
+                          <Typography variant='caption' color='text.secondary'>extraído do site</Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                    {/* ── Redes Sociais (L3 prefer, L2 fallback) ── */}
+                    {(((selectedLead as any).l3_social_links || (selectedLead as any).l2_social_links)?.length > 0) && (
                       <Grid size={{ xs: 12 }}>
                         <Typography variant='caption' color='text.secondary'>Redes Sociais</Typography>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
-                          {(selectedLead as any).l2_social_links.map((s: any) => (
+                          {((selectedLead as any).l3_social_links || (selectedLead as any).l2_social_links || []).map((s: any) => (
                             <Chip key={s.url} label={s.platform} size='small' color='info' variant='tonal'
                               component='a' href={s.url} target='_blank' clickable
                               sx={{ fontSize: '0.7rem' }} />
@@ -1032,11 +1053,12 @@ return (
                         </Box>
                       </Grid>
                     )}
-                    {(selectedLead as any).l2_emails?.length > 0 && (
+                    {/* ── Emails (L3 prefer, L2 fallback) ── */}
+                    {(((selectedLead as any).l3_emails || (selectedLead as any).l2_emails)?.length > 0) && (
                       <Grid size={{ xs: 12 }}>
                         <Typography variant='caption' color='text.secondary'>Emails</Typography>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
-                          {(selectedLead as any).l2_emails.map((e: string) => (
+                          {((selectedLead as any).l3_emails || (selectedLead as any).l2_emails || []).map((e: string) => (
                             <Chip key={e} label={e} size='small' variant='outlined' sx={{ fontSize: '0.7rem', fontFamily: 'monospace' }} />
                           ))}
                         </Box>

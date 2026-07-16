@@ -110,6 +110,7 @@ export async function saveDiscoverySearch(params: {
       // L3: Social & Contacts (ADR-0024)
       l3_emails: (l as any).l3_emails || null,
       l3_social_links: (l as any).l3_social_links ? JSON.stringify((l as any).l3_social_links) : null,
+      l3_whatsapp: (l as any).l3_whatsapp || null,
       // L4: IBGE Context (ADR-0024)
       l4_ibge_populacao: (l as any).l4_ibge_populacao || null,
       l4_ibge_pib_per_capita: (l as any).l4_ibge_pib_per_capita || null,
