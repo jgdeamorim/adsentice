@@ -42,7 +42,6 @@ async function enrichTopLeads(
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
-  const BATCH_SIZE = 50  // parallelize all — DataForSEO handles concurrency
   let enrichmentCost = 0
 
   const results = await Promise.allSettled(
@@ -56,46 +55,45 @@ async function enrichTopLeads(
     })
   )
 
-    for (const r of results) {
-      if (r.status === 'rejected') { continue }
-      const { profile, listing, index } = r.value
-      if (!profile || !profile.place_id) continue
-      enrichmentCost += 0.0054
+  for (const r of results) {
+    if (r.status === 'rejected') { continue }
+    const { profile, listing, index } = r.value
+    if (!profile || !profile.place_id) continue
+    enrichmentCost += 0.0054
 
-      const enriched: any = {
-        ...listing,
-        phone: profile.phone || listing.phone,
-        website: profile.website,
-        total_photos: profile.total_photos,
-        description: profile.description,
-        business_status: profile.business_status,
-        main_image: profile.main_image,
-        city: profile.city || listing.city,
-        categories: profile.categories,
-        price_level: profile.price_level,
-        district: profile.district,
-        postal_code: profile.postal_code,
-        country_code: profile.country_code,
-        types: profile.types,
-      }
-
-      const input: ScoringInput = {
-        title: enriched.title, category: enriched.category,
-        categories: enriched.categories, address: enriched.address,
-        rating_value: enriched.rating_value, rating_votes: enriched.rating_votes,
-        place_id: enriched.place_id, cid: enriched.cid,
-        latitude: enriched.latitude, longitude: enriched.longitude,
-        is_claimed: enriched.is_claimed, phone: enriched.phone,
-        website: enriched.website, total_photos: enriched.total_photos,
-        description: enriched.description, business_status: enriched.business_status,
-      }
-
-      const newScores = scoreLeads([input])
-      enriched.contact_methods = detectContactMethods(input)
-      enriched.enrichment_level = 1
-      enrichedListings[index] = enriched
-      enrichedScores[index] = newScores[0]
+    const enriched: any = {
+      ...listing,
+      phone: profile.phone || listing.phone,
+      website: profile.website,
+      total_photos: profile.total_photos,
+      description: profile.description,
+      business_status: profile.business_status,
+      main_image: profile.main_image,
+      city: profile.city || listing.city,
+      categories: profile.categories,
+      price_level: profile.price_level,
+      district: profile.district,
+      postal_code: profile.postal_code,
+      country_code: profile.country_code,
+      types: profile.types,
     }
+
+    const input: ScoringInput = {
+      title: enriched.title, category: enriched.category,
+      categories: enriched.categories, address: enriched.address,
+      rating_value: enriched.rating_value, rating_votes: enriched.rating_votes,
+      place_id: enriched.place_id, cid: enriched.cid,
+      latitude: enriched.latitude, longitude: enriched.longitude,
+      is_claimed: enriched.is_claimed, phone: enriched.phone,
+      website: enriched.website, total_photos: enriched.total_photos,
+      description: enriched.description, business_status: enriched.business_status,
+    }
+
+    const newScores = scoreLeads([input])
+    enriched.contact_methods = detectContactMethods(input)
+    enriched.enrichment_level = 1
+    enrichedListings[index] = enriched
+    enrichedScores[index] = newScores[0]
   }
 
   console.log(`[enrichment] L1: ${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
@@ -163,7 +161,7 @@ async function enrichTopLeadsL2(
     })
   )
 
-    for (const r of results) {
+  for (const r of results) {
       if (r.status === "rejected") continue
       const { audit, tech, listing, index } = r.value
       if (!audit) continue
@@ -224,7 +222,6 @@ async function enrichTopLeadsL2(
       const newScores = scoreLeads([input])
       l2EnrichedListings[index] = enriched
       l2EnrichedScores[index] = newScores[0]
-    }
   }
 
   console.log(`[enrichment] L2: ${toEnrich.length} leads with website enriched, cost $${l2Cost.toFixed(4)}`)
@@ -277,7 +274,7 @@ async function enrichTopLeadsL3(
     })
   )
 
-    for (const r of results) {
+  for (const r of results) {
       if (r.status === "rejected") continue
       const { tech, contacts, listing, index } = r.value
 
@@ -324,7 +321,6 @@ async function enrichTopLeadsL3(
       }
 
       l3EnrichedListings[index] = enriched
-    }
   }
 
   console.log(`[enrichment] L3: ${toEnrich.length} leads crawled for social/contacts, cost $${l3Cost.toFixed(4)}`)
