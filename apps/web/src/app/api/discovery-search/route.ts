@@ -42,22 +42,19 @@ async function enrichTopLeads(
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
-  const BATCH_SIZE = 5
+  const BATCH_SIZE = 50  // parallelize all — DataForSEO handles concurrency
   let enrichmentCost = 0
 
-  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
-    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
-
-    const results = await Promise.allSettled(
-      batchItems.map(async ({ listing, index }) => {
-        const profile = await businessProfileGmb({
-          keyword: listing.title,
-          location_code: 2076,
-          language_code: "pt",
-        })
-        return { profile, listing, index }
+  const results = await Promise.allSettled(
+    toEnrich.map(async ({ listing, index }) => {
+      const profile = await businessProfileGmb({
+        keyword: listing.title,
+        location_code: 2076,
+        language_code: "pt",
       })
-    )
+      return { profile, listing, index }
+    })
+  )
 
     for (const r of results) {
       if (r.status === 'rejected') { continue }
@@ -126,22 +123,45 @@ async function enrichTopLeadsL2(
 
   if (toEnrich.length === 0) return { l2EnrichedListings, l2EnrichedScores, l2Cost: 0 }
 
-  const BATCH_SIZE = 5
-  let l2Cost = 0
+  // 🔥 Parallelize ALL (50 at once — DataForSEO handles concurrency)
+  const results = await Promise.allSettled(
+    toEnrich.map(async ({ listing, index }) => {
+      const domain = extractDomain(listing.website)
+      const cacheKey = `l2:audit:${domain || listing.website}`
+      // Try Redis cache first (website audits don't change frequently)
+      let cachedAudit: any = null; let cachedTech: any = null
+      try {
+        const { execSync } = await import("child_process")
+        const cached = execSync(`redis-cli -p 6396 --no-auth-warning GET "${cacheKey}"`, { timeout: 1000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+        if (cached && cached !== "") {
+          const parsed = JSON.parse(cached)
+          cachedAudit = parsed.audit; cachedTech = parsed.tech
+        }
+      } catch {}
 
-  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
-    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
+      if (cachedAudit && cachedTech) {
+        return { audit: cachedAudit, tech: cachedTech, listing, index, domain, fromCache: true }
+      }
 
-    const results = await Promise.allSettled(
-      batchItems.map(async ({ listing, index }) => {
-        const domain = extractDomain(listing.website)
-        const [audit, tech] = await Promise.allSettled([
-          onPageInstantAudit(listing.website),
-          domain ? domainTechnologies(domain) : Promise.resolve(null),
-        ])
-        return { audit: audit.status === "fulfilled" ? audit.value : null, tech: tech.status === "fulfilled" ? tech.value : null, listing, index, domain }
-      })
-    )
+      const [audit, tech] = await Promise.allSettled([
+        onPageInstantAudit(listing.website),
+        domain ? domainTechnologies(domain) : Promise.resolve(null),
+      ])
+
+      const auditResult = audit.status === "fulfilled" ? audit.value : null
+      const techResult = tech.status === "fulfilled" ? tech.value : null
+
+      // Cache for 30 days (TTL 2592000s)
+      if (auditResult) {
+        try {
+          const { execSync } = await import("child_process")
+          execSync(`redis-cli -p 6396 --no-auth-warning SETEX "${cacheKey}" 2592000 '${JSON.stringify({audit: auditResult, tech: techResult}).replace(/'/g, "'\\''")}'`, { timeout: 1000, stdio: "ignore" })
+        } catch {}
+      }
+
+      return { audit: auditResult, tech: techResult, listing, index, domain, fromCache: false }
+    })
+  )
 
     for (const r of results) {
       if (r.status === "rejected") continue
@@ -233,22 +253,29 @@ async function enrichTopLeadsL3(
 
   if (toEnrich.length === 0) return { l3EnrichedListings, l3EnrichedScores, l3Cost: 0 }
 
-  const BATCH_SIZE = 5
-  let l3Cost = 0
+  // 🔥 Parallelize ALL + reuse L2 cache for domain_technologies
+  const results = await Promise.allSettled(
+    toEnrich.map(async ({ listing, index }) => {
+      const domain = extractDomain(listing.website)
+      const l2CacheKey = `l2:audit:${domain || listing.website}`
 
-  for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
-    const batchItems = toEnrich.slice(batch, batch + BATCH_SIZE)
+      // Try Redis cache (same key as L2 — domain_technologies already cached)
+      let cachedTech: any = null
+      try {
+        const { execSync } = await import("child_process")
+        const cached = execSync(`redis-cli -p 6396 --no-auth-warning GET "${l2CacheKey}"`, { timeout: 1000, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+        if (cached && cached !== "") {
+          cachedTech = JSON.parse(cached).tech
+        }
+      } catch {}
 
-    const results = await Promise.allSettled(
-      batchItems.map(async ({ listing, index }) => {
-        const domain = extractDomain(listing.website)
-        const [tech, contacts] = await Promise.allSettled([
-          domain ? domainTechnologies(domain) : Promise.resolve(null),
-          parseWebsiteContacts(listing.website),
-        ])
-        return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contacts.status === "fulfilled" ? contacts.value : null, listing, index }
-      })
-    )
+      const [tech, contacts] = await Promise.allSettled([
+        cachedTech ? Promise.resolve(cachedTech) : (domain ? domainTechnologies(domain) : Promise.resolve(null)),
+        parseWebsiteContacts(listing.website),
+      ])
+      return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contacts.status === "fulfilled" ? contacts.value : null, listing, index, fromCache: !!cachedTech }
+    })
+  )
 
     for (const r of results) {
       if (r.status === "rejected") continue
