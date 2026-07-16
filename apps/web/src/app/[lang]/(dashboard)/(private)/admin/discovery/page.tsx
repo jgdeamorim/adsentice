@@ -261,8 +261,9 @@ const DiscoveryPage = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const l0Cost = selected.length * 0.015          // L0: business_listings_search
-  const l1Cost = 5 * 0.0054                         // L1: top 5 leads enriquecidos (27 campos)
-  const totalCost = l0Cost + l1Cost                  // Total estimado L0+L1
+  const l1Cost = 50 * 0.0054                         // L1: ALL 50 leads enriquecidos (27 campos GMB)
+  const l2Estimate = 15 * 0.010625                     // L2: ~30% têm website (SEO + social crawl)
+  const totalCost = l0Cost + l1Cost + l2Estimate       // Total estimado L0+L1+L2
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = false, offsetOverride?: number) => {
@@ -276,7 +277,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force: true, enrich: 5, // L0+L1 top 5 — Auto-Pilot define estratégia
+          limit: 50, force: true, enrich: 50, // L0+L1 ALL 50 + L2 automático em websites
         }),
       })
 
@@ -570,7 +571,7 @@ return arr
             <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
               onClick={() => setConfirmOpen(true)}
               startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(4)} L0+L1)`}
+              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L2)`}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -626,7 +627,7 @@ return arr
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>🤖 Pipeline Automático L0→L1</DialogTitle>
+        <DialogTitle>🤖 Pipeline Automático L0→L1→L2</DialogTitle>
         <DialogContent>
           <Typography variant='body1' gutterBottom>
             Chamada <strong>LIVE</strong> ao DataForSEO via provider-core.
@@ -639,14 +640,14 @@ return arr
             </Typography>
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (até 50 listings, 11 campos)</Typography>
-              <Typography variant='caption'>📋 L1 Enrichment: ${l1Cost.toFixed(4)} (top 5 leads, 27 campos GMB)</Typography>
-              <Typography variant='caption' color='text.secondary'>⚡ L2 Website+SEO: sob demanda após L1 (${(0.000125+0.01).toFixed(4)})</Typography>
+              <Typography variant='caption'>📋 L1 Enrichment: ${l1Cost.toFixed(4)} (ALL 50 leads, 27 campos GMB)</Typography>
+              <Typography variant='caption'>🌐 L2 Website+SEO+Social: ~${l2Estimate.toFixed(4)} (~30% com website, SEO + redes sociais + emails)</Typography>
             </Box>
           </Box>
           <Alert severity='info' sx={{ mt: 1 }}>
             <Typography variant='caption'>
-              <strong>Pipeline automático:</strong> L0 → score → L1 top 5 → salva no Supabase → aparece em Leads e Pipeline.
-              Cache Redis 24h: mesma busca não gasta de novo.
+              <strong>Pipeline automático:</strong> L0 (50 listings) → L1 (ALL enriquecidos) → L2 (websites: SEO + redes sociais + emails) → Supabase + Redis.
+              Com L2, Content Maturity, W1-W11 e analytics são populados no /admin/market.
             </Typography>
           </Alert>
         </DialogContent>
@@ -747,7 +748,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Computando Score + Enriquecendo 5 leads (L1) · Custo: ${(totalCost).toFixed(4)} (L0+L1)</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline L0→L1→L2 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
