@@ -236,12 +236,8 @@ const DiscoveryPage = () => {
       .finally(() => setAutoLoading(false))
   }, [autoMode, activeCategory, cityLabel])
 
-  // ── Score Filters (v0.2) ──
-  const [minScore, setMinScore] = useState(0)
-  const [schwartzFilter, setSchwartzFilter] = useState<number[]>([])
+  // ── Sort (apenas visualização) ──
   const [sortBy, setSortBy] = useState<SortField>('score')
-  const [searchOrderBy, setSearchOrderBy] = useState('rating_value,desc')
-  const [searchOffset, setSearchOffset] = useState(0)
   const [regionalTotal, setRegionalTotal] = useState(0)
   const [extractedTotal, setExtractedTotal] = useState(0)
 
@@ -280,9 +276,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force: true, enrich: 5, // top 5 leads com L1 (27 campos)
-          order_by: searchOrderBy ? [searchOrderBy] : undefined,
-          offset: searchOffset,
+          limit: 50, force: true, enrich: 5, // L0+L1 top 5 — Auto-Pilot define estratégia
         }),
       })
 
@@ -358,17 +352,10 @@ const DiscoveryPage = () => {
     return results.map((l, i) => ({ ...l, score: scores[i] }))
   }, [results, scores])
 
-  const filtered = useMemo(() => {
-    let arr = [...enriched]
-
-    if (minScore > 0) arr = arr.filter(l => (l.score?.compound ?? 0) >= minScore)
-    if (schwartzFilter.length > 0) arr = arr.filter(l => schwartzFilter.includes(l.score?.schwartz.level ?? 1))
-    
-return arr
-  }, [enriched, minScore, schwartzFilter])
+  // (filtering removed — Auto-Pilot handles strategy)
 
   const sorted = useMemo(() => {
-    const arr = [...filtered]
+    const arr = [...enriched]
 
     if (sortBy === 'score') {
       arr.sort((a, b) => {
@@ -392,7 +379,7 @@ return sortDir === 'asc'
 
     
 return arr
-  }, [filtered, sortBy, sortDir])
+  }, [enriched, sortBy, sortDir])
 
   const paged = sorted.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
 
@@ -599,56 +586,26 @@ return arr
         </CardContent></Card>
       </Grid>
 
-      {/* ═══ SCORE FILTER BAR (v0.2) ═══ */}
-      <Grid size={{ xs: 12 }}>
-        <Card><CardContent>
-          <Typography variant='subtitle2' fontWeight={600} gutterBottom>
-            🎯 Score Composto (Pain Criteria v1.2)
-          </Typography>
-          <Grid container spacing={3} alignItems='center'>
-            {/* Minimum Score Slider */}
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                Score mínimo: {minScore || 'Todos'}
-              </Typography>
-              <Slider value={minScore} onChange={(_, v) => setMinScore(v as number)}
-                min={0} max={100} step={5} valueLabelDisplay='auto'
-                marks={[
-                  { value: 0, label: '0' }, { value: 30, label: '30' },
-                  { value: 50, label: '50' }, { value: 70, label: '70' }, { value: 85, label: '85' },
-                ]}
-              />
-            </Grid>
-            {/* Schwartz Level Filter Chips */}
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                Nível de Consciência:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {SCHWARTZ_CHIPS.map(s => {
-                  const active = schwartzFilter.includes(s.level)
-
-                  return (
-                    <Tooltip key={s.level} title={`${s.description}\n\n🚫 Regra: ${s.action}`} arrow>
-                      <Chip label={s.label} clickable size='small'
-                        color={active ? 'primary' : 'default'}
-                        variant={active ? 'filled' : 'outlined'}
-                        onClick={() => setSchwartzFilter(prev =>
-                          prev.includes(s.level) ? prev.filter(x => x !== s.level) : [...prev, s.level]
-                        )}
-                        sx={active ? {} : { opacity: 0.7 }}
-                      />
-                    </Tooltip>
-                  )
-                })}
+      {/* ═══ RESULTS TOOLBAR (simplified: Auto-Pilot status + Ordenação) ═══ */}
+      {results.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Card><CardContent sx={{ py: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              {/* Auto-Pilot Status */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant='body2' fontWeight={600}>
+                  🧠 Auto-Pilot
+                </Typography>
+                <Chip label={`${(autoQueue as any)?.meta?.priorityTargets || 0} alvos`} size='small' color='warning' variant='tonal' />
+                <Chip label={`${results.length} leads`} size='small' variant='outlined' />
+                {distribution && (
+                  <Chip label={`S1 ${distribution.unaware} · S2 ${distribution.problemAware} · S3 ${distribution.solutionAware}`}
+                    size='small' variant='outlined' sx={{ fontFamily: 'monospace', fontSize: '0.6rem' }} />
+                )}
               </Box>
-            </Grid>
-            {/* Sort Toggle */}
-            <Grid size={{ xs: 12, md: 3 }}>
-              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                Ordenar por:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {/* Sort Toggle (único filtro mantido — controle de visualizacao) */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant='caption' color='text.secondary'>Ordenar:</Typography>
                 <Chip label='⭐ Score' clickable size='small'
                   color={sortBy === 'score' ? 'primary' : 'default'}
                   variant={sortBy === 'score' ? 'filled' : 'outlined'}
@@ -662,88 +619,8 @@ return arr
                   variant={sortBy === 'rating_value' ? 'filled' : 'outlined'}
                   onClick={() => { setSortBy('rating_value'); setSortDir('desc') }} />
               </Box>
-            </Grid>
-          </Grid>
-          {/* DataForSEO Order + Offset */}
-          <Grid container spacing={2} alignItems='center' sx={{ mt: 1 }}>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                📋 Ordem da busca (DataForSEO):
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {[
-                  { value: 'rating_value,desc', label: '⭐ Melhor Rating' },
-                  { value: 'rating_votes,desc', label: '📝 Mais Reviews' },
-                  { value: 'rating_value,asc', label: '⬇ Pior Rating' },
-                ].map((o: { value: string; label: string }) => (
-                  <Chip key={o.value} label={o.label} clickable size='small'
-                    color={searchOrderBy === o.value ? 'warning' : 'default'}
-                    variant={searchOrderBy === o.value ? 'filled' : 'outlined'}
-                    onClick={() => { setSearchOrderBy(o.value); setSearchOffset(0); setExtractedTotal(0); }} />
-                ))}
-              </Box>
-            </Grid>
-            <Grid size={{ xs: 12, md: 3 }}>
-              <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                📄 Próxima página (DataForSEO):
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <Chip label={`Offset: ${searchOffset}`} size='small' variant='outlined' />
-                {searchOffset > 0 && (
-                  <Chip label='↺ Reset' size='small' color='error' variant='outlined'
-                    onClick={() => { setSearchOffset(0); setExtractedTotal(0); }} />
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-          {/* Filter status */}
-          {(minScore > 0 || schwartzFilter.length > 0) && (
-            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Typography variant='caption' color='text.secondary'>
-                {filtered.length} de {results.length} leads passam
-              </Typography>
-              {minScore > 0 && <Chip label={`Score ≥ ${minScore}`} size='small' onDelete={() => setMinScore(0)} color='primary' variant='tonal' />}
-              {schwartzFilter.map(lvl => {
-                const s = SCHWARTZ_CHIPS.find(x => x.level === lvl)
-
-                
-return <Chip key={lvl} label={s?.label} size='small' onDelete={() => setSchwartzFilter(prev => prev.filter(x => x !== lvl))} color='primary' variant='tonal' />
-              })}
             </Box>
-          )}
-        </CardContent></Card>
-      </Grid>
-
-      {/* ═══ SCHWARTZ EXPLAINER ═══ */}
-      {results.length > 0 && (
-        <Grid size={{ xs: 12 }}>
-          <Card sx={{ bgcolor: 'var(--pastel-sky)' }}>
-            <CardContent>
-              <Typography variant='subtitle2' fontWeight={600} gutterBottom>
-                🧠 O que cada nível significa?
-              </Typography>
-              <Grid container spacing={2}>
-                {SCHWARTZ_CHIPS.map((s) => (
-                  <Grid key={s.level} size={{ xs: 12, sm: 6, md: 2.4 }}>
-                    <Box sx={{ borderLeft: 3, borderColor: s.color, pl: 1.5 }}>
-                      <Typography variant='caption' fontWeight={700} sx={{ color: s.color }}>
-                        {s.label} ({s.level === 1 ? '0-29' : s.level === 2 ? '30-49' : s.level === 3 ? '50-69' : s.level === 4 ? '70-84' : '85-100'})
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary' sx={{ display: 'block' }}>
-                        {s.description}
-                      </Typography>
-                      <Typography variant='caption' color='error.main' fontWeight={600} sx={{ display: 'block', mt: 0.5 }}>
-                        🎯 Ação: {s.action}
-                      </Typography>
-                      <Typography variant='caption' sx={{ fontStyle: 'italic', display: 'block', mt: 0.3 }}>
-                        💬 {s.example}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
+          </CardContent></Card>
         </Grid>
       )}
 
