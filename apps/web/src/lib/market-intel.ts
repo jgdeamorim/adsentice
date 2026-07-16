@@ -254,6 +254,54 @@ export async function competitiveDensity(cat: string, city?: string | null): Pro
   } catch (e: any) { console.error("[market-intel] density:", e.message); return null }
 }
 
+/** Visão geral agregada de TODAS as categorias e cidades. Sem filtro. */
+export async function marketOverview(): Promise<MarketOverview & { categoryCount: number; cityCount: number }> {
+  try {
+    const supabase = getAdminClient()
+    const { data, error } = await supabase
+      .from("discovery_listings")
+      .select("place_id,score_compound,rating_value,total_photos,is_claimed,website,l2_has_analytics,enrichment_level,schwartz_level,category,city")
+      .limit(5000)
+    if (error || !data?.length) return null
+
+    const list = dedupByPlaceId(data); const total = list.length
+    const avg = (a: number[]) => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0
+    const scores = list.map(r => r.score_compound || 0).filter(v => v > 0)
+    const ratings = list.map(r => r.rating_value || 0).filter(v => v > 0)
+
+    const catSet = new Set<string>()
+    for (const r of list) {
+      const slug = normalizeCategory((r.category || "").toLowerCase().replace(/\s+/g, "_"))
+      catSet.add(slug)
+    }
+
+    const citySet = new Set<string>()
+    for (const r of list) { if (r.city) citySet.add(r.city) }
+
+    const schwartzDist = [1, 2, 3, 4, 5].map(l => {
+      const n = list.filter(r => r.schwartz_level === l).length
+      return { level: l, label: SCHWARTZ[l - 1], count: n, pct: Math.round((n / total) * 100) }
+    })
+    const cmList = list.filter(r => r.l2_content_maturity != null)
+    const cmDist = [0, 1, 2, 3, 4].map(l => {
+      const n = cmList.filter(r => r.l2_content_maturity === l).length
+      return { level: l, label: ML[l], count: n, pct: cmList.length ? Math.round((n / cmList.length) * 100) : 0 }
+    })
+
+    return {
+      category: "all", categoryLabel: "Todas as categorias", city: `${citySet.size} cidades`,
+      totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
+      avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
+      avgPhotos: Math.round(avg(list.map(r => r.total_photos || 0))),
+      claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
+      hasWebsitePct: Math.round((list.filter(r => r.website).length / total) * 1000) / 10,
+      hasAnalyticsPct: Math.round((list.filter(r => r.l2_has_analytics).length / Math.max(total, 1)) * 1000) / 10,
+      schwartzDistribution: schwartzDist, contentMaturity: cmDist,
+      categoryCount: catSet.size, cityCount: citySet.size,
+    }
+  } catch (e: any) { console.error("[market-intel] overview:", e.message); return null }
+}
+
 export async function nicheIntelligence(cat: string, city?: string | null): Promise<NicheIntelligence | null> {
   const [overview, gaps, opportunity, density] = await Promise.all([aggregateByCategory(cat, city), marketGapAnalysis(cat, city), marketOpportunity(cat, city), competitiveDensity(cat, city)])
   if (!overview) return null

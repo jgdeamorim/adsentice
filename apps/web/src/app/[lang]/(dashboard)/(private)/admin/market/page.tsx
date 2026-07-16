@@ -16,7 +16,9 @@ import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
-import { nicheIntelligence, listMarketCategories, listMarketCities } from '@/lib/market-intel'
+import { getAdminClient } from '@/lib/supabase-admin'
+import { nicheIntelligence, listMarketCategories, listMarketCities, marketOverview } from '@/lib/market-intel'
+import MarketCoverageMap from '@/components/MarketCoverageMap'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,11 +51,35 @@ const MarketPage = async ({ params, searchParams }: {
 
   const categories = await listMarketCategories()
   const cities = await listMarketCities()
-  const filterCategory = sp.category || (categories.length > 0 ? categories[0].category : '')
-  const detectedCity = cities.length > 0 ? cities[0].city : ''
-  const filterCity = sp.city || detectedCity
-  const intel = await nicheIntelligence(filterCategory, filterCity || null)
-  const holds = filterCity ? await fetchMarketHolds(filterCategory, filterCity) : []
+  const filterCategory = sp.category || ''
+  const filterCity = sp.city || ''
+
+  // Overview mode (sem filtro) ou drill-down (com categoria)
+  const overview = await marketOverview()
+  const intel = filterCategory ? await nicheIntelligence(filterCategory, filterCity || null) : null
+  const holds = filterCity && filterCategory ? await fetchMarketHolds(filterCategory, filterCity) : []
+
+  // Carrega pins para o mapa
+  const pins: { id: string; lat: number; lng: number; radiusKm: number; categories: string[]; city: string; totalCount: number; avgScore: number }[] = []
+  try {
+    const supabase = getAdminClient()
+    const { data: searches } = await supabase
+      .from("discovery_searches")
+      .select("id,categories,lat,lng,radius_km,total_count,avg_score,created_at")
+      .not("total_count", "eq", 0)
+      .order("created_at", { ascending: false })
+      .limit(50)
+    if (searches) {
+      for (const s of searches) {
+        const lat = parseFloat(s.lat); const reg = Math.abs(lat + 23.55) < 1 ? 'São Paulo' : Math.abs(lat + 22.9) < 1 ? 'Rio de Janeiro' : 'Brasil'
+        pins.push({
+          id: s.id, lat, lng: parseFloat(s.lng), radiusKm: s.radius_km || 10,
+          categories: s.categories || [], city: reg, totalCount: s.total_count || 0,
+          avgScore: s.avg_score || 0,
+        })
+      }
+    }
+  } catch {}
 
   // Agrupa holds por métrica para mini time-series
   const holdGroups = new Map<string, MarketHoldRow[]>()
@@ -83,90 +109,85 @@ const MarketPage = async ({ params, searchParams }: {
         </Box>
       </Grid>
 
-      {/* Category + City Selector */}
+      {/* ═══ MAPA DE COBERTURA + FILTROS ═══ */}
       <Grid size={{ xs: 12 }}>
         <Card>
-          <CardContent>
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  📁 Categoria:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {categories.slice(0, 15).map(c => (
-                    <Chip key={c.category} label={`${c.label} (${c.count})`} size='small' clickable
-                      color={filterCategory === c.category ? 'primary' : 'default'}
-                      variant={filterCategory === c.category ? 'filled' : 'outlined'}
-                      component='a' href={`/${lang}/admin/market?category=${c.category}${filterCity ? `&city=${encodeURIComponent(filterCity)}` : ''}`} />
-                  ))}
-                </Box>
-              </Grid>
-              {cities.length > 1 && (
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                    📍 Cidade:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {cities.map(c => (
-                      <Chip key={c.city} label={`${c.city} (${c.count})`} size='small' clickable
-                        color={filterCity === c.city ? 'warning' : 'default'}
-                        variant={filterCity === c.city ? 'filled' : 'outlined'}
-                        component='a' href={`/${lang}/admin/market?category=${filterCategory}${c.city !== detectedCity ? `&city=${encodeURIComponent(c.city)}` : ''}`} />
-                    ))}
-                  </Box>
-                </Grid>
+          <CardContent sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant='subtitle2' fontWeight={600}>
+                🗺️ Cobertura de Mercado · {pins.length} buscas em {new Set(pins.map(p => p.city)).size} cidades
+              </Typography>
+              {filterCategory && (
+                <Chip label='Limpar filtro' size='small' clickable
+                  component='a' href={`/${lang}/admin/market`} variant='outlined' />
               )}
-            </Grid>
+            </Box>
+            <MarketCoverageMap pins={pins} />
+            {/* Filtros rápidos abaixo do mapa */}
+            {categories.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+                <Chip
+                  label={filterCategory ? '📊 Visão Geral' : '📊 Visão Geral (ativa)'}
+                  size='small' clickable
+                  color={!filterCategory ? 'primary' : 'default'}
+                  variant={!filterCategory ? 'filled' : 'outlined'}
+                  component='a' href={`/${lang}/admin/market`} />
+                {categories.slice(0, 10).map(c => (
+                  <Chip key={c.category} label={`${c.label} (${c.count})`} size='small' clickable
+                    color={filterCategory === c.category ? 'primary' : 'default'}
+                    variant={filterCategory === c.category ? 'filled' : 'outlined'}
+                    component='a' href={`/${lang}/admin/market?category=${c.category}`} />
+                ))}
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Grid>
 
-      {!intel ? (
+      {!overview ? (
         <Grid size={{ xs: 12 }}>
           <Alert severity='info' sx={{ mt: 2 }}>
-            Execute buscas no Discovery Engine primeiro para popular os dados de {filterCategory}.
-            Va em <strong>Discovery</strong> → selecione {filterCategory} → buscar.
+            Execute buscas no <strong>Discovery Engine</strong> primeiro.
+            Va em <a href={`/${lang}/admin/discovery`}>Discovery</a> → selecione uma categoria → buscar.
           </Alert>
         </Grid>
       ) : (
         <>
-          {/* Top KPIs */}
+          {/* Top KPIs — overview mode (sem filtro) ou drill-down (com categoria) */}
           <Grid size={{ xs: 6, sm: 2.4 }}>
-            <CardStatVertical stats={intel.overview.totalBusinesses.toLocaleString('pt-BR')} title='Total no Mercado'
-              subtitle={`${intel.overview.enrichedBusinesses} enriquecidos`} avatarColor='primary' avatarIcon='ri-store-2-line'
-              trendNumber={String(intel.overview.totalBusinesses)} trend='positive' />
+            <CardStatVertical stats={overview.totalBusinesses.toLocaleString('pt-BR')} title='Total no Mercado'
+              subtitle={filterCategory ? `${overview.categoryLabel} · ${overview.city}` : `${(overview as any).categoryCount || 0} categorias · ${(overview as any).cityCount || 0} cidades`}
+              avatarColor='primary' avatarIcon='ri-store-2-line'
+              trendNumber={String(overview.totalBusinesses)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
-            <CardStatVertical stats={`${intel.overview.avgScore}/100`} title='Score Medio do Mercado'
-              subtitle={`${intel.overview.city}`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
-              trendNumber={String(intel.overview.avgScore)} trend='positive' />
+            <CardStatVertical stats={`${overview.avgScore}/100`} title='Score Medio'
+              subtitle={`${overview.enrichedBusinesses} enriquecidos`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
+              trendNumber={String(overview.avgScore)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
-            <CardStatVertical stats={`${intel.density.densityPerKm2}/km²`} title='Densidade Competitiva'
-              subtitle={intel.density.saturation === 'baixa' ? '🟢 Baixa concorrencia' : intel.density.saturation === 'media' ? '🟡 Media' : '🔴 Alta'}
-              avatarColor={intel.density.saturation === 'baixa' ? 'success' : 'error'} avatarIcon='ri-map-pin-line'
-              trendNumber={String(intel.density.totalCompetitors)} trend='positive' />
+            <CardStatVertical stats={`${overview.claimedPct}%`} title='Reivindicados'
+              subtitle={`${overview.hasWebsitePct}% com website`} avatarColor='info' avatarIcon='ri-shield-check-line'
+              trendNumber={String(overview.claimedPct)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
-            <CardStatVertical stats={`R$${(intel.opportunity.revenuePotentialMRR / 1000).toFixed(0)}K`} title='Potencial MRR'
-              subtitle={`${intel.overview.categoryLabel} em ${intel.overview.city}`}
-              avatarColor='success' avatarIcon='ri-money-dollar-circle-line'
-              trendNumber={String(intel.opportunity.revenuePotentialMRR)} trend='positive' />
+            <CardStatVertical stats={`${overview.avgRating}★`} title='Rating Medio'
+              subtitle={`Score medio ${overview.avgScore}/100`} avatarColor='success' avatarIcon='ri-star-line'
+              trendNumber={String(overview.avgRating)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
-            <CardStatVertical stats={`${intel.overview.hasWebsitePct}%`} title='Com Website'
-              subtitle={`${intel.overview.claimedPct}% reivindicado · ${intel.overview.avgRating}★`}
-              avatarColor='info' avatarIcon='ri-global-line'
-              trendNumber={String(intel.overview.hasWebsitePct)} trend='positive' />
+            <CardStatVertical stats={`${overview.hasWebsitePct}%`} title='Com Website'
+              subtitle={`${overview.hasAnalyticsPct}% com analytics`}
+              avatarColor='error' avatarIcon='ri-global-line'
+              trendNumber={String(overview.hasWebsitePct)} trend='positive' />
           </Grid>
-
           {/* Schwartz Distribution */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
-                <Typography variant='h6' gutterBottom>🧠 Distribuicao Schwartz · {intel.overview.categoryLabel}</Typography>
+                <Typography variant='h6' gutterBottom>🧠 Distribuicao Schwartz · {overview.categoryLabel}</Typography>
                 <Box sx={{ mt: 2 }}>
-                  {intel.overview.schwartzDistribution.map(s => (
+                  {overview.schwartzDistribution.map(s => (
                     <Box key={s.level} sx={{ mb: 1.5 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                         <Typography variant='body2' fontWeight={600}>{s.label}</Typography>
@@ -185,8 +206,8 @@ const MarketPage = async ({ params, searchParams }: {
           <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
-                <Typography variant='h6' gutterBottom>📝 Maturidade de Conteudo · {intel.overview.categoryLabel}</Typography>
-                {intel.overview.contentMaturity.every(m => m.count === 0) ? (
+                <Typography variant='h6' gutterBottom>📝 Maturidade de Conteudo · {overview.categoryLabel}</Typography>
+                {overview.contentMaturity.every(m => m.count === 0) ? (
                   <Alert severity='info' sx={{ mt: 1 }}>
                     Nenhum lead tem L2 Website+SEO enrichment. Execute o{' '}
                     <a href={`/${lang}/admin/discovery`} style={{ fontWeight: 600 }}>Discovery Engine</a>{' '}
@@ -194,7 +215,7 @@ const MarketPage = async ({ params, searchParams }: {
                   </Alert>
                 ) : (
                 <Box sx={{ mt: 2 }}>
-                  {intel.overview.contentMaturity.map(m => (
+                  {overview.contentMaturity.map(m => (
                     <Box key={m.level} sx={{ mb: 1.5 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                         <Typography variant='body2' fontWeight={600}>{m.label}</Typography>
@@ -210,6 +231,9 @@ const MarketPage = async ({ params, searchParams }: {
             </Card>
           </Grid>
 
+          {/* TOP Gaps + Opportunity (só no drill-down com intel) */}
+          {intel && (
+            <>
           {/* TOP 10 Market Gaps */}
           <Grid size={{ xs: 12, md: 7 }}>
             <Card>
