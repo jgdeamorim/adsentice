@@ -443,6 +443,7 @@ export async function POST(request: NextRequest) {
     let enrichedCount = 0
     console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
     let l2Cost = 0
+    let l3Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field GMB profile, $0.0054/lead, ALL 50) ═══
     const shouldEnrich = enrich || force
@@ -473,7 +474,6 @@ export async function POST(request: NextRequest) {
       }
 
       // ═══ L3: SOCIAL & CONTACTS (ADR-0024 · $0.0005/lead) ═══
-      let l3Cost = 0
       if (enrichedCount > 0) {
         const l3Result = await enrichTopLeadsL3(listings, scores, 30)
         listings = l3Result.l3EnrichedListings
