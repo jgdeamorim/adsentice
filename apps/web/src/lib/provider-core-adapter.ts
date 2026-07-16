@@ -119,7 +119,7 @@ export async function businessListingsSearch(params: {
     categories: params.categories,
     location_coordinate: toCoord(params.lat, params.lng, params.radiusKm),
     language_code: "pt",
-    limit: params.limit || 50,
+    limit: params.limit || 100,  // DataForSEO default=100, max=1000
     offset: params.offset || 0,
     order_by: params.order_by || undefined,
     filters: params.filters || undefined,
@@ -128,7 +128,7 @@ export async function businessListingsSearch(params: {
   const data = await c.post<{ tasks?: Array<{ cost?: number; result?: Array<{ total_count?: number; items?: Record<string, unknown>[] }> }> }>("/v3/business_data/business_listings/search/live", body)
   const result = data.tasks?.[0]?.result?.[0]
   const items = result?.items || []
-  const totalCount = result?.total_count || items.length
+  const totalCount = result?.total_count ?? items.length  // total_count=mercado real, items=retornados nesta página
 
   const listings: BusinessListing[] = items.map(item => {
     const rating = (item.rating || {}) as Record<string, unknown>

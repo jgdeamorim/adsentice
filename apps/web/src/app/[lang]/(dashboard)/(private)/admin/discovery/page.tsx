@@ -312,7 +312,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force: false, enrich: 50, paginate: false,
+          limit: 100, force: false, enrich: 100, paginate: false,
           ...(offsetOverride !== undefined ? { offset: offsetOverride } : {}),
         }),
       })
