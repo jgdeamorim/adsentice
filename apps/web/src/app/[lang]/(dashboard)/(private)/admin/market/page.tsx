@@ -18,7 +18,7 @@ import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { nicheIntelligence, listMarketCategories, listMarketCities, marketOverview } from '@/lib/market-intel'
-import MarketCoverageMap from '@/components/MarketCoverageMap'
+import MarketCoverageMapWrapper from '@/components/MarketCoverageMapWrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,7 +91,7 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
                 <Chip label='Limpar filtro' size='small' clickable component='a' href={`/${lang}/admin/market`} variant='outlined' />
               )}
             </Box>
-            <MarketCoverageMap pins={mapPins} />
+            <MarketCoverageMapWrapper pins={mapPins} />
             {categories.length > 0 && (
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
                 <Chip label={filterCategory ? '📊 Visão Geral' : '📊 Visão Geral (ativa)'} size='small' clickable
