@@ -279,6 +279,7 @@ const DiscoveryPage = () => {
   const [costUsd, setCostUsd] = useState(0)
   const [error, setError] = useState('')
   const [fromCache, setFromCache] = useState(false)
+  const [searchMeta, setSearchMeta] = useState<{tracker_id:string;total_in_region:number;fetched_count:number;remaining:number;offsets_used:number[]}|null>(null)
   const [costToday, setCostToday] = useState(0)
   const [costTotal, setCostTotal] = useState(0)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -306,7 +307,8 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 50, force: false, enrich: 50, paginate: false, // cache 24h — mesma busca não gasta de novo
+          limit: 50, force: false, enrich: 50, paginate: false,
+          ...(offsetOverride !== undefined ? { offset: offsetOverride } : {}),
         }),
       })
 
@@ -328,7 +330,14 @@ const DiscoveryPage = () => {
       setCostToday(data.costToday || 0)
       setCostTotal(data.costTotal || 0)
       setRegionalTotal(data.total_count || 0)
-      setExtractedTotal((prev: number) => prev + (data.listings?.length || 0))
+      setExtractedTotal((prev: number) => offsetOverride ? prev + data.listings.length : (data.fetchedCount || data.listings?.length || 0))
+      // Search Tracker metadata (paginação)
+      if (data.search_metadata) {
+        setSearchMeta(data.search_metadata)
+        if (data.search_metadata.remaining > 0) {
+          setRegionalTotal(data.search_metadata.total_in_region)
+        }
+      }
       setPage(0)
       setSortBy('score')
       setSortDir('desc')
@@ -806,6 +815,30 @@ return (
             </CardContent></Card>
           </Grid>
         </>
+      )}
+
+      {/* ═══ PAGINATION BANNER (Tracker) ═══ */}
+      {searchMeta && searchMeta.remaining > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info' variant='outlined'
+            action={
+              <Button variant='contained' size='small' color='info'
+                onClick={() => {
+                  const nextOffset = searchMeta.offsets_used[searchMeta.offsets_used.length - 1] + 50
+                  doSearch(false, nextOffset)
+                }}>
+                📄 Continuar ({searchMeta.remaining} restantes)
+              </Button>
+            }>
+            <Typography variant='body2' fontWeight={600}>
+              📊 {searchMeta.fetched_count}/{searchMeta.total_in_region} capturados
+              · {(searchMeta.fetched_count/searchMeta.total_in_region*100).toFixed(1)}% do mercado
+            </Typography>
+            <Typography variant='caption' color='text.secondary'>
+              Tracker: {searchMeta.tracker_id}
+            </Typography>
+          </Alert>
+        </Grid>
       )}
 
       {/* ═══ LOADING ═══ */}
