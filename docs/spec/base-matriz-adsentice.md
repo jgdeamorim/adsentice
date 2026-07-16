@@ -3,15 +3,15 @@ id: base-matriz-adsentice
 title: "Base-Matriz do Ecossistema adsentice — mapa navegável versionado"
 status: living
 type: spec
-version: "1.9.0"
+version: "2.0.0"
 date: 2026-07-11
-updated: 2026-07-16T00:45:00-03:00
+updated: 2026-07-16T01:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
 ---
 
-# Base-Matriz do Ecossistema adsentice v1.9.0
+# Base-Matriz do Ecossistema adsentice v2.0.0
 
 > **Propósito:** mapa navegável e versionado do ecossistema adsentice — o que existe, onde está, quais as rotas estáveis.
 > **Regra-mãe:** `medido=verdade` — toda rota cita fonte (arquivo, commit, teste). Sem fonte = não verificado.
@@ -128,6 +128,17 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.design.total` | Total do corpus de design (Warp + open-design + 21st + Materio) | — | ~7,150 | ✅ vivo |
 | `ADS.COR.design.skills_adsentice` | 5 novos marketing skills originais adsentice (45 frameworks): local-seo, whatsapp-business, google-ads-telemetry, ifood-integration, booking-ota-integration | `adsentice-self` (source=adsentice-original) | 45 | ✅ embedado · 2026-07-14 |
 | `ADS.COR.design.warp_registry_json` | Registry JSON dos 11 componentes base + 45 frameworks skills | `docs/spec/warp-component-registry.json` + `docs/spec/adsentice-skills-frameworks.json` | — | ✅ vivo |
+
+### ADS.COR.tooling — Ferramentas de Desenvolvimento
+
+| Rota | Descrição | Fonte | Status |
+|---|---|---|---|
+| `ADS.COR.tooling.swc_rules` | Guia canônico Next.js 15.1.2 SWC — 7 padrões que funcionam, 4 proibidos | `.claude/NEXTJS_SWC_RULES.md` | ✅ v1.0 |
+| `ADS.COR.tooling.coding_sop` | SOP de Codificação — DAG→Codar→Check→Commit | `.claude/NEXTJS_CODING_SOP.md` | ✅ v1.0 |
+| `ADS.COR.tooling.nextjs_check` | Script pre-commit: tsc + brace balance + HTTP + log | `.claude/hooks/adsentice-nextjs-check.sh` | ✅ ativo |
+| `ADS.COR.tooling.nextjs_kg` | 10 regras Next.js embedadas no Qdrant (tag=nextjs-15) | `adsentice-self` | ✅ indexado |
+| `ADS.COR.tooling.backup` | Full bulk backup → R2 + local fallback + incremental checksum | `tools/adsentice_backup.py` | ✅ ativo |
+| `ADS.COR.tooling.backfill_city` | Backfill city/district via Nominatim reverse geocode | `tools/adsentice_backfill_city.py` | ✅ executado (278/278) |
 
 ### ADS.COR.design.tools — Ferramentas de Ingestão de Design
 
