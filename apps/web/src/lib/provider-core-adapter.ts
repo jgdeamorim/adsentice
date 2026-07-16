@@ -117,6 +117,7 @@ export async function businessListingsSearch(params: {
   const totalCount = result?.total_count || items.length
   const listings: BusinessListing[] = items.map(item => {
     const rating = (item.rating || {}) as Record<string, unknown>
+    const addrInfo = (item.address_info || {}) as Record<string, unknown>
     return {
       title: (item.title as string) || null,
       category: (item.category as string) || null,
@@ -128,7 +129,11 @@ export async function businessListingsSearch(params: {
       latitude: (item.latitude as number) ?? null,
       longitude: (item.longitude as number) ?? null,
       is_claimed: (item.is_claimed as boolean) ?? null,
-    }
+      // Extra fields from address_info (L0 — needed for L4 IBGE matching)
+      city: (addrInfo.city as string) || null,
+      district: (addrInfo.borough as string) || null,
+      website: (item.url as string) || null,
+    } as any
   })
   return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || items.length * 0.0003 }
 }
