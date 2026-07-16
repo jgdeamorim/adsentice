@@ -594,7 +594,7 @@ return colors[level ?? 0] || colors[0]
                 ))}
                 <Box sx={{ flex: 1 }} />
                 <Typography variant='caption' color='text.secondary'>Capitais:</Typography>
-                {BR_CAPITALS.slice(0, 15).map(c => (
+                {BR_CAPITALS.map(c => (
                   <Chip key={c.uf} label={c.uf} clickable size='small'
                     color={stateKey === c.uf ? 'primary' : 'default'}
                     variant={stateKey === c.uf ? 'filled' : 'outlined'}
