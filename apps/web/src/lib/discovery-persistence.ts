@@ -105,6 +105,8 @@ export async function saveDiscoverySearch(params: {
       l2_enriched_at: (l as any).l2_enriched_at || null, l2_cost_usd: (l as any).l2_cost_usd || 0,
       l2_content_maturity: (l as any).l2_content_maturity ?? null,
       l2_content_gaps: (l as any).l2_content_gaps ? JSON.stringify((l as any).l2_content_gaps) : null,
+      l2_emails: (l as any).l2_emails || null,
+      l2_social_links: (l as any).l2_social_links ? JSON.stringify((l as any).l2_social_links) : null,
     }))
 
     // 3 — Bulk insert (one POST per listing)

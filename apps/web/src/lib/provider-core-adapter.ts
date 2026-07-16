@@ -326,3 +326,82 @@ export async function appendMarketHolds(holds: MarketHoldInput[]): Promise<void>
     }).catch(() => {})
   ))
 }
+
+// ── L2 Content Parsing (social media + contacts from website) ──
+
+export interface WebsiteContacts {
+  social_links: { platform: string; url: string }[]
+  emails: string[]
+  phones: string[]
+  whatsapp_numbers: string[]
+  extracted_at: string
+}
+
+/** Extract social links, emails, phones from website HTML via DataForSEO content parsing. $0.0005/call */
+export async function parseWebsiteContacts(url: string): Promise<WebsiteContacts | null> {
+  const c = getClient()
+  try {
+    const body = JSON.stringify([{ url, enable_javascript: false }])
+    const res = await fetch(`${c.baseUrl}/v3/on_page/content_parsing/live`, {
+      method: "POST",
+      headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
+      body,
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { tasks?: Array<{ result?: Array<{ items?: Array<{ type: string; url?: string; text?: string }> }> }> }
+    const items = data.tasks?.[0]?.result?.[0]?.items || []
+
+    const social_links: { platform: string; url: string }[] = []
+    const emails: string[] = []
+    const phones: string[] = []
+    const whatsapp_numbers: string[] = []
+
+    const SOCIAL_DOMAINS: Record<string, string> = {
+      "facebook.com": "Facebook", "instagram.com": "Instagram",
+      "twitter.com": "Twitter", "x.com": "Twitter/X",
+      "linkedin.com": "LinkedIn", "youtube.com": "YouTube",
+      "tiktok.com": "TikTok", "pinterest.com": "Pinterest",
+      "wa.me": "WhatsApp", "api.whatsapp.com": "WhatsApp",
+    }
+
+    const EMAIL_RE = /[\w.-]+@[\w.-]+\.\w+/g
+    const PHONE_BR_RE = /(?:\(?\d{2}\)?\s?)?(?:\d{4,5}-?\d{4}|9\d{4}-?\d{4})/g
+
+    for (const item of items) {
+      const urlStr = item.url || ""
+      const text = item.text || ""
+
+      // Social links
+      for (const [domain, platform] of Object.entries(SOCIAL_DOMAINS)) {
+        if (urlStr.includes(domain)) {
+          social_links.push({ platform, url: urlStr })
+        }
+      }
+
+      // Emails
+      for (const match of text.matchAll(EMAIL_RE)) {
+        if (!emails.includes(match[0])) emails.push(match[0])
+      }
+
+      // Phones (Brazil pattern)
+      for (const match of text.matchAll(PHONE_BR_RE)) {
+        const phone = match[0].replace(/[^0-9]/g, "")
+        if (phone.length >= 10) {
+          if (phone.length === 11 && (phone.startsWith("9") || phone[2] === "9")) {
+            if (!whatsapp_numbers.includes(phone)) whatsapp_numbers.push(phone)
+          } else if (!phones.includes(phone)) {
+            phones.push(phone)
+          }
+        }
+      }
+    }
+
+    return {
+      social_links: social_links.slice(0, 20),
+      emails: emails.slice(0, 10),
+      phones: phones.slice(0, 10),
+      whatsapp_numbers: whatsapp_numbers.slice(0, 10),
+      extracted_at: new Date().toISOString(),
+    }
+  } catch { return null }
+}

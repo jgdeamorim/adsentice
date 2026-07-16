@@ -9,7 +9,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain } from "@/lib/provider-core-adapter"
+import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain, parseWebsiteContacts } from "@/lib/provider-core-adapter"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
@@ -25,23 +25,22 @@ import { pushEvent } from "@/lib/telemetry"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-/** Enrich leads with full 27-field GMB profiles in parallel ($0.0054/lead each). */
+/** L1: Enrich ALL leads with full 27-field GMB profiles ($0.0054/lead). */
 async function enrichTopLeads(
   listings: any[],
   scores: ScoreData[],
-  maxEnrich: number = 5
+  maxEnrich: number = 50
 ): Promise<{ enrichedListings: any[]; enrichedScores: ScoreData[]; enrichmentCost: number }> {
   const enrichedListings = [...listings]
   const enrichedScores = [...scores]
 
-  // Rank by compound score and take top N
+  // Prioriza por score mas enriquece TODOS que têm title
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
     .filter(({ listing }) => !!listing.title)
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
-  // Enrich in parallel batches of 5 (EVO-API rate limit friendly)
   const BATCH_SIZE = 5
   let enrichmentCost = 0
 
@@ -55,21 +54,14 @@ async function enrichTopLeads(
           location_code: 2076,
           language_code: "pt",
         })
-
         return { profile, listing, index }
       })
     )
 
     for (const r of results) {
-      if (r.status === 'rejected') {
-        console.error('[enrichment] Batch item failed:', (r.reason as any)?.message)
-        continue
-      }
-
+      if (r.status === 'rejected') { continue }
       const { profile, listing, index } = r.value
-
       if (!profile || !profile.place_id) continue
-
       enrichmentCost += 0.0054
 
       const enriched: any = {
@@ -101,7 +93,6 @@ async function enrichTopLeads(
       }
 
       const newScores = scoreLeads([input])
-
       enriched.contact_methods = detectContactMethods(input)
       enriched.enrichment_level = 1
       enrichedListings[index] = enriched
@@ -109,33 +100,29 @@ async function enrichTopLeads(
     }
   }
 
+  console.log(`[enrichment] L1: ${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
   return { enrichedListings, enrichedScores, enrichmentCost }
 }
 
-/** L2 Website+SEO enrichment: on_page_instant_audit + domain_technologies ($0.010125/lead). */
+/** L2: Website+SEO + social/contact crawl. Runs on ALL leads with website. $0.010625/lead. */
 async function enrichTopLeadsL2(
   listings: any[],
   scores: ScoreData[],
-  maxEnrich: number = 3
+  maxEnrich: number = 30
 ): Promise<{ l2EnrichedListings: any[]; l2EnrichedScores: ScoreData[]; l2Cost: number }> {
   const l2EnrichedListings = [...listings]
   const l2EnrichedScores = [...scores]
 
-  // Filter: leads with website + L1 enriched + score >= 30 (ADR-0008 spending rule)
+  // All leads with website (score >= 0 — remove old gate)
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
-    .filter(({ listing, score }) =>
-      !!listing.website &&
-      (listing.enrichment_level >= 1 || listing.phone || listing.total_photos != null) &&
-      score.compound >= 30
-    )
+    .filter(({ listing }) => !!listing.website)
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
   if (toEnrich.length === 0) return { l2EnrichedListings, l2EnrichedScores, l2Cost: 0 }
 
-  // Batch in groups of 3 (domain_technologies is $0.01/call — conservative)
-  const BATCH_SIZE = 3
+  const BATCH_SIZE = 5
   let l2Cost = 0
 
   for (let batch = 0; batch < toEnrich.length; batch += BATCH_SIZE) {
@@ -144,49 +131,65 @@ async function enrichTopLeadsL2(
     const results = await Promise.allSettled(
       batchItems.map(async ({ listing, index }) => {
         const domain = extractDomain(listing.website)
-        const [audit, tech] = await Promise.allSettled([
+        const [audit, tech, contacts] = await Promise.allSettled([
           onPageInstantAudit(listing.website),
           domain ? domainTechnologies(domain) : Promise.resolve(null),
+          parseWebsiteContacts(listing.website),
         ])
-
         return {
           audit: audit.status === "fulfilled" ? audit.value : null,
           tech: tech.status === "fulfilled" ? tech.value : null,
-          listing,
-          index,
-          domain,
+          contacts: contacts.status === "fulfilled" ? contacts.value : null,
+          listing, index, domain,
         }
       })
     )
 
     for (const r of results) {
-      if (r.status === "rejected") {
-        console.error("[enrichment-l2] Batch item failed:", (r.reason as any)?.message)
-        continue
-      }
-
-      const { audit, tech, listing, index } = r.value
-
-      // Require at least audit to succeed (tech is bonus)
+      if (r.status === "rejected") continue
+      const { audit, tech, contacts, listing, index } = r.value
       if (!audit) continue
 
-      const costPerLead = 0.000125 + (tech ? 0.01 : 0)
+      const costPerLead = 0.000125 + (tech ? 0.01 : 0) + (contacts ? 0.0005 : 0)
       l2Cost += costPerLead
 
-      // Extract L2 signals from audit
+      // Extract L2 signals
       const l2_https = listing.website?.startsWith("https") ?? false
-      const hasAnalytics = tech
-        ? !!(tech.technologies?.marketing?.analytics?.length || tech.technologies?.advertising?.analytics?.length)
-        : null
+      const hasAnalytics = tech ? !!(tech.technologies?.marketing?.analytics?.length || tech.technologies?.advertising?.analytics?.length) : null
       const cmsName: string | null = (() => {
         const cms = tech?.technologies?.content?.cms || tech?.technologies?.cms
         return Array.isArray(cms) && cms.length > 0 ? cms[0] : null
       })()
-      const techCategories = tech
-        ? Object.keys(tech.technologies || {}).filter(k => Object.keys(tech.technologies[k] || {}).length > 0)
-        : null
+      const techCategories = tech ? Object.keys(tech.technologies || {}).filter(k => Object.keys(tech.technologies[k] || {}).length > 0) : null
 
-      // Build L2-enriched listing
+      // ── Merge contacts from website → fill GMB gaps ──
+      let mergedPhone = listing.phone
+      let mergedEmails: string[] = []
+      let mergedSocials: { platform: string; url: string }[] = []
+
+      // Domain technologies already gives phone_numbers + emails
+      if (tech) {
+        const techPhones = tech.phone_numbers || []
+        const techEmails = tech.emails || []
+        if (!mergedPhone && techPhones.length > 0) mergedPhone = techPhones[0]
+        mergedEmails.push(...techEmails)
+      }
+
+      // Content parsing gives social links + additional contacts
+      if (contacts) {
+        mergedSocials.push(...contacts.social_links)
+        mergedEmails.push(...contacts.emails.filter((e: string) => !mergedEmails.includes(e)))
+        if (!mergedPhone && contacts.phones.length > 0) mergedPhone = contacts.phones[0]
+        // WhatsApp from social links (wa.me) or phone parsing
+        if (!listing.phone && contacts.whatsapp_numbers.length > 0) {
+          mergedPhone = contacts.whatsapp_numbers[0]
+        }
+      }
+
+      // Dedup
+      mergedEmails = [...new Set(mergedEmails)].slice(0, 5)
+      mergedSocials = mergedSocials.slice(0, 10)
+
       const enriched: any = {
         ...listing,
         l2_onpage_score: audit.onpage_score,
@@ -205,9 +208,12 @@ async function enrichTopLeadsL2(
         l2_enriched_at: new Date().toISOString(),
         l2_cost_usd: costPerLead,
         enrichment_level: 2,
+        // Contact enrichment extras
+        l2_emails: mergedEmails,
+        l2_social_links: mergedSocials,
+        phone: mergedPhone || listing.phone,  // fill GMB phone gap if found
       }
 
-      // Re-score with full L2 data
       const input: ScoringInput = {
         title: enriched.title, category: enriched.category,
         categories: enriched.categories || enriched.categories_arr,
@@ -219,9 +225,29 @@ async function enrichTopLeadsL2(
         phone: enriched.phone, website: enriched.website,
         total_photos: enriched.total_photos, description: enriched.description,
         business_status: enriched.business_status,
-        // L2 signals
         l2_onpage_score: audit.onpage_score,
         l2_https,
+        l2_has_title: !!audit.meta?.title,
+        l2_has_description: !!audit.meta?.description,
+        l2_has_analytics: hasAnalytics ?? null,
+        l2_cms: cmsName,
+        l2_word_count: audit.content?.word_count ?? null,
+        l2_internal_links_count: audit.content?.internal_links_count ?? null,
+        l2_external_links_count: audit.content?.external_links_count ?? null,
+        l2_images_count: audit.content?.images_count ?? null,
+        l2_seo_checks: audit.checks || null,
+        l2_domain_rank: tech?.domain_rank || null,
+      }
+
+      const newScores = scoreLeads([input])
+      l2EnrichedListings[index] = enriched
+      l2EnrichedScores[index] = newScores[0]
+    }
+  }
+
+  console.log(`[enrichment] L2: ${toEnrich.length} leads with website enriched, cost $${l2Cost.toFixed(4)}`)
+  return { l2EnrichedListings, l2EnrichedScores, l2Cost }
+}
         l2_has_title: !!audit.meta?.title,
         l2_has_description: !!audit.meta?.description,
         l2_has_analytics: hasAnalytics,
@@ -326,35 +352,28 @@ export async function POST(request: NextRequest) {
     console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
     let l2Cost = 0
 
-    // ═══ L1: ENRICHMENT (27-field profiles, $0.0054/lead) ═══
-    // Always enrich top N leads — dados pagos precisam de contexto para valer
+    // ═══ L1: ENRICHMENT (27-field GMB profile, $0.0054/lead, ALL 50) ═══
     const shouldEnrich = enrich || force
-    const maxEnrich = typeof enrich === 'number' ? enrich : 5
 
     if (shouldEnrich) {
-      const enriched = await enrichTopLeads(listings, scores, maxEnrich)
+      const enriched = await enrichTopLeads(listings, scores, 50)
 
       listings = enriched.enrichedListings
       scores = enriched.enrichedScores
       enrichmentCost = enriched.enrichmentCost
       enrichedCount = listings.filter((l: any) => l.phone || l.website || l.total_photos != null).length
 
-      // Track enrichment cost
       if (enrichmentCost > 0) {
         trackCost({
           categories: [...categories, "L1_enrichment"],
-          lat: lat || -23.55,
-          lng: lng || -46.63,
-          radiusKm: radiusKm || 10,
-          costUsd: enrichmentCost,
-          totalCount: maxEnrich,
+          lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10,
+          costUsd: enrichmentCost, totalCount: 50,
         })
       }
 
-      // ═══ L2: WEBSITE+SEO ENRICHMENT ($0.010125/lead) ═══
-      // Only for leads that passed L1 and have websites + score >= 30
+      // ═══ L2: WEBSITE+SEO + SOCIAL/CONTACT CRAWL ($0.010625/lead, ALL com website) ═══
       if (enrichedCount > 0) {
-        const l2Result = await enrichTopLeadsL2(listings, scores, Math.min(typeof enrich === 'number' ? enrich : 3, 3))
+        const l2Result = await enrichTopLeadsL2(listings, scores, 30)
 
         listings = l2Result.l2EnrichedListings
         scores = l2Result.l2EnrichedScores
