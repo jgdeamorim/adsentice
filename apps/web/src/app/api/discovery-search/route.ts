@@ -44,7 +44,7 @@ async function enrichTopLeads(
 
   // DataForSEO limits: 2000 req/min, max 30 simultaneous, 20 tasks/POST, max 5 same-domain URLs
   // Strategy: batch 20 tasks per POST (API limit), cap concurrency at 30
-  const CONCURRENCY = 20
+  const CONCURRENCY = 50  // DataForSEO allows 30 concurrent; we batch via POST tasks
   let enrichmentCost = 0
 
   const results = await Promise.allSettled(
@@ -609,7 +609,7 @@ export async function POST(request: NextRequest) {
       if (r.succeeded > 0) console.log(`[r2-vault] ${r.succeeded}/${r.attempted} blobs saved`)
     }).catch(() => {})
 
-    saveDiscoverySearch({
+    const saved = await saveDiscoverySearch({
       categories,
       lat: lat || -23.55,
       lng: lng || -46.63,
@@ -618,7 +618,8 @@ export async function POST(request: NextRequest) {
       costUsd: searchCost + enrichmentCost + l2Cost + l3Cost,
       listings: enrichedListings,
       distribution,
-    }).then((saved) => {
+    })
+    if (saved) {
       // Market holds — time-series snapshot a cada busca
       if (categories.length === 1) {
         const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
@@ -643,9 +644,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (saved) console.log(`[discovery-persistence] Saved ${saved.savedCount} listings to Supabase (search ${saved.searchId})`)
-    }).catch((err) => {
-      console.error("[discovery-persistence] Supabase save failed (data preserved in Redis):", err.message)
-    })
+    }
 
     // Persist + cache (Redis + memory)
     const payload = {
