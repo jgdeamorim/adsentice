@@ -211,6 +211,8 @@ const DiscoveryPage = () => {
     meta: { totalGaps: number; priorityTargets: number; estimatedCost: number; estimatedMRR: number }
   } | null>(null)
   const [autoLoading, setAutoLoading] = useState(false)
+  const [stateRanking, setStateRanking] = useState<any>(null)  // State Scorer ranking
+  const [autoSuggestion, setAutoSuggestion] = useState<{ state: string; city: string; reason: string; action: string } | null>(null)
 
   // ── Map Pins (ADR-0022 Layer 1) ──
   const [mapPins, setMapPins] = useState<any[]>([])
@@ -221,19 +223,46 @@ const DiscoveryPage = () => {
       .then(r => r.json())
       .then(d => { setMapPins(d.pins || []); setPinsLoaded(true) })
       .catch(() => {})
-  }, [pinsVersion]) // recarrega pins quando pinsVersion incrementa
+  }, [pinsVersion])
 
   // Fetch auto-pilot queue when category or city changes
   const activeCategory = selected.length === 1 ? selected[0] : null
   useEffect(() => {
-    if (!autoMode || !activeCategory || !cityLabel) return
+    if (!autoMode || !activeCategory) return
     const cityName = cityLabel.split('(')[0].trim()
+    const isCapital = BR_CAPITALS.some(c => c.label === cityName)
     setAutoLoading(true)
-    fetch(`/api/coverage/queue?category=${encodeURIComponent(activeCategory)}&city=${encodeURIComponent(cityName)}`)
+
+    // State ranking quando não tem capital clara OU quando queremos visão Brasil
+    const url = isCapital
+      ? `/api/coverage/queue?category=${encodeURIComponent(activeCategory)}&city=${encodeURIComponent(cityName)}`
+      : `/api/coverage/queue?category=${encodeURIComponent(activeCategory)}`
+
+    fetch(url)
       .then(r => r.json())
-      .then(d => { if (d.targets) setAutoQueue(d) })
+      .then(d => {
+        if (d.mode === "state-ranking") {
+          setStateRanking(d.ranking)
+          setAutoSuggestion(d.suggestion)
+          if (d.queue?.targets) setAutoQueue(d.queue)
+          // Auto-select best state on map
+          const best = d.ranking?.topPick
+          if (best && best.capitalLat) {
+            setCityLat(best.capitalLat)
+            setCityLng(best.capitalLng)
+            setCityLabel(`${best.capital} (${best.uf})`)
+            setStateKey(best.uf)
+            setRadius(best.suggestedRadius || 10)
+          }
+        } else if (d.queue?.targets) {
+          setAutoQueue(d.queue)
+          setStateRanking(null)
+          setAutoSuggestion(null)
+        }
+      })
       .catch(() => {})
       .finally(() => setAutoLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoMode, activeCategory, cityLabel])
 
   // ── Sort (apenas visualização) ──
@@ -539,7 +568,44 @@ return arr
         </Card>
       </Grid>
 
-      {/* ═══ AUTO-PILOT (ADR-0023 Layer 2 — Target Scorer) ═══ */}
+      {/* ═══ AUTO-PILOT STATE SUGGESTION (sem cidade manual) ═══ */}
+      {autoMode && autoSuggestion && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant='subtitle2' fontWeight={700} color='success.main'>
+                    🎯 Auto-Pilot: Melhor Estado para Prospectar
+                  </Typography>
+                  <Typography variant='body2' fontWeight={600}>
+                    {autoSuggestion.state} · {autoSuggestion.city}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    {autoSuggestion.reason}
+                  </Typography>
+                </Box>
+                <Chip label='🤖 Seleção automática ativa' size='small' color='success' variant='tonal' />
+              </Box>
+              {stateRanking && (
+                <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {stateRanking.states.slice(0, 6).map((s: any) => (
+                    <Chip key={s.uf}
+                      label={`${s.uf} ${s.score}`}
+                      size='small'
+                      color={s.uf === stateRanking.topPick.uf ? 'success' : 'default'}
+                      variant={s.uf === stateRanking.topPick.uf ? 'filled' : 'outlined'}
+                      sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}
+                    />
+                  ))}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+
+      {/* ═══ AUTO-PILOT TARGETS TABLE ═══ */}
       {selected.length === 1 && (
         <Grid size={{ xs: 12 }}>
           <DiscoveryAutoPilot
@@ -547,7 +613,7 @@ return arr
             autoModeType={autoModeType}
             autoLoading={autoLoading}
             autoQueue={autoQueue}
-            onToggleAuto={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null) }}
+            onToggleAuto={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null); setAutoSuggestion(null); setStateRanking(null) }}
             onToggleType={setAutoModeType}
             onMapDistrict={(district, city, radius) => {
               setGeoQuery(`${district}, ${city}`)
