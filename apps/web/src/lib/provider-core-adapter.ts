@@ -20,7 +20,7 @@ class DataForSEOClient {
   get baseUrl() { return this.mode === "sandbox" ? "https://sandbox.dataforseo.com" : "https://api.dataforseo.com" }
 
   async post<T>(endpoint: string, body: unknown[]): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}.ai`
+    const url = `${this.baseUrl}${endpoint}`  // SEM .ai — respostas flatten quebram tasks[0].result[0]
 
     const res = await fetch(url, {
       method: "POST",
