@@ -201,8 +201,6 @@ const DiscoveryPage = () => {
   const [geoQuery, setGeoQuery] = useState('')      // input de busca livre
   const [geoSuggestions, setGeoSuggestions] = useState<{ lat: number; lng: number; displayName: string }[]>([])
   const [geoSearching, setGeoSearching] = useState(false)
-  const [cepQuery, setCepQuery] = useState('')        // input de busca por CEP
-  const [cepSearching, setCepSearching] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
   // ── Auto-Pilot (ADR-0023 Layer 2) ──
@@ -368,27 +366,6 @@ const DiscoveryPage = () => {
       setGeoSuggestions(data.lat ? [data] : [])
     } catch { setGeoSuggestions([]) }
     finally { setGeoSearching(false) }
-  }
-
-  // ═══ CEP search ═══
-  const handleCEPSearch = async (cep: string) => {
-    setCepQuery(cep)
-    if (cep.replace(/\D/g, '').length < 8) return
-    setCepSearching(true)
-    try {
-      const res = await fetch(`/api/cep?q=${encodeURIComponent(cep)}`)
-      if (!res.ok) { setCepSearching(false); return }
-      const data = await res.json()
-      if (data.coordenadas) {
-        setCityLat(data.coordenadas.lat)
-        setCityLng(data.coordenadas.lng)
-        setCityLabel(`${data.bairro || data.cidade}, ${data.uf}`)
-        setStateKey('')
-        setGeoQuery(`${data.logradouro}, ${data.bairro}, ${data.cidade} - ${data.uf}`)
-        setRadius(3) // CEP = micro-target, raio menor
-      }
-    } catch {}
-    setCepSearching(false)
   }
 
   const selectGeoResult = (r: { lat: number; lng: number; displayName: string }) => {
@@ -567,27 +544,8 @@ return arr
               loading={loading}
             />
 
-            {/* ── Abaixo do mapa: CEP + controles de raio + capitais quick-select ── */}
+            {/* ── Abaixo do mapa: controles de raio + capitais quick-select ── */}
             <Box sx={{ px: 3, pb: 2, pt: 1 }}>
-              {/* ── CEP Input ── */}
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1.5 }}>
-                <TextField
-                  size='small' placeholder='Digite o CEP (ex: 01310100)'
-                  value={cepQuery} onChange={e => handleCEPSearch(e.target.value)}
-                  inputProps={{ maxLength: 9, style: { fontFamily: 'monospace', fontSize: '0.85rem' } }}
-                  sx={{ width: 220 }}
-                  slotProps={{
-                    input: {
-                      startAdornment: <InputAdornment position='start'><Typography variant='caption'>📮</Typography></InputAdornment>,
-                      endAdornment: cepSearching ? <InputAdornment position='end'><i className='ri-loader-4-line ri-spin' /></InputAdornment> : null,
-                    },
-                  }}
-                />
-                <Typography variant='caption' color='text.secondary'>
-                  CEP → coordenada + IBGE panorama (PIB, renda, densidade)
-                </Typography>
-              </Box>
-              {/* ── Raio + Capitais ── */}
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Typography variant='caption' color='text.secondary' sx={{ mr: 1 }}>Raio:</Typography>
                 {[5, 10, 15, 20, 25, 30].map(r => (
