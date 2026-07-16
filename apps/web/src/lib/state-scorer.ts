@@ -11,6 +11,8 @@
 import "server-only"
 import { getAdminClient } from "./supabase-admin"
 import { normalizeCategory } from "./market-intel"
+import { CAPITAL_RENDA } from "./ibge/censo"
+import { CAPITAL_IDS } from "./ibge/localidades"
 
 // ── Types ──
 
@@ -166,7 +168,9 @@ export function detectState(lat: number, lng: number): string {
 export async function rankStates(category: string): Promise<StateRanking | null> {
   try {
     const slug = normalizeCategory(category)
-    const ibgeData = IBGE_SMB_BY_STATE[slug] || IBGE_SMB_BY_STATE._default
+    let ibgeData: Record<string, number> = IBGE_SMB_BY_STATE[slug] || IBGE_SMB_BY_STATE._default
+  try { const { data: rows } = await supabase.from("ibge_market_size").select("uf,businesses_estimate").eq("category", slug).limit(30); if (rows?.length) { ibgeData = {}; for (const r of rows) { ibgeData[r.uf] = r.businesses_estimate } } } catch {} /* usa hardcoded fallback */
+  /* ibgeData now has Supabase or fallback data */
     const supabase = getAdminClient()
     const ticket = TICKETS[slug] || 200
     const label = CATEGORY_LABELS[slug] || category
@@ -195,7 +199,7 @@ export async function rankStates(category: string): Promise<StateRanking | null>
       const totalBiz = ibgeData[uf] || Math.round((ibgeData._default || 1000) * 0.3)
       const mapped = mappedByUf[uf]?.size || 0
       const gapPct = Math.round(((totalBiz - mapped) / Math.max(totalBiz, 1)) * 100)
-      const renda = RENDA_MEDIA_UF[uf] || 1000
+      const renda = CAPITAL_RENDA[uf] || CAPITAL_RENDA["SP"] || 1000
       const cap = STATE_CAPITALS[uf]
       if (!cap) continue
 
