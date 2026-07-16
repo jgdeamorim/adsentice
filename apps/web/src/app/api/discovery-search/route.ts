@@ -248,24 +248,6 @@ async function enrichTopLeadsL2(
   console.log(`[enrichment] L2: ${toEnrich.length} leads with website enriched, cost $${l2Cost.toFixed(4)}`)
   return { l2EnrichedListings, l2EnrichedScores, l2Cost }
 }
-        l2_has_title: !!audit.meta?.title,
-        l2_has_description: !!audit.meta?.description,
-        l2_has_analytics: hasAnalytics,
-        l2_cms: cmsName,
-        l2_word_count: audit.content?.word_count || 0,
-        l2_lighthouse_performance: null, // reserved for future lighthouse batch
-        l2_has_schema: audit.checks?.no_jsonld_schema === true ? false : null,
-      }
-
-      const newScores = scoreLeads([input])
-
-      l2EnrichedListings[index] = enriched
-      l2EnrichedScores[index] = newScores[0]
-    }
-  }
-
-  return { l2EnrichedListings, l2EnrichedScores, l2Cost }
-}
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
