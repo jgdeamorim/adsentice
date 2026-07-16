@@ -502,6 +502,7 @@ export async function POST(request: NextRequest) {
         enrichmentCost,
         l2Cost,
         l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
+        l3EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 3).length,
         avgScore: distribution.avgScore,
         unaware: distribution.unaware, problemAware: distribution.problemAware,
         solutionAware: distribution.solutionAware, productAware: distribution.productAware,
@@ -553,9 +554,24 @@ export async function POST(request: NextRequest) {
         ...l,
         score: scores[i],
         contact_methods: detectContactMethods(input),
-        enrichment_level: enrichLevel,
+        enrichment_level: l.enrichment_level >= 3 ? 3 : l.enrichment_level >= 2 ? 2 : enrichLevel,  // preserve L2/L3
         l2_content_maturity,
         l2_content_gaps,
+        // Ensure L2 fields survive spread (explicit carry-through)
+        l2_onpage_score: l.l2_onpage_score ?? null,
+        l2_meta_title: l.l2_meta_title ?? null,
+        l2_meta_description: l.l2_meta_description ?? null,
+        l2_cms: l.l2_cms ?? null,
+        l2_has_analytics: l.l2_has_analytics ?? null,
+        // Ensure L3 fields survive spread
+        l3_whatsapp: l.l3_whatsapp ?? null,
+        l3_emails: l.l3_emails ?? null,
+        l3_social_links: l.l3_social_links ?? null,
+        // Ensure L4 fields survive spread
+        l4_ibge_populacao: l.l4_ibge_populacao ?? null,
+        l4_ibge_pib_per_capita: l.l4_ibge_pib_per_capita ?? null,
+        l4_ibge_densidade: l.l4_ibge_densidade ?? null,
+        l4_ibge_renda_media: l.l4_ibge_renda_media ?? null,
       }
     })
 
@@ -571,7 +587,7 @@ export async function POST(request: NextRequest) {
       lng: lng || -46.63,
       radiusKm: radiusKm || 10,
       totalCount: result.total_count,
-      costUsd: searchCost + enrichmentCost + l2Cost,
+      costUsd: searchCost + enrichmentCost + l2Cost + l3Cost,
       listings: enrichedListings,
       distribution,
     }).then((saved) => {
@@ -608,9 +624,10 @@ export async function POST(request: NextRequest) {
       ...result,  // total_count, cost_usd
       listings,   // enriched listings (sobrescreve result.listings)
       scores, distribution,
-      enrichedCount, enrichmentCost, l2Cost,
+      enrichedCount, enrichmentCost, l2Cost, l3Cost,
       l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
-      totalCost: searchCost + enrichmentCost + l2Cost,
+      l3EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 3).length,
+      totalCost: searchCost + enrichmentCost + l2Cost + l3Cost,
       fromCache: false,
       costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
     }
