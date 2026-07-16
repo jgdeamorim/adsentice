@@ -171,6 +171,21 @@ def gzip_bytes(data_bytes):
     return buf.getvalue()
 
 
+# ── Incremental helpers ──
+def checksum_json(obj) -> str:
+    """Deterministic hash of a JSON-serializable object."""
+    raw = json.dumps(obj, ensure_ascii=False, default=str, sort_keys=True).encode()
+    return hashlib.sha256(raw).hexdigest()[:12]
+
+def load_prev_manifest():
+    """Load previous backup manifest for incremental comparison."""
+    prev_path = LOCAL_BACKUP_DIR / "latest.json"
+    if prev_path.exists():
+        try:
+            return json.loads(prev_path.read_text())
+        except: pass
+    return None
+
 # ── Main ──
 def run_backup(dry_run=False, skip_r2=False):
     now = datetime.now(timezone.utc)
@@ -178,8 +193,12 @@ def run_backup(dry_run=False, skip_r2=False):
     timestamp = now.strftime("%Y-%m-%dT%H%M%SZ")
     backup_id = timestamp.lower().replace("t", "-").replace(":", "").replace("z", "")
     r2_enabled = bool(R2_ACCOUNT and not skip_r2 and not dry_run)
+    prev = load_prev_manifest()
 
-    print(f"\n🧠 adsentice · FULL BACKUP · {timestamp}")
+    mode = "FULL"
+    if prev:
+        print(f"   Previous: {prev.get('backup_id', '?')[:20]} ({prev.get('timestamp', '?')})")
+    print(f"\n🧠 adsentice · {'🟢 INCREMENTAL' if prev else '🔵 FULL (primeiro)'} · {timestamp}")
     print(f"   R2: {'enabled' if r2_enabled else 'DISABLED'}")
     if dry_run: print("   DRY RUN — no uploads")
 
@@ -189,53 +208,101 @@ def run_backup(dry_run=False, skip_r2=False):
     supabase = dump_supabase()
 
     manifest = {
-        "version": "v1.0.0",
+        "version": "v1.1.0",
         "backup_id": backup_id,
         "date": date_str,
         "timestamp": timestamp,
+        "mode": "INCREMENTAL" if prev else "FULL",
+        "parent_backup": prev.get("backup_id") if prev else None,
         "collections": {k: v["count"] for k, v in qdrant.items()},
         "redis_keys": len(redis),
         "supabase_rows": sum(v["count"] for v in supabase.values()),
+        "checksums": {
+            "qdrant": {k: checksum_json(v) for k, v in qdrant.items()},
+            "redis": checksum_json(redis),
+            "supabase": {k: checksum_json(v) for k, v in supabase.items()},
+        },
         "uploaded_to_r2": [],
         "local_fallback": [],
     }
+
+    # ── Diff vs previous (incremental) ──
+    changed = {"qdrant": [], "redis": False, "supabase": []}
+    if prev and prev.get("checksums"):
+        pc = prev["checksums"]
+        for col, chk in manifest["checksums"]["qdrant"].items():
+            if pc.get("qdrant", {}).get(col) != chk:
+                changed["qdrant"].append(col)
+        changed["redis"] = pc.get("redis") != manifest["checksums"]["redis"]
+        for tbl, chk in manifest["checksums"]["supabase"].items():
+            if pc.get("supabase", {}).get(tbl) != chk:
+                changed["supabase"].append(tbl)
+
+        total_changed = len(changed["qdrant"]) + (1 if changed["redis"] else 0) + len(changed["supabase"])
+        if total_changed == 0:
+            print(f"\n📊 NADA mudou desde {prev['backup_id'][:20]}. Pulando R2 (full local ainda será salvo).")
+            mode = "NOOP"
+            manifest["mode"] = "NOOP"
+            manifest["changed"] = changed
+        else:
+            print(f"\n📊 Mudanças detectadas ({total_changed}):")
+            for c in changed["qdrant"]: print(f"   Qdrant: {c}")
+            if changed["redis"]: print(f"   Redis: alterado")
+            for t in changed["supabase"]: print(f"   Supabase: {t}")
+            manifest["changed"] = changed
+            mode = "INCREMENTAL"
+            manifest["mode"] = "INCREMENTAL"
+    else:
+        changed = {"qdrant": list(qdrant.keys()), "redis": True, "supabase": list(supabase.keys())}
+        manifest["changed"] = changed
+        mode = "FULL"
+        manifest["mode"] = "FULL"
 
     bundle = json.dumps({"manifest": manifest, "qdrant": qdrant, "redis": redis, "supabase": supabase}, ensure_ascii=False, default=str).encode()
     gz = gzip_bytes(bundle)
     print(f"\n📦 Bundle: {len(bundle)/1024/1024:.1f} MB → {len(gz)/1024/1024:.1f} MB compressed")
 
-    # ── R2 Upload ──
+    # ── R2 Upload (incremental: só changed + full bundle sempre) ──
     r2_ok = 0
-    if r2_enabled:
-        print("\n☁️ Uploading to R2...")
+    if r2_enabled and mode != "NOOP":
+        print(f"\n☁️ Uploading to R2 ({mode})...")
         base = f"backup/{date_str}"
 
-        # Full bundle
+        # Full bundle — sempre (referência completa)
         if r2_put(f"{base}/adsentice-backup-{backup_id}.json.gz", gz, "application/gzip"):
             manifest["uploaded_to_r2"].append(f"{base}/adsentice-backup-{backup_id}.json.gz")
             r2_ok += 1
 
-        # Per-collection Qdrant
-        for col, data in qdrant.items():
+        # Per-collection: só changed
+        for col in changed.get("qdrant", []):
+            data = qdrant.get(col)
+            if not data: continue
             col_gz = gzip_bytes(json.dumps(data, ensure_ascii=False, default=str).encode())
             if r2_put(f"{base}/qdrant/{col}.json.gz", col_gz, "application/gzip"):
                 manifest["uploaded_to_r2"].append(f"{base}/qdrant/{col}.json.gz")
                 r2_ok += 1
 
-        # Redis
-        redis_gz = gzip_bytes(json.dumps(redis, ensure_ascii=False, default=str).encode())
-        if r2_put(f"{base}/redis.json.gz", redis_gz, "application/gzip"):
-            manifest["uploaded_to_r2"].append(f"{base}/redis.json.gz")
-            r2_ok += 1
-
-        # Supabase per table
-        for table, data in supabase.items():
-            tbl_gz = gzip_bytes(json.dumps(data, ensure_ascii=False, default=str).encode())
-            if r2_put(f"{base}/supabase/{table}.json.gz", tbl_gz, "application/gzip"):
-                manifest["uploaded_to_r2"].append(f"{base}/supabase/{table}.json.gz")
+        # Redis: só changed
+        if changed.get("redis"):
+            redis_gz = gzip_bytes(json.dumps(redis, ensure_ascii=False, default=str).encode())
+            if r2_put(f"{base}/redis.json.gz", redis_gz, "application/gzip"):
+                manifest["uploaded_to_r2"].append(f"{base}/redis.json.gz")
                 r2_ok += 1
 
-        print(f"   R2: {r2_ok} files uploaded")
+        # Supabase: só changed tables
+        for tbl in changed.get("supabase", []):
+            data = supabase.get(tbl)
+            if not data: continue
+            tbl_gz = gzip_bytes(json.dumps(data, ensure_ascii=False, default=str).encode())
+            if r2_put(f"{base}/supabase/{tbl}.json.gz", tbl_gz, "application/gzip"):
+                manifest["uploaded_to_r2"].append(f"{base}/supabase/{tbl}.json.gz")
+                r2_ok += 1
+
+        print(f"   R2: {r2_ok} files uploaded ({mode})")
+    elif r2_enabled and mode == "NOOP":
+        print(f"\n☁️ R2: skipping (nothing changed since {prev.get('backup_id', '?')[:20]})")
+    elif not r2_enabled:
+        print(f"\n☁️ R2: disabled")
 
     # ── Local fallback ──
     print("\n💾 Local fallback...")
