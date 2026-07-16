@@ -73,6 +73,7 @@ NÃO usar `python3` direto — não tem o SDK `mcp` instalado globalmente.
 9. **Público:** SMB brasileiro (dono de clínica, lojista, contador)
 10. **Ticket:** R$0 (free) · R$47 (starter) · R$197 (pro) · R$497 (escala)
     **Planos de solução (Strategic Plan v2.0):** Raio-X R$0 · Sentinela R$197 · Domínio R$497 · Escala R$997
+11. **⚠️ Next.js 15.1.2 SWC:** LEIA `.claude/NEXTJS_SWC_RULES.md` antes de editar Server Components. Checklist: Suspense+inner async · 'use client' wrapper pra Leaflet · inline props type · nunca `catch {}` vazio · nunca `dynamic(ssr:false)` em server component.
 
 ---
 
