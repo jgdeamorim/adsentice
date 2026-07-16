@@ -42,10 +42,13 @@ async function enrichTopLeads(
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
+  // DataForSEO limits: 2000 req/min, max 30 simultaneous, 20 tasks/POST, max 5 same-domain URLs
+  // Strategy: batch 20 tasks per POST (API limit), cap concurrency at 30
+  const CONCURRENCY = 20
   let enrichmentCost = 0
 
   const results = await Promise.allSettled(
-    toEnrich.map(async ({ listing, index }) => {
+    toEnrich.slice(0, CONCURRENCY).map(async ({ listing, index }) => {
       const profile = await businessProfileGmb({
         keyword: listing.title,
         location_code: 2076,
