@@ -295,6 +295,7 @@ const DiscoveryPage = () => {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(20)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [forceRefresh, setForceRefresh] = useState(false)
 
   const l0Cost = selected.length * 0.015          // L0: business_listings_search
   const l1Cost = 100 * 0.0054                        // L1: ALL leads enriquecidos (27 campos GMB)
@@ -303,7 +304,7 @@ const DiscoveryPage = () => {
   const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0+L1+L4 (L4 = $0)
 
   // ═══ Search ═══
-  const doSearch = useCallback(async (_force = false, offsetOverride?: number) => {
+  const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
     if (!selected.length) return
     setLoading(true); setError('')
 
@@ -312,7 +313,7 @@ const DiscoveryPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 100, force: false, enrich: 100, paginate: false,
+          limit: 100, force: force, enrich: 100, paginate: false,
           ...(offsetOverride !== undefined ? { offset: offsetOverride } : {}),
         }),
       })
@@ -354,7 +355,7 @@ const DiscoveryPage = () => {
       setSortDir('desc')
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
-  }, [selected, cityLat, cityLng, radius])
+  }, [selected, cityLat, cityLng, radius, forceRefresh])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -672,11 +673,16 @@ return colors[level ?? 0] || colors[0]
                 <Chip label={`~$${(totalCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
             </Typography>
-            <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
-              onClick={() => setConfirmOpen(true)}
-              startIcon={loading ? undefined : <i className='ri-search-line' />} size='large'>
-              {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L4)`}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Chip label={forceRefresh ? '🔄 Force (Live API)' : '📦 Cache (Redis)'} size='small'
+                color={forceRefresh ? 'warning' : 'default'} variant='tonal'
+                onClick={() => setForceRefresh(!forceRefresh)}
+                sx={{ cursor: 'pointer' }} />
+              <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
+                onClick={() => setConfirmOpen(true)}>
+                {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L4)`}
+              </Button>
+            </Box>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {CATS.map(cat => {
@@ -761,7 +767,7 @@ return (
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-          <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(true); }}>
+          <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}>
             🚀 Buscar (${totalCost.toFixed(4)})
           </Button>
         </DialogActions>
