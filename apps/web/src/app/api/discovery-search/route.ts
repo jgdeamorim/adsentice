@@ -603,12 +603,35 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // ═══ R2 VAULT (write-ahead — dados pagos salvos ANTES do Supabase) ═══
-    const searchIdForVault = `search_${Date.now().toString(36)}`
-    vaultWriteBatch(searchIdForVault, enrichedListings).then(r => {
-      if (r.succeeded > 0) console.log(`[r2-vault] ${r.succeeded}/${r.attempted} blobs saved`)
-    }).catch(() => {})
+    // ═══ RESPONSE PAYLOAD (construído antes de persistir) ═══
+    const payload = {
+      ...result,  // total_count, cost_usd
+      listings,   // enriched listings (sobrescreve result.listings)
+      scores, distribution,
+      enrichedCount, enrichmentCost, l2Cost, l3Cost,
+      l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
+      l3EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 3).length,
+      totalCost: searchCost + enrichmentCost + l2Cost + l3Cost,
+      fromCache: false,
+      costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
+    }
 
+    // ═══ 3-LAYER PERSISTENCE (dados pagos NUNCA são perdidos) ═══
+    // Layer 1: REDIS CONTINGENCY (imediato ~1ms, TTL 7 dias)
+    // Guarda payload COMPLETO — se Supabase/R2 falharem, recupera daqui
+    setCache(cacheKey, payload)
+    persistResults(cacheKey, payload)
+
+    // Layer 2: R2 VAULT (write-ahead blob — imutável, ~500ms)
+    // Se Supabase falhar, o blob no R2 é a verdade. Restaurável.
+    const searchIdForVault = `search_${Date.now().toString(36)}`
+    try {
+      const r2Result = await vaultWriteBatch(searchIdForVault, enrichedListings)
+      if (r2Result.succeeded > 0) console.log(`[r2-vault] ${r2Result.succeeded}/${r2Result.attempted} blobs saved`)
+    } catch { /* R2 offline — Redis já tem o payload */ }
+
+    // Layer 3: SUPABASE (durável, ~2s)
+    // Fonte primária de verdade. Se falhar, Redis e R2 são fallback.
     const saved = await saveDiscoverySearch({
       categories,
       lat: lat || -23.55,
@@ -618,12 +641,14 @@ export async function POST(request: NextRequest) {
       costUsd: searchCost + enrichmentCost + l2Cost + l3Cost,
       listings: enrichedListings,
       distribution,
+    }).catch((err) => {
+      console.error("[persistence] Supabase FAILED — dados salvos no Redis (7d) + R2:", err.message)
+      return null
     })
     if (saved) {
       // Market holds — time-series snapshot a cada busca
       if (categories.length === 1) {
         const cat = categories[0].toLowerCase().replace(/\s+/g, "_")
-        // Extrai cidade real dos listings (mais frequente, fallback "Brasil")
         const cityCounts = new Map<string, number>()
         for (const l of enrichedListings) {
           const c = (l as any).city
@@ -637,30 +662,15 @@ export async function POST(request: NextRequest) {
         ]).catch(() => {})
       }
 
-      // Also add content gap to response listings array (listings was modified in-place)
       for (let i = 0; i < enrichedListings.length; i++) {
         (listings[i] as any).l2_content_maturity = enrichedListings[i].l2_content_maturity
         ;(listings[i] as any).l2_content_gaps = enrichedListings[i].l2_content_gaps
       }
 
-      if (saved) console.log(`[discovery-persistence] Saved ${saved.savedCount} listings to Supabase (search ${saved.searchId})`)
+      console.log(`[discovery-persistence] Saved ${saved.savedCount} listings to Supabase (search ${saved.searchId})`)
+    } else {
+      console.log("[discovery-persistence] ⚠️ Supabase offline — dados salvos no Redis (7d) + R2 vault")
     }
-
-    // Persist + cache (Redis + memory)
-    const payload = {
-      ...result,  // total_count, cost_usd
-      listings,   // enriched listings (sobrescreve result.listings)
-      scores, distribution,
-      enrichedCount, enrichmentCost, l2Cost, l3Cost,
-      l2EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 2).length,
-      l3EnrichedCount: listings.filter((l: any) => l.enrichment_level >= 3).length,
-      totalCost: searchCost + enrichmentCost + l2Cost + l3Cost,
-      fromCache: false,
-      costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
-    }
-
-    setCache(cacheKey, payload)
-    persistResults(cacheKey, payload)
 
     return NextResponse.json(payload)
   } catch (e: any) {
