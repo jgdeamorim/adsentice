@@ -78,5 +78,15 @@
 4. **Hetzner CAX11** — provisionar
 5. **Fase 6 Enterprise** — ai.llm.mentions, domain.whois
 
+## 📊 CORPUS STATUS (pós-ingest 2026-07-16)
+
+| Collection | Points | Delta |
+|-----------|--------|-------|
+| adsentice-self | 18,285 | +76 (1306 chunks, 100 arquivos) |
+| adsentice-conversation | 76,678 | +825 chunks history |
+| claude-memory | 30 | estável |
+| adsentice-materio | 36 | estável |
+| **Total KG** | **95,029** | +901 |
+
 ---
 *HANDOFF v010 · 2026-07-16 · adsentice*
