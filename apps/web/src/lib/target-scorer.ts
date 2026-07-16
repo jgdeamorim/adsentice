@@ -120,8 +120,8 @@ export async function scoreMunicipalityTarget(
 
     const cityListings = cityData || []
     const total = cityListings.length || 1
-    const s1 = cityListings.filter(r => r.schwartz_level === 1).length  // Unaware
-    const s2 = cityListings.filter(r => r.schwartz_level === 2).length  // Problem Aware
+    const s1 = cityListings.filter((r: any) => r.schwartz_level === 1).length  // Unaware
+    const s2 = cityListings.filter((r: any) => r.schwartz_level === 2).length  // Problem Aware
 
     // Pain Score: % de leads com alta dor (unaware + problem aware)
     const painPct = Math.round(((s1 + s2) / total) * 100)
@@ -196,7 +196,7 @@ export async function scoreMunicipalityTarget(
 
     return {
       city,
-      district,
+      municipality,
       category: slug,
       categoryLabel: CATEGORY_LABELS[slug] || category,
       score: composite,

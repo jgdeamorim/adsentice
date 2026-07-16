@@ -99,7 +99,7 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
       // Aggregar por categoria (dedup por place_id)
       const byCategory: Record<string, { places: Set<string>; scores: number[]; pains: number; qual: number; prod: number; most: number }> = {}
       const deduped = new Map<string, { category: string; score: number; el: number; sl: number }>()
-      for (const r of listings) {
+      for (const r of listings as any[]) {
         const pid = r.place_id
         if (!pid) continue
         const existing = deduped.get(pid)

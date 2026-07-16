@@ -301,8 +301,6 @@ const DiscoveryPage = () => {
     if (!selected.length) return
     setLoading(true); setError('')
 
-    if (offsetOverride !== undefined) setSearchOffset(offsetOverride)
-
     try {
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -624,7 +622,7 @@ return arr
             autoLoading={autoLoading}
             autoQueue={autoQueue}
             onToggleAuto={() => { setAutoMode(!autoMode); if (!autoMode) setAutoQueue(null); setAutoSuggestion(null); setStateRanking(null) }}
-            onToggleType={setAutoModeType}
+            onToggleType={(t: string) => setAutoModeType(t as 'coverage' | 'intelligence')}
             onMapDistrict={(district, city, radius) => {
               setGeoQuery(`${district}, ${city}`)
               handleGeoSearch(`${district}, ${city}`)

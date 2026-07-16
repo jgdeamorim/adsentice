@@ -36,6 +36,7 @@ const MAX_VOC_PAIN = 33 // R1(15) + R2(10) + R3(8)
 // Portuguese pain and praise indicator words
 const PAIN_WORDS = ["ruim", "pessimo", "horrivel", "demora", "caro", "nao recomendo", "decepcionado",
   "frustrado", "problema", "reclamacao", "atendimento ruim", "nao voltarei", "desorganizado", "sujo"]
+
 const PRAISE_WORDS = ["excelente", "otimo", "maravilhoso", "recomendo", "voltarei", "profissional",
   "atencioso", "pontual", "limpo", "organizado", "preco justo", "melhor", "superou", "nota 10"]
 
@@ -46,13 +47,12 @@ export async function extractVOC(
   if (!input.place_id) return null
 
   let reviews: { rating: number; text: string; time: string }[] = []
-  let totalCount = 0
   let avgRating = input.rating_value || 0
 
   try {
     const result = await businessReviewsGoogle(input.place_id)
+
     reviews = result.reviews
-    totalCount = result.totalCount
     avgRating = result.avgRating || avgRating
   } catch {
     // Degrade gracefully — VOC data is optional enrichment
@@ -81,11 +81,14 @@ export async function extractVOC(
           painPoints.push(pw)
         }
       }
-      // Capture customer language phrases (3+ word sequences)
-      const words = text.split(/\s+/)
-      for (let i = 0; i < words.length - 2; i++) {
-        const phrase = words.slice(i, i + 3).join(" ")
-        if (phrase.length > 15 && phrase.length < 80 && !customerLanguage.includes(phrase)) {
+
+        // Capture customer language phrases (3+ word sequences)
+        const words = text.split(/\s+/)
+
+        for (let i = 0; i < words.length - 2; i++) {
+          const phrase = words.slice(i, i + 3).join(" ")
+
+          if (phrase.length > 15 && phrase.length < 80 && !customerLanguage.includes(phrase)) {
           customerLanguage.push(phrase)
         }
       }
@@ -103,7 +106,9 @@ export async function extractVOC(
     // Word frequency (simple keywords)
     for (const word of text.split(/\s+/)) {
       const clean = word.replace(/[^a-záàâãéêíóôõúç0-9]/g, "")
+
       if (clean.length < 4) continue
+
       if (!wordFreq[clean]) wordFreq[clean] = { count: 0, sentiment: "neutral" }
       wordFreq[clean].count++
       if (rating >= 4) wordFreq[clean].sentiment = "positive"
@@ -154,5 +159,6 @@ export function vocQuickScan(input: ScoringInput): {
 } {
   if (!input.place_id) return { hasPotential: false, reason: "Sem place_id — sem perfil GMB para minerar avaliacoes" }
   if ((input.rating_votes || 0) === 0) return { hasPotential: false, reason: "Zero avaliacoes — sem dados de VOC" }
+
   return { hasPotential: true, reason: `${input.rating_votes} avaliacoes disponiveis para mineracao` }
 }

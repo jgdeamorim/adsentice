@@ -231,7 +231,7 @@ export async function domainTechnologies(domain: string): Promise<DomainTechnolo
 export async function onPageLighthouse(url: string): Promise<{ performance: number; accessibility: number; best_practices: number; seo: number } | null> {
   const c = getClient()
   const body = JSON.stringify([{ url }])
-  const res = await fetch(`${c.activeUrl}/v3/on_page/lighthouse/live/json`, {
+  const res = await fetch(`${c.baseUrl}/v3/on_page/lighthouse/live/json`, {
     method: "POST",
     headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
     body,
@@ -253,7 +253,7 @@ export async function onPageLighthouse(url: string): Promise<{ performance: numb
 export async function serpOrganic(keyword: string, depth = 10): Promise<{ domain: string; position: number; title: string }[]> {
   const c = getClient()
   const body = JSON.stringify([{ keyword, location_code: 2076, language_code: "pt", depth }])
-  const res = await fetch(`${c.activeUrl}/v3/serp/google/organic/live/regular`, {
+  const res = await fetch(`${c.baseUrl}/v3/serp/google/organic/live/regular`, {
     method: "POST",
     headers: { Authorization: c.authHeader, "Content-Type": "application/json" },
     body,
@@ -266,7 +266,7 @@ export async function serpOrganic(keyword: string, depth = 10): Promise<{ domain
     .map(item => {
       const url = (item.url as string) || ""
       return {
-        domain: extractDomain(url),
+        domain: extractDomain(url) || "",
         position: (item.rank_absolute as number) ?? (item.rank_group as number) ?? 0,
         title: (item.title as string) || "",
       }
@@ -279,7 +279,7 @@ export async function googleReviews(params: {
 }): Promise<{ rating_value: number | null; reviews_count: number; reviews: { rating: number; review_text: string; reviewer_name: string | null }[] } | null> {
   const c = getClient()
   const postBody = JSON.stringify([{ keyword: params.keyword, location_code: params.location_code || 2076, language_code: params.language_code || "pt", depth: params.depth || 10 }])
-  const postRes = await fetch(`${c.activeUrl}/v3/business_data/google/reviews/task_post`, {
+  const postRes = await fetch(`${c.baseUrl}/v3/business_data/google/reviews/task_post`, {
     method: "POST", headers: { Authorization: c.authHeader, "Content-Type": "application/json" }, body: postBody,
   })
   if (!postRes.ok) return null
@@ -288,7 +288,7 @@ export async function googleReviews(params: {
   if (!taskId) return null
   for (let i = 0; i < 8; i++) {
     await new Promise(r => setTimeout(r, 3000))
-    const pollRes = await fetch(`${c.activeUrl}/v3/business_data/google/reviews/task_get/${taskId}`, { headers: { Authorization: c.authHeader } })
+    const pollRes = await fetch(`${c.baseUrl}/v3/business_data/google/reviews/task_get/${taskId}`, { headers: { Authorization: c.authHeader } })
     if (!pollRes.ok) continue
     const pollData = await pollRes.json() as { tasks?: Array<{ status_code?: number; result?: Array<Record<string, unknown>> }> }
     const task = pollData.tasks?.[0]

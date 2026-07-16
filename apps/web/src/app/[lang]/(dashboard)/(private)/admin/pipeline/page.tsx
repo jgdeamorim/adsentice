@@ -40,7 +40,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
     if (!error && data?.length) {
       // Dedup by place_id (keep highest enrichment_level)
       const deduped = new Map<string, any>()
-      for (const r of data) { const e = deduped.get(r.place_id); if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) deduped.set(r.place_id, r) }
+      for (const r of data as any[]) { const e = deduped.get(r.place_id); if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) deduped.set(r.place_id, r) }
       const list = Array.from(deduped.values())
       supabaseTotal = list.length
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
@@ -59,7 +59,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
     const { data: l1Data } = await supabase.from("discovery_listings").select("place_id,enrichment_level").limit(3000)
     if (l1Data) {
       const deduped = new Map<string, number>()
-      for (const r of l1Data) {
+      for (const r of l1Data as any[]) {
         const existing = deduped.get(r.place_id)
         if (!existing || (r.enrichment_level || 0) > existing) deduped.set(r.place_id, r.enrichment_level || 0)
       }

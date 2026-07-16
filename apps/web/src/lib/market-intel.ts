@@ -258,7 +258,7 @@ export async function competitiveDensity(cat: string, city?: string | null): Pro
 }
 
 /** Visão geral agregada de TODAS as categorias e cidades. Sem filtro. */
-export async function marketOverview(): Promise<MarketOverview & { categoryCount: number; cityCount: number; l1Count: number; l2Count: number }> {
+export async function marketOverview(): Promise<(MarketOverview & { categoryCount: number; cityCount: number; l1Count: number; l2Count: number }) | null> {
   try {
     const supabase = getAdminClient()
     const { data, error } = await supabase

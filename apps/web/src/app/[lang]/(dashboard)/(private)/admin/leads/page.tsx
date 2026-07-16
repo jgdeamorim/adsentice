@@ -84,7 +84,7 @@ const LeadsPage = async ({ params, searchParams }: {
     if (!error && data) {
       // Dedup by place_id (keep highest enrichment_level)
       const deduped = new Map<string, any>()
-      for (const r of data) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
+      for (const r of data as any[]) { const e = deduped.get(r.place_id); if (!e) deduped.set(r.place_id, r) }
       const list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
       totalCount = list.length
       leads = list.slice(offset, offset + PER_PAGE) as LeadRow[]

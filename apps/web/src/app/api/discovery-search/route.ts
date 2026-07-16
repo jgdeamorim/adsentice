@@ -353,7 +353,7 @@ async function enrichTopLeadsL4(
     const supabase = getAdminClient()
     const { data: panoramaRows } = await supabase.from("ibge_panorama").select("municipio_nome,populacao,pib_per_capita,densidade_demografica,uf").limit(500)
     if (panoramaRows) {
-      for (const r of panoramaRows) {
+      for (const r of panoramaRows as any[]) {
         ibgeByCity[r.municipio_nome?.toLowerCase()?.trim()] = r
       }
     }
@@ -361,7 +361,7 @@ async function enrichTopLeadsL4(
     // Income by UF
     const { data: incomeRows } = await supabase.from("ibge_income").select("uf,avg_household_income").limit(30)
     const incomeByUf: Record<string, number> = {}
-    if (incomeRows) { for (const r of incomeRows) incomeByUf[r.uf] = r.avg_household_income }
+    if (incomeRows) { for (const r of incomeRows as any[]) incomeByUf[r.uf] = r.avg_household_income }
 
     // Enrich each listing
     for (let i = 0; i < listings.length; i++) {
@@ -442,19 +442,19 @@ export async function POST(request: NextRequest) {
     let pagOffset = (limit || 100)
     const seenPids = new Set(items.map((i: any) => i.place_id).filter(Boolean))
     if (shouldPaginate) {
-    while (items.length >= (limit || 100) && pagOffset < totalCount) {
-      const nextResult = await businessListingsSearch({ ...searchParams, offset })
-      const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
-      for (const i of newItems) seenPids.add(i.place_id)
-      result.listings.push(...newItems)
-      result.cost_usd += nextResult.cost_usd || 0
-      offset += (limit || 100)
-      searchMetadata.pages_fetched++
-      searchMetadata.fetched_count += nextResult.listings.length
-      searchMetadata.remaining = Math.max(0, totalCount - searchMetadata.fetched_count)
-    }
-      searchMetadata.offsets_used.push(offset - (limit || 100))
-      if (nextResult.listings.length < (limit || 100)) break
+      while (result.listings.length >= (limit || 100) && pagOffset < totalCount) {
+        const nextResult = await businessListingsSearch({ ...searchParams, offset: pagOffset })
+        const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
+        for (const i of newItems) seenPids.add(i.place_id)
+        result.listings.push(...newItems)
+        result.cost_usd += nextResult.cost_usd || 0
+        searchMetadata.offsets_used.push(pagOffset)
+        pagOffset += (limit || 100)
+        searchMetadata.pages_fetched++
+        searchMetadata.fetched_count += nextResult.listings.length
+        searchMetadata.remaining = Math.max(0, totalCount - searchMetadata.fetched_count)
+        if (nextResult.listings.length < (limit || 100)) break
+      }
     }
 
     // Attach metadata to result (survives to response + persistence)

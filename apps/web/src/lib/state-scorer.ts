@@ -169,9 +169,9 @@ export async function rankStates(category: string): Promise<StateRanking | null>
   try {
     const slug = normalizeCategory(category)
     let ibgeData: Record<string, number> = IBGE_SMB_BY_STATE[slug] || IBGE_SMB_BY_STATE._default
+    const supabase = getAdminClient()
   try { const { data: rows } = await supabase.from("ibge_market_size").select("uf,businesses_estimate").eq("category", slug).limit(30); if (rows?.length) { ibgeData = {}; for (const r of rows) { ibgeData[r.uf] = r.businesses_estimate } } } catch {} /* usa hardcoded fallback */
   /* ibgeData now has Supabase or fallback data */
-    const supabase = getAdminClient()
     const ticket = TICKETS[slug] || 200
     const label = CATEGORY_LABELS[slug] || category
 

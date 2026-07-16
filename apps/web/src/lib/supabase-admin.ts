@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js"
 const SFX = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
-let _admin: ReturnType<typeof createClient> | null = null
+let _admin: any = null
 
 export function getAdminClient() {
   if (_admin) return _admin

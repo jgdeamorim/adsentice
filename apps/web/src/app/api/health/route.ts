@@ -61,13 +61,6 @@ export async function GET() {
       dataforseo: dfOk ? "online" : "offline",
       deepseek: dsOk ? "online" : "offline",
     },
-    alerts: {
-      active: activeAlerts.length,
-      total: alerts.length,
-      critical: activeAlerts.filter(a => a.level === "critical").length,
-      warning: activeAlerts.filter(a => a.level === "warning").length,
-      info: activeAlerts.filter(a => a.level === "info").length,
-    },
     routes: stats,
     recent_errors: recentErrors.slice(0, 5),
   })

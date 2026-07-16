@@ -1,6 +1,6 @@
-
 // adsentice · Admin / Telemetry — Finding Alerts + Route Health + Event Log
 // Padrão EVO-API :7700/health + capital.RS capital-observability
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
@@ -18,13 +18,41 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+import CircularProgress from '@mui/material/CircularProgress'
 
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAlerts, getEvents, getRouteStats, getArbiterVerdict } from '@/lib/telemetry'
 
 export const dynamic = 'force-dynamic'
 
-const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
+// ── Helpers (outside component — SWC rule #2) ──
+
+function getHealthColor(activeAlerts: ReturnType<typeof getAlerts>) {
+  const hasCritical = activeAlerts.filter(a => a.level === 'critical').length > 0
+  if (hasCritical) return 'error' as const
+  if (activeAlerts.length > 0) return 'warning' as const
+  return 'success' as const
+}
+
+function getHealthStatus(activeAlerts: ReturnType<typeof getAlerts>) {
+  return activeAlerts.length > 0 ? '⚠️ Degraded' : '✅ Healthy'
+}
+
+// ── Page (Server Component — Suspense + inner async) ──
+
+export default function TelemetryPage(props: { params: Promise<{ lang: string }> }) {
+  return (
+    <Grid container spacing={6}>
+      <Suspense fallback={<CircularProgress />}>
+        <TelemetryContent params={props.params} />
+      </Suspense>
+    </Grid>
+  )
+}
+
+// ── Inner async (data fetching) ──
+
+async function TelemetryContent({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params
   const user = await getSessionUser()
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
@@ -34,16 +62,13 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
   const events = getEvents(50)
   const stats = getRouteStats()
   const recentErrors = events.filter(e => e.status >= 400)
-
-  // Árbitro DeepSeek verdict (delegado ao telemetry.ts)
   const arbiterVerdict = getArbiterVerdict()
 
-  const healthStatus = activeAlerts.length > 0 ? '⚠️ Degraded' : '✅ Healthy'
-  const healthColor = activeAlerts.filter(a => a.level === 'critical').length > 0 ? 'error' as const
-    : activeAlerts.length > 0 ? 'warning' as const : 'success' as const
+  const healthStatus = getHealthStatus(activeAlerts)
+  const healthColor = getHealthColor(activeAlerts)
 
   return (
-    <Grid container spacing={6}>
+    <>
       <Grid size={{ xs: 12 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -196,13 +221,10 @@ const TelemetryPage = async ({ params }: { params: Promise<{ lang: string }> }) 
                   {e.detail && <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>{e.detail?.slice(0, 200)}</Typography>}
                 </Box>
               ))}
-            </Box>
-          </CardContent>
-        </Card>
-      </Grid>
-    )}
-    </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
+    </>
   )
 }
-
-export default TelemetryPage

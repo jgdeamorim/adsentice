@@ -63,18 +63,23 @@ export function suggestTool(category: string | null | undefined): ToolSuggestion
 
   // Try calculator first (most SEO value), then quiz, then checker
   const calc = TOOL_MAP[`${cat}_calculator`]
+
   if (calc) return calc
 
   const quiz = TOOL_MAP[`${cat}_quiz`]
+
   if (quiz) return quiz
 
   const finder = TOOL_MAP[`${cat}_finder`]
+
   if (finder) return finder
 
   const checker = TOOL_MAP[`${cat}_checker`]
+
   if (checker) return checker
 
   const grader = TOOL_MAP[`${cat}_grader`]
+
   if (grader) return grader
 
   // Generic fallback based on category segment
