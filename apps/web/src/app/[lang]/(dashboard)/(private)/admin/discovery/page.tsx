@@ -304,7 +304,7 @@ const DiscoveryPage = () => {
   const [forceRefresh, setForceRefresh] = useState(false)
 
   // ── Pipeline Config (ADR-0026) ──
-  const [selectedLayers, setSelectedLayers] = useState<{ l0: boolean; l1: boolean; l4: boolean }>({
+  const [selectedLayers, setSelectedLayers] = useState<{ l0: true; l1: boolean; l4: true }>({
     l0: true, l1: true, l4: true,
   })
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
@@ -326,8 +326,7 @@ const DiscoveryPage = () => {
 
   const l0Cost = selected.length * 0.015 * batchEffective
   const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective
-  const l4Cost = 0
-  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0) + (selectedLayers.l4 ? l4Cost : 0) + (selectedLayers.l4 ? l4Cost : 0)
+  const totalCost = l0Cost + l1Cost  // L0 sempre + L1 condicional + L4 ($0) + (selectedLayers.l4 ? l4Cost : 0)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
@@ -809,24 +808,23 @@ return colors[level ?? 0] || colors[0]
               <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ mr: 1 }}>
                 ⚙️ Pipeline:
               </Typography>
-              {/* Layer toggles */}
-              {(['l0', 'l1', 'l4'] as const).map(layer => {
-                const labels = { l0: 'L0 · Search', l1: 'L1 · Profile', l4: 'L4 · IBGE' }
-                const colors: Record<string, 'primary' | 'info' | 'warning'> = { l0: 'primary', l1: 'info', l4: 'warning' }
-                const costs = { l0: `$${selected.length * 0.015}`, l1: `$${(50 * 0.0054).toFixed(3)}`, l4: '$0' }
-
-                return (
-                  <Chip key={layer}
-                    label={`${labels[layer]} ${costs[layer]}`}
-                    clickable size='small'
-                    color={selectedLayers[layer] ? colors[layer] : 'default'}
-                    variant={selectedLayers[layer] ? 'filled' : 'outlined'}
-                    onClick={() => setSelectedLayers(prev => ({ ...prev, [layer]: !prev[layer] }))}
-                    disabled={layer === 'l0'}  // L0 sempre obrigatório
-                    sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
-                  />
-                )
-              })}
+              {/* Layer toggles — L0+L4 obrigatórios, L1 toggleable */}
+              <Typography variant='caption' color='text.secondary'>Camadas:</Typography>
+              {/* L0: obrigatório */}
+              <Chip label='🟢 L0 · Search' size='small' color='primary' variant='filled'
+                sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }} />
+              {/* L1: toggleável */}
+              <Chip
+                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${(50 * 0.0054 * batchEffective).toFixed(4)}` : ''}`}
+                clickable size='small'
+                color={selectedLayers.l1 ? 'primary' : 'default'}
+                variant={selectedLayers.l1 ? 'filled' : 'outlined'}
+                onClick={() => setSelectedLayers(prev => ({ ...prev, l1: !prev.l1 }))}
+                sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
+              />
+              {/* L4: obrigatório */}
+              <Chip label='🟢 L4 · IBGE $0' size='small' color='primary' variant='filled'
+                sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }} />
               <Box sx={{ flex: 1 }} />
               {/* Batch mode */}
               <Typography variant='caption' color='text.secondary'>
@@ -987,10 +985,10 @@ return (
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
-              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, active: selectedLayers.l0 },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: '50 perfis (2 ondas de 30) × municípios', active: selectedLayers.l1 },
-              { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — Supabase', active: selectedLayers.l4 },
-            ].filter(s => s.active).map((s, i, arr) => (
+              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, always: true },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `~${Math.round(50 * 0.36)} perfis por município (36% hit rate real) · 2 ondas de 30`, optional: true, selected: selectedLayers.l1 },
+              { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
+            ].filter(s => s.always || s.selected).map((s, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
                 <Box>
                   <Typography variant='body2' fontWeight={600}>{s.label}</Typography>
@@ -1149,11 +1147,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Pipeline {[
-            selectedLayers.l0 && 'L0',
-            selectedLayers.l1 && 'L1',
-            selectedLayers.l4 && 'L4',
-          ].filter(Boolean).join('+')} em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline L0{selectedLayers.l1 ? '+L1' : ''}+L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
