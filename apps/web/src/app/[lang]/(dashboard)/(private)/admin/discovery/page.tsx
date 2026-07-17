@@ -326,7 +326,7 @@ const DiscoveryPage = () => {
   const batchEffective = realMunicipioCount || 1
 
   const l0Cost = selected.length * 0.015 * 3 * batchEffective  // est: 3 páginas/município
-  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective  // $0.0054/keyword, não por resultado
+  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective  // $0.0054 por POST batch (real API, confirmado)
   const totalCost = l0Cost + l1Cost  // L0 + L1 condicional + L4 ($0)
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
@@ -897,7 +897,7 @@ return colors[level ?? 0] || colors[0]
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }} />
               {/* L1: toggleável */}
               <Chip
-                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${(50 * 0.0054 * batchEffective).toFixed(4)}` : ''}`}
+                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${(0.0054 * batchEffective).toFixed(4)}` : ''}`}
                 clickable size='small'
                 color={selectedLayers.l1 ? 'primary' : 'default'}
                 variant={selectedLayers.l1 ? 'filled' : 'outlined'}
@@ -1086,7 +1086,7 @@ return (
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
               { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, always: true },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `50 keywords/município · $0.0054 cada (DataForSEO cobra por keyword enviada) · 1 POST batch`, optional: true, selected: selectedLayers.l1 },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch (até 50 keywords) · $0.0054 flat rate (testado: 3× e 5× keywords = sempre $0.0054)`, optional: true, selected: selectedLayers.l1 },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
@@ -1116,7 +1116,7 @@ return (
           {/* ── Info ── */}
           <Alert severity='info' sx={{ mt: 2 }}>
             <Typography variant='caption'>
-              DataForSEO cobra <strong>$0.0054 por keyword enviada</strong> (independente do resultado).
+              DataForSEO cobra <strong>$0.0054 por POST</strong> (flat rate, testado com 3, 5 e 50 keywords).
               Custo real usa o valor retornado pela API (tasks[0].cost).
               {batchMode !== 'single' && ` Cada município = 1 chamada L0 + opcionalmente 1 POST L1 com 50 keywords.`}
             </Typography>

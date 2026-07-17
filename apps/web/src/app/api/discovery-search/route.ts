@@ -44,16 +44,15 @@ async function enrichTopLeads(
   // 🔥 BATCH L1: 1 POST com até 100 keywords (doc DataForSEO: max 100 tasks/POST)
   // Antes: 50 chamadas individuais (~8s). Agora: 1 chamada HTTP (~1s)
   const keywords = toEnrich.map(e => e.listing.title)
-  const profiles = await businessProfileGmbBatch(keywords)
-
-  let enrichmentCost = 0
+  const batchResult = await businessProfileGmbBatch(keywords)
+  const profiles = batchResult.profiles
+  const enrichmentCost = batchResult.cost_usd  // custo REAL da API, não hardcoded
 
   for (let i = 0; i < toEnrich.length; i++) {
     const { listing, index } = toEnrich[i]
     const profile = profiles[i]
 
     if (!profile || !profile.place_id) continue
-    enrichmentCost += 0.0054
 
     const enriched: any = {
       ...listing,

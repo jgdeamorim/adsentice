@@ -205,13 +205,17 @@ return {
   }
 }
 
-/** L1 BATCH: Google Business Profile — até 100 keywords em 1 POST. $0.0054/lead */
-export async function businessProfileGmbBatch(keywords: string[]): Promise<(GMBProfile | null)[]> {
+/** L1 BATCH: Google Business Profile — até 100 keywords em 1 POST. */
+export async function businessProfileGmbBatch(keywords: string[]): Promise<{
+  profiles: (GMBProfile | null)[]
+  cost_usd: number                       // custo REAL retornado pela API
+}> {
   const c = getClient()
 
   // Doc: max 100 tasks per POST
   const batchSize = 100
-  const results: (GMBProfile | null)[] = []
+  const profiles: (GMBProfile | null)[] = []
+  let totalCost = 0
 
   for (let i = 0; i < keywords.length; i += batchSize) {
     const chunk = keywords.slice(i, i + batchSize)
@@ -222,8 +226,11 @@ export async function businessProfileGmbBatch(keywords: string[]): Promise<(GMBP
       language_code: "pt",
     }))
 
-    const data = await c.post<{ items: Record<string, unknown>[] }>(
+    const data = await c.post<{ cost?: number; items: Record<string, unknown>[] }>(
       "/v3/business_data/google/my_business_info/live", body)
+
+    // Custo REAL da API (não hardcoded)
+    totalCost += data.cost || 0
 
     // Response items are in same order as body tasks
     const items = data.items || []
@@ -232,14 +239,14 @@ export async function businessProfileGmbBatch(keywords: string[]): Promise<(GMBP
       const item = items[j]
 
       if (!item || !item.place_id) {
-        results.push(null)
+        profiles.push(null)
         continue
       }
 
       const rating = (item.rating || {}) as Record<string, unknown>
       const addrInfo = (item.address_info || {}) as Record<string, unknown>
 
-      results.push({
+      profiles.push({
         title: (item.title as string) || "?",
         category: (item.category as string) || null,
         categories: (item.category_ids as string[]) || null,
@@ -268,7 +275,7 @@ export async function businessProfileGmbBatch(keywords: string[]): Promise<(GMBP
   }
 
 
-return results
+return { profiles, cost_usd: totalCost }
 }
 
 /** L2: OnPage Instant Pages — $0.000125/call */
