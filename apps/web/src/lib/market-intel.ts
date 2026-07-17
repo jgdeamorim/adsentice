@@ -578,12 +578,18 @@ export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]>
         stateMap.set(uf, entry)
       }
 
-      entry.totalLeads += r.total_count || 0
+      // totalLeads: soma via municípios (deduped), não soma de pre-flights.
+      // Cada pre-flight tem total_count AGREGADO para suas categorias —
+      // somar batches inflaria o total (ex: 67K em vez de ~27K reais).
+      // totalCost: soma de todos os pre-flights (custo real gasto).
       entry.totalCost += r.cost_usd || 0
       if (r.created_at > entry.newestAt) entry.newestAt = r.created_at
 
       const existing = entry.municipalities.get(munName)
       if (!existing || r.total_count > existing.totalCount) {
+        // Keep the highest total_count per municipality (from the latest/greatest pre-flight)
+        if (!existing) entry.totalLeads += r.total_count || 0
+        else entry.totalLeads += Math.max(0, (r.total_count || 0) - existing.totalCount)
         entry.municipalities.set(munName, { totalCount: r.total_count || 0, lat: r.lat, lng: r.lng })
       }
 
