@@ -445,20 +445,35 @@ export interface MarketHoldInput {
 }
 
 export async function appendMarketHolds(holds: MarketHoldInput[]): Promise<void> {
-  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tdigauruusdhnpvppixb.supabase.co'}/rest/v1/market_holds`
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  try {
+    const { getAdminClient } = await import("./supabase-admin")
+    const supabase = getAdminClient()
 
-  await Promise.all(holds.map(hold =>
-    fetch(url, {
-      method: 'POST',
-      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        tenant: hold.tenant || 'adsentice', category: hold.category, city: hold.city,
-        metric: hold.metric, value: hold.value, source: hold.source || 'supabase_aggregate',
-        search_id: hold.searchId || null, metadata: hold.metadata || {},
-      }),
-    }).catch(() => {})
-  ))
+    const rows = holds.map(hold => ({
+      tenant: hold.tenant || 'adsentice',
+      category: hold.category,
+      city: hold.city,
+      metric: hold.metric,
+      value: hold.value,
+      source: hold.source || 'supabase_aggregate',
+      search_id: hold.searchId || null,
+      metadata: hold.metadata || {},
+    }))
+
+    // UPSERT: mesmo (search_id, category, city, metric) = atualiza value.
+    // Diferentes search_id = novo snapshot (time-series preservada).
+    // Migration 013 garante UNIQUE constraint como safety net.
+    const { error } = await supabase
+      .from("market_holds")
+      .upsert(rows, {
+        onConflict: "search_id, category, city, metric",
+        ignoreDuplicates: false,  // update value + metadata on conflict
+      })
+
+    if (error) console.error("[appendMarketHolds] upsert error:", error.message)
+  } catch (e: any) {
+    console.error("[appendMarketHolds] supabase offline:", e.message)
+  }
 }
 
 // ── L2 Content Parsing (social media + contacts from website) ──
