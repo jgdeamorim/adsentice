@@ -34,6 +34,7 @@ import Alert from '@mui/material/Alert'
 
 import DiscoveryAutoPilot from '@/components/DiscoveryAutoPilot'
 import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
+import DiscoverySessionLog from '@/components/DiscoverySessionLog'
 
 import { BR_CAPITALS, suggestRadius } from '@/lib/geo-data'
 
@@ -1695,6 +1696,11 @@ return (
           </>
         )}
       </Dialog>
+
+      {/* ═══ Session Log (ADR-0029) ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <DiscoverySessionLog />
+      </Grid>
     </Grid>
   )
 }
