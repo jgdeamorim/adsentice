@@ -203,7 +203,7 @@ const DiscoveryPage = () => {
   const [selected, setSelected] = useState<string[]>([])
 
   // ── RM Municipalities (ADR-0025) ──
-  const [rmMunicipios, setRmMunicipios] = useState<{ nome: string; cidade: string }[]>([])
+  const [rmMunicipios, setRmMunicipios] = useState<{ nome: string; cidade: string; lat?: number | null; lng?: number | null }[]>([])
   const [rmLoading, setRmLoading] = useState(false)
   const [selectedMunicipio, setSelectedMunicipio] = useState<string | null>(null)
   const [rmCoverage, setRmCoverage] = useState<{ mapped: number; total: number } | null>(null)
@@ -386,23 +386,33 @@ const DiscoveryPage = () => {
     finally { setRmLoading(false) }
   }
 
-  // ── Select municipality → geocode and set as search center (ADR-0025) ──
-  const selectMunicipio = async (municipio: string, uf: string) => {
+  // ── Select municipality → use IBGE coordinates (ADR-0025) ──
+  const selectMunicipio = (municipio: string, uf: string, lat?: number | null, lng?: number | null) => {
     setSelectedMunicipio(municipio)
-    setRmLoading(true)
 
-    try {
-      const res = await fetch(`/api/geo/search?q=${encodeURIComponent(municipio)},${encodeURIComponent(uf)},Brasil`)
-      const r = await res.json()
+    if (lat && lng) {
+      setCityLat(lat)
+      setCityLng(lng)
+      setCityLabel(`${municipio} (${uf})`)
+      setRadius(5)
+    }
+    // Fallback: Nominatim geocoding
+    else {
+      setRmLoading(true)
 
-      if (r.lat && r.lng) {
-        setCityLat(r.lat)
-        setCityLng(r.lng)
-        setCityLabel(`${municipio} (${uf})`)
-        setRadius(5)
-      }
-    } catch { /* fallback */ }
-    finally { setRmLoading(false) }
+      fetch(`/api/geo/search?q=${encodeURIComponent(municipio)},${encodeURIComponent(uf)},Brasil`)
+        .then(r => r.json())
+        .then(r => {
+          if (r.lat && r.lng) {
+            setCityLat(r.lat)
+            setCityLng(r.lng)
+            setCityLabel(`${municipio} (${uf})`)
+            setRadius(5)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setRmLoading(false))
+    }
   }
 
   const changeCapital = (c: typeof BR_CAPITALS[0]) => {
@@ -664,7 +674,7 @@ return colors[level ?? 0] || colors[0]
                       size='small'
                       color={selectedMunicipio === m.nome ? 'warning' : 'default'}
                       variant={selectedMunicipio === m.nome ? 'filled' : 'outlined'}
-                      onClick={() => selectMunicipio(m.nome, stateKey)}
+                      onClick={() => selectMunicipio(m.nome, stateKey, m.lat, m.lng)}
                       sx={{ fontSize: '0.6rem', opacity: selectedMunicipio && selectedMunicipio !== m.nome ? 0.5 : 1 }}
                     />
                   ))}
