@@ -1,12 +1,19 @@
 {
-  "version": "v027.1",
-  "sealed_at": "2026-07-17T13:32:52.881439+00:00",
-  "commit": "7fe5ed6",
-  "commits_total": 401,
-  "adrs_total": 28,
+  "version": "v028",
+  "sealed_at": "2026-07-17T14:23:44.836659+00:00",
+  "commit": "595895c",
+  "commits_total": 407,
+  "adrs_total": 29,
   "changes": [
-    "fix: custo L0 triplicado — removido multiplicador de categorias",
-    "L0 cost: $0.048 × municípios (categories array = 1 call)",
-    "Antes: selected.length × 0.048 × batchEffective → 3× mais caro"
+    "ADR-0029: Discovery Session Log com cache TTL + batch_id grouping",
+    "fix: Session Log com tracker_id, progresso, botao Continuar",
+    "fix: Viana/ES coordenadas erradas (conflito homonimos nome|UF)",
+    "feat: batch_id no search_metadata — agrupa buscas por batch",
+    "fix: L0 sem multiplicador de categorias (selected.length removido)",
+    "fix: L4 + city fallback desacoplados do L1 — rodam sempre",
+    "fix: market_holds UPSERT + UNIQUE index (migration 013)",
+    "fix: 27 capitais no mini-mapa + city fallback Nominatim",
+    "Supabase: 399/399 listings (100% city coverage)",
+    "Session Log: batches expansíveis, progresso, Continue por municipio"
   ]
 }
