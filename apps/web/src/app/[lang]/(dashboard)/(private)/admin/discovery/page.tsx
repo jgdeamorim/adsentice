@@ -356,14 +356,14 @@ const DiscoveryPage = () => {
   const [crossValidation, setCrossValidation] = useState<Record<string, { expected: number; actual: number; pct: number; newCount: number }>>({})
 
   // ── PRE-FLIGHT state (limit=1 cost check per municipality) ──
-  const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number }>>({})
+  const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number; avgRating?: number; claimedPct?: number; websitePct?: number }>>({})
   const [preflightRunning, setPreflightRunning] = useState(false)
   const [preflightProgress, setPreflightProgress] = useState('')
   const [searchedStates, setSearchedStates] = useState<Set<string>>(new Set())  // red dot
 
   // Pre-flight: limit=1 for all municipalities → reveals EXACT total_count → exact cost
-  // Custo real: $0.01236/município (validado API live 2026-07-17)
-  const preflightCost = batchEffective > 0 ? batchEffective * 0.01236 : 0
+  // Custo real: $0.01380/município (validado API live 2026-07-17, limit=5)
+  const preflightCost = batchEffective > 0 ? batchEffective * 0.01380 : 0
   const preflightReady = batchMode !== 'single' && selected.length > 0 && rmMunicipios.length > 0
 
   // Real cost from preflight data (if available) vs heuristic estimate
@@ -541,7 +541,7 @@ const DiscoveryPage = () => {
   doSearchRef.current = doSearch  // always points to latest, for session log Continue button
 
   // ── PRE-FLIGHT core: limit=1 → reveals total_count EXACT ──
-  async function runPreflightCore(municipios: { nome: string; lat: number; lng: number }[], catOverride?: string[]): Promise<Record<string, { totalCount: number; cost: number }>> {
+  async function runPreflightCore(municipios: { nome: string; lat: number; lng: number }[], catOverride?: string[]): Promise<Record<string, { totalCount: number; cost: number; avgRating?: number; claimedPct?: number; websitePct?: number }>> {
     const cats = catOverride || selected
     if (municipios.length === 0 || !cats.length) return {}
 
@@ -560,7 +560,7 @@ const DiscoveryPage = () => {
 
     setPreflightRunning(true)
     setPreflightProgress(`🔬 0/${municipios.length}`)
-    const data: Record<string, { totalCount: number; cost: number }> = {}
+    const data: Record<string, { totalCount: number; cost: number; avgRating?: number; claimedPct?: number; websitePct?: number }> = {}
     const pfBatchId = `preflight_${Date.now().toString(36)}`
 
     for (let i = 0; i < municipios.length; i++) {
@@ -580,7 +580,7 @@ const DiscoveryPage = () => {
             categories: cats.slice(0, 10),  // DataForSEO max 10 cats
             lat: m.lat, lng: m.lng,
             radiusKm: preflightRadius,  // IBGE area-based: 5-25km (ADR-0030)
-            limit: 1,
+            limit: 5,  // pre-criteria: $0.01380 — total_count + quality (rating, website, claimed)
             force: true,
             enrich: 0,
             paginate: false,
@@ -590,9 +590,20 @@ const DiscoveryPage = () => {
         })
         if (res.ok) {
           const json = await res.json()
+          // Parse quality signals from the 5 sample listings
+          let avgRating = 0; let claimedCount = 0; let websiteCount = 0
+          const listings = json.listings || []
+          if (listings.length > 0) {
+            avgRating = listings.reduce((s: number, l: any) => s + (l.rating_value || 0), 0) / listings.length
+            claimedCount = listings.filter((l: any) => l.is_claimed).length
+            websiteCount = listings.filter((l: any) => l.website).length
+          }
           data[m.nome] = {
             totalCount: json.total_count || 0,
-            cost: json.cost_usd || 0.01236,
+            cost: json.cost_usd || 0.01380,
+            avgRating: Math.round(avgRating * 10) / 10,
+            claimedPct: listings.length > 0 ? Math.round((claimedCount / listings.length) * 100) : 0,
+            websitePct: listings.length > 0 ? Math.round((websiteCount / listings.length) * 100) : 0,
           }
         }
       } catch { /* offline — skip */ }
@@ -1109,7 +1120,7 @@ return colors[level ?? 0] || colors[0]
                     🔬 {preflightProgress}
                   </Typography>
                   <Typography variant='caption' color='text.secondary'>
-                    ~${preflightCost.toFixed(4)} · limit=1 · $0.01236/mun
+                    ~${preflightCost.toFixed(4)} · limit=5 · $0.01380/mun · qualidade
                   </Typography>
                 </Box>
                 <LinearProgress variant='indeterminate' color='secondary' sx={{ height: 3, borderRadius: 2 }} />
@@ -1355,7 +1366,7 @@ return (
           {/* ── Pipeline Breakdown (checkout) ── */}
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
             <Typography variant='subtitle2' gutterBottom>
-              {hasPreflight ? '📊 Pipeline (REAL — via pre-flight limit=1)' : '📊 Pipeline selecionado'}
+              {hasPreflight ? '📊 Pipeline (REAL — via pre-criteria limit=5)' : '📊 Pipeline selecionado'}
             </Typography>
 
             {/* Pre-flight: per-municipality real costs */}
@@ -1365,10 +1376,13 @@ return (
                   const pages = Math.ceil(d.totalCount / 100)
                   const cost = pages * 0.048
                   return (
-                    <Box key={nome} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3 }}>
-                      <Typography variant='caption'>{nome}</Typography>
-                      <Typography variant='caption' fontWeight={600} fontFamily='monospace'>
+                    <Box key={nome} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, flexWrap: 'wrap' }}>
+                      <Typography variant='caption' fontWeight={600}>{nome}</Typography>
+                      <Typography variant='caption' fontFamily='monospace'>
                         {d.totalCount.toLocaleString('pt-BR')} leads · {pages} págs · ${cost.toFixed(3)}
+                        {d.avgRating ? ` · ${d.avgRating}★` : ''}
+                        {d.claimedPct !== undefined ? ` · ${d.claimedPct}% claimed` : ''}
+                        {d.websitePct !== undefined ? ` · ${d.websitePct}% site` : ''}
                       </Typography>
                     </Box>
                   )
@@ -1384,13 +1398,13 @@ return (
             {[
               { label: 'L0 · Google Maps Search', cost: hasPreflight ? preflightL0Cost : l0MinCost,
                 detail: hasPreflight
-                  ? `${preflightTotalPages} páginas reais × $0.048 (total_count via pre-flight limit=1)`
+                  ? `${preflightTotalPages} páginas reais × $0.048 (total_count via pre-criteria limit=5)`
                   : selected.length > 1
                     ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $0.048 — baseado em ${catCount} categorias`
                     : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
                 always: true },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)`, optional: true, selected: selectedLayers.l1 },
-              { label: '🔬 Pre-flight', cost: preflightCost, detail: `limit=1 × ${batchEffective} municípios · $0.01236/mun (API validado)`, always: true, isPreflight: true },
+              { label: '🔬 Pre-flight', cost: preflightCost, detail: `limit=5 × ${batchEffective} municípios · $0.01380/mun (qualidade + tamanho)`, always: true, isPreflight: true },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s: any, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
