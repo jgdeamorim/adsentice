@@ -328,70 +328,142 @@ const DiscoveryPage = () => {
   const l0Cost = selected.length * 0.015 * batchEffective
   const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective
   const totalCost = l0Cost + l1Cost  // L0 sempre + L1 condicional + L4 ($0) + (selectedLayers.l4 ? l4Cost : 0)
+  const [batchProgress, setBatchProgress] = useState('')
+  const [batchCompleted, setBatchCompleted] = useState(0)
+  const [batchTotal, setBatchTotal] = useState(0)
 
-  // ═══ Search ═══
+  // ── Build municipality batch list ──
+  function buildBatchList(): { nome: string; lat: number; lng: number }[] {
+    if (batchMode === 'single') return [{ nome: cityLabel, lat: cityLat, lng: cityLng }]
+
+    const municipios = batchMode === 'rm'
+      ? rmMunicipios.filter(m => selectedMunicipios.includes(m.nome) || selectedMunicipios.length === 0)
+      : rmMunicipios  // state mode: all
+
+    return municipios
+      .filter(m => m.lat != null && m.lng != null)
+      .map(m => ({ nome: m.nome, lat: m.lat!, lng: m.lng! }))
+  }
+
+  // ═══ Search (single + batch) ═══
   const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
     if (!selected.length) return
+
+    const isContinue = offsetOverride !== undefined
+    const batch = isContinue ? [{ nome: cityLabel, lat: cityLat, lng: cityLng }] : buildBatchList()
+
+    if (batch.length === 0) {
+      setError('Nenhum município com coordenadas. Clique em uma capital primeiro.')
+      return
+    }
+
     setLoading(true); setError('')
+    setBatchTotal(batch.length); setBatchCompleted(0)
     setPipelinePhase('l0')
 
+    let allListings: any[] = []
+    let totalCostAcc = 0
+    let grandTotalCount = 0
+
     try {
-      const isContinue = offsetOverride !== undefined  // botão Continuar → só L0
+      for (let i = 0; i < batch.length; i++) {
+        const m = batch[i]
 
-      const res = await fetch('/api/discovery-search', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 100, force: force,
+        setBatchCompleted(i + 1)
+        setBatchProgress(`${m.nome} (${i + 1}/${batch.length})`)
 
-          // Primária: auto-pagina (API busca todas as páginas) + L1 se selecionado
-          // Continuar: só L0, página única
-          enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
-          paginate: !isContinue,
-          ...(isContinue ? { offset: offsetOverride } : {}),
-        }),
-      })
+        try {
+          const res = await fetch('/api/discovery-search', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              categories: selected,
+              lat: m.lat, lng: m.lng,
+              radiusKm: radius,
+              limit: 100, force: force,
+              enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
+              paginate: !isContinue,
+              ...(isContinue ? { offset: offsetOverride } : {}),
+            }),
+          })
 
-      setPipelinePhase('l1')
-      const data = await res.json()
+          if (!res.ok) { console.warn(`[batch] ${m.nome}: HTTP ${res.status}`); continue }
+          const data = await res.json()
 
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          if (!Array.isArray(data.listings)) continue
 
-      if (!Array.isArray(data.listings)) {
-        console.error('[discovery] data.listings is not an array', data)
-        throw new Error(`API returned invalid listings: ${typeof data.listings}`)
-      }
+          setPipelinePhase(i === 0 && selectedLayers.l1 && !isContinue ? 'l1' : 'l4')
 
-      console.log(`[discovery] Received ${data.listings.length} listings, ${data.scores?.length || 0} scores, distribution: ${data.distribution?.avgScore ?? 'null'}/100`)
-      setResults(data.listings)
-      setScores(data.scores || [])
-      setDistribution(data.distribution || null)
-      setTotalCount(data.total_count || 0)
-      setPinsVersion(v => v + 1) // recarrega pins do mapa
-      setCostUsd(data.cost_usd || 0)
-      setFromCache(data.fromCache || false)
-      setCostToday(data.costToday || 0)
-      setCostTotal(data.costTotal || 0)
-      setRegionalTotal(data.total_count || 0)
-      setExtractedTotal((prev: number) => offsetOverride ? prev + data.listings.length : (data.fetchedCount || data.listings?.length || 0))
+          // Dedup by place_id across batch
+          const seenPids = new Set(allListings.map((l: any) => l.place_id))
+          const newLeads = data.listings.filter((l: any) => !seenPids.has(l.place_id))
 
+          allListings.push(...newLeads)
+          totalCostAcc += data.totalCost || data.cost_usd || 0.015
+          grandTotalCount += data.total_count || data.listings.length
 
-      // Search Tracker metadata (paginação)
-      if (data.search_metadata) {
-        setSearchMeta(data.search_metadata)
-
-        if (data.search_metadata.remaining > 0) {
-          setRegionalTotal(data.search_metadata.total_in_region)
+          // Batch delay to respect DataForSEO rate limits (2000/min)
+          if (i < batch.length - 1) await new Promise(r => setTimeout(r, 150))
+        } catch (e: any) {
+          console.warn(`[batch] ${m.nome}: ${e.message}`)
         }
       }
 
-      setPage(0)
-      setSortBy('score')
-      setSortDir('desc')
+      if (allListings.length === 0) {
+        setError('Nenhum lead encontrado nos municípios selecionados')
+        return
+      }
+
+      setPipelinePhase('l4')
+
+      // Compute simplified distribution
+      const dist = {
+        total: allListings.length,
+        avgScore: Math.round(allListings.reduce((s, l) => s + (l.score_compound || 0), 0) / allListings.length) || 30,
+        unaware: allListings.filter((l: any) => l.schwartz_level === 1).length,
+        problemAware: allListings.filter((l: any) => l.schwartz_level === 2).length,
+        solutionAware: allListings.filter((l: any) => l.schwartz_level === 3).length,
+        productAware: allListings.filter((l: any) => l.schwartz_level === 4).length,
+        mostAware: allListings.filter((l: any) => l.schwartz_level === 5).length,
+      }
+
+      if (isContinue) {
+        // Continuar: merge with existing
+        const existingPids = new Set(results.map((l: any) => l.place_id))
+        const reallyNew = allListings.filter((l: any) => !existingPids.has(l.place_id))
+
+        setResults(prev => [...prev, ...reallyNew])
+        setExtractedTotal((prev: number) => prev + allListings.length)
+        setCostUsd((prev: number) => prev + totalCostAcc)
+      } else {
+        setResults(allListings)
+        setDistribution(dist)
+        setScores([])
+        setTotalCount(grandTotalCount)
+        setExtractedTotal(allListings.length)
+        setCostUsd(totalCostAcc)
+        setSearchMeta({
+          tracker_id: `batch_${Date.now().toString(36)}`,
+          total_in_region: grandTotalCount,
+          fetched_count: allListings.length,
+          remaining: 0,
+          offsets_used: [0],
+          pages_fetched: batch.length,
+        } as any)
+      }
+
+      setFromCache(false)
+      setPinsVersion(v => v + 1)
+      setPage(0); setSortBy('score'); setSortDir('desc')
+      setPipelinePhase('persist')
+      await new Promise(r => setTimeout(r, 500))
     } catch (e: any) { setError(e.message) }
-    finally { setLoading(false); setPipelinePhase('done');
-setTimeout(() => setPipelinePhase('idle'), 2000) }
-  }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers])
+    finally {
+      setLoading(false)
+      setPipelinePhase('done')
+      setBatchProgress('')
+      setTimeout(() => setPipelinePhase('idle'), 3000)
+    }
+  }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers, batchMode, rmMunicipios, selectedMunicipios, results])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -865,6 +937,23 @@ return colors[level ?? 0] || colors[0]
             {/* Pipeline progress bar */}
             {loading && (
               <Box sx={{ mt: 1.5 }}>
+                {/* Batch progress */}
+                {batchTotal > 1 && batchProgress && (
+                  <Box sx={{ mb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+                      <Typography variant='caption' fontWeight={600} color='primary.main'>
+                        🏙️ {batchProgress}
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        {batchCompleted}/{batchTotal} municípios
+                      </Typography>
+                    </Box>
+                    <LinearProgress variant='determinate'
+                      value={(batchCompleted / batchTotal) * 100}
+                      color='success'
+                      sx={{ height: 6, borderRadius: 3 }} />
+                  </Box>
+                )}
                 <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5 }}>
                   {[
                     { key: 'l0', label: 'L0 Search', pct: pipelinePhase === 'l0' ? 50 : pipelinePhase !== 'idle' ? 100 : 0 },
