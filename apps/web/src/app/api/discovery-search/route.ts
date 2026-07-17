@@ -422,7 +422,7 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
   const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
 
@@ -480,6 +480,7 @@ export async function POST(request: NextRequest) {
     const searchMetadata = {
       tracker_id: `discovery_${Date.now().toString(36)}`,
       batch_id: batchId || null,
+      preflight: !!preflight,
       total_in_region: totalCount,
       fetched_count: items.length,
       pages_fetched: 1,
@@ -679,11 +680,10 @@ export async function POST(request: NextRequest) {
       costToday: getCostToday(), costTotal: getCostTotal(), costLast: getCostLast(),
     }
 
-    // ═══ 3-LAYER PERSISTENCE (dados pagos NUNCA são perdidos) ═══
-    // Layer 1: REDIS CONTINGENCY (imediato ~1ms, TTL 7 dias)
-    // Guarda payload COMPLETO — se Supabase/R2 falharem, recupera daqui
-    setCache(cacheKey, payload)
-    persistResults(cacheKey, payload)
+    // ═══ 3-LAYER PERSISTENCE (skip for preflight — only need total_count) ═══
+    if (!preflight) {
+      setCache(cacheKey, payload)
+      persistResults(cacheKey, payload)
 
     // Layer 2: R2 VAULT (write-ahead blob — imutável, ~500ms)
     // Se Supabase falhar, o blob no R2 é a verdade. Restaurável.
@@ -743,6 +743,7 @@ return null
     } else {
       console.log("[discovery-persistence] ⚠️ Supabase offline — dados salvos no Redis (7d) + R2 vault")
     }
+    } // end if (!preflight)
 
     return NextResponse.json(payload)
   } catch (e: any) {

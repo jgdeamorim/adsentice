@@ -79,6 +79,7 @@ export default function DiscoverySessionLog({ refreshTrigger, onContinue }: {
   onContinue?: (p: ContinueParams) => void
 }) {
   const [batches, setBatches] = useState<BatchInfo[]>([])
+  const [preflights, setPreflights] = useState<BatchInfo[]>([])
   const [orphans, setOrphans] = useState<MunEntry[]>([])
   const [summary, setSummary] = useState<SessionSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -91,6 +92,7 @@ export default function DiscoverySessionLog({ refreshTrigger, onContinue }: {
       const res = await fetch('/api/discovery/sessions')
       const data = await res.json()
       setBatches(data.batches || [])
+      setPreflights(data.preflights || [])
       setOrphans(data.orphans || [])
       setSummary(data.summary || null)
       // Animate newest batch briefly
@@ -136,6 +138,38 @@ export default function DiscoverySessionLog({ refreshTrigger, onContinue }: {
             </Tooltip>
           </Box>
         </Box>
+
+        {/* ── PREFLIGHTS ── */}
+        {preflights.length > 0 && (
+          <Box sx={{ mb: 3, p: 1.5, bgcolor: 'secondary.50', borderRadius: 2, border: '1px solid', borderColor: 'secondary.main' }}>
+            <Typography variant='overline' fontWeight={700} color='secondary' sx={{ letterSpacing: 1 }}>
+              🔬 PRE-FLIGHTS ({preflights.length})
+            </Typography>
+            {preflights.map(pf => (
+              <Box key={pf.batchId} sx={{ mt: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Chip label='🔬 Pre-flight' size='small' color='secondary' />
+                  <Typography variant='body2' fontWeight={600}>
+                    {pf.catLabels.join(' · ')} · {pf.city} · {pf.uf}
+                  </Typography>
+                  <Chip label={`${pf.munCount} municípios`} size='small' variant='outlined' />
+                  <Chip label={`$${pf.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
+                  <Typography variant='caption' color='text.secondary'>
+                    {fmtRelative(pf.newestAt)}
+                  </Typography>
+                </Box>
+                {/* Per-municipality results */}
+                <Box sx={{ ml: 4, mt: 0.5 }}>
+                  {pf.municipalities.map((m: any) => (
+                    <Typography key={m.id} variant='caption' sx={{ fontFamily: 'monospace', mr: 2 }}>
+                      {m.city}: {m.totalCount.toLocaleString('pt-BR')} leads
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        )}
 
         {/* ── Rate limit info ── */}
         <Alert severity='info' sx={{ mb: 2, py: 0, '& .MuiAlert-message': { py: 0.3 } }}>

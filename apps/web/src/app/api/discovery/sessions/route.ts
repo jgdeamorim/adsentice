@@ -60,7 +60,7 @@ interface SessionRow {
   totalCount: number; costUsd: number; avgScore: number
   city: string; uf: string
   listingsSaved: number; cacheTtl: number | null; cacheActive: boolean
-  trackerId: string; batchId: string | null
+  trackerId: string; batchId: string | null; isPreflight: boolean
   fetchedCount: number; remaining: number
   pagesFetched: number; offsetsUsed: number[]
   isIncomplete: boolean; createdAt: string
@@ -97,6 +97,7 @@ export async function GET() {
 
       let trackerId = ""; let fetchedCount = 0; let remaining = 0
       let pagesFetched = 0; let offsetsUsed: number[] = []; let batchId: string | null = null
+      let isPreflight = false
       try {
         const meta = typeof s.search_metadata === "string" ? JSON.parse(s.search_metadata) : s.search_metadata
         trackerId = meta?.tracker_id || ""
@@ -105,6 +106,7 @@ export async function GET() {
         pagesFetched = meta?.pages_fetched || 1
         offsetsUsed = meta?.offsets_used || [0]
         batchId = meta?.batch_id || null
+        isPreflight = meta?.preflight === true
       } catch {}
 
       const geo = resolveCity(s.lat, s.lng)
@@ -119,7 +121,7 @@ export async function GET() {
         totalCount: s.total_count || 0, costUsd: s.cost_usd || 0,
         avgScore: s.avg_score || 0, city: geo.city, uf: geo.uf,
         listingsSaved, cacheTtl: cacheActive ? cacheTtl : null, cacheActive,
-        trackerId, batchId, fetchedCount, remaining,
+        trackerId, batchId, isPreflight, fetchedCount, remaining,
         pagesFetched, offsetsUsed,
         isIncomplete: remaining > 0,
         createdAt: s.created_at,
@@ -127,11 +129,15 @@ export async function GET() {
       }
     }))
 
-    // Group by batch_id
+    // Group by batch_id — separate preflights
     const batchMap = new Map<string, SessionRow[]>()
+    const preflightMap = new Map<string, SessionRow[]>()
     const orphans: SessionRow[] = []
     for (const r of rows) {
-      if (r.batchId) {
+      if (r.batchId && r.isPreflight) {
+        const g = preflightMap.get(r.batchId) || []
+        g.push(r); preflightMap.set(r.batchId, g)
+      } else if (r.batchId) {
         const g = batchMap.get(r.batchId) || []
         g.push(r); batchMap.set(r.batchId, g)
       } else { orphans.push(r) }
@@ -158,17 +164,40 @@ export async function GET() {
       radiusKm: items[0]?.radiusKm || 10,
     }))
 
+    // Build preflight batches
+    const preflights = [...preflightMap.entries()].map(([batchId, items]) => ({
+      batchId,
+      isPreflight: true,
+      municipalities: items.map(r => ({
+        ...r,
+        progressPct: 100,
+      })),
+      totalCost: items.reduce((s, r) => s + (r.costUsd || 0), 0),
+      totalLeads: items.reduce((s, r) => s + (r.totalCount || 0), 0),
+      munCount: items.length,
+      hasIncomplete: false,
+      newestAt: items[0]?.createdAt || "",
+      dateGroup: items[0]?.dateGroup || "",
+      categories: [...new Set(items.flatMap(r => r.categories))],
+      catLabels: [...new Set(items.flatMap(r => r.catLabels))],
+      uf: items[0]?.uf || "BR",
+      city: items[0]?.city || "Brasil",
+      radiusKm: items[0]?.radiusKm || 10,
+    }))
+
     const totalCost = rows.reduce((s, r) => s + (r.costUsd || 0), 0)
     const activeCaches = rows.filter(r => r.cacheActive).length
 
     return NextResponse.json({
       batches,
+      preflights,
       orphans,
       summary: {
         totalSearches: rows.length,
         totalCost: Math.round(totalCost * 10000) / 10000,
         activeCaches,
         incompleteBatches: batches.filter(b => b.hasIncomplete).length,
+        preflightCount: preflights.length,
       },
     })
   } catch (e: any) {

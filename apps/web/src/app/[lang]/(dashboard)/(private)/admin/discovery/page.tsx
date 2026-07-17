@@ -534,6 +534,9 @@ const DiscoveryPage = () => {
     setPreflightProgress(`🔬 0/${batch.length}`)
     const data: Record<string, { totalCount: number; cost: number }> = {}
 
+    // Pre-flight batch ID groups all municipalities → visible in Session Log
+    const pfBatchId = `preflight_${Date.now().toString(36)}`
+
     for (let i = 0; i < batch.length; i++) {
       const m = batch[i]
       setPreflightProgress(`🔬 ${m.nome} (${i + 1}/${batch.length})`)
@@ -549,6 +552,8 @@ const DiscoveryPage = () => {
             force: true,
             enrich: 0,
             paginate: false,
+            preflight: true,
+            batchId: pfBatchId,
           }),
         })
         if (res.ok) {
