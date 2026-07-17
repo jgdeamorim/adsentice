@@ -335,13 +335,17 @@ const DiscoveryPage = () => {
     setPipelinePhase('l0')
 
     try {
+      const isContinue = offsetOverride !== undefined  // botão Continuar → só L0
+
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 100, force: force, enrich: selectedLayers.l1 ? 50 : 0, paginate: false,
-          skipL1: !selectedLayers.l1,
-          ...(offsetOverride !== undefined ? { offset: offsetOverride } : {}),
+          limit: 100, force: force,
+          // Continuar: só L0 (L1 já foi executado na 1ª chamada)
+          enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
+          paginate: false,
+          ...(isContinue ? { offset: offsetOverride } : {}),
         }),
       })
 
