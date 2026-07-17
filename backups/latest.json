@@ -1,14 +1,7 @@
 {
-  "version": "v029",
-  "sealed_at": "2026-07-17T14:48:41.964579+00:00",
-  "commit": "e4919d3",
-  "commits_total": 412,
-  "adrs_total": 29,
-  "changes": [
-    "custo estimado real-time baseado total_count API",
-    "Session Log v2: timeline + cards + contexto + auto-refresh",
-    "batch_id grouping + Viana/ES fix",
-    "L0 cost fix + city fallback + L4 desacoplado",
-    "market_holds UPSERT migration 013"
-  ]
+  "version": "v029.1",
+  "sealed_at": "2026-07-17T14:57:40.337626+00:00",
+  "commit": "d004931",
+  "commits_total": 414,
+  "adrs_total": 29
 }
