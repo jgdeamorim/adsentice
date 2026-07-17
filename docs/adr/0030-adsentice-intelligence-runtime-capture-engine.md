@@ -57,15 +57,16 @@ Implementar o **adsentice Intelligence Runtime** — ciclo de 4 fases que transf
 │                           ▼                                         │
 │  Phase 1: SCORING ENGINE (NOVO)                                     │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Cruza 4 dimensões para rankear oportunidades:               │   │
+│  │ Cruza 5 dimensões para rankear oportunidades:               │   │
 │  │   D1: Tamanho (total_count)                                 │   │
 │  │   D2: Maturidade digital (claimed%, website%, rating)       │   │
 │  │   D3: Poder aquisitivo (IBGE: pib_per_capita, densidade)    │   │
 │  │   D4: Categoria estratégica (tier 1/2/3)                    │   │
+│  │   D5: Contato (QUENTE/MORNO/FRIO)                             │   │
 │  │                                                             │   │
-│  │ Score ≥ 10 → 🔥 DISPARAR batch parcial                      │   │
-│  │ Score 5-9  → 📋 SUGERIR (fila)                              │   │
-│  │ Score < 5  → ⏭️ IGNORAR                                     │   │
+│  │ Score ≥ 12 → 🔥 DISPARAR batch parcial                      │   │
+│  │ Score 6-11 → 📋 SUGERIR (fila)                              │   │
+│  │ Score < 6  → ⏭️ IGNORAR                                     │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
@@ -86,17 +87,33 @@ Implementar o **adsentice Intelligence Runtime** — ciclo de 4 fases que transf
 │  │   → L2: on_page_instant_audit + domain_technologies         │   │
 │  │   → Custo: $0.010/lead                                      │   │
 │  │   → Resultado: relatório SEO completo por lead              │   │
+│  │                                                             │   │
+│  │ RESOLVEDOR DE CONTATO (L3 para leads MORNO com website):     │   │
+│  │   ✅ lead SEM WhatsApp                                       │   │
+│  │   ✅ lead TEM website (URL não nulo)                          │   │
+│  │   → L3: parseWebsiteContacts() — $0.0005                    │   │
+│  │   → Extrai WhatsApp/email/phone do HTML do site              │   │
+│  │   → Se encontrou WhatsApp → promove a QUENTE                 │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
-│  Phase 3: MATCH PLANO × LEAD (NOVO)                                 │
+│  Phase 3: MATCH PLANO × LEAD + CLASSIFICAÇÃO DE CONTATO (NOVO)      │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Perfil                                  → Plano             │   │
-│  │ !claimed && !website && rating>3.5      → Raio-X R$0        │   │
-│  │ !claimed && website && l2_score<40      → Sentinela R$197   │   │
-│  │ claimed && website && l2_score<40       → Domínio R$497     │   │
-│  │ !claimed && website && l2_score>60      → Escala R$997      │   │
-│  │ !website && !phone && !claimed          → Raio-X R$0        │   │
+│  │                                                             │   │
+│  │ 🔥 QUENTE (WhatsApp):                                       │   │
+│  │   !claimed && !website && rating>3.5    → Raio-X R$0        │   │
+│  │   !claimed && website && l2_score<40    → Sentinela R$197   │   │
+│  │   claimed && website && l2_score<40     → Domínio R$497     │   │
+│  │   !claimed && website && l2_score>60    → Escala R$997      │   │
+│  │                                                             │   │
+│  │ 🌤️ MORNO (phone + website, sem WhatsApp):                   │   │
+│  │   → L3 resolve contato ($0.0005)                             │   │
+│  │   → Se encontrou WhatsApp → promove a QUENTE                │   │
+│  │   → Se não encontrou → prospecção por telefone              │   │
+│  │                                                             │   │
+│  │ ❄️ FRIO (sem phone + sem email + sem website):              │   │
+│  │   → ⏸️ Aguardar update de perfil GMB                        │   │
+│  │   → Reavaliar no próximo ciclo de pre-flight                │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
@@ -128,15 +145,47 @@ O **L2 pré-venda** é a inovação central. Em vez de "confie em mim, seu site 
 ### Scoring Engine — Fórmula
 
 ```
-SCORE = D1_tamanho + D2_maturidade + D3_aquisitivo + D4_tier
+SCORE = D1_tamanho + D2_maturidade + D3_aquisitivo + D4_tier + D5_contato
 
 D1: total_count > 2000 → +5  |  > 500 → +2  |  ≤ 500 → 0
 D2: claimed < 50%    → +4  |  website < 30% → +4  |  rating < 3.5 → +2
 D3: pib > R$80K      → +3  |  pib > R$50K → +1  |  densidade > 2000 → +2
 D4: tier 1 (saúde/beleza) → +4  |  tier 2 (serviços) → +2  |  tier 3 → 0
+D5: has_whatsapp → +5  |  has_phone+website → +2  |  has_phone → +1  |  sem contato → 0
 
-Thresholds: ≥ 10 = 🔥 DISPARAR  |  5-9 = 📋 SUGERIR  |  < 5 = ⏭️ IGNORAR
+Thresholds: ≥ 12 = 🔥 DISPARAR  |  6-11 = 📋 SUGERIR  |  < 6 = ⏭️ IGNORAR
 ```
+
+### D5 — Contato: Classificação Quente/Morno/Frio
+
+A dimensão D5 resolve o problema fundamental da prospecção: **não adianta ter o melhor lead do mundo se você não consegue contatá-lo.**
+
+| Classificação | Critério | Ação |
+|:---:|------|------|
+| 🔥 **QUENTE** | Tem WhatsApp (L1 `contact_methods`) | Prosseguir prospecção imediata |
+| 🌤️ **MORNO** | Tem phone + website, mas sem WhatsApp | **L3 no website** ($0.0005) para extrair WhatsApp/email do HTML |
+| 🌤️ **MORNO** | Tem phone, sem website, sem WhatsApp | Prosseguir com telefone (cold call) |
+| ❄️ **FRIO** | Sem phone + sem email + sem website | ⏸️ Aguardar update de perfil GMB. Lead frio — não prospectar agora |
+
+### L3 como Resolvedor de Contato
+
+O L3 (`parseWebsiteContacts`, já implementado em `provider-core-adapter.ts:499`) resolve o gap de contato para leads mornos:
+
+```
+Lead MORNO: phone=YES, website=YES, whatsapp=NO
+  ↓
+L3: POST /v3/on_page/content_parsing/live ($0.0005)
+  → Crawleia o HTML do website
+  → Extrai: wa.me links, api.whatsapp.com, Instagram, Facebook
+  → Extrai: emails (info@clinica.com.br)
+  → Extrai: phones do rodapé/página de contato
+  ↓
+Se encontrou WhatsApp → promove a QUENTE (+5 pts)
+Se encontrou email → MELHOROU (canal alternativo)
+Se não encontrou nada → mantém MORNO (cold call por telefone)
+```
+
+**Custo do L3 resolvedor:** $0.0005 por lead com website — insignificante comparado ao custo de prospectar um lead sem canal de contato.
 
 ### O que já existe e será reutilizado
 
@@ -149,29 +198,33 @@ Thresholds: ≥ 10 = 🔥 DISPARAR  |  5-9 = 📋 SUGERIR  |  < 5 = ⏭️ IGNOR
 | `/admin/solutions` | 5 planos + personas | Tornar dinâmico com match |
 | `/admin/pipeline` | S0-S2 reais, S3-S7=0 | Popular S3+ com L2/L3 |
 | 55 frameworks marketing | KG Qdrant | Wirear no runtime de decisão |
+| L3 `parseWebsiteContacts()` | Código pronto (`provider-core-adapter.ts:499`) | Resolvedor de contato (MORNO → QUENTE) |
+| `detectContactMethods()` | Código pronto (`scoring.ts`) | Classifica WhatsApp vs fixo no L1 |
+| `l3_whatsapp` (campo separado) | Migration 007 aplicada | WhatsApp não misturado com phone |
 
 ### Exemplos com dados reais (2026-07-17)
 
 ```
 🥇 ES · Dentista · Vitória
    total=4014 (+5) · claimed=40% (+4) · website=0% (+4)
-   rating=4.0 (+0) · PIB=R$87K (+3) · tier=1 (+4)
-   → SCORE 20 — 🔥 DISPARAR
+   rating=4.0 (+0) · PIB=R$87K (+3) · tier=1 (+4) · 🌤️ MORNO (+2)
+   → SCORE 22 — 🔥 DISPARAR
    Batch parcial: 100 leads × $0.053 = $0.053
    Filtro L2: ~20 leads × $0.010 = $0.20
+   Leads MORNO com website → L3 resolve contato (~40 × $0.0005 = $0.02)
    Potencial: 20 relatórios → 5% conv = 1 cliente → R$197 MRR
 
 🥈 SP · Barbearia · São Paulo
    total=10521 (+5) · claimed=60% (+0) · website=40% (+0)
-   PIB=R$52K (+1) · tier=1 (+4)
-   → SCORE 10 — 🔥 DISPARAR
-   Mercado grande. Oportunidade: upsell gestão GMB p/ reivindicados
+   PIB=R$52K (+1) · tier=1 (+4) · 🔥 QUENTE (+5)
+   → SCORE 15 — 🔥 DISPARAR
+   Mercado grande, leads com WhatsApp. Oportunidade: upsell gestão GMB.
 
 🥉 ES · Escola · Fundão
    total=27 (+0) · claimed=80% (+0) · website=20% (+4)
-   PIB=R$35K (+0) · tier=3 (+0)
+   PIB=R$35K (+0) · tier=3 (+0) · ❄️ FRIO (+0)
    → SCORE 4 — ⏭️ IGNORAR
-   Mercado minúsculo, ticket baixo, sem densidade.
+   Mercado minúsculo, ticket baixo, sem contato disponível.
 ```
 
 ### ROI por ciclo (ES + SP, 68 municípios)
@@ -205,8 +258,9 @@ Phase 3: Conversão estimada (5% dos 240)
 |-------|---------|------|
 | 1.1 | `discovery-search/route.ts` | Remover prefixo `_` de `enrichTopLeadsL2` e `enrichTopLeadsL3` |
 | 1.2 | `discovery-search/route.ts` | Wirear L2 no pipeline com filtro `shouldEnrichL2` (só leads qualificados) |
-| 1.3 | `discovery-search/route.ts` | Pre-flight: salvar `avgScore` e quality signals no `discovery_searches` |
-| 1.4 | `market-intel.ts` | `getPreflightMarketIntel()` retornar quality signals no `byMunicipality` |
+| 1.3 | `discovery-search/route.ts` | L3 como resolvedor de contato: `shouldEnrichL3` para leads MORNO com website |
+| 1.4 | `discovery-search/route.ts` | Pre-flight: salvar `avgScore` + quality signals + contact_methods no `discovery_searches` |
+| 1.5 | `market-intel.ts` | `getPreflightMarketIntel()` retornar quality signals + classificação de contato |
 
 ### Nível 2: Scoring Engine + `/admin/pipeline` dinâmico
 
