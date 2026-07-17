@@ -70,12 +70,14 @@ export function isValidCNPJ(cnpj: string): boolean {
   const digits = cnpj.replace(/\D/g, "")
 
   if (digits.length !== 14) return false
+
   // CNPJs com todos dígitos iguais são inválidos
   if (/^(\d)\1{13}$/.test(digits)) return false
 
   // Validação dos dígitos verificadores
   const calc = (baseIndex: number) => {
     let sum = 0
+
     const weights = baseIndex === 0
       ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
       : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
@@ -90,6 +92,7 @@ export function isValidCNPJ(cnpj: string): boolean {
   }
 
   const dv1 = calc(0)
+
   if (dv1 !== parseInt(digits[12])) return false
 
   const dv2 = calc(1)
@@ -110,6 +113,7 @@ async function lookupReceitaWS(cnpj: string): Promise<CNPJData | null> {
 
   try {
     const url = `${RECEITAWS_URL}/${cnpj}?token=${RECEITAWS_TOKEN}`
+
     const res = await fetch(url, {
       headers: { "User-Agent": "adsentice/1.0" },
       signal: AbortSignal.timeout(8000),
@@ -156,6 +160,7 @@ const BRASIL_API_URL = "https://brasilapi.com.br/api/cnpj/v1"
 async function lookupBrasilAPI(cnpj: string): Promise<CNPJData | null> {
   try {
     const url = `${BRASIL_API_URL}/${cnpj}`
+
     const res = await fetch(url, {
       headers: { "User-Agent": "adsentice/1.0" },
       signal: AbortSignal.timeout(8000),
@@ -199,7 +204,7 @@ async function lookupBrasilAPI(cnpj: string): Promise<CNPJData | null> {
 
 // ── Main Lookup ──────────────────────────────────────────────────
 
-let _cache: Record<string, { ts: number; data: CNPJData | null }> = {}
+const _cache: Record<string, { ts: number; data: CNPJData | null }> = {}
 const CACHE_TTL = 86400_000  // 24h — CNPJ não muda com frequência
 
 /** Busca CNPJ: ReceitaWS → Brasil API (fallback). Cache 24h. */
@@ -258,6 +263,7 @@ export function scoreCNPJLead(
 
   // CNAE match check
   const cnaePrefix = cnpjData.cnae_principal?.replace(/\D/g, "")?.slice(0, 4) || ""
+
   const cnaeMatch = expectedCNAE
     ? expectedCNAE.some(c => cnaePrefix.startsWith(c.replace(/\D/g, "").slice(0, 4)))
     : true  // sem expectedCNAE, assume match
@@ -297,6 +303,7 @@ export function scoreCNPJLead(
 
   if (cnpjData.data_abertura) {
     const parts = cnpjData.data_abertura.split("/")  // DD/MM/AAAA
+
     if (parts.length === 3) {
       const abertura = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`)
 
