@@ -353,6 +353,7 @@ const DiscoveryPage = () => {
   const [batchDoneCost, setBatchDoneCost] = useState(0)  // final total cost after completion
   const [batchDoneListings, setBatchDoneListings] = useState(0)  // final listings count after completion
   const [ibgeAreas, setIbgeAreas] = useState<Record<string, number>>({})  // municipio_nome → area_km2
+  const [crossValidation, setCrossValidation] = useState<Record<string, { expected: number; actual: number; pct: number; newCount: number }>>({})
 
   // ── PRE-FLIGHT state (limit=1 cost check per municipality) ──
   const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number }>>({})
@@ -406,6 +407,7 @@ const DiscoveryPage = () => {
     let allListings: any[] = []
     let totalCostAcc = 0
     let grandTotalCount = 0
+    const newPerMun: Record<string, number> = {}  // listings count per municipality
 
     try {
       for (let i = 0; i < batch.length; i++) {
@@ -441,6 +443,7 @@ const DiscoveryPage = () => {
           const newLeads = data.listings.filter((l: any) => !seenPids.has(l.place_id))
 
           allListings.push(...newLeads)
+          newPerMun[m.nome] = newLeads.length  // undeduped count from this municipality
           totalCostAcc += data.totalCost || data.cost_usd || 0.015
           grandTotalCount += data.total_count || data.listings.length
 
@@ -497,6 +500,20 @@ const DiscoveryPage = () => {
           offsets_used: [0],
           pages_fetched: batch.length,
         } as any)
+      }
+
+      // ═══ CROSS-VALIDATION: pre-flight oráculo × L0 real ═══
+      if (!isContinue && Object.keys(preflightData).length > 0) {
+        const cv: Record<string, { expected: number; actual: number; pct: number; newCount: number }> = {}
+        for (const m of batch) {
+          const expected = preflightData[m.nome]?.totalCount || 0
+          const actual = newPerMun[m.nome] || 0
+          const pct = expected > 0 ? Math.round((actual / expected) * 100) : 100
+          cv[m.nome] = { expected, actual, pct, newCount: actual }
+        }
+        setCrossValidation(cv)
+      } else {
+        setCrossValidation({})
       }
 
       setFromCache(false)
@@ -1156,6 +1173,37 @@ return colors[level ?? 0] || colors[0]
                   )}
                 </Typography>
               </Box>
+            )}
+
+            {/* ═══ CROSS-VALIDATION: pre-flight oráculo × L0 (ADR-0029) ═══ */}
+            {pipelinePhase === 'done' && Object.keys(crossValidation).length > 0 && (
+              <Alert severity={
+                Object.values(crossValidation).every(v => v.pct >= 95) ? 'success'
+                : Object.values(crossValidation).some(v => v.pct < 80) ? 'warning'
+                : 'info'
+              } sx={{ mt: 1 }}>
+                <Typography variant='caption' fontWeight={700} display='block' gutterBottom>
+                  🔮 Validação Cruzada · Pre-flight (oráculo) × L0 (real)
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {Object.entries(crossValidation).slice(0, 10).map(([nome, v]) => (
+                    <Chip key={nome}
+                      label={`${nome}: ${v.actual.toLocaleString('pt-BR')}/${v.expected.toLocaleString('pt-BR')} · ${v.pct}%`}
+                      size='small'
+                      color={v.pct >= 95 ? 'success' : v.pct >= 80 ? 'warning' : 'error'}
+                      variant='tonal'
+                      sx={{ fontSize: '0.58rem', height: 20, fontFamily: 'monospace' }} />
+                  ))}
+                </Box>
+                <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+                  {Object.values(crossValidation).every(v => v.pct >= 95)
+                    ? '✅ Oráculo confirmado — L0 capturou ≥95% do esperado em todos os municípios'
+                    : Object.values(crossValidation).some(v => v.pct < 80)
+                      ? '⚠️ Discrepância — alguns municípios capturaram <80% do total_count. Verifique timeout ou rate limit.'
+                      : '📊 L0 capturou a maioria dos leads esperados. Dedup cross-município removeu sobreposições.'
+                  }
+                </Typography>
+              </Alert>
             )}
           </Box>
 
