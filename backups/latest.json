@@ -1,7 +1,7 @@
 {
-  "version": "v037.2",
-  "sealed_at": "2026-07-17T22:44:19.711252+00:00",
-  "commit": "52c1abc",
-  "commits_total": 435,
+  "version": "v037.3",
+  "sealed_at": "2026-07-17T23:08:16.718006+00:00",
+  "commit": "dfa8c02",
+  "commits_total": 436,
   "adrs_total": 32
 }
