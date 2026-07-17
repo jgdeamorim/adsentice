@@ -325,9 +325,9 @@ const DiscoveryPage = () => {
 
   const batchEffective = realMunicipioCount || 1
 
-  const l0Cost = selected.length * 0.015 * batchEffective
-  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective
-  const totalCost = l0Cost + l1Cost  // L0 sempre + L1 condicional + L4 ($0) + (selectedLayers.l4 ? l4Cost : 0)
+  const l0Cost = selected.length * 0.015 * 3 * batchEffective  // est: 3 páginas/município
+  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective  // $0.0054/keyword, não por resultado
+  const totalCost = l0Cost + l1Cost  // L0 + L1 condicional + L4 ($0)
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
@@ -973,7 +973,7 @@ return colors[level ?? 0] || colors[0]
                 </Box>
                 <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>
                   {pipelinePhase === 'l0' && '🔄 Buscando negócios no Google Maps (todas as páginas)...'}
-                  {pipelinePhase === 'l1' && (selectedLayers.l1 ? '📋 Enriqueçendo perfis GMB (2 ondas de 30)...' : '✅ Sem L1 — pulando enriquecimento')}
+                  {pipelinePhase === 'l1' && (selectedLayers.l1 ? '📋 Enriqueçendo perfis GMB (1 POST batch 50 keywords)...' : '✅ Sem L1 — pulando enriquecimento')}
                   {pipelinePhase === 'l4' && '📊 Cruzando com IBGE (população, PIB, densidade)...'}
                   {pipelinePhase === 'done' && '✅ Pipeline completo — dados persistidos no Supabase'}
                 </Typography>
@@ -1086,7 +1086,7 @@ return (
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
               { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, always: true },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `~${Math.round(50 * 0.36)} perfis por município (36% hit rate real) · 2 ondas de 30`, optional: true, selected: selectedLayers.l1 },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `50 keywords/município · $0.0054 cada (DataForSEO cobra por keyword enviada) · 1 POST batch`, optional: true, selected: selectedLayers.l1 },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
@@ -1116,9 +1116,9 @@ return (
           {/* ── Info ── */}
           <Alert severity='info' sx={{ mt: 2 }}>
             <Typography variant='caption'>
-              Camada L1 usa <strong>2 ondas de 30 chamadas simultâneas</strong> à API DataForSEO.
-              Custo real pode variar conforme disponibilidade de perfil GMB.
-              {batchMode !== 'single' && ` Cada município é uma busca independente com seu próprio tracker.`}
+              DataForSEO cobra <strong>$0.0054 por keyword enviada</strong> (independente do resultado).
+              Custo real usa o valor retornado pela API (tasks[0].cost).
+              {batchMode !== 'single' && ` Cada município = 1 chamada L0 + opcionalmente 1 POST L1 com 50 keywords.`}
             </Typography>
           </Alert>
         </DialogContent>
