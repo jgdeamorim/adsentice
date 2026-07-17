@@ -1,51 +1,21 @@
 {
-  "version": "v1.1.0",
-  "backup_id": "2026-07-17-125146",
-  "date": "2026-07-17",
-  "timestamp": "2026-07-17T125146Z",
-  "mode": "INCREMENTAL",
-  "parent_backup": "2026-07-17-062710",
-  "collections": {
-    "adsentice-self": 18384,
-    "adsentice-conversation": 81782,
-    "claude-memory": 40,
-    "adsentice-materio": 36
-  },
-  "redis_keys": 128,
-  "supabase_rows": 412,
-  "checksums": {
-    "qdrant": {
-      "adsentice-self": "153480e060dd",
-      "adsentice-conversation": "12558ea74117",
-      "claude-memory": "c31deefbf91d",
-      "adsentice-materio": "e97223c60823"
-    },
-    "redis": "01eeb22ee70a",
-    "supabase": {
-      "discovery_searches": "e96c16667b12",
-      "discovery_listings": "4083a431f6d6",
-      "market_holds": "c6ad3e822c8f"
-    }
-  },
-  "uploaded_to_r2": [
-    "backup/2026-07-17/adsentice-backup-2026-07-17-125146.json.gz",
-    "backup/2026-07-17/qdrant/adsentice-self.json.gz",
-    "backup/2026-07-17/qdrant/adsentice-conversation.json.gz",
-    "backup/2026-07-17/qdrant/claude-memory.json.gz",
-    "backup/2026-07-17/qdrant/adsentice-materio.json.gz",
-    "backup/2026-07-17/redis.json.gz"
+  "version": "v026.1",
+  "sealed_at": "2026-07-17T13:19:13.282026+00:00",
+  "commit": "c587bc6",
+  "commits_total": 397,
+  "adrs_total": 28,
+  "backup_type": "full",
+  "databases": [
+    "supabase",
+    "redis",
+    "qdrant"
   ],
-  "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-17/adsentice-backup-2026-07-17-125146.json.gz"
+  "files": [
+    "latest.json",
+    "adsentice-backup-2026-07-17-131913.json.gz"
   ],
-  "changed": {
-    "qdrant": [
-      "adsentice-self",
-      "adsentice-conversation",
-      "claude-memory",
-      "adsentice-materio"
-    ],
-    "redis": true,
-    "supabase": []
-  }
+  "changes_since_v026": [
+    "fix: market_holds — UPSERT via Supabase client + UNIQUE index (migration 013)",
+    "fix: getMapPins — 27 capitais brasileiras (antes só SP+RJ)"
+  ]
 }
