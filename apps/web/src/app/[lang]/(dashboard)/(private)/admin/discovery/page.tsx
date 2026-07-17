@@ -2,7 +2,7 @@
 
 // adsentice · Admin / Discovery v0.4 — Mapa Brasil + Auto-Pilot + Tracker + L0→L4
 // ADR-0022 + ADR-0023 · Pain Criteria v1.2 · medido=verdade
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 
 import { useParams } from 'next/navigation'
 
@@ -469,6 +469,9 @@ const DiscoveryPage = () => {
       setTimeout(() => setPipelinePhase('idle'), 3000)
     }
   }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers, batchMode, rmMunicipios, selectedMunicipios, results])
+
+  const doSearchRef = useRef(doSearch)
+  doSearchRef.current = doSearch  // always points to latest, for session log Continue button
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -1699,7 +1702,17 @@ return (
 
       {/* ═══ Session Log (ADR-0029) ═══ */}
       <Grid size={{ xs: 12 }}>
-        <DiscoverySessionLog />
+        <DiscoverySessionLog
+          onContinue={(params) => {
+            setSelected(params.categories)
+            setCityLat(params.lat)
+            setCityLng(params.lng)
+            setRadius(params.radiusKm)
+            setBatchMode('single')
+            // Fire via ref to avoid stale closure — state will be updated by the time it runs
+            setTimeout(() => doSearchRef.current?.(false, params.offset), 300)
+          }}
+        />
       </Grid>
     </Grid>
   )

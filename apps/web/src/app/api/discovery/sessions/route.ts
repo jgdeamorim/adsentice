@@ -52,14 +52,22 @@ export async function GET() {
         listingsSaved = count || 0
       } catch { /* supabase offline */ }
 
-      // Extract tracker_id from search_metadata JSONB
-      let trackerId = ""
+      // Extract full pagination metadata from search_metadata JSONB
+      let trackerId = ""; let fetchedCount = 0; let remaining = 0
+      let pagesFetched = 0; let offsetsUsed: number[] = []
       try {
         const meta = typeof s.search_metadata === "string"
           ? JSON.parse(s.search_metadata)
           : s.search_metadata
         trackerId = meta?.tracker_id || ""
+        fetchedCount = meta?.fetched_count || 0
+        remaining = meta?.remaining || 0
+        pagesFetched = meta?.pages_fetched || 1
+        offsetsUsed = meta?.offsets_used || [0]
       } catch { /* no metadata */ }
+
+      // incomplete = ainda tem dados não buscados (remaining > 0)
+      const isIncomplete = remaining > 0
 
       return {
         id: s.id,
@@ -74,6 +82,11 @@ export async function GET() {
         cacheTtl: cacheActive ? cacheTtl : null,
         cacheActive,
         trackerId,
+        fetchedCount,
+        remaining,
+        pagesFetched,
+        offsetsUsed,
+        isIncomplete,
         createdAt: s.created_at,
       }
     }))
@@ -81,6 +94,7 @@ export async function GET() {
     // 3. Summary
     const totalCost = sessions.reduce((sum, s) => sum + (s.costUsd || 0), 0)
     const activeCaches = sessions.filter(s => s.cacheActive).length
+    const incompleteSearches = sessions.filter(s => s.isIncomplete).length
 
     return NextResponse.json({
       sessions,
@@ -88,6 +102,7 @@ export async function GET() {
         totalSearches: sessions.length,
         totalCost: Math.round(totalCost * 10000) / 10000,
         activeCaches,
+        incompleteSearches,
       },
     })
   } catch (e: any) {
