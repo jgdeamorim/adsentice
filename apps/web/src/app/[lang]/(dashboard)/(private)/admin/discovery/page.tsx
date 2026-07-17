@@ -328,12 +328,16 @@ const DiscoveryPage = () => {
   const batchEffective = realMunicipioCount || 1
 
   // ── Cost Estimates (based on REAL API DataForSEO costs · 2026-07-17) ──
-  // L0: $0.048/página (limit=100, confirmado via API: limit=100→$0.048)
-  // L1: $0.0054/POST batch (flat rate, confirmado: 1,3,6 keywords = $0.0054)
-  // Paginação extra: ~$0.048/página adicional (grandes centros ~2-9 páginas)
-  const l0Cost = 0.048 * batchEffective  // $0.048/página por município (categories array = 1 call)
-  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective  // $0.0054/POST flat rate
-  const totalCost = l0Cost + l1Cost  // L0 + L1 condicional + L4 ($0)
+  // L0: $0.048/página (limit=100). Custo REAL depende do total_count.
+  //     Ex: Vitória 3 cats 5km = 3038 leads = 31 páginas = $1.49
+  //     Ex: Vitória 1 cat 5km = 896 leads = 9 páginas = $0.43
+  // L1: $0.0054/POST batch (flat rate, 1 POST com até 100 keywords)
+  //
+  // ⚠️ Estimativa mostra custo MÍNIMO (1 página por município).
+  // O custo real pode ser 5-30× maior — auto-paginação busca TODAS as páginas.
+  const l0MinCost = 0.048 * batchEffective  // mínimo: 1 página por município
+  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective
+  const totalMinCost = l0MinCost + l1Cost
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
@@ -999,7 +1003,7 @@ return colors[level ?? 0] || colors[0]
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={`~$${(totalCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip label={`~$${(totalMinCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
               {batchMode !== 'single' && (
                 <Chip label={`${batchEffective} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />
@@ -1012,7 +1016,7 @@ return colors[level ?? 0] || colors[0]
                 sx={{ cursor: 'pointer' }} />
               <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
                 onClick={() => setConfirmOpen(true)}>
-                {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)})`}
+                {loading ? 'Buscando...' : `Buscar Agora ($${(totalMinCost).toFixed(3)})`}
               </Button>
             </Box>
           </Box>
@@ -1099,7 +1103,7 @@ return (
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
-              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `limit=100 · $0.048/página (API confirmado) × ${batchEffective} municípios${batchEffective > 1 ? '' : ''} · paginação automática`, always: true },
+              { label: 'L0 · Google Maps Search', cost: l0MinCost, detail: `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`, always: true },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado: 1,3,6 keywords = sempre $0.0054)`, optional: true, selected: selectedLayers.l1 },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s, i, arr) => (
@@ -1115,24 +1119,24 @@ return (
             ))}
             {/* Total */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, mt: 0.5 }}>
-              <Typography variant='subtitle2'>💰 Total</Typography>
+              <Typography variant='subtitle2'>💰 A partir de</Typography>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant='h6' color='warning.main' fontWeight={800}>
-                  ${totalCost.toFixed(4)}
+                  ${totalMinCost.toFixed(4)}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>
-                  R${(totalCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias
+                  R${(totalMinCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias
                 </Typography>
               </Box>
             </Box>
           </Box>
 
-          {/* ── Info ── */}
-          <Alert severity='info' sx={{ mt: 2 }}>
+          {/* ⚠️ Real cost warning */}
+          <Alert severity='warning' sx={{ mt: 2 }}>
             <Typography variant='caption'>
-              DataForSEO cobra <strong>$0.0054 por POST</strong> (flat rate, testado com 3, 5 e 50 keywords).
-              Custo real usa o valor retornado pela API (tasks[0].cost).
-              {batchMode !== 'single' && ` Cada município = 1 chamada L0 + opcionalmente 1 POST L1 com 50 keywords.`}
+              ⚠️ Este é o custo <strong>mínimo</strong> (1ª página por município). O custo real depende
+              do total de resultados — a auto-paginação busca <strong>todas</strong> as páginas disponíveis.
+              Ex: Vitória 3 categorias 5km = <strong>3038 leads · 31 páginas · $1.49</strong>.
             </Typography>
           </Alert>
         </DialogContent>
@@ -1141,7 +1145,7 @@ return (
           <Button variant='contained' color='primary'
             onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}
             startIcon={<i className='ri-send-plane-line' />}>
-            Confirmar · ${totalCost.toFixed(3)}
+            Confirmar · ${totalMinCost.toFixed(3)}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1261,7 +1265,7 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Pipeline L0{selectedLayers.l1 ? '+L1' : ''}+L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline L0{selectedLayers.l1 ? '+L1' : ''}+L4 em execução · Custo: ~${totalMinCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
