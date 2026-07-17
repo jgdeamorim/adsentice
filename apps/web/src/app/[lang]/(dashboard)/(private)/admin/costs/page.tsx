@@ -235,7 +235,8 @@ return { ...p, leadsCustoEstimado, custoMensalBRL, margemBRL, margemPct }
 
       {/* ── Stat cards (plain — no CardStatVertical +undefined bug) ── */}
       {[
-        { label: 'DataForSEO Total', value: `$${fmt(sup.totalCost, 4)}`, sub: `${sup.totalSearches} buscas · R$${fmt(sup.totalCost * brl, 2)}`, color: 'var(--mui-palette-warning-main)' },
+        { label: 'DataForSEO Total', value: `$${fmt(sup.totalCost, 4)}`, sub: `${sup.totalSearches} buscas (ativo) · R$${fmt(sup.totalCost * brl, 2)}`, color: 'var(--mui-palette-warning-main)' },
+{ label: 'Acumulado Histórico', value: `$${fmt(dfsTotal, 4)}`, sub: `Redis acumulado · R$${fmt(dfsTotal * brl, 2)} · ${sup.totalSearches} ativas + antigas deletadas`, color: 'var(--mui-palette-warning-main)' },
         { label: 'DFSEO Hoje (Redis)', value: `$${fmt(dfsToday, 4)}`, sub: `${sup.l1Calls} leads L1 · ${sup.l2Calls} L2`, color: 'var(--mui-palette-info-main)' },
         { label: 'DeepSeek Hoje', value: `$${fmt(llmToday, 6)}`, sub: `${llmCToday} hoje · ${llmCTotal} total`, color: 'var(--mui-palette-secondary-main)' },
         { label: 'Custo Total Hoje', value: `$${fmt(totalToday, 4)}`, sub: `DFSEO+LLM · R$${fmt(totalToday * brl, 2)}`, color: 'var(--mui-palette-success-main)' },

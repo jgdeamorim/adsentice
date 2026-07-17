@@ -11,11 +11,14 @@ import { getAdminClient } from "./supabase-admin"
 export interface MarketOverview {
   category: string; categoryLabel: string; city: string
   totalBusinesses: number; enrichedBusinesses: number
-  l1Count?: number; l2Count?: number
+  l1Count?: number; l2Count?: number; l4Count?: number; l5Count?: number
   avgScore: number; avgRating: number; avgPhotos: number
   claimedPct: number; hasWebsitePct: number; hasAnalyticsPct: number
   schwartzDistribution: { level: number; label: string; count: number; pct: number }[]
   contentMaturity: { level: number; label: string; count: number; pct: number }[]
+  // IBGE + market_holds (ADR-0027)
+  marketHolds?: { totalInRegion: number; avgScore: number; claimedPct: number } | null
+  ibgeContext?: { populacao: number | null; pibPerCapita: number | null; densidade: number | null } | null
 }
 export interface MarketGap {
   rank: number; signal: string; signalLabel: string
@@ -382,11 +385,54 @@ return { level: l, label: SCHWARTZ[l - 1], count: n, pct: Math.round((n / total)
 return { level: l, label: ML[l], count: n, pct: cmList.length ? Math.round((n / cmList.length) * 100) : 0 }
     })
 
+    // IBGE + market_holds cross-reference (ADR-0027)
+    let marketHolds: MarketOverview["marketHolds"] = null
+    let ibgeContext: MarketOverview["ibgeContext"] = null
+
+    try {
+      // Latest market_holds for the most common category
+      const { data: holds } = await supabase.from("market_holds").select("category,city,metric,value").limit(10)
+
+      if (holds?.length) {
+        const latest = holds[holds.length - 1]
+
+        marketHolds = {
+          totalInRegion: holds.find((h: any) => h.metric === "total_businesses")?.value || 0,
+          avgScore: holds.find((h: any) => h.metric === "avg_score")?.value || avg(scores),
+          claimedPct: holds.find((h: any) => h.metric === "claimed_pct")?.value || 0,
+        }
+      }
+
+      // IBGE panorama for most common city
+      const topCity = [...citySet].sort((a, b) =>
+        list.filter(r => r.city === b).length - list.filter(r => r.city === a).length
+      )[0]
+
+      if (topCity) {
+        const { data: ibgeRow } = await supabase.from("ibge_panorama")
+          .select("populacao,pib_per_capita,densidade_demografica")
+          .ilike("municipio_nome", `%${topCity}%`)
+          .limit(1)
+
+        if (ibgeRow?.length) {
+          ibgeContext = {
+            populacao: ibgeRow[0].populacao || null,
+            pibPerCapita: ibgeRow[0].pib_per_capita || null,
+            densidade: ibgeRow[0].densidade_demografica || null,
+          }
+        }
+      }
+    } catch { /* market_holds/IBGE offline — degrade gracefully */ }
+
+    const l4Count = list.filter(r => (r as any).l4_ibge_populacao != null).length
+    const l5Count = list.filter(r => (r as any).cnpj_enriched === true).length
+
     return {
       category: "all", categoryLabel: "Todas as categorias", city: `${citySet.size} cidades`,
       totalBusinesses: total, enrichedBusinesses: list.filter(r => r.enrichment_level >= 1).length,
       l1Count: list.filter(r => r.enrichment_level >= 1).length,
       l2Count: list.filter(r => r.enrichment_level >= 2).length,
+      l4Count, l5Count,
       avgScore: Math.round(avg(scores)), avgRating: Math.round(avg(ratings) * 10) / 10,
       avgPhotos: Math.round(avg(list.map(r => r.total_photos || 0))),
       claimedPct: Math.round((list.filter(r => r.is_claimed).length / total) * 1000) / 10,
@@ -394,6 +440,7 @@ return { level: l, label: ML[l], count: n, pct: cmList.length ? Math.round((n / 
       hasAnalyticsPct: Math.round((list.filter(r => r.l2_has_analytics).length / Math.max(total, 1)) * 1000) / 10,
       schwartzDistribution: schwartzDist, contentMaturity: cmDist,
       categoryCount: catSet.size, cityCount: citySet.size,
+      marketHolds, ibgeContext,
     }
   } catch (e: any) { console.error("[market-intel] overview:", e.message); 
 

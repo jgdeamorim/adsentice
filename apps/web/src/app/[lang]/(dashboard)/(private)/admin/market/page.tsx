@@ -126,7 +126,7 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
             <CardStatVertical stats={`${overview.avgScore}/100`} title='Score Medio'
-              subtitle={`L1 ${(overview as any).l1Count || overview.enrichedBusinesses} · L2 ${(overview as any).l2Count || 0} enriquecidos`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
+              subtitle={`L1 ${(overview as any).l1Count || 0} · L4 ${(overview as any).l4Count || 0} · L5 ${(overview as any).l5Count || 0} enriquecidos`} avatarColor='warning' avatarIcon='ri-bar-chart-line'
               trendNumber={String(overview.avgScore)} trend='positive' />
           </Grid>
           <Grid size={{ xs: 6, sm: 2.4 }}>
@@ -144,6 +144,31 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
               subtitle={`${overview.hasAnalyticsPct}% com analytics`} avatarColor='error' avatarIcon='ri-global-line'
               trendNumber={String(overview.hasWebsitePct)} trend='positive' />
           </Grid>
+
+          {/* ═══ IBGE + Market Holds Context (ADR-0027) ═══ */}
+          {(overview as any).marketHolds && (
+            <Grid size={{ xs: 12 }}>
+              <Card sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Chip label='📊 Market Holds' size='small' color='success' variant='tonal' />
+                    <Typography variant='body2'>
+                      <strong>{(overview as any).marketHolds?.totalInRegion?.toLocaleString('pt-BR') || '?'}</strong> negócios na região ·
+                      score médio <strong>{(overview as any).marketHolds?.avgScore}</strong> ·
+                      <strong>{(overview as any).marketHolds?.claimedPct}%</strong> reivindicados
+                    </Typography>
+                    {(overview as any).ibgeContext?.populacao && (
+                      <Typography variant='caption' color='text.secondary'>
+                        🏙️ IBGE: {(overview as any).ibgeContext?.populacao?.toLocaleString('pt-BR')} hab ·
+                        PIB per capita R${(overview as any).ibgeContext?.pibPerCapita?.toLocaleString('pt-BR')} ·
+                        {(overview as any).ibgeContext?.densidade} hab/km²
+                      </Typography>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
 
           {/* Schwartz */}
           <Grid size={{ xs: 12, md: 6 }}>

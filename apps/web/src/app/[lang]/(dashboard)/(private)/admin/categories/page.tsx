@@ -89,6 +89,7 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
   // ═══ Dados REAIS do Supabase ═══
   let categories: CategoryRow[] = []
   let dataSource: 'supabase' | 'redis' | 'none' = 'none'
+  let enrichmentStats = { l0: 0, l1: 0, l4: 0, l5: 0 }
 
   try {
     const supabase = getAdminClient()
@@ -138,7 +139,30 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
         .sort((a, b) => b.pain_pct - a.pain_pct)
 
       categories = catList
+      // Enrichment pipeline stats (ADR-0024 + ADR-0028)
+      enrichmentStats = {
+        l0: deduped.size,
+        l1: Array.from(deduped.values()).filter(v => (v.el || 0) >= 1).length,
+        l4: 0,  // populated below
+        l5: 0,  // populated below
+      }
     }
+
+    // L4 IBGE count
+    const { data: l4Rows } = await supabase.from("discovery_listings")
+      .select("place_id")
+      .not("l4_ibge_populacao", "is", null)
+      .limit(1)
+
+    if (l4Rows) enrichmentStats.l4 = l4Rows.length
+
+    // L5 CNPJ count
+    const { data: l5Rows } = await supabase.from("discovery_listings")
+      .select("place_id")
+      .eq("cnpj_enriched", true)
+      .limit(1)
+
+    if (l5Rows) enrichmentStats.l5 = l5Rows.length
   } catch { /* Supabase offline */ }
 
   const hasData = categories.length > 0
@@ -196,6 +220,28 @@ return acc
         <CardStatVertical stats={hasData ? totalLeads.toLocaleString('pt-BR') : '—'} title='Solution Aware+'
           subtitle='Score ≥ 50 · leads qualificados' avatarColor='error' avatarIcon='ri-user-search-line'
           trendNumber={String(totalLeads)} trend='positive' />
+      </Grid>
+
+      {/* ── Enrichment Pipeline (ADR-0024 + ADR-0028) ── */}
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <CardStatVertical stats={`${enrichmentStats.l0}`} title='L0 · Descobertos'
+          subtitle='Total de leads encontrados no GMB' avatarColor='success' avatarIcon='ri-radar-line'
+          trendNumber={String(enrichmentStats.l0)} trend='positive' />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <CardStatVertical stats={`${enrichmentStats.l1}`} title='L1 · Perfilados'
+          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l1 / enrichmentStats.l0) * 100) : 0}% — GMB completo`} avatarColor='info' avatarIcon='ri-profile-line'
+          trendNumber={String(enrichmentStats.l1)} trend='positive' />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <CardStatVertical stats={`${enrichmentStats.l4}`} title='L4 · IBGE Context'
+          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l4 / enrichmentStats.l0) * 100) : 0}% — pop+PIB+densidade`} avatarColor='warning' avatarIcon='ri-government-line'
+          trendNumber={String(enrichmentStats.l4)} trend='positive' />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <CardStatVertical stats={`${enrichmentStats.l5}`} title='L5 · CNPJ Validados'
+          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l5 / enrichmentStats.l0) * 100) : 0}% — CNAE+regime+sócios`} avatarColor='error' avatarIcon='ri-file-search-line'
+          trendNumber={String(enrichmentStats.l5)} trend='positive' />
       </Grid>
 
       {/* ── Segment Distribution ── */}
