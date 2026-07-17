@@ -13,7 +13,7 @@
 
 // Types (matches tokens-composer.ts in packages/warp/src/)
 export type SegmentId = 'saude' | 'beleza' | 'servicos' | 'alimentacao' | 'comercio' | 'educacao' | 'hospitalidade'
-export type PlanTier = 'raio-x' | 'sentinela' | 'dominio' | 'escala'
+export type PlanTier = 'raio-x' | 'sentinela' | 'dominio' | 'escala' | 'r0' | 'internal'
 
 // ═══ TYPES ═══
 
@@ -224,8 +224,10 @@ export async function compose(intend: Intend, ibgeContext?: { densidade?: number
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="Warp ${intend.surface} · ${branding} · ${r.intentLabel}">
 <title>${intend.surface} · ${branding} | adsentice Warp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:Inter;font-display:swap}
 ${morph.css}
 .hero { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: #fff; padding: 3.5rem 2rem; text-align: center; }
 .hero-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
@@ -247,7 +249,7 @@ ${morph.css}
       <p class="subtitle">${r.segment} · ${intend.plan} · skills: ${r.skills.slice(0, 3).join(', ')}</p>
     </div>
   </div>
-  <div class="container">
+  <main class="container" role="main" aria-label="Resultado do diagnóstico">
     <div class="section"><div class="card">
       <h2>Tokens Gerados via ts_morph</h2>
       <p style="color: var(--muted-fg); margin-bottom: 1rem;">
@@ -291,7 +293,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent } from "./warp-kg"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[] }
@@ -499,6 +501,33 @@ const CAT_TO_SEGMENT: Record<string, SegmentId> = {
   school: 'educacao', driving_school: 'educacao', hotel: 'hospitalidade',
 }
 
+
+// ── CRITIQUE 6D (port from 4-composer.ts · ADR-0033) ──
+interface CritiqueScore {
+  visualHierarchy: number; detailExecution: number; functionality: number
+  innovation: number; philosophyConsistency: number; marketFit: number
+  composite: number; passed: boolean; feedback: string[]
+}
+const CRITIQUE_WEIGHTS = { visualHierarchy: 0.20, detailExecution: 0.15, functionality: 0.25, innovation: 0.10, philosophyConsistency: 0.15, marketFit: 0.15 }
+function computeCritique(html: string, segment: string, surface: string): CritiqueScore {
+  let visualHierarchy = 7; let detailExecution = 6; let functionality = 7
+  let innovation = 6; let philosophyConsistency = 8; let marketFit = 7
+  // Heuristic scoring based on HTML features present
+  if (html.includes('hero-badge')) detailExecution += 1
+  if (html.includes('score-ring')) visualHierarchy += 1
+  if (html.includes('gap-severity')) functionality += 1
+  if (html.includes('Design Intelligence')) innovation += 1
+  if (html.includes('cta-btn')) marketFit += 1
+  if (html.includes('Como resolver')) detailExecution += 1
+  if (html.includes('info-grid')) visualHierarchy += 1
+  if (html.includes('@media')) philosophyConsistency += 1
+  const composite = visualHierarchy * CRITIQUE_WEIGHTS.visualHierarchy + detailExecution * CRITIQUE_WEIGHTS.detailExecution + functionality * CRITIQUE_WEIGHTS.functionality + innovation * CRITIQUE_WEIGHTS.innovation + philosophyConsistency * CRITIQUE_WEIGHTS.philosophyConsistency + marketFit * CRITIQUE_WEIGHTS.marketFit
+  const passed = composite >= 7.0
+  const feedback: string[] = []; if (visualHierarchy < 7) feedback.push('Visual hierarchy needs improvement'); if (detailExecution < 7) feedback.push('Detail execution could be polished')
+  return { visualHierarchy, detailExecution, functionality, innovation, philosophyConsistency, marketFit, composite: Math.round(composite * 10) / 10, passed, feedback }
+}
+
+
 export async function composeS10(placeId: string): Promise<string | null> {
   try {
     // 1. Fetch lead
@@ -559,6 +588,10 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
     const inspoUrls = designIntel?.inspirationUrls || []
 
+    // 6b. Query Warp components from Qdrant (ADR-0033 Level 1)
+    const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
+    const hasComponents = components.length > 0
+
     // Auto-critique via design knowledge
     const critiqueNotes: string[] = []
     if (designIntel) {
@@ -573,8 +606,10 @@ export async function composeS10(placeId: string): Promise<string | null> {
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="${copy.headline}">
 <title>Raio-X · ${name} | adsentice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:Inter;font-display:swap}
 :root{
   --primary:${p};--primary-fg:#fff;--secondary:${s};--secondary-fg:#fff;--accent:${a};
   --bg:#f8fafc;--fg:#0f172a;--card:#fff;--muted:#f1f5f9;--muted-fg:#64748b;
@@ -640,12 +675,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 footer{text-align:center;padding:2rem 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
 footer span{color:${p};font-weight:600}
 @media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
-</style></head><body>
-<div class="hero"><div class="hero-content">
+</style>
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"LocalBusiness",
+  "name":"${name.replace(/"/g,'\\"')}",
+  "image":"${lead.website || ''}",
+  "address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},
+  "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
+}
+</script></head><body>
+<header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
 <div class="hero-badge">🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
 </div></div>
-<div class="container">
+<main class="container" role="main" aria-label="Resultado do diagnóstico">
 <div class="score-card">
 <div class="score-ring"><div class="score-inner"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
 <div class="score-info"><h2>${name}</h2><div class="score-level">${level} · ${nicho.name}</div>
@@ -667,7 +712,8 @@ ${gaps.map(g => {
 }).join("")}
 </div>
 <div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" target="_blank">💬 ${copy.cta} no WhatsApp</a></div></div>
-${hasCritique ? `<div class="section" style="padding-top:0"><div class="info-grid"><div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div></div></div>` : ""}
+${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${components.map(c => `${c.name} (${c.a11y.role} · ${c.tokens.slice(0,2).join(',')})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
+</main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
 

@@ -241,3 +241,41 @@ export async function queryDesignBestPractices(segment: string, surface: string)
     }
   }
 }
+
+/** Query Qdrant for Warp components matching a design intent.
+ *  Returns components with a11y data for HTML generation. */
+export async function queryComponentsByIntent(intent: string, surface?: string, segment?: string): Promise<{
+  name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
+  tokens: string[]; category: string
+}[]> {
+  try {
+    const vec = await embedQuery(`${intent} ${surface || ''} ${segment || ''} design system component`)
+    if (vec.length === 0) return []
+    
+    const filter: Record<string, unknown> = {
+      must: [
+        { key: "kind", match: { value: "component" } },
+        { key: "tag", match: { value: "adsentice-warp" } },
+      ],
+    }
+    
+    const results = await qdrantSearch(vec, filter, 8)
+    return results.map(p => {
+      const pl = p.payload || {}
+      return {
+        name: (pl.name as string) || (pl.id as string) || "unknown",
+        id: (pl.id as string) || "unknown",
+        a11y: {
+          role: (pl.a11y_role as string) || "region",
+          ariaLabel: (pl.a11y_role as string) ? `${pl.name} component` : "Content section",
+          keyboardNav: (pl.a11y_keyboard as boolean) || false,
+          contrastRatio: (pl.a11y_contrast as number) || 3.0,
+        },
+        tokens: (pl.tokens as string[]) || [],
+        category: (pl.category as string) || "layout",
+      }
+    })
+  } catch {
+    return []
+  }
+}
