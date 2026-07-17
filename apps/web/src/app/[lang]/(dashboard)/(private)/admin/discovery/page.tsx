@@ -35,7 +35,7 @@ import Alert from '@mui/material/Alert'
 import DiscoveryAutoPilot from '@/components/DiscoveryAutoPilot'
 import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
 
-import { BR_CAPITALS, suggestRadiusByPop } from '@/lib/geo-data'
+import { BR_CAPITALS, suggestRadius } from '@/lib/geo-data'
 
 // ── Scoring types (client-safe) ──
 interface ScoreData {
@@ -420,7 +420,7 @@ const DiscoveryPage = () => {
     setCityLat(c.lat)
     setCityLng(c.lng)
     setCityLabel(`${c.label} (${c.uf})`)
-    const r = suggestRadiusByPop(c.pop)
+    const r = suggestRadius(c.areaKm2, c.densidade)
 
     setRadius(r.radiusKm)
 
@@ -635,7 +635,7 @@ return colors[level ?? 0] || colors[0]
                   if (d < minDist) { minDist = d; closest = c }
                 }
 
-                if (minDist < 0.5) { setStateKey(closest.uf); setRadius(suggestRadiusByPop(closest.pop).radiusKm) }
+                if (minDist < 0.5) { setStateKey(closest.uf); setRadius(suggestRadius(closest.areaKm2, closest.densidade).radiusKm) }
               }}
               loading={loading}
             />

@@ -4,10 +4,10 @@
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
-import { BR_CAPITALS, suggestRadiusByPop } from "./geo-data"
+import { BR_CAPITALS, suggestRadius } from "./geo-data"
 
 /** Re-export for server-side consumers. */
-export { BR_CAPITALS as BR_STATE_CAPITALS, suggestRadiusByPop as suggestRadius } from "./geo-data"
+export { BR_CAPITALS as BR_STATE_CAPITALS, suggestRadius } from "./geo-data"
 
 export interface GeoResult {
   city: string | null; district: string | null; state: string | null
@@ -61,12 +61,19 @@ return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName
 }
 
 const _capByUf: Record<string, number> = {}
+const _capArea: Record<string, number> = {}
+const _capDens: Record<string, number> = {}
 
-for (const c of BR_CAPITALS) _capByUf[c.uf] = c.pop
+for (const c of BR_CAPITALS) {
+  _capByUf[c.uf] = c.pop
+  _capArea[c.uf] = c.areaKm2
+  _capDens[c.uf] = c.densidade
+}
 
 export function radiusForCapital(uf: string): { radiusKm: number; label: string } {
-  const pop = _capByUf[uf.toUpperCase()]
+  const area = _capArea[uf.toUpperCase()]
+  const dens = _capDens[uf.toUpperCase()]
 
-  
-return pop ? suggestRadiusByPop(pop) : { radiusKm: 10, label: "Padrão — 10km" }
+
+return area ? suggestRadius(area, dens) : { radiusKm: 10, label: "Padrão — 10km" }
 }
