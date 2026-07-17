@@ -469,7 +469,7 @@ export interface PreflightMarketIntel {
   totalCost: number
   newestAt: string
   byMunicipality: { nome: string; totalCount: number; populacao?: number | null; cep?: string | null }[]
-  byCategory: { category: string; label: string; totalCount: number }[]
+  byCategory: { category: string; label: string; totalCount: number; isAggregated?: boolean }[]
   ibgeContext?: { populacao: number | null; pibPerCapita: number | null; densidade: number | null } | null
 }
 
@@ -587,8 +587,11 @@ export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]>
         entry.municipalities.set(munName, { totalCount: r.total_count || 0, lat: r.lat, lng: r.lng })
       }
 
+      // DataForSEO retorna total_count AGREGADO para todas as categorias juntas.
+      // Não temos breakdown por categoria individual com pre-flight multi-cat.
+      // Marcamos cada categoria com total_count=0 (placeholder — o total real é entry.totalLeads).
       for (const cat of (r.categories || [])) {
-        entry.categories.set(cat, (entry.categories.get(cat) || 0) + (r.total_count || 0))
+        if (!entry.categories.has(cat)) entry.categories.set(cat, 0)
       }
     }
 
@@ -631,11 +634,11 @@ export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]>
             }
           }),
         byCategory: [...entry.categories.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .map(([category, totalCount]) => ({
+          .map(([category]) => ({
             category,
             label: CATEGORY_LABELS[category] || category,
-            totalCount,
+            totalCount: entry.totalLeads,  // aggregated — DataForSEO não quebra por categoria
+            isAggregated: true,
           })),
         ibgeContext,
       })

@@ -195,18 +195,20 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
                         </Box>
                       </Box>
 
-                      {/* Category breakdown (ALL categories) */}
+                      {/* Category coverage (aggregated — DataForSEO não quebra por categoria) */}
                       <Box>
                         <Typography variant='caption' color='text.secondary' fontWeight={600}>
-                          📁 Por categoria:
+                          📁 {pf.byCategory.length} categorias combinadas · {pf.totalLeads.toLocaleString('pt-BR')} leads total:
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
                           {pf.byCategory.map(c => (
                             <Chip key={c.category}
-                              label={`${c.label} ${c.totalCount.toLocaleString('pt-BR')}`}
+                              label={c.label}
                               size='small' variant='outlined'
                               sx={{ fontSize: '0.58rem', height: 20 }} />
                           ))}
+                          <Chip label='⚠️ valor agregado (não por cat)' size='small' color='warning' variant='tonal'
+                            sx={{ fontSize: '0.55rem', height: 20 }} />
                         </Box>
                       </Box>
                     </Box>

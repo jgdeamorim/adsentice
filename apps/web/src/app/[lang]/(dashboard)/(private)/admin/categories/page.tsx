@@ -167,13 +167,15 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
   } catch { /* Supabase offline */ }
 
   // ═══ Pre-flight market intel (ADR-0029) ═══
-  let pfMarket: Record<string, number> = {}  // category → estimated total leads
+  // DataForSEO retorna total_count agregado (não quebra por categoria).
+  // Mostramos apenas stats gerais — sem breakdown por categoria individual.
+  let pfSummary: { stateCount: number; totalLeads: number; states: string[] } | null = null
   try {
     const pfIntel = await getPreflightMarketIntel()
-    for (const state of pfIntel) {
-      for (const cat of state.byCategory) {
-        pfMarket[cat.category] = (pfMarket[cat.category] || 0) + cat.totalCount
-      }
+    pfSummary = {
+      stateCount: pfIntel.length,
+      totalLeads: pfIntel.reduce((s, pf) => s + pf.totalLeads, 0),
+      states: pfIntel.map(pf => pf.stateUf),
     }
   } catch { /* no preflight data */ }
 
@@ -256,6 +258,18 @@ return acc
           trendNumber={String(enrichmentStats.l5)} trend='positive' />
       </Grid>
 
+      {/* ═══ Pre-flight Market Intel KPI (ADR-0029) ═══ */}
+      {pfSummary && (
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <CardStatVertical
+            stats={pfSummary.totalLeads.toLocaleString('pt-BR')}
+            title='🔬 Pre-flight Mercado'
+            subtitle={`${pfSummary.stateCount} estado(s): ${pfSummary.states.join(', ')} · valor agregado (não por categoria)`}
+            avatarColor='secondary' avatarIcon='ri-radar-line'
+            trendNumber={String(pfSummary.stateCount)} trend='positive' />
+        </Grid>
+      )}
+
       {/* ── Segment Distribution ── */}
       <Grid size={{ xs: 12 }}>
         <Card>
@@ -291,7 +305,6 @@ return acc
                 <TableCell>Categoria</TableCell>
                 <TableCell>Segmento</TableCell>
                 <TableCell>Mercado BR</TableCell>
-                {Object.keys(pfMarket).length > 0 && <TableCell>🔬 Pré-flight</TableCell>}
                 <TableCell>Por que Importa?</TableCell>
               </TableRow>
             </TableHead>
@@ -325,15 +338,6 @@ return acc
                         <Typography fontWeight={600}>{info.market}</Typography>
                         <Typography variant='caption' color='text.secondary'>negócios</Typography>
                       </TableCell>
-                      {Object.keys(pfMarket).length > 0 && (
-                        <TableCell>
-                          {pfMarket[id] ? (
-                            <Chip label={pfMarket[id].toLocaleString('pt-BR')} size='small' color='secondary' variant='tonal' />
-                          ) : (
-                            <Typography variant='caption' color='text.disabled'>—</Typography>
-                          )}
-                        </TableCell>
-                      )}
                       <TableCell>
                         <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.4 }}>
                           {info.why}
