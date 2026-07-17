@@ -333,11 +333,18 @@ const DiscoveryPage = () => {
   //     Ex: Vitória 1 cat 5km = 896 leads = 9 páginas = $0.43
   // L1: $0.0054/POST batch (flat rate, 1 POST com até 100 keywords)
   //
-  // ⚠️ Estimativa mostra custo MÍNIMO (1 página por município).
-  // O custo real pode ser 5-30× maior — auto-paginação busca TODAS as páginas.
-  const l0MinCost = 0.048 * batchEffective  // mínimo: 1 página por município
+  // Pré-L0: estimamos páginas pelo número de categorias (dados históricos).
+  // 1 cat → ~5-10 páginas. 3+ cats → ~20-40 páginas. Multiplicador ~3-5×.
+  // Pós-L0: custo real baseado no total_count da API (batchEstTotalCost).
+
+  // Category scale factor (empirical: 3 cats ≈ 3-5× mais results que 1 cat)
+  const catCount = selected.length || 1
+  const estPagesPerMun = catCount <= 1 ? 5 : catCount === 2 ? 12 : catCount >= 4 ? 25 : 20
+  const l0MinCost = 0.048 * batchEffective                    // mínimo: 1 página por município
+  const l0EstCost = 0.048 * estPagesPerMun * batchEffective   // estimativa pré-L0
   const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective
   const totalMinCost = l0MinCost + l1Cost
+  const totalEstCost = l0EstCost + l1Cost
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
@@ -926,7 +933,7 @@ return colors[level ?? 0] || colors[0]
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }} />
               {/* L1: toggleável */}
               <Chip
-                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${(0.0054 * batchEffective).toFixed(4)}` : ''}`}
+                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${l1Cost.toFixed(4)}` : ''}`}
                 clickable size='small'
                 color={selectedLayers.l1 ? 'primary' : 'default'}
                 variant={selectedLayers.l1 ? 'filled' : 'outlined'}
@@ -1027,10 +1034,21 @@ return colors[level ?? 0] || colors[0]
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={loading && batchEstTotalCost > 0 ? `~$${batchEstTotalCost.toFixed(4)}` : `a partir de $${totalMinCost.toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip
+                  label={loading && batchEstTotalCost > 0
+                    ? `~$${batchEstTotalCost.toFixed(2)}`
+                    : selected.length > 1
+                      ? `est. $${totalMinCost.toFixed(2)} — $${totalEstCost.toFixed(2)}`
+                      : `a partir de $${totalMinCost.toFixed(4)}`
+                  }
+                  size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
               {batchMode !== 'single' && (
                 <Chip label={`${batchEffective} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />
+              )}
+              {selected.length > 1 && batchMode !== 'single' && (
+                <Chip label={`~${estPagesPerMun} pág/mun`} size='small' variant='outlined'
+                  sx={{ ml: 0.5, fontSize: '0.6rem', fontFamily: 'monospace' }} />
               )}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -1040,7 +1058,7 @@ return colors[level ?? 0] || colors[0]
                 sx={{ cursor: 'pointer' }} />
               <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
                 onClick={() => setConfirmOpen(true)}>
-                {loading ? 'Buscando...' : `Buscar Agora ($${(totalMinCost).toFixed(3)})`}
+                {loading ? 'Buscando...' : `Buscar Agora ($${(totalEstCost).toFixed(2)})`}
               </Button>
             </Box>
           </Box>
@@ -1127,8 +1145,11 @@ return (
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
-              { label: 'L0 · Google Maps Search', cost: l0MinCost, detail: `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`, always: true },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado: 1,3,6 keywords = sempre $0.0054)`, optional: true, selected: selectedLayers.l1 },
+              { label: 'L0 · Google Maps Search', cost: l0MinCost, costEst: l0EstCost, detail: selected.length > 1
+                ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $0.048 — baseado em ${catCount} categorias`
+                : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
+                always: true, hasRange: selected.length > 1 },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)`, optional: true, selected: selectedLayers.l1 },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
@@ -1137,19 +1158,19 @@ return (
                   <Typography variant='caption' color='text.secondary'>{s.detail}</Typography>
                 </Box>
                 <Typography variant='body2' fontWeight={700} color={s.cost > 0 ? 'warning.main' : 'success.main'}>
-                  {s.cost > 0 ? `$${s.cost.toFixed(4)}` : 'GRÁTIS'}
+                  {s.cost > 0 ? (s.hasRange ? `$${l0MinCost.toFixed(2)} — $${l0EstCost.toFixed(2)}` : `$${s.cost.toFixed(4)}`) : 'GRÁTIS'}
                 </Typography>
               </Box>
             ))}
             {/* Total */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, mt: 0.5 }}>
-              <Typography variant='subtitle2'>💰 A partir de</Typography>
+              <Typography variant='subtitle2'>💰 {selected.length > 1 ? 'Estimado' : 'A partir de'}</Typography>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant='h6' color='warning.main' fontWeight={800}>
-                  ${totalMinCost.toFixed(4)}
+                  ${selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>
-                  R${(totalMinCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias
+                  R${(totalEstCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias{selected.length > 1 ? ` · ~${estPagesPerMun} págs/mun` : ''}
                 </Typography>
               </Box>
             </Box>
