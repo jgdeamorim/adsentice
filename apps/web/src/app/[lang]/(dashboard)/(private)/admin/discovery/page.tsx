@@ -308,19 +308,26 @@ const DiscoveryPage = () => {
     l0: true, l1: true, l4: true,
   })
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
+  const [selectedMunicipios, setSelectedMunicipios] = useState<string[]>([]) // RM multi-select
   const [pipelinePhase, setPipelinePhase] = useState<'idle' | 'l0' | 'l1' | 'l4' | 'persist' | 'done'>('idle')
 
   // ── Dynamic costs (baseados em dados REAIS) ──
-  const realMunicipioCount = batchMode === 'rm' ? rmMunicipios.length || 0
-    : batchMode === 'state' ? (rmMunicipios.length || 0)  // mesmo número: ES=7, SP=59, etc
+  // Modo Estado: todos os municipios da RM. Modo RM: só os selecionados.
+  // Modo Single: só o municipio clicado.
+  const stateMuniCount = rmMunicipios.length || 0
+  const rmSelectedCount = selectedMunicipios.length || 0
+
+  const realMunicipioCount = batchMode === 'single' ? 1
+    : batchMode === 'rm' ? (rmSelectedCount || rmMunicipios.length)  // selected ou todos da RM
+    : batchMode === 'state' ? stateMuniCount
     : 1
 
-  const batchEffective = batchMode === 'single' ? 1 : realMunicipioCount || 1
+  const batchEffective = realMunicipioCount || 1
 
   const l0Cost = selected.length * 0.015 * batchEffective
   const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective
   const l4Cost = 0
-  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0)
+  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0) + (selectedLayers.l4 ? l4Cost : 0) + (selectedLayers.l4 ? l4Cost : 0)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
@@ -684,24 +691,50 @@ return colors[level ?? 0] || colors[0]
                     🏙️ RM ({rmMunicipios.length}):
                   </Typography>
                   {rmLoading && <Chip label='⏳' size='small' variant='outlined' />}
-                  {rmMunicipios.slice(0, 10).map(m => (
-                    <Chip key={m.nome}
-                      label={m.nome}
-                      clickable
-                      size='small'
-                      color={selectedMunicipio === m.nome ? 'warning' : 'default'}
-                      variant={selectedMunicipio === m.nome ? 'filled' : 'outlined'}
-                      onClick={() => selectMunicipio(m.nome, stateKey, m.lat, m.lng)}
-                      sx={{ fontSize: '0.6rem', opacity: selectedMunicipio && selectedMunicipio !== m.nome ? 0.5 : 1 }}
-                    />
-                  ))}
-                  {rmMunicipios.length > 10 && (
-                    <Chip label={`+${rmMunicipios.length - 10}`} size='small' variant='outlined'
+                  {rmMunicipios.slice(0, 12).map(m => {
+                    const isSelected = batchMode === 'single'
+                      ? selectedMunicipio === m.nome
+                      : batchMode === 'rm'
+                        ? selectedMunicipios.includes(m.nome)
+                        : true  // state mode: all selected
+
+                    const handleClick = () => {
+                      if (batchMode === 'single') {
+                        // Single: seleciona 1 e seta como centro
+                        setSelectedMunicipios([m.nome])
+                        selectMunicipio(m.nome, stateKey, m.lat, m.lng)
+                      } else if (batchMode === 'rm') {
+                        // RM: toggle multi-select
+                        setSelectedMunicipios(prev =>
+                          prev.includes(m.nome)
+                            ? prev.filter(n => n !== m.nome)
+                            : [...prev, m.nome]
+                        )
+                        // Se primeiro selecionado, seta como centro
+                        if (!selectedMunicipio) selectMunicipio(m.nome, stateKey, m.lat, m.lng)
+                      }
+                      // Estado: ignora (auto-all)
+                    }
+
+                    return (
+                      <Chip key={m.nome}
+                        label={m.nome}
+                        clickable
+                        size='small'
+                        color={isSelected ? 'warning' : 'default'}
+                        variant={isSelected ? 'filled' : 'outlined'}
+                        onClick={handleClick}
+                        sx={{ fontSize: '0.6rem', opacity: isSelected || batchMode === 'state' ? 1 : 0.5 }}
+                      />
+                    )
+                  })}
+                  {rmMunicipios.length > 12 && (
+                    <Chip label={`+${rmMunicipios.length - 12}`} size='small' variant='outlined'
                       sx={{ fontSize: '0.6rem' }} />
                   )}
-                  {rmCoverage && (
-                    <Chip label={`${rmCoverage.mapped}/${rmCoverage.total} mapeados`}
-                      size='small' color='info' variant='tonal'
+                  {batchMode === 'rm' && (
+                    <Chip label={`${rmSelectedCount} selecionados`}
+                      size='small' color='warning' variant='tonal'
                       sx={{ fontSize: '0.6rem', ml: 0.5 }} />
                   )}
                 </Box>
@@ -800,13 +833,16 @@ return colors[level ?? 0] || colors[0]
                 Modo:
               </Typography>
               {(['single', 'rm', 'state'] as const).map(mode => {
-                const labels = { single: '📍 1 Município', rm: '🏙️ RM', state: '🗺️ Estado' }
+                const labels = { single: '📍 1', rm: '🏙️ RM', state: '🗺️ Estado' }
                 const needsMunicipios = mode !== 'single'
                 const disabled = needsMunicipios && rmMunicipios.length === 0
+                const extraInfo = mode === 'single' ? (selectedMunicipio || 'auto')
+                  : mode === 'rm' ? (rmSelectedCount || rmMunicipios.length)
+                  : (rmMunicipios.length || 0)
 
                 return (
                   <Chip key={mode}
-                    label={mode === 'rm' ? `${labels[mode]} (${rmMunicipios.length || 0})` : labels[mode]}
+                    label={`${labels[mode]} (${extraInfo})`}
                     clickable size='small'
                     color={batchMode === mode ? 'error' : 'default'}
                     variant={batchMode === mode ? 'filled' : 'outlined'}
