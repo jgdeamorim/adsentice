@@ -1,17 +1,12 @@
 {
-  "version": "v027",
-  "sealed_at": "2026-07-17T13:24:56.189422+00:00",
-  "commit": "97f812a",
-  "commits_total": 400,
+  "version": "v027.1",
+  "sealed_at": "2026-07-17T13:32:52.881439+00:00",
+  "commit": "7fe5ed6",
+  "commits_total": 401,
   "adrs_total": 28,
-  "backup_type": "full",
   "changes": [
-    "fix: market_holds UPSERT + UNIQUE index migration 013",
-    "fix: getMapPins — 27 capitais brasileiras no mini-mapa",
-    "fix: city fallback — Nominatim reverse geocode no pipeline",
-    "fix: L4 + city fallback desacoplados do L1 — rodam sempre",
-    "Supabase: 399/399 listings (100% city coverage)",
-    "City fallback: $0 via Nominatim, roda em L0+L4 e L0+L1+L4",
-    "L4 IBGE: $0, roda sempre independente do toggle L1"
+    "fix: custo L0 triplicado — removido multiplicador de categorias",
+    "L0 cost: $0.048 × municípios (categories array = 1 call)",
+    "Antes: selected.length × 0.048 × batchEffective → 3× mais caro"
   ]
 }
