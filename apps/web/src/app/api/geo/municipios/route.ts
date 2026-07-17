@@ -60,7 +60,7 @@ export async function GET(request: Request) {
 
     const { data } = await supabase
       .from("district_registry")
-      .select("district,city")
+      .select("district,city,uf")
       .ilike("city", `%${city}%`)
       .limit(200)
 
@@ -71,25 +71,37 @@ export async function GET(request: Request) {
     // Load coordinate dataset (cached 24h)
     const coords = await getMunicipioCoords()
 
-    // Normalize city name for matching
+    // UF code → UF letter map (IBGE codes)
+    const UF_CODES: Record<number, string> = {
+      11: 'RO', 12: 'AC', 13: 'AM', 14: 'RR', 15: 'PA', 16: 'AP', 17: 'TO',
+      21: 'MA', 22: 'PI', 23: 'CE', 24: 'RN', 25: 'PB', 26: 'PE', 27: 'AL', 28: 'SE', 29: 'BA',
+      31: 'MG', 32: 'ES', 33: 'RJ', 35: 'SP',
+      41: 'PR', 42: 'SC', 43: 'RS',
+      50: 'MS', 51: 'MT', 52: 'GO', 53: 'DF',
+    }
+
     const normalize = (s: string) => s
       .toLowerCase()
       .normalize("NFD")
       .replace(/[^a-z]/g, "")
 
+    // coordMap keyed by "nome_normalizado|UF" para evitar conflito de municípios homônimos
+    // Ex: Viana (ES) ≠ Viana (MA) — sem UF, o Map sobrescrevia o errado
     const coordMap = new Map<string, { lat: number; lng: number }>()
 
     for (const c of coords) {
-      coordMap.set(normalize(c.nome), { lat: c.latitude, lng: c.longitude })
+      const uf = UF_CODES[c.codigo_uf] || 'XX'
+      coordMap.set(`${normalize(c.nome)}|${uf}`, { lat: c.latitude, lng: c.longitude })
     }
 
     const municipios = data.map((r: any) => {
-      const key = normalize(r.district)
+      const key = `${normalize(r.district)}|${r.uf}`
       const coord = coordMap.get(key) || null
 
       return {
         nome: r.district,
         cidade: r.city,
+        uf: r.uf,
         lat: coord?.lat || null,
         lng: coord?.lng || null,
       }
