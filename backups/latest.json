@@ -1,9 +1,7 @@
 {
-  "version": "v036.1",
-  "sealed_at": "2026-07-17T21:59:23.545374+00:00",
-  "commit": "17951f0",
-  "commits_total": 432,
-  "adrs_total": 32,
-  "kg_points": 102100,
-  "boa": 0.942
+  "version": "v037",
+  "sealed_at": "2026-07-17T22:06:25.973249+00:00",
+  "commit": "3797879",
+  "commits_total": 433,
+  "adrs_total": 32
 }
