@@ -362,6 +362,7 @@ const DiscoveryPage = () => {
   // Pre-flight: limit=1 for all municipalities → reveals EXACT total_count → exact cost
   // Custo real: $0.01236/município (validado API live 2026-07-17)
   const preflightCost = batchEffective > 0 ? batchEffective * 0.01236 : 0
+  const preflightReady = batchMode !== 'single' && selected.length > 0 && rmMunicipios.length > 0
 
   // Real cost from preflight data (if available) vs heuristic estimate
   const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / 100), 0)
@@ -1145,8 +1146,10 @@ return colors[level ?? 0] || colors[0]
                 sx={{ cursor: 'pointer' }} />
               {batchMode !== 'single' && (
                 <Button
-                  variant='outlined' size='small' color='secondary'
-                  disabled={selected.length === 0 || loading || preflightRunning}
+                  variant={hasPreflight ? 'outlined' : 'contained'}
+                  size='small'
+                  color='secondary'
+                  disabled={!preflightReady || loading || preflightRunning}
                   onClick={doPreflight}
                   sx={{ fontSize: '0.7rem', fontFamily: 'monospace' }}
                 >
@@ -1158,9 +1161,11 @@ return colors[level ?? 0] || colors[0]
                   }
                 </Button>
               )}
-              <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
+              <Button variant='contained' color='primary'
+                disabled={selected.length === 0 || loading || preflightRunning}
                 onClick={() => setConfirmOpen(true)}>
                 {loading ? 'Buscando...'
+                  : preflightRunning ? 'Aguardando pre-flight...'
                   : hasPreflight
                     ? `Buscar Agora ($${preflightTotalCost.toFixed(2)})`
                     : `Buscar Agora ($${(totalEstCost).toFixed(2)})`}
