@@ -93,12 +93,20 @@ export default function DiscoverySessionLog({
 
   // ── State-aware mode: gerenciador ──
   if (stateKey && rmMunicipios) {
-    const latestPf = preflights[0]  // Only latest pre-flight
+    const latestPf = preflights[0]  // Latest pre-flight for stats
     const pfMuns = new Set<string>()
     let totalLeads = 0; let totalPages = 0
 
+    // Build COMBINED category set from ALL preflights for this state
+    // (Onda 1 + Onda 2 + Onda 3 must merge, not overwrite)
+    const allPfCats = new Set<string>()
+    for (const pf of preflights) {
+      for (const c of (pf.categories || [])) {
+        allPfCats.add(c.toLowerCase().replace(/\s+/g, '_'))
+      }
+    }
+
     // Build preflight municipality map — match by nearest RM municipality
-    // Distance-based: find the closest rmMunicipios entry for each preflight lat/lng
     if (latestPf) {
       for (const m of latestPf.municipalities) {
         let bestMatch: string | null = null; let bestD = Infinity
@@ -173,9 +181,8 @@ export default function DiscoverySessionLog({
 
           {/* ── Category coverage (ondas) ── */}
           {allCategories && allCategories.length > 0 && (() => {
-            const pfCatSet = new Set(latestPf?.categories?.map((c: string) => c.toLowerCase().replace(/\s+/g, '_')) || [])
-            const covered = allCategories.filter(c => pfCatSet.has(c.id))
-            const missing = allCategories.filter(c => !pfCatSet.has(c.id))
+            const covered = allCategories.filter(c => allPfCats.has(c.id))
+            const missing = allCategories.filter(c => !allPfCats.has(c.id))
             const totalWaves = Math.ceil(allCategories.length / 10)
             const currentWave = Math.ceil(covered.length / 10) || 1
             const nextWaveCats = allCategories.slice(covered.length, covered.length + 10)
@@ -188,7 +195,7 @@ export default function DiscoverySessionLog({
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
                   {allCategories.slice(0, 25).map(c => {
-                    const hasCat = pfCatSet.has(c.id)
+                    const hasCat = allPfCats.has(c.id)
                     return (
                       <Chip key={c.id}
                         label={hasCat ? `✅ ${c.label}` : `❌ ${c.label}`}

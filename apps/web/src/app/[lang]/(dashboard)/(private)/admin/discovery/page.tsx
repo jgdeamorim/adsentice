@@ -1439,7 +1439,7 @@ return (
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
+          <Button onClick={() => { setConfirmOpen(false); setSessionVersion(v => v + 1) }}>Cancelar</Button>
           <Button variant='contained' color='primary'
             onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}
             startIcon={<i className='ri-send-plane-line' />}>
