@@ -1,19 +1,12 @@
 {
-  "version": "v028",
-  "sealed_at": "2026-07-17T14:23:44.836659+00:00",
-  "commit": "595895c",
-  "commits_total": 407,
+  "version": "v028.1",
+  "sealed_at": "2026-07-17T14:30:20.524774+00:00",
+  "commit": "2e569ca",
+  "commits_total": 409,
   "adrs_total": 29,
   "changes": [
-    "ADR-0029: Discovery Session Log com cache TTL + batch_id grouping",
-    "fix: Session Log com tracker_id, progresso, botao Continuar",
-    "fix: Viana/ES coordenadas erradas (conflito homonimos nome|UF)",
-    "feat: batch_id no search_metadata — agrupa buscas por batch",
-    "fix: L0 sem multiplicador de categorias (selected.length removido)",
-    "fix: L4 + city fallback desacoplados do L1 — rodam sempre",
-    "fix: market_holds UPSERT + UNIQUE index (migration 013)",
-    "fix: 27 capitais no mini-mapa + city fallback Nominatim",
-    "Supabase: 399/399 listings (100% city coverage)",
-    "Session Log: batches expansíveis, progresso, Continue por municipio"
+    "Session Log v2: timeline visual + cards + contexto real + auto-refresh",
+    "API sessions: resolveCity com UF, dateGroup, batch summary",
+    "batch_id grouping + Viana/ES fix + L0 cost fix"
   ]
 }
