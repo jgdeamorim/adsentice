@@ -900,7 +900,7 @@ return colors[level ?? 0] || colors[0]
                 sx={{ cursor: 'pointer' }} />
               <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
                 onClick={() => setConfirmOpen(true)}>
-                {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)} L0+L1+L4)`}
+                {loading ? 'Buscando...' : `Buscar Agora ($${(totalCost).toFixed(3)})`}
               </Button>
             </Box>
           </Box>
@@ -957,40 +957,79 @@ return (
         </Grid>
       )}
 
-      {/* ═══ CONFIRMATION DIALOG ═══ */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>
-          🚀 Pipeline {' '}
-          {[
-            selectedLayers.l0 && 'L0',
-            selectedLayers.l1 && 'L1',
-            selectedLayers.l4 && 'L4',
-          ].filter(Boolean).join('→')}
-          {batchMode !== 'single' && ` · ${batchEffective} municípios`}
+      {/* ═══ CONFIRMATION DIALOG (checkout style) ═══ */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          🚀 Confirmar Discovery
+          <Chip label={batchMode === 'single' ? '1 Município' : batchMode === 'rm' ? `${batchEffective} Municípios (RM)` : `${batchEffective} Municípios (Estado)`}
+            size='small' color='error' variant='tonal' />
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mt: 1 }}>
-            <Typography variant='body2'>📍 <strong>{cityLabel}</strong> · {radius}km raio</Typography>
-            <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
-            {batchMode !== 'single' && (
-              <Typography variant='body2'>🏙️ <strong>{batchEffective}</strong> municípios</Typography>
+          {/* ── Resumo ── */}
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Chip label={`📍 ${cityLabel.split('(')[0].trim()}`} size='small' color='primary' variant='outlined' />
+            <Chip label={`${radius}km`} size='small' color='warning' variant='outlined' />
+            {batchMode === 'rm' && selectedMunicipios.length > 0 && selectedMunicipios.slice(0, 5).map(m => (
+              <Chip key={m} label={m} size='small' variant='outlined' sx={{ fontSize: '0.6rem' }} />
+            ))}
+            {batchMode === 'rm' && selectedMunicipios.length > 5 && (
+              <Chip label={`+${selectedMunicipios.length - 5}`} size='small' variant='outlined' />
             )}
-            <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
-              💰 Custo estimado: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
-            </Typography>
-            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              {selectedLayers.l0 && <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (100 listings, API DataForSEO)</Typography>}
-              {selectedLayers.l1 && <Typography variant='caption'>📋 L1 Profile: ${l1Cost.toFixed(4)} (50 perfis GMB, 2 ondas de 30)</Typography>}
-              {!selectedLayers.l1 && selectedLayers.l4 && <Typography variant='caption'>⚠️ L4 sem L1: usa city do address_info (L0), não do perfil GMB</Typography>}
-              {selectedLayers.l4 && <Typography variant='caption'>📊 L4 IBGE: $0.00 (pop/PIB/densidade — Supabase)</Typography>}
-              {!selectedLayers.l1 && !selectedLayers.l4 && <Typography variant='caption'>⚡ Somente L0 — sem enriquecimento</Typography>}
+            {batchMode === 'state' && rmMunicipios.slice(0, 5).map(m => (
+              <Chip key={m.nome} label={m.nome} size='small' variant='outlined' sx={{ fontSize: '0.6rem' }} />
+            ))}
+            {batchMode === 'state' && rmMunicipios.length > 5 && (
+              <Chip label={`+${rmMunicipios.length - 5}`} size='small' variant='outlined' />
+            )}
+          </Box>
+
+          {/* ── Pipeline Breakdown (checkout) ── */}
+          <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
+            <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
+            {[
+              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, active: selectedLayers.l0 },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: '50 perfis (2 ondas de 30) × municípios', active: selectedLayers.l1 },
+              { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — Supabase', active: selectedLayers.l4 },
+            ].filter(s => s.active).map((s, i, arr) => (
+              <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+                <Box>
+                  <Typography variant='body2' fontWeight={600}>{s.label}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{s.detail}</Typography>
+                </Box>
+                <Typography variant='body2' fontWeight={700} color={s.cost > 0 ? 'warning.main' : 'success.main'}>
+                  {s.cost > 0 ? `$${s.cost.toFixed(4)}` : 'GRÁTIS'}
+                </Typography>
+              </Box>
+            ))}
+            {/* Total */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, mt: 0.5 }}>
+              <Typography variant='subtitle2'>💰 Total</Typography>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant='h6' color='warning.main' fontWeight={800}>
+                  ${totalCost.toFixed(4)}
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  R${(totalCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias
+                </Typography>
+              </Box>
             </Box>
           </Box>
+
+          {/* ── Info ── */}
+          <Alert severity='info' sx={{ mt: 2 }}>
+            <Typography variant='caption'>
+              Camada L1 usa <strong>2 ondas de 30 chamadas simultâneas</strong> à API DataForSEO.
+              Custo real pode variar conforme disponibilidade de perfil GMB.
+              {batchMode !== 'single' && ` Cada município é uma busca independente com seu próprio tracker.`}
+            </Typography>
+          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-          <Button variant='contained' color='primary' onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}>
-            🚀 Buscar (${totalCost.toFixed(4)})
+          <Button variant='contained' color='primary'
+            onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}
+            startIcon={<i className='ri-send-plane-line' />}>
+            Confirmar · ${totalCost.toFixed(3)}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1110,7 +1149,11 @@ return (
           <Card sx={{ textAlign: 'center', py: 4 }}><CardContent>
             <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />
             <Typography>🔍 Buscando dados reais do Google Meu Negócio...</Typography>
-            <Typography variant='caption' color='text.secondary'>Pipeline L0+L1+L4 em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
+            <Typography variant='caption' color='text.secondary'>Pipeline {[
+            selectedLayers.l0 && 'L0',
+            selectedLayers.l1 && 'L1',
+            selectedLayers.l4 && 'L4',
+          ].filter(Boolean).join('+')} em execução · Custo: ~${totalCost.toFixed(3)}</Typography>
           </CardContent></Card>
         </Grid>
       )}
