@@ -307,6 +307,7 @@ const DiscoveryPage = () => {
   const [selectedLayers, setSelectedLayers] = useState<{ l0: true; l1: boolean; l4: true }>({
     l0: true, l1: true, l4: true,
   })
+
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
   const [selectedMunicipios, setSelectedMunicipios] = useState<string[]>([]) // RM multi-select
   const [pipelinePhase, setPipelinePhase] = useState<'idle' | 'l0' | 'l1' | 'l4' | 'persist' | 'done'>('idle')
@@ -342,9 +343,11 @@ const DiscoveryPage = () => {
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
           limit: 100, force: force,
-          // Continuar: só L0 (L1 já foi executado na 1ª chamada)
+
+          // Primária: auto-pagina (API busca todas as páginas) + L1 se selecionado
+          // Continuar: só L0, página única
           enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
-          paginate: false,
+          paginate: !isContinue,
           ...(isContinue ? { offset: offsetOverride } : {}),
         }),
       })
@@ -423,6 +426,7 @@ setTimeout(() => setPipelinePhase('idle'), 2000) }
       setCityLabel(`${municipio} (${uf})`)
       setRadius(5)
     }
+
     // Fallback: Nominatim geocoding
     else {
       setRmLoading(true)
@@ -713,9 +717,11 @@ return colors[level ?? 0] || colors[0]
                             ? prev.filter(n => n !== m.nome)
                             : [...prev, m.nome]
                         )
+
                         // Se primeiro selecionado, seta como centro
                         if (!selectedMunicipio) selectMunicipio(m.nome, stateKey, m.lat, m.lng)
                       }
+
                       // Estado: ignora (auto-all)
                     }
 
@@ -838,6 +844,7 @@ return colors[level ?? 0] || colors[0]
                 const labels = { single: '📍 1', rm: '🏙️ RM', state: '🗺️ Estado' }
                 const needsMunicipios = mode !== 'single'
                 const disabled = needsMunicipios && rmMunicipios.length === 0
+
                 const extraInfo = mode === 'single' ? (selectedMunicipio || 'auto')
                   : mode === 'rm' ? (rmSelectedCount || rmMunicipios.length)
                   : (rmMunicipios.length || 0)
@@ -876,8 +883,8 @@ return colors[level ?? 0] || colors[0]
                   ))}
                 </Box>
                 <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>
-                  {pipelinePhase === 'l0' && '🔄 Buscando negócios no Google Maps...'}
-                  {pipelinePhase === 'l1' && '📋 Enriqueçendo perfis GMB (2 ondas de 30)...'}
+                  {pipelinePhase === 'l0' && '🔄 Buscando negócios no Google Maps (todas as páginas)...'}
+                  {pipelinePhase === 'l1' && (selectedLayers.l1 ? '📋 Enriqueçendo perfis GMB (2 ondas de 30)...' : '✅ Sem L1 — pulando enriquecimento')}
                   {pipelinePhase === 'l4' && '📊 Cruzando com IBGE (população, PIB, densidade)...'}
                   {pipelinePhase === 'done' && '✅ Pipeline completo — dados persistidos no Supabase'}
                 </Typography>
