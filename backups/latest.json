@@ -1,42 +1,49 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-16-192258",
-  "date": "2026-07-16",
-  "timestamp": "2026-07-16T192258Z",
+  "backup_id": "2026-07-17-062710",
+  "date": "2026-07-17",
+  "timestamp": "2026-07-17T062710Z",
   "mode": "INCREMENTAL",
-  "parent_backup": "2026-07-16-191758",
+  "parent_backup": "2026-07-17-024240",
   "collections": {
-    "adsentice-self": 18352,
-    "adsentice-conversation": 80025,
-    "claude-memory": 34,
+    "adsentice-self": 18384,
+    "adsentice-conversation": 80900,
+    "claude-memory": 39,
     "adsentice-materio": 36
   },
-  "redis_keys": 67,
-  "supabase_rows": 687,
+  "redis_keys": 128,
+  "supabase_rows": 412,
   "checksums": {
     "qdrant": {
-      "adsentice-self": "4bdc80e9f757",
-      "adsentice-conversation": "20c23f820f43",
-      "claude-memory": "885a6a96acb3",
-      "adsentice-materio": "dbc5d553c3e5"
+      "adsentice-self": "6e56e579a178",
+      "adsentice-conversation": "277dae551083",
+      "claude-memory": "1c9819b5281e",
+      "adsentice-materio": "73af4af5974a"
     },
-    "redis": "99b66022076d",
+    "redis": "8112a52f3d52",
     "supabase": {
-      "discovery_searches": "d5a389e9a248",
-      "discovery_listings": "a3fb06d11260",
-      "market_holds": "49b87de7d19f"
+      "discovery_searches": "e96c16667b12",
+      "discovery_listings": "4083a431f6d6",
+      "market_holds": "c6ad3e822c8f"
     }
   },
   "uploaded_to_r2": [
-    "backup/2026-07-16/adsentice-backup-2026-07-16-192258.json.gz",
-    "backup/2026-07-16/redis.json.gz"
+    "backup/2026-07-17/adsentice-backup-2026-07-17-062710.json.gz",
+    "backup/2026-07-17/redis.json.gz",
+    "backup/2026-07-17/supabase/discovery_searches.json.gz",
+    "backup/2026-07-17/supabase/discovery_listings.json.gz",
+    "backup/2026-07-17/supabase/market_holds.json.gz"
   ],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-16/adsentice-backup-2026-07-16-192258.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-17/adsentice-backup-2026-07-17-062710.json.gz"
   ],
   "changed": {
     "qdrant": [],
     "redis": true,
-    "supabase": []
+    "supabase": [
+      "discovery_searches",
+      "discovery_listings",
+      "market_holds"
+    ]
   }
 }
