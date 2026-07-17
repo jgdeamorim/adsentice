@@ -57,16 +57,15 @@ Implementar o **adsentice Intelligence Runtime** — ciclo de 4 fases que transf
 │                           ▼                                         │
 │  Phase 1: SCORING ENGINE (NOVO)                                     │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Cruza 5 dimensões para rankear oportunidades:               │   │
-│  │   D1: Tamanho (total_count)                                 │   │
-│  │   D2: Maturidade digital (claimed%, website%, rating)       │   │
-│  │   D3: Poder aquisitivo (IBGE: pib_per_capita, densidade)    │   │
-│  │   D4: Categoria estratégica (tier 1/2/3)                    │   │
-│  │   D5: Contato (QUENTE/MORNO/FRIO)                             │   │
+│  │ Modelo 2 eixos para rankear oportunidades:                    │   │
+│  │   EIXO 1 (D1-D4): Oportunidade de Mercado (0-26 pts)        │   │
+│  │     D1: Tamanho · D2: Maturidade · D3: IBGE · D4: Tier      │   │
+│  │   EIXO 2 (D5): Canal de Contato (QUENTE/MORNO/FRIO)         │   │
+│  │     Independente — define ABORDAGEM, não prioridade          │   │
 │  │                                                             │   │
-│  │ Score ≥ 12 → 🔥 DISPARAR batch parcial                      │   │
-│  │ Score 6-11 → 📋 SUGERIR (fila)                              │   │
-│  │ Score < 6  → ⏭️ IGNORAR                                     │   │
+│  │ Matriz 2D:                                                  │   │
+│  │   ALTO+QUENTE → 🔥 DISPARAR · ALTO+MORNO → 🔥 + L3          │   │
+│  │   MÉDIO+QUENTE → 📋 SUGERIR · BAIXO+FRIO → ⏭️ IGNORAR       │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
@@ -97,23 +96,18 @@ Implementar o **adsentice Intelligence Runtime** — ciclo de 4 fases que transf
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
-│  Phase 3: MATCH PLANO × LEAD + CLASSIFICAÇÃO DE CONTATO (NOVO)      │
+│  Phase 3: MATCH PLANO × LEAD — independente do canal (NOVO)         │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                                                             │   │
-│  │ 🔥 QUENTE (WhatsApp):                                       │   │
+│  │ Classificação por perfil (IGNORA canal de contato):         │   │
 │  │   !claimed && !website && rating>3.5    → Raio-X R$0        │   │
 │  │   !claimed && website && l2_score<40    → Sentinela R$197   │   │
 │  │   claimed && website && l2_score<40     → Domínio R$497     │   │
 │  │   !claimed && website && l2_score>60    → Escala R$997      │   │
 │  │                                                             │   │
-│  │ 🌤️ MORNO (phone + website, sem WhatsApp):                   │   │
-│  │   → L3 resolve contato ($0.0005)                             │   │
-│  │   → Se encontrou WhatsApp → promove a QUENTE                │   │
-│  │   → Se não encontrou → prospecção por telefone              │   │
-│  │                                                             │   │
-│  │ ❄️ FRIO (sem phone + sem email + sem website):              │   │
-│  │   → ⏸️ Aguardar update de perfil GMB                        │   │
-│  │   → Reavaliar no próximo ciclo de pre-flight                │   │
+│  │ Estratégia de contato (canal define ABORDAGEM):             │   │
+│  │   🔥 QUENTE → prospecção imediata pelo WhatsApp             │   │
+│  │   🌤️ MORNO → L3 resolvedor ($0.0005) ou cold call          │   │
+│  │   ❄️ FRIO → CNPJ/web search ou aguardar update GMB          │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                           │                                         │
 │                           ▼                                         │
@@ -142,30 +136,68 @@ O **L2 pré-venda** é a inovação central. Em vez de "confie em mim, seu site 
 → Ticket médio R$297 = CAC de R$6.93
 ```
 
-### Scoring Engine — Fórmula
+### Scoring Engine — Modelo de 2 Eixos
+
+D5 como **score aditivo distorce o ranking.** Um lead com WhatsApp em mercado minúsculo (Fundão, 27 leads) não deve superar um lead sem WhatsApp em mercado gigante (São Paulo, 10.521 leads). A solução é **separar prioridade de abordagem:**
 
 ```
-SCORE = D1_tamanho + D2_maturidade + D3_aquisitivo + D4_tier + D5_contato
+EIXO 1 — OPORTUNIDADE DE MERCADO (D1+D2+D3+D4) → 0-26 pontos
+  → Determina ONDE prospectar (PRIORIDADE)
+  → D5 NÃO soma aqui
+
+EIXO 2 — CANAL DE CONTATO (D5 independente)
+  → Determina COMO prospectar (ABORDAGEM)
+  → Classifica em QUENTE / MORNO / FRIO
+  → Não infla o score de prioridade
+```
+
+### Fórmula do Eixo 1 — Oportunidade de Mercado
+
+```
+SCORE = D1_tamanho + D2_maturidade + D3_aquisitivo + D4_tier
 
 D1: total_count > 2000 → +5  |  > 500 → +2  |  ≤ 500 → 0
 D2: claimed < 50%    → +4  |  website < 30% → +4  |  rating < 3.5 → +2
 D3: pib > R$80K      → +3  |  pib > R$50K → +1  |  densidade > 2000 → +2
 D4: tier 1 (saúde/beleza) → +4  |  tier 2 (serviços) → +2  |  tier 3 → 0
-D5: has_whatsapp → +5  |  has_phone+website → +2  |  has_phone → +1  |  sem contato → 0
 
-Thresholds: ≥ 12 = 🔥 DISPARAR  |  6-11 = 📋 SUGERIR  |  < 6 = ⏭️ IGNORAR
+Thresholds: ≥ 12 = PRIORIDADE ALTA  |  6-11 = PRIORIDADE MÉDIA  |  < 6 = PRIORIDADE BAIXA
 ```
 
-### D5 — Contato: Classificação Quente/Morno/Frio
+### Classificação do Eixo 2 — Canal de Contato
 
-A dimensão D5 resolve o problema fundamental da prospecção: **não adianta ter o melhor lead do mundo se você não consegue contatá-lo.**
+A classificação é **independente do score de mercado.** Define a estratégia de abordagem, não a prioridade.
 
-| Classificação | Critério | Ação |
+| Classificação | Critério | Estratégia |
 |:---:|------|------|
-| 🔥 **QUENTE** | Tem WhatsApp (L1 `contact_methods`) | Prosseguir prospecção imediata |
-| 🌤️ **MORNO** | Tem phone + website, mas sem WhatsApp | **L3 no website** ($0.0005) para extrair WhatsApp/email do HTML |
-| 🌤️ **MORNO** | Tem phone, sem website, sem WhatsApp | Prosseguir com telefone (cold call) |
-| ❄️ **FRIO** | Sem phone + sem email + sem website | ⏸️ Aguardar update de perfil GMB. Lead frio — não prospectar agora |
+| 🔥 **QUENTE** | Tem WhatsApp (L1 `contact_methods`) | Prospecção direta via WhatsApp |
+| 🌤️ **MORNO** | Tem phone + website, sem WhatsApp | **L3 no website** ($0.0005) → resolve contato |
+| 🌤️ **MORNO** | Tem phone, sem website | Cold call por telefone |
+| ❄️ **FRIO** | Sem phone + sem email + sem website | ⏸️ Aguardar update de perfil GMB |
+
+### Matriz de Decisão 2D
+
+```
+                    MARKET ALTO (≥12)      MARKET MÉDIO (6-11)     MARKET BAIXO (<6)
+  ───────────────────────────────────────────────────────────────────────────────────
+  QUENTE            🔥 DISPARAR            📋 SUGERIR              ⏺️ BAIXA PRIORIDADE
+  (WhatsApp)        WhatsApp direto        WhatsApp direto         Mercado pequeno mas
+                    Máxima prioridade      Vale se tempo disponível contato fácil — fazer
+
+  MORNO             🔥 DISPARAR            📋 SUGERIR              ⏭️ IGNORAR
+  (phone+website)   L3 resolvedor          L3 se website           Sem escala, custo do
+                    $0.0005 resolve        $0.0005 resolve         L3 não se justifica
+
+  MORNO             🔥 DISPARAR            📋 SUGERIR              ⏭️ IGNORAR
+  (só phone)        Cold call              Cold call               Mercado pequeno +
+                                         se tempo disponível       cold call = não vale
+
+  FRIO              📋 PESQUISAR           ⏭️ IGNORAR             ⏭️ IGNORAR
+  (sem contato)     CNPJ/Web search        Sem canal de contato    Sem canal + sem escala
+                    Atualizar cadastro
+```
+
+**O contato NUNCA infla a prioridade — apenas muda a abordagem.** São Paulo Barbearia (MORNO, score 10) é mais prioritário que Fundão Escola (QUENTE, score 3). Mas Fundão Escola é mais fácil de abordar — se sobrar tempo, faz.
 
 ### L3 como Resolvedor de Contato
 
@@ -206,25 +238,29 @@ Se não encontrou nada → mantém MORNO (cold call por telefone)
 
 ```
 🥇 ES · Dentista · Vitória
-   total=4014 (+5) · claimed=40% (+4) · website=0% (+4)
-   rating=4.0 (+0) · PIB=R$87K (+3) · tier=1 (+4) · 🌤️ MORNO (+2)
-   → SCORE 22 — 🔥 DISPARAR
-   Batch parcial: 100 leads × $0.053 = $0.053
-   Filtro L2: ~20 leads × $0.010 = $0.20
-   Leads MORNO com website → L3 resolve contato (~40 × $0.0005 = $0.02)
+   SCORE: total=4014 (+5) · claimed=40% (+4) · website=0% (+4)
+          rating=4.0 (+0) · PIB=R$87K (+3) · tier=1 (+4) = 20/26
+   CANAL: 🌤️ MORNO (phone+website, sem WhatsApp)
+   MATRIZ: ALTO + MORNO → 🔥 DISPARAR + L3 resolvedor
+   → 100 leads via batch parcial ($0.053)
+   → L3 resolve contato em ~40 leads com website ($0.02)
+   → L2 audita ~20 sites ($0.20) → relatórios prontos
    Potencial: 20 relatórios → 5% conv = 1 cliente → R$197 MRR
 
 🥈 SP · Barbearia · São Paulo
-   total=10521 (+5) · claimed=60% (+0) · website=40% (+0)
-   PIB=R$52K (+1) · tier=1 (+4) · 🔥 QUENTE (+5)
-   → SCORE 15 — 🔥 DISPARAR
-   Mercado grande, leads com WhatsApp. Oportunidade: upsell gestão GMB.
+   SCORE: total=10521 (+5) · claimed=60% (+0) · website=40% (+0)
+          PIB=R$52K (+1) · tier=1 (+4) = 10/26
+   CANAL: 🔥 QUENTE (WhatsApp)
+   MATRIZ: MÉDIO + QUENTE → 📋 SUGERIR · WhatsApp direto
+   Mercado grande mas mais maduro digitalmente.
+   Upsell gestão GMB para reivindicados.
 
 🥉 ES · Escola · Fundão
-   total=27 (+0) · claimed=80% (+0) · website=20% (+4)
-   PIB=R$35K (+0) · tier=3 (+0) · ❄️ FRIO (+0)
-   → SCORE 4 — ⏭️ IGNORAR
-   Mercado minúsculo, ticket baixo, sem contato disponível.
+   SCORE: total=27 (+0) · claimed=80% (+0) · website=20% (+4)
+          PIB=R$35K (+0) · tier=3 (+0) = 4/26
+   CANAL: ❄️ FRIO (sem contato)
+   MATRIZ: BAIXO + FRIO → ⏭️ IGNORAR
+   Mercado minúsculo, ticket baixo, sem canal de contato.
 ```
 
 ### ROI por ciclo (ES + SP, 68 municípios)
