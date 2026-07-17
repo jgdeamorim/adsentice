@@ -575,6 +575,8 @@ const DiscoveryPage = () => {
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
+  const selectAllCategories = () => { setSelected(CATS.map(c => c.id)) }
+  const clearCategories = () => { setSelected([]) }
 
   // ── Load RM municipalities (ADR-0025) ──
   const loadMunicipios = async (cityName: string) => {
@@ -1173,6 +1175,14 @@ return colors[level ?? 0] || colors[0]
             </Box>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              label={selected.length === CATS.length ? '✕ Limpar' : '☑ Todos'}
+              clickable size='small'
+              color={selected.length === CATS.length ? 'error' : 'primary'}
+              variant={selected.length === CATS.length ? 'filled' : 'outlined'}
+              onClick={() => selected.length === CATS.length ? clearCategories() : selectAllCategories()}
+              sx={{ fontWeight: 700 }}
+            />
             {CATS.map(cat => {
               const active = selected.includes(cat.id)
 
