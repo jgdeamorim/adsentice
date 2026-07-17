@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert'
 import Tooltip from '@mui/material/Tooltip'
 
 import { getSessionUser } from '@/libs/supabase/server'
+import WarpComposeDemo from '@/components/WarpComposeDemo'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,6 +118,11 @@ async function SurfaceContent({ lang }: { lang: string }) {
           </Card>
         </Grid>
       )}
+
+      {/* ═══ INTEND COMPOSER DEMO ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <WarpComposeDemo />
+      </Grid>
 
       {/* ═══ KPI CARDS ═══ */}
       <Grid size={{ xs: 12 }} container spacing={2}>
