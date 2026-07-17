@@ -422,7 +422,7 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
   const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
 
@@ -469,6 +469,7 @@ export async function POST(request: NextRequest) {
     // Tracker: search_metadata records what pages were fetched and how many remain.
     const searchMetadata = {
       tracker_id: `discovery_${Date.now().toString(36)}`,
+      batch_id: batchId || null,
       total_in_region: totalCount,
       fetched_count: items.length,
       pages_fetched: 1,

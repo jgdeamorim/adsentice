@@ -366,6 +366,9 @@ const DiscoveryPage = () => {
     setBatchTotal(batch.length); setBatchCompleted(0)
     setPipelinePhase('l0')
 
+    // Generate batch ID once per fresh search — groups all municipalities together
+    const batchId = isContinue ? null : `batch_${Date.now().toString(36)}`
+
     let allListings: any[] = []
     let totalCostAcc = 0
     let grandTotalCount = 0
@@ -387,6 +390,7 @@ const DiscoveryPage = () => {
               limit: 100, force: force,
               enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
               paginate: !isContinue,
+              batchId,
               ...(isContinue ? { offset: offsetOverride } : {}),
             }),
           })

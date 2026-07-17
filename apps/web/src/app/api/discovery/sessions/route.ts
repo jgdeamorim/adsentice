@@ -52,9 +52,9 @@ export async function GET() {
         listingsSaved = count || 0
       } catch { /* supabase offline */ }
 
-      // Extract full pagination metadata from search_metadata JSONB
+      // Extract full pagination metadata + batch_id from search_metadata JSONB
       let trackerId = ""; let fetchedCount = 0; let remaining = 0
-      let pagesFetched = 0; let offsetsUsed: number[] = []
+      let pagesFetched = 0; let offsetsUsed: number[] = []; let batchId: string | null = null
       try {
         const meta = typeof s.search_metadata === "string"
           ? JSON.parse(s.search_metadata)
@@ -64,6 +64,7 @@ export async function GET() {
         remaining = meta?.remaining || 0
         pagesFetched = meta?.pages_fetched || 1
         offsetsUsed = meta?.offsets_used || [0]
+        batchId = meta?.batch_id || null
       } catch { /* no metadata */ }
 
       // incomplete = ainda tem dados não buscados (remaining > 0)
@@ -82,6 +83,7 @@ export async function GET() {
         cacheTtl: cacheActive ? cacheTtl : null,
         cacheActive,
         trackerId,
+        batchId,
         fetchedCount,
         remaining,
         pagesFetched,
