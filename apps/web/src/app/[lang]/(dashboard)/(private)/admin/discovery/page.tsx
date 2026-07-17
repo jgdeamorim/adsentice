@@ -341,6 +341,10 @@ const DiscoveryPage = () => {
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
+  const [batchEstTotalCost, setBatchEstTotalCost] = useState(0)  // real-time accumulated estimate
+  const [batchLastTotalCount, setBatchLastTotalCount] = useState(0)  // last municipality total_count
+  const [batchDoneCost, setBatchDoneCost] = useState(0)  // final total cost after completion
+  const [batchDoneListings, setBatchDoneListings] = useState(0)  // final listings count after completion
 
   // ── Build municipality batch list ──
   function buildBatchList(): { nome: string; lat: number; lng: number }[] {
@@ -368,7 +372,7 @@ const DiscoveryPage = () => {
     }
 
     setLoading(true); setError('')
-    setBatchTotal(batch.length); setBatchCompleted(0)
+    setBatchTotal(batch.length); setBatchCompleted(0); setBatchEstTotalCost(0)
     setPipelinePhase('l0')
 
     // Generate batch ID once per fresh search — groups all municipalities together
@@ -414,6 +418,11 @@ const DiscoveryPage = () => {
           allListings.push(...newLeads)
           totalCostAcc += data.totalCost || data.cost_usd || 0.015
           grandTotalCount += data.total_count || data.listings.length
+
+          // Real-time cost estimate from API (based on total_count)
+          const estCost = data.estimatedTotalCost || (data.estimatedPages || 1) * 0.048 + ((selectedLayers.l1 && !isContinue) ? 0.0054 : 0)
+          setBatchEstTotalCost(prev => prev + estCost)
+          setBatchLastTotalCount(data.total_count || 0)
 
           // Batch delay to respect DataForSEO rate limits (2000/min)
           if (i < batch.length - 1) await new Promise(r => setTimeout(r, 150))
@@ -468,6 +477,8 @@ const DiscoveryPage = () => {
       setFromCache(false)
       setPinsVersion(v => v + 1)
       setPage(0); setSortBy('score'); setSortDir('desc')
+      setBatchDoneCost(totalCostAcc)
+      setBatchDoneListings(allListings.length)
       setPipelinePhase('persist')
       await new Promise(r => setTimeout(r, 500))
     } catch (e: any) { setError(e.message) }
@@ -958,12 +969,17 @@ return colors[level ?? 0] || colors[0]
                 {/* Batch progress */}
                 {batchTotal > 1 && batchProgress && (
                   <Box sx={{ mb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
-                      <Typography variant='caption' fontWeight={600} color='primary.main'>
-                        🏙️ {batchProgress}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {batchCompleted}/{batchTotal} municípios
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3, flexWrap: 'wrap', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Typography variant='caption' fontWeight={600} color='primary.main'>
+                          🏙️ {batchProgress}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {batchCompleted}/{batchTotal} municípios
+                        </Typography>
+                      </Box>
+                      <Typography variant='caption' fontWeight={700} color='warning.main'>
+                        ~${batchEstTotalCost.toFixed(4)} estimado
                       </Typography>
                     </Box>
                     <LinearProgress variant='determinate'
@@ -990,10 +1006,18 @@ return colors[level ?? 0] || colors[0]
                   ))}
                 </Box>
                 <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>
-                  {pipelinePhase === 'l0' && '🔄 Buscando negócios no Google Maps (todas as páginas)...'}
+                  {pipelinePhase === 'l0' && (
+                    <>🔄 Buscando Google Maps —{' '}
+                      {batchLastTotalCount > 0 && (
+                        <strong>{batchLastTotalCount.toLocaleString('pt-BR')} leads</strong>
+                      )}
+                      {' '}· auto-paginação · ~$0.048/página</>
+                  )}
                   {pipelinePhase === 'l1' && (selectedLayers.l1 ? '📋 Enriqueçendo perfis GMB (1 POST batch 50 keywords)...' : '✅ Sem L1 — pulando enriquecimento')}
                   {pipelinePhase === 'l4' && '📊 Cruzando com IBGE (população, PIB, densidade)...'}
-                  {pipelinePhase === 'done' && '✅ Pipeline completo — dados persistidos no Supabase'}
+                  {pipelinePhase === 'done' && (
+                    <>✅ Pipeline completo — {batchDoneListings.toLocaleString('pt-BR')} leads · ${batchDoneCost.toFixed(4)} gasto · dados no Supabase</>
+                  )}
                 </Typography>
               </Box>
             )}
@@ -1003,7 +1027,7 @@ return colors[level ?? 0] || colors[0]
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
-                <Chip label={`~$${(totalMinCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+                <Chip label={loading && batchEstTotalCost > 0 ? `~$${batchEstTotalCost.toFixed(4)}` : `a partir de $${totalMinCost.toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
               {batchMode !== 'single' && (
                 <Chip label={`${batchEffective} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />

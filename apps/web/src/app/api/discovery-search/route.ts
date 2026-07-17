@@ -464,6 +464,16 @@ export async function POST(request: NextRequest) {
 
     const result = { total_count: totalCount, listings: items as any[], cost_usd: searchResult.cost_usd || 0.015 }
 
+    // ── Cost estimate from 1st page total_count ──
+    // L0: $0.048/página. L1: $0.0054 flat rate (1 POST batch).
+    const estimatedPages = Math.ceil(totalCount / (limit || 100))
+    const estimatedL0Cost = estimatedPages * 0.048
+    const estimatedL1Cost = enrich ? 0.0054 : 0
+    ;(result as any).estimatedPages = estimatedPages
+    ;(result as any).estimatedL0Cost = estimatedL0Cost
+    ;(result as any).estimatedL1Cost = estimatedL1Cost
+    ;(result as any).estimatedTotalCost = estimatedL0Cost + estimatedL1Cost
+
     // ═══ PAGINATION: fetch remaining pages (offset 100,200...) ═══
     // DataForSEO max 100 per call. RJ 5km = 538 dentists = 5 pages.
     // Tracker: search_metadata records what pages were fetched and how many remain.
