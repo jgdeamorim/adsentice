@@ -310,16 +310,17 @@ const DiscoveryPage = () => {
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
   const [pipelinePhase, setPipelinePhase] = useState<'idle' | 'l0' | 'l1' | 'l4' | 'persist' | 'done'>('idle')
 
-  // ── Dynamic costs ──
-  const municipioCount = batchMode === 'rm' ? rmMunicipios.length || 1 : 1
-  const stateMuniCount = batchMode === 'state' ? 50 : 1  // fallback estimate
-  const batchMultiplier = batchMode === 'single' ? 1 : batchMode === 'rm' ? municipioCount : stateMuniCount
+  // ── Dynamic costs (baseados em dados REAIS) ──
+  const realMunicipioCount = batchMode === 'rm' ? rmMunicipios.length || 0
+    : batchMode === 'state' ? (rmMunicipios.length || 0)  // mesmo número: ES=7, SP=59, etc
+    : 1
 
-  const l0Cost = selected.length * 0.015 * batchMultiplier
-  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchMultiplier
-  const l4Cost = 0  // IBGE = $0 (Supabase)
-  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0) + (selectedLayers.l4 ? l4Cost : 0)
-  const enableL4WithoutL1 = selectedLayers.l4 && !selectedLayers.l1  // L4 funciona sem L1 (city do address_info)
+  const batchEffective = batchMode === 'single' ? 1 : realMunicipioCount || 1
+
+  const l0Cost = selected.length * 0.015 * batchEffective
+  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchEffective
+  const l4Cost = 0
+  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
@@ -800,15 +801,18 @@ return colors[level ?? 0] || colors[0]
               </Typography>
               {(['single', 'rm', 'state'] as const).map(mode => {
                 const labels = { single: '📍 1 Município', rm: '🏙️ RM', state: '🗺️ Estado' }
+                const needsMunicipios = mode !== 'single'
+                const disabled = needsMunicipios && rmMunicipios.length === 0
 
                 return (
                   <Chip key={mode}
-                    label={labels[mode]}
+                    label={mode === 'rm' ? `${labels[mode]} (${rmMunicipios.length || 0})` : labels[mode]}
                     clickable size='small'
                     color={batchMode === mode ? 'error' : 'default'}
                     variant={batchMode === mode ? 'filled' : 'outlined'}
-                    onClick={() => setBatchMode(mode)}
-                    sx={{ fontSize: '0.6rem' }}
+                    onClick={() => !disabled && setBatchMode(mode)}
+                    disabled={disabled}
+                    sx={{ fontSize: '0.6rem', opacity: disabled ? 0.5 : 1 }}
                   />
                 )
               })}
@@ -850,7 +854,7 @@ return colors[level ?? 0] || colors[0]
                 <Chip label={`~$${(totalCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
               )}
               {batchMode !== 'single' && (
-                <Chip label={`${batchMultiplier} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />
+                <Chip label={`${batchEffective} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />
               )}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -926,14 +930,14 @@ return (
             selectedLayers.l1 && 'L1',
             selectedLayers.l4 && 'L4',
           ].filter(Boolean).join('→')}
-          {batchMode !== 'single' && ` · ${batchMultiplier} municípios`}
+          {batchMode !== 'single' && ` · ${batchEffective} municípios`}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mt: 1 }}>
             <Typography variant='body2'>📍 <strong>{cityLabel}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
             {batchMode !== 'single' && (
-              <Typography variant='body2'>🏙️ <strong>{batchMultiplier}</strong> municípios</Typography>
+              <Typography variant='body2'>🏙️ <strong>{batchEffective}</strong> municípios</Typography>
             )}
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
               💰 Custo estimado: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
