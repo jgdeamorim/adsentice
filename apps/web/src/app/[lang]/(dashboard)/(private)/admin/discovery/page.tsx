@@ -580,7 +580,10 @@ const DiscoveryPage = () => {
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
-  const selectAllCategories = () => { setSelected(CATS.map(c => c.id)) }
+  const selectAllCategories = () => {
+    // DataForSEO: max 10 categories per API call (validado 2026-07-17, 40501 c/ 11+)
+    setSelected(CATS.slice(0, 10).map(c => c.id))
+  }
   const clearCategories = () => { setSelected([]) }
 
   // ── Load RM municipalities (ADR-0025) ──
@@ -1181,13 +1184,17 @@ return colors[level ?? 0] || colors[0]
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Chip
-              label={selected.length === CATS.length ? '✕ Limpar' : '☑ Todos'}
+              label={selected.length >= 10 ? '✕ Limpar' : '☑ Top 10'}
               clickable size='small'
-              color={selected.length === CATS.length ? 'error' : 'primary'}
-              variant={selected.length === CATS.length ? 'filled' : 'outlined'}
-              onClick={() => selected.length === CATS.length ? clearCategories() : selectAllCategories()}
+              color={selected.length >= 10 ? 'error' : 'primary'}
+              variant={selected.length >= 10 ? 'filled' : 'outlined'}
+              onClick={() => selected.length >= 10 ? clearCategories() : selectAllCategories()}
               sx={{ fontWeight: 700 }}
             />
+            {CATS.length > 10 && (
+              <Chip label='⚠️ max 10 cats (DataForSEO)' size='small' color='warning' variant='tonal'
+                sx={{ fontSize: '0.55rem', fontFamily: 'monospace' }} />
+            )}
             {CATS.map(cat => {
               const active = selected.includes(cat.id)
 

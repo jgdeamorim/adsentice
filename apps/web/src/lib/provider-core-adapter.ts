@@ -125,7 +125,7 @@ export async function businessListingsSearch(params: {
     filters: params.filters || undefined,
   }]
 
-  const data = await c.post<{ tasks?: Array<{ cost?: number; result?: Array<{ total_count?: number; items?: Record<string, unknown>[] }> }> }>("/v3/business_data/business_listings/search/live", body)
+  const data = await c.post<{ tasks?: Array<{ status_code?: number; status_message?: string; cost?: number; result?: Array<{ total_count?: number; items?: Record<string, unknown>[] }> }> }>("/v3/business_data/business_listings/search/live", body)
   const result = data.tasks?.[0]?.result?.[0]
   const items = result?.items || []
   const totalCount = result?.total_count ?? items.length  // total_count=mercado real, items=retornados nesta página
@@ -154,8 +154,18 @@ return {
     } as any
   })
 
-  
-return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || 0.048 }
+  // Check API-level status — 40501 = invalid params (e.g. too many categories)
+  const apiStatus = data.tasks?.[0]?.status_code
+  const apiCost = data.tasks?.[0]?.cost ?? 0
+
+  if (apiStatus && apiStatus !== 20000) {
+    const msg = data.tasks?.[0]?.status_message || "Unknown API error"
+    console.warn(`[provider-core] L0 API error: status=${apiStatus} · ${msg}`)
+    return { total_count: 0, listings: [], cost_usd: apiCost }  // cost=0 for errors
+  }
+
+
+return { total_count: totalCount, listings, cost_usd: apiCost || 0.048 }
 }
 
 /** L1: Google Business Profile — $0.0054/lead */
