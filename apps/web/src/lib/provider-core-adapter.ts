@@ -155,7 +155,7 @@ return {
   })
 
   
-return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || items.length * 0.0003 }
+return { total_count: totalCount, listings, cost_usd: data.tasks?.[0]?.cost || 0.048 }
 }
 
 /** L1: Google Business Profile — $0.0054/lead */

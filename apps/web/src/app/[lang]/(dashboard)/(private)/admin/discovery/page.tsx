@@ -325,8 +325,12 @@ const DiscoveryPage = () => {
 
   const batchEffective = realMunicipioCount || 1
 
-  const l0Cost = selected.length * 0.015 * 3 * batchEffective  // est: 3 páginas/município
-  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective  // $0.0054 por POST batch (real API, confirmado)
+  // ── Cost Estimates (based on REAL API DataForSEO costs · 2026-07-17) ──
+  // L0: $0.048/página (limit=100, confirmado via API: limit=100→$0.048)
+  // L1: $0.0054/POST batch (flat rate, confirmado: 1,3,6 keywords = $0.0054)
+  // Paginação extra: ~$0.048/página adicional (grandes centros ~2-9 páginas)
+  const l0Cost = selected.length * 0.048 * batchEffective  // $0.048/página com limit=100
+  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective  // $0.0054/POST flat rate
   const totalCost = l0Cost + l1Cost  // L0 + L1 condicional + L4 ($0)
   const [batchProgress, setBatchProgress] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
@@ -1085,8 +1089,8 @@ return (
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
             <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
             {[
-              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `100 listings × ${batchEffective} municípios`, always: true },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch (até 50 keywords) · $0.0054 flat rate (testado: 3× e 5× keywords = sempre $0.0054)`, optional: true, selected: selectedLayers.l1 },
+              { label: 'L0 · Google Maps Search', cost: l0Cost, detail: `limit=100 · $0.048/página (API confirmado) × ${batchEffective} municípios${batchEffective > 1 ? '' : ''} · paginação automática`, always: true },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado: 1,3,6 keywords = sempre $0.0054)`, optional: true, selected: selectedLayers.l1 },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
             ].filter(s => s.always || s.selected).map((s, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
