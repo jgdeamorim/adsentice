@@ -542,7 +542,7 @@ const DiscoveryPage = () => {
           body: JSON.stringify({
             categories: cats.slice(0, 10),  // DataForSEO max 10 cats
             lat: m.lat, lng: m.lng,
-            radiusKm: radius,
+            radiusKm: 15,  // pre-flight: 15km fixo para cobertura territorial (ADR-0030)
             limit: 1,
             force: true,
             enrich: 0,
