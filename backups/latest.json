@@ -1,7 +1,16 @@
 {
-  "version": "v037.4",
-  "sealed_at": "2026-07-17T23:17:51.690445+00:00",
-  "commit": "a106e7e",
-  "commits_total": 437,
-  "adrs_total": 32
+  "version": "v038",
+  "sealed_at": "2026-07-17T23:25:25.544787+00:00",
+  "commit": "559b002",
+  "commits_total": 438,
+  "adrs_total": 33,
+  "highlights": [
+    "ADR-0033: Pipeline vec()→Intend→Composicao",
+    "S10 composer Python port completo",
+    "/admin/surface Qdrant live",
+    "Intend Composer zero hardcoded",
+    "DeepSeek V4 integrado",
+    "59 skills marketing wire",
+    "pre-flight ES+SP 68 municipios"
+  ]
 }
