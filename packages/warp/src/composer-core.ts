@@ -281,3 +281,381 @@ ${morph.css}
     mode: intend.mode,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// S10 RAI-O-X — Full Python port (adsentice_s10_generator.py)
+// Identical logic: NICHO_MAP → compute_gaps → DeepSeek → Tokens → HTML
+// medido=verdade · ported 2026-07-17
+// ═══════════════════════════════════════════════════════════════
+
+import { generateCopy, trackLLMCost } from "./deepseek"
+
+// ── NICHO_MAP (port from Python NICHO_MAP dict) ──
+interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[] }
+const NICHO_MAP: Record<string, NichoProfile> = {
+  dentist: { name:"Dentista", specialties:["Clínico Geral","Ortodontia","Periodontia","Implantodontia","Endodontia","Odontopediatria","Estética Dental"], audience:"Adultos 30-55, classes B/A", keywords:["dentista [bairro]","implante dentário [cidade]","clareamento dental","aparelho ortodôntico","canal dentário","periodontista","ortodontista"], pains:["Poucos pacientes novos","Concorrência local forte","Pacientes só vão quando dói","Site desatualizado"], tone:"Autoridade com acolhimento", conversionTriggers:["Primeira consulta gratuita","Raio-X digital na hora","Aceita convênios","Emergência 24h"] },
+  medical_clinic: { name:"Clínica Médica", specialties:["Clínico Geral","Cardiologia","Dermatologia","Ginecologia","Pediatria","Oftalmologia","Endocrinologia"], audience:"Adultos 25-70, todas as classes", keywords:["clínica médica [bairro]","médico [especialidade]","exames de rotina","check-up médico"], pains:["Dificuldade de agendamento","Falta de especialistas","Pacientes que não retornam"], tone:"Profissional, acolhedor, humanizado", conversionTriggers:["Agendamento online 24h","Telemedicina","Resultados online","Lembrete WhatsApp"] },
+  beauty_salon: { name:"Salão de Beleza", specialties:["Cabelo","Manicure","Estética Facial","Maquiagem","Depilação"], audience:"Mulheres 20-55, classes B/A", keywords:["salão de beleza [bairro]","manicure [cidade]","cabeleireiro [bairro]"], pains:["Muita concorrência local","Clientes infiéis","Instagram não converte"], tone:"Próximo, trendy, acolhedor", conversionTriggers:["Primeira visita com desconto","Agendamento via WhatsApp"] },
+  barber_shop: { name:"Barbearia", specialties:["Corte","Barba","Hidratação","Pigmentação"], audience:"Homens 18-50, classes B/A", keywords:["barbearia [bairro]","corte masculino [cidade]","barba [bairro]"], pains:["Alta concorrência","Ticket baixo","Fidelização difícil"], tone:"Masculino, direto, confiante", conversionTriggers:["Cerveja cortesia","Agendamento online","Pacote fidelidade"] },
+  restaurant: { name:"Restaurante", specialties:["Executivo","À la carte","Delivery","Buffet"], audience:"Adultos 25-55, classes B/A", keywords:["restaurante [bairro]","melhor [tipo] [cidade]","delivery [bairro]"], pains:["Margem apertada","Alta rotatividade","Delivery dominado por apps"], tone:"Acolhedor, sensorial, pessoal", conversionTriggers:["Reserva online","Cardápio digital","Google Maps atualizado"] },
+  lawyer: { name:"Advogado", specialties:["Civil","Trabalhista","Família","Tributário","Empresarial"], audience:"Adultos 30-60, classes B/A", keywords:["advogado [especialidade] [cidade]","consultoria jurídica [bairro]"], pains:["Concorrência alta","Ticket alto mas baixa conversão","Marketing jurídico restrito"], tone:"Autoridade, confiança, clareza", conversionTriggers:["Primeira consulta gratuita","Avaliação de caso online"] },
+  pet_store: { name:"Pet Shop", specialties:["Banho/Tosa","Veterinário","Hotel","Adestramento"], audience:"Donos de pets 25-50, classes B/A", keywords:["pet shop [bairro]","banho e tosa [cidade]","veterinário [bairro]"], pains:["Muita concorrência","Ticket baixo por serviço"], tone:"Afetivo, confiável, divertido", conversionTriggers:["Primeiro banho grátis","Day care experimental"] },
+  school: { name:"Escola Particular", specialties:["Infantil","Fundamental","Médio","Integral","Bilíngue"], audience:"Pais 30-50, classes B/A", keywords:["escola particular [bairro]","melhor escola [cidade]","matrícula escolar"], pains:["Captação sazonal","Ticket alto mas ciclo longo"], tone:"Confiança, futuro, cuidado", conversionTriggers:["Visita guiada","Aula experimental","Bolsa mérito"] },
+  hotel: { name:"Pousada/Hotel", specialties:["Diária","Pacote","Eventos","Fim de Semana"], audience:"Viajantes 25-55, turistas", keywords:["hotel [cidade]","pousada [região]","melhor estadia"], pains:["Dependência de OTAs","Sazonalidade","Review management"], tone:"Aconchegante, local, exclusivo", conversionTriggers:["Reserva direta com desconto","Late checkout cortesia"] },
+  psychologist: { name:"Psicólogo", specialties:["Clínica","Online","Casais","Infantil"], audience:"Adultos 25-55, classes B/A", keywords:["psicólogo [bairro]","terapia online","psicólogo infantil"], pains:["Tabu ainda forte","Conversão lenta"], tone:"Acolhedor, seguro, profissional", conversionTriggers:["Primeira sessão gratuita","Atendimento online"] },
+  veterinarian: { name:"Veterinário", specialties:["Clínico","Cirurgia","Vacinas","Exames"], audience:"Donos de pets 25-55, classes B/A", keywords:["veterinário [bairro]","clínica veterinária [cidade]","vacina pet"], pains:["Urgência = decisão rápida","Fidelização pós-emergência"], tone:"Técnico, acolhedor, urgente", conversionTriggers:["Consulta de emergência","Plano de saúde pet"] },
+  gym: { name:"Academia", specialties:["Musculação","Crossfit","Yoga","Pilates","Lutas"], audience:"Adultos 20-45, classes B/A", keywords:["academia [bairro]","crossfit [cidade]","aula experimental"], pains:["Alta rotatividade","Sazonalidade (verão/ano novo)"], tone:"Motivacional, energia, resultado", conversionTriggers:["Aula experimental grátis","Avaliação física gratuita"] },
+}
+
+// ── PERSONA FALLBACKS (port from Python) ──
+const PERSONA_FALLBACK: Record<string, { headline: string; cta: string; offer: string }> = {
+  "Unaware":         { headline:"{N} {SERVIÇO}s em {LOCAL} — você está perdendo pacientes?", cta:"Quero aparecer no Google", offer:"Seu consultório existe, mas seus pacientes não te encontram online." },
+  "Problem Aware":   { headline:"{N} {SERVIÇO}s em {LOCAL} — como atrair mais pacientes pelo Google?", cta:"Quero meu diagnóstico grátis", offer:"Você sabe que precisa estar online, mas não sabe por onde começar. Nosso Raio-X mostra o caminho." },
+  "Solution Aware":  { headline:"Apareça no Google antes dos seus concorrentes em {LOCAL}", cta:"Quero resolver isso", offer:"Você já tentou algumas coisas, mas ainda não vê resultado. O Raio-X mostra exatamente o que está faltando." },
+  "Product Aware":   { headline:"Seu consultório no topo do Google em {LOCAL} — comprovado por dados", cta:"Quero meu Raio-X gratuito", offer:"Você tem presença digital. Agora é hora de otimizar para liderar o mercado local." },
+  "Most Aware":      { headline:"Dados reais do seu mercado em {LOCAL} — tome decisões baseadas em evidência", cta:"Ver meus dados agora", offer:"Você está pronto para escalar. Precisa de dados reais para decisões estratégicas." },
+}
+
+// ── S10Lead (from Supabase discovery_listings) ──
+interface S10Lead {
+  place_id: string; title: string; category: string
+  rating_value: number | null; rating_votes: number | null
+  is_claimed: boolean | null; website: string | null
+  latitude: number | null; longitude: number | null
+  score_compound: number; score_fit: number; score_engagement: number; score_intent: number
+  schwartz_level: number; schwartz_label: string; signals_detected: string[]
+  total_photos: number | null; city: string | null; district: string | null
+  enrichment_level: number | null
+  l2_onpage_score: number | null; l2_word_count: number | null
+  l2_internal_links_count: number | null; l2_external_links_count: number | null
+  l2_images_count: number | null; l2_seo_checks: any
+  l2_has_analytics: boolean | null; l2_cms: string | null
+  l2_meta_title: string | null; l2_meta_description: string | null
+  l2_domain_rank: number | null; l2_lighthouse_performance: number | null
+  l2_content_maturity: number | null; l2_content_gaps: any
+}
+
+interface S10Gap { title: string; severity: string; desc: string; fix: string; impact: string; effort: string; signal: string }
+
+// ── computeGaps (FULL port from Python) ──
+function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
+  const gaps: S10Gap[] = []
+  const signals = new Set(lead.signals_detected || [])
+  const city = lead.city || ""; const district = lead.district || ""
+  const local = district || city || "sua região"
+  const hasWebsite = !!lead.website
+  const hasClaimed = !!lead.is_claimed
+  const rating = lead.rating_value || 0
+  const reviews = lead.rating_votes || 0
+  const photos = lead.total_photos || 0
+  const l2_onpage = lead.l2_onpage_score
+  const l2_word_count = lead.l2_word_count || 0
+  const l2_internal_links = lead.l2_internal_links_count || 0
+  const l2_has_schema = !!(lead.l2_seo_checks && (typeof lead.l2_seo_checks === "string" ? JSON.parse(lead.l2_seo_checks).no_jsonld_schema : lead.l2_seo_checks?.no_jsonld_schema))
+  const l2_has_analytics = lead.l2_has_analytics
+  const l2_domain_rank = lead.l2_domain_rank
+  const enriched = (lead.enrichment_level || 0) >= 2
+
+  // ── CRÍTICOS ──
+  if (!hasClaimed) gaps.push({
+    title:"Perfil GMB não reivindicado — você não controla o que aparece no Google",
+    severity:"🔴 Crítico",
+    desc:"Seu perfil no Google Meu Negócio não foi verificado. Qualquer pessoa pode sugerir alterações no seu horário, telefone ou endereço. Você está invisível para 80% dos pacientes que buscam no Google.",
+    fix:"Reivindicar seu perfil GMB em business.google.com. Leva 5 minutos. Enviam um cartão postal com código de verificação em 5-10 dias.",
+    impact:"Crítico", effort:"5 min",
+    signal:"I1:nao_reivindicado",
+  })
+
+  if (!hasWebsite) gaps.push({
+    title:"Sem website — pacientes não conseguem encontrar informações sobre você",
+    severity:"🔴 Crítico",
+    desc:"47% dos consumidores esperam que um negócio local tenha site. Sem site, você perde pacientes que buscam informações antes de agendar.",
+    fix:"Criar landing page one-page com: nome, endereço, telefone, horários, serviços, fotos, e link para WhatsApp. Pode ser criada em 1 dia.",
+    impact:"Alto", effort:"1 dia",
+    signal:"F3:sem_website",
+  })
+
+  if (rating < 3.0 && reviews >= 5) gaps.push({
+    title:`Reputação comprometida (${rating}★) — pacientes podem estar te evitando`,
+    severity:"🔴 Crítico",
+    desc:`Com ${rating} estrelas e ${reviews} avaliações, pacientes estão vendo que sua reputação é baixa. No Google, 3 estrelas ou menos reduz drasticamente o clique.`,
+    fix:"Implementar programa de reviews: pedir avaliação 30min após cada consulta (via WhatsApp com link direto do Google). Meta: 4.3+ em 90 dias.",
+    impact:"Alto", effort:"Contínuo",
+    signal:"I2:reputacao_toxica",
+  })
+
+  // ── L2 ENRICHMENT GAPS ──
+  if (enriched) {
+    if (!l2_has_schema) gaps.push({
+      title:"Sem Schema JSON-LD LocalBusiness no site",
+      severity:"🔴 Crítico",
+      desc:"Seu site não tem marcação schema.org. Isso impede rich results no Google (estrelas, endereço, telefone) e reduz visibilidade no Google Maps.",
+      fix:"Adicionar JSON-LD LocalBusiness + AggregateRating no <head> do site. 5 minutos. Incluir nome, endereço, telefone, horários e especialidades.",
+      impact:"Alto", effort:"5 min",
+      signal:"W8:sem_schema (l2_has_schema=False)",
+    })
+
+    if (l2_onpage !== null && l2_onpage < 50) gaps.push({
+      title:`SEO on-page crítico (score ${l2_onpage}/100)`,
+      severity:"🔴 Crítico",
+      desc:`Seu site tem score de SEO on-page de ${l2_onpage}/100. Google tem dificuldade em entender e ranquear suas páginas.`,
+      fix:"Corrigir meta tags, headings (H1/H2), alt text em imagens, e estrutura de links internos.",
+      impact:"Alto", effort:"2-4 horas",
+      signal:`W:onpage_score=${l2_onpage}`,
+    })
+
+    if (l2_word_count < 300) gaps.push({
+      title:"Conteúdo insuficiente nas páginas (Thin Content)",
+      severity:"🟡 Médio",
+      desc:`Sua página tem apenas ${l2_word_count} palavras. Google precisa de pelo menos 300 palavras para entender o tema.`,
+      fix:`Expandir para 500+ palavras. Descrever cada serviço, incluir palavras-chave locais ('${nicho.specialties[0].toLowerCase()} em ${local}'), e adicionar perguntas frequentes.`,
+      impact:"Alto", effort:"2-4 horas",
+      signal:`C1:thin_content (${l2_word_count} palavras)`,
+    })
+
+    if (l2_has_analytics === false) gaps.push({
+      title:"Sem Google Analytics ou ferramenta de medição",
+      severity:"🟡 Médio",
+      desc:"Seu site não tem GA4, GTM ou Pixel instalado. Sem Analytics, você não sabe quantas pessoas visitam seu site ou de onde vêm.",
+      fix:"Instalar Google Analytics 4 (gratuito) e Google Search Console. Conectar ambos.",
+      impact:"Médio", effort:"15 min",
+      signal:"W5:sem_analytics (l2_has_analytics=False)",
+    })
+
+    if (l2_internal_links < 5 && l2_word_count >= 200) gaps.push({
+      title:"Arquitetura de links internos pobre",
+      severity:"🟡 Médio",
+      desc:`Apenas ${l2_internal_links} links internos detectados. Links internos ajudam o Google a navegar seu site e distribuem autoridade.`,
+      fix:"Criar navegação clara: Home → Serviços → Contato. Adicionar menu de serviços no rodapé.",
+      impact:"Médio", effort:"1-2 horas",
+      signal:`C3:poor_architecture (${l2_internal_links} internal links)`,
+    })
+
+    if (l2_domain_rank !== null && l2_domain_rank < 100) gaps.push({
+      title:"Baixa autoridade de domínio (poucos backlinks)",
+      severity:"🟡 Médio",
+      desc:`Seu domínio tem rank ${l2_domain_rank}/1000. Poucos sites linkam para você.`,
+      fix:"Conseguir backlinks: associações de classe, fornecedores, parceiros comerciais, e diretórios locais.",
+      impact:"Médio", effort:"Contínuo",
+      signal:`W9:backlink_gap (domain_rank=${l2_domain_rank})`,
+    })
+  } else if (hasWebsite) {
+    gaps.push({
+      title:"Site não analisado — dados de SEO indisponíveis",
+      severity:"ℹ️ Info",
+      desc:"Seu site ainda não passou por auditoria de SEO. Não sabemos se tem schema, meta tags, conteúdo adequado ou problemas técnicos.",
+      fix:"Rodar auditoria completa de SEO (gratuita na primeira análise). O diagnóstico revela schema, conteúdo, velocidade e backlinks.",
+      impact:"Info", effort:"Automático",
+      signal:"L2:nao_enriquecido (enrichment_level<2)",
+    })
+  }
+
+  // ── FORÇAS ──
+  if (rating >= 4.5 && reviews >= 20) gaps.push({
+    title:"Reputação excepcional — ative essa força no site",
+    severity:"✅ Força",
+    desc:`Com ${rating}★ e ${reviews} avaliações, sua clínica tem uma das melhores reputações da região. Isso é um ativo que você não está usando no site.`,
+    fix:"Adicionar schema AggregateRating no site para exibir estrelas nos resultados do Google. Incluir seção de depoimentos na home page.",
+    impact:"Alto", effort:"30 min",
+    signal:"E1+E2 (rating≥4.5, reviews≥20)",
+  })
+
+  if (hasClaimed && hasWebsite && rating >= 4.0 && photos >= 10) gaps.push({
+    title:"Base digital sólida — hora de escalar",
+    severity:"✅ Força",
+    desc:"Sua clínica tem os fundamentos: GMB verificado, site próprio, boa reputação. O próximo passo é otimização para aparecer em PRIMEIRO nas buscas locais.",
+    fix:`Focar em SEO local: otimizar cada página para palavras-chave específicas, criar conteúdo regular (blog), conseguir backlinks de sites locais.`,
+    impact:"Alto", effort:"Contínuo",
+    signal:"F3+E4+E1 (claimed+website+rating≥4.0+photos≥10)",
+  })
+
+  // ── MERCADO ──
+  gaps.push({
+    title:"Diferenciação no mercado local",
+    severity:"✅ Oportunidade",
+    desc:`O mercado de ${nicho.name.toLowerCase()} tem concorrência ativa. A vantagem: a MAIORIA dos concorrentes ignora marketing digital. Quem aparece primeiro no Google leva o paciente.`,
+    fix:`Criar landing pages para: '${nicho.specialties[0].toLowerCase()} em ${local}' — buscas com alta intenção e baixa concorrência.`,
+    impact:"Alto", effort:"1-2 semanas",
+    signal:"market:category_context",
+  })
+
+  return gaps.slice(0, 7)
+}
+
+// ── CATEGORY TO SEGMENT (port from Python) ──
+const CAT_TO_SEGMENT: Record<string, SegmentId> = {
+  dentist: 'saude', orthodontist: 'saude', medical_aesthetic_clinic: 'saude',
+  medical_clinic: 'saude', veterinarian: 'saude', psychologist: 'saude',
+  physical_therapist: 'saude', ophthalmologist: 'saude', cardiologist: 'saude',
+  beauty_salon: 'beleza', barber_shop: 'beleza', gym: 'beleza',
+  restaurant: 'alimentacao', pizza_restaurant: 'alimentacao', bakery: 'alimentacao',
+  lawyer: 'servicos', accountant: 'servicos', architect: 'servicos',
+  interior_designer: 'servicos', real_estate_agency: 'servicos',
+  car_repair: 'comercio', pet_store: 'comercio', pharmacy: 'comercio',
+  electrician: 'comercio', plumber: 'comercio', cleaning_service: 'comercio',
+  school: 'educacao', driving_school: 'educacao', hotel: 'hospitalidade',
+}
+
+export async function composeS10(placeId: string): Promise<string | null> {
+  try {
+    // 1. Fetch lead
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const url = `${supabaseUrl}/rest/v1/discovery_listings?select=place_id,title,category,rating_value,rating_votes,is_claimed,website,latitude,longitude,score_compound,score_fit,score_engagement,score_intent,schwartz_level,schwartz_label,signals_detected,total_photos,city,district,enrichment_level,l2_onpage_score,l2_word_count,l2_internal_links_count,l2_external_links_count,l2_images_count,l2_seo_checks,l2_has_analytics,l2_cms,l2_meta_title,l2_meta_description,l2_domain_rank,l2_lighthouse_performance,l2_content_maturity,l2_content_gaps&place_id=eq.${encodeURIComponent(placeId)}&limit=1`
+    const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+    if (!res.ok) return null
+    const leads = await res.json() as S10Lead[]
+    if (!leads.length) return null
+    const lead = leads[0]
+
+    // 2. Classify
+    const cat = (lead.category || "dentist").toLowerCase()
+    const seg = CAT_TO_SEGMENT[cat] || 'servicos'
+    const nicho = NICHO_MAP[cat] || NICHO_MAP.dentist
+    const level = lead.schwartz_label || "Problem Aware"
+    const district = lead.district || ""
+    const city = lead.city || ""
+    const local = district ? `${district}, ${city}` : city
+
+    // 3. Tokens
+    const morph = await morphTokens({ surface:"S10", segment: seg, plan:"r0", mode:"internal" })
+    const p = morph.tokens["color-primary"] || "#2563EB"
+    const s = morph.tokens["color-secondary"] || "#1E40AF"
+    const a = morph.tokens["color-accent"] || "#3B82F6"
+
+    // 4. Gaps
+    const gaps = computeGaps(lead, nicho)
+
+    // 5. Copy
+    let copy = await generateCopy({
+      title: lead.title, category: lead.category, city, district,
+      score: lead.score_compound, rating: lead.rating_value || 0,
+      is_claimed: lead.is_claimed || false, gaps: gaps,
+    })
+    if (copy) await trackLLMCost(0.001)
+    if (!copy) {
+      const fb = PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]
+      const N = "47"; const SERVICO = nicho.name.toLowerCase()
+      copy = {
+        headline: fb.headline.replace("{N}", N).replace("{SERVIÇO}", SERVICO).replace("{LOCAL}", local),
+        subtitle: "Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
+        cta: fb.cta,
+      }
+    }
+
+    const offer = (PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]).offer
+    const name = lead.title
+    const score = lead.score_compound || 50
+    const fit = lead.score_fit || 50; const eng = lead.score_engagement || 50; const ints = lead.score_intent || 50
+    const rating = lead.rating_value || 0; const reviews = lead.rating_votes || 0
+    const photos = lead.total_photos || 0
+    const website = lead.website || "sem site"
+    const claimed = lead.is_claimed ? "✅ Sim" : "❌ Não"
+
+    // 6. Build HTML (FULL Python template port)
+    const html = `<!DOCTYPE html><html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="${copy.headline}">
+<title>Raio-X · ${name} | adsentice</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:${p};--primary-fg:#fff;--secondary:${s};--secondary-fg:#fff;--accent:${a};
+  --bg:#f8fafc;--fg:#0f172a;--card:#fff;--muted:#f1f5f9;--muted-fg:#64748b;
+  --border:#e2e8f0;--destructive:#ef4444;--success:#10b981;--warning:#f59e0b;
+  --font:'Inter',system-ui,sans-serif;
+  --shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05);
+  --radius:0.75rem;--radius-sm:0.5rem;--motion:200ms cubic-bezier(0.4,0,0.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;padding:3.5rem 2rem;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
+.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:99px;font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
+.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
+.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
+.container{max-width:860px;margin:0 auto;padding:0 1.5rem}
+.section{padding:2.5rem 0}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;box-shadow:var(--shadow);display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
+.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(${p} 0% ${fit}%,${a} ${fit}% ${fit+eng}%,${s} ${fit+eng}% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:${p}}
+.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
+.score-info{flex:1;min-width:240px}
+.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
+.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:99px;font-size:.8125rem;font-weight:600;background:${p}15;color:${p};margin-bottom:1rem}
+.score-bars{display:flex;flex-direction:column;gap:.625rem}
+.score-bar{display:flex;align-items:center;gap:.75rem}
+.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
+.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:99px}
+.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}
+.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2}
+.info-card .value.stars{color:#f59e0b}
+.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
+.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600;margin-top:.5rem}
+.info-card .status.ok{background:${p}12;color:${p}}
+.gap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all var(--motion);position:relative}
+.gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.gap.critico::before{background:var(--destructive)}
+.gap.medio::before{background:var(--warning)}
+.gap.oportunidade::before,.gap.forca::before{background:var(--success)}
+.gap-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
+.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}
+.gap-severity.critico{color:var(--destructive)}
+.gap-severity.medio{color:var(--warning)}
+.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}
+.gap h4{font-size:1.05rem;font-weight:700}
+.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:.75rem}
+.gap .fix{background:var(--muted);padding:.875rem 1rem;border-radius:var(--radius-sm);font-size:.875rem}
+.gap .fix strong{color:var(--fg)}
+.gap .meta-row{display:flex;gap:1.25rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}
+.cta{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
+.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:#fff;color:${p};padding:.75rem 1.75rem;border-radius:99px;font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:0 4px 14px rgba(0,0,0,0.12)}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.18)}
+footer{text-align:center;padding:2rem 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
+footer span{color:${p};font-weight:600}
+@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
+</style></head><body>
+<div class="hero"><div class="hero-content">
+<div class="hero-badge">🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
+<h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
+</div></div>
+<div class="container">
+<div class="score-card">
+<div class="score-ring"><div class="score-inner"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
+<div class="score-info"><h2>${name}</h2><div class="score-level">${level} · ${nicho.name}</div>
+<div class="score-bars">
+<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
+</div></div></div>
+<div class="info-grid">
+<div class="info-card"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
+<div class="info-card"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
+<div class="info-card"><h4>Concorrência</h4><div class="value">47</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
+</div>
+<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
+<p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
+${gaps.map(g => {
+  const sevClass = g.severity.includes("Crítico") ? "critico" : g.severity.includes("Médio") ? "medio" : g.severity.includes("Força") ? "forca" : "oportunidade"
+  return `<div class="gap ${sevClass}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span>📈 Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
+}).join("")}
+</div>
+<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" target="_blank">💬 ${copy.cta} no WhatsApp</a></div></div>
+<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
+</body></html>`
+
+    return html
+  } catch (e: any) { console.error("[composeS10]", e.message); return null }
+}
