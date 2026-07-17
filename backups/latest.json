@@ -1,7 +1,15 @@
 {
-  "version": "v032.2",
-  "sealed_at": "2026-07-17T17:33:31.832182+00:00",
-  "commit": "751c9f0",
+  "version": "v033",
+  "sealed_at": "2026-07-17T17:48:16.613957+00:00",
+  "commit": "25ed27f",
   "commits_total": 421,
-  "adrs_total": 29
+  "adrs_total": 29,
+  "kg_points": 101150,
+  "boa": 0.942,
+  "collections": {
+    "adsentice-self": 18390,
+    "adsentice-conversation": 82682,
+    "claude-memory": 43,
+    "adsentice-materio": 36
+  }
 }
