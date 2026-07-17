@@ -202,6 +202,12 @@ const DiscoveryPage = () => {
   const [_geoSearching, setGeoSearching] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
+  // ── RM Municipalities (ADR-0025) ──
+  const [rmMunicipios, setRmMunicipios] = useState<{ nome: string; cidade: string }[]>([])
+  const [rmLoading, setRmLoading] = useState(false)
+  const [selectedMunicipio, setSelectedMunicipio] = useState<string | null>(null)
+  const [rmCoverage, setRmCoverage] = useState<{ mapped: number; total: number } | null>(null)
+
   // ── Auto-Pilot (ADR-0023 Layer 2) ──
   const [autoMode, setAutoMode] = useState(false)
   const [autoModeType, setAutoModeType] = useState<'coverage' | 'intelligence'>('coverage')
@@ -361,6 +367,44 @@ const DiscoveryPage = () => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
   }
 
+  // ── Load RM municipalities (ADR-0025) ──
+  const loadMunicipios = async (cityName: string) => {
+    setRmLoading(true)
+    setSelectedMunicipio(null)
+    setRmCoverage(null)
+
+    try {
+      const res = await fetch(`/api/geo/municipios?city=${encodeURIComponent(cityName)}`)
+      const data = await res.json()
+
+      if (data.municipios?.length) {
+        setRmMunicipios(data.municipios)
+      } else {
+        setRmMunicipios([])
+      }
+    } catch { setRmMunicipios([]) }
+    finally { setRmLoading(false) }
+  }
+
+  // ── Select municipality → geocode and set as search center (ADR-0025) ──
+  const selectMunicipio = async (municipio: string, uf: string) => {
+    setSelectedMunicipio(municipio)
+    setRmLoading(true)
+
+    try {
+      const res = await fetch(`/api/geo/search?q=${encodeURIComponent(municipio)},${encodeURIComponent(uf)},Brasil`)
+      const r = await res.json()
+
+      if (r.lat && r.lng) {
+        setCityLat(r.lat)
+        setCityLng(r.lng)
+        setCityLabel(`${municipio} (${uf})`)
+        setRadius(5)
+      }
+    } catch { /* fallback */ }
+    finally { setRmLoading(false) }
+  }
+
   const changeCapital = (c: typeof BR_CAPITALS[0]) => {
     setStateKey(c.uf)
     setCityLat(c.lat)
@@ -369,6 +413,9 @@ const DiscoveryPage = () => {
     const r = suggestRadiusByPop(c.pop)
 
     setRadius(r.radiusKm)
+
+    // Load RM municipalities
+    loadMunicipios(c.label)
   }
 
   const changeRadius = (r: number) => { setRadius(r) }
@@ -602,6 +649,36 @@ return colors[level ?? 0] || colors[0]
                     sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400, fontSize: '0.65rem' }} />
                 ))}
               </Box>
+
+              {/* ═══ RM MUNICÍPIOS (ADR-0025) ═══ */}
+              {rmMunicipios.length > 0 && (
+                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
+                  <Typography variant='caption' color='text.secondary' sx={{ mr: 0.5 }}>
+                    🏙️ RM ({rmMunicipios.length}):
+                  </Typography>
+                  {rmLoading && <Chip label='⏳' size='small' variant='outlined' />}
+                  {rmMunicipios.slice(0, 10).map(m => (
+                    <Chip key={m.nome}
+                      label={m.nome}
+                      clickable
+                      size='small'
+                      color={selectedMunicipio === m.nome ? 'warning' : 'default'}
+                      variant={selectedMunicipio === m.nome ? 'filled' : 'outlined'}
+                      onClick={() => selectMunicipio(m.nome, stateKey)}
+                      sx={{ fontSize: '0.6rem', opacity: selectedMunicipio && selectedMunicipio !== m.nome ? 0.5 : 1 }}
+                    />
+                  ))}
+                  {rmMunicipios.length > 10 && (
+                    <Chip label={`+${rmMunicipios.length - 10}`} size='small' variant='outlined'
+                      sx={{ fontSize: '0.6rem' }} />
+                  )}
+                  {rmCoverage && (
+                    <Chip label={`${rmCoverage.mapped}/${rmCoverage.total} mapeados`}
+                      size='small' color='info' variant='tonal'
+                      sx={{ fontSize: '0.6rem', ml: 0.5 }} />
+                  )}
+                </Box>
+              )}
             </Box>
           </CardContent>
         </Card>
