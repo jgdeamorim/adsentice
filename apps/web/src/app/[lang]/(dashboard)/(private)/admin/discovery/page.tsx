@@ -303,27 +303,42 @@ const DiscoveryPage = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [forceRefresh, setForceRefresh] = useState(false)
 
-  const l0Cost = selected.length * 0.015          // L0: business_listings_search
-  const l1Cost = 100 * 0.0054                        // L1: ALL leads enriquecidos (27 campos GMB)
-  const l2Estimate = 0                                // L2: ADIADO (pós-conversão — Raio-X Warp primeiro)
-  const l3Estimate = 0                                // L3: ADIADO (pós-conversão — Raio-X Warp primeiro)
-  const totalCost = l0Cost + l1Cost + l2Estimate + l3Estimate  // L0+L1+L4 (L4 = $0)
+  // ── Pipeline Config (ADR-0026) ──
+  const [selectedLayers, setSelectedLayers] = useState<{ l0: boolean; l1: boolean; l4: boolean }>({
+    l0: true, l1: true, l4: true,
+  })
+  const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
+  const [pipelinePhase, setPipelinePhase] = useState<'idle' | 'l0' | 'l1' | 'l4' | 'persist' | 'done'>('idle')
+
+  // ── Dynamic costs ──
+  const municipioCount = batchMode === 'rm' ? rmMunicipios.length || 1 : 1
+  const stateMuniCount = batchMode === 'state' ? 50 : 1  // fallback estimate
+  const batchMultiplier = batchMode === 'single' ? 1 : batchMode === 'rm' ? municipioCount : stateMuniCount
+
+  const l0Cost = selected.length * 0.015 * batchMultiplier
+  const l1Cost = (selectedLayers.l1 ? 50 : 0) * 0.0054 * batchMultiplier
+  const l4Cost = 0  // IBGE = $0 (Supabase)
+  const totalCost = (selectedLayers.l0 ? l0Cost : 0) + (selectedLayers.l1 ? l1Cost : 0) + (selectedLayers.l4 ? l4Cost : 0)
+  const enableL4WithoutL1 = selectedLayers.l4 && !selectedLayers.l1  // L4 funciona sem L1 (city do address_info)
 
   // ═══ Search ═══
   const doSearch = useCallback(async (force = forceRefresh, offsetOverride?: number) => {
     if (!selected.length) return
     setLoading(true); setError('')
+    setPipelinePhase('l0')
 
     try {
       const res = await fetch('/api/discovery-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categories: selected, lat: cityLat, lng: cityLng, radiusKm: radius,
-          limit: 100, force: force, enrich: 100, paginate: false,
+          limit: 100, force: force, enrich: selectedLayers.l1 ? 50 : 0, paginate: false,
+          skipL1: !selectedLayers.l1,
           ...(offsetOverride !== undefined ? { offset: offsetOverride } : {}),
         }),
       })
 
+      setPipelinePhase('l1')
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
@@ -360,8 +375,9 @@ const DiscoveryPage = () => {
       setSortBy('score')
       setSortDir('desc')
     } catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
-  }, [selected, cityLat, cityLng, radius, forceRefresh])
+    finally { setLoading(false); setPipelinePhase('done');
+setTimeout(() => setPipelinePhase('idle'), 2000) }
+  }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -753,11 +769,88 @@ return colors[level ?? 0] || colors[0]
       {/* ═══ CATEGORIES + SEARCH ═══ */}
       <Grid size={{ xs: 12 }}>
         <Card><CardContent>
+          {/* ── Pipeline Config (ADR-0026) ── */}
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ mr: 1 }}>
+                ⚙️ Pipeline:
+              </Typography>
+              {/* Layer toggles */}
+              {(['l0', 'l1', 'l4'] as const).map(layer => {
+                const labels = { l0: 'L0 · Search', l1: 'L1 · Profile', l4: 'L4 · IBGE' }
+                const colors: Record<string, 'primary' | 'info' | 'warning'> = { l0: 'primary', l1: 'info', l4: 'warning' }
+                const costs = { l0: `$${selected.length * 0.015}`, l1: `$${(50 * 0.0054).toFixed(3)}`, l4: '$0' }
+
+                return (
+                  <Chip key={layer}
+                    label={`${labels[layer]} ${costs[layer]}`}
+                    clickable size='small'
+                    color={selectedLayers[layer] ? colors[layer] : 'default'}
+                    variant={selectedLayers[layer] ? 'filled' : 'outlined'}
+                    onClick={() => setSelectedLayers(prev => ({ ...prev, [layer]: !prev[layer] }))}
+                    disabled={layer === 'l0'}  // L0 sempre obrigatório
+                    sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
+                  />
+                )
+              })}
+              <Box sx={{ flex: 1 }} />
+              {/* Batch mode */}
+              <Typography variant='caption' color='text.secondary'>
+                Modo:
+              </Typography>
+              {(['single', 'rm', 'state'] as const).map(mode => {
+                const labels = { single: '📍 1 Município', rm: '🏙️ RM', state: '🗺️ Estado' }
+
+                return (
+                  <Chip key={mode}
+                    label={labels[mode]}
+                    clickable size='small'
+                    color={batchMode === mode ? 'error' : 'default'}
+                    variant={batchMode === mode ? 'filled' : 'outlined'}
+                    onClick={() => setBatchMode(mode)}
+                    sx={{ fontSize: '0.6rem' }}
+                  />
+                )
+              })}
+            </Box>
+            {/* Pipeline progress bar */}
+            {loading && (
+              <Box sx={{ mt: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5 }}>
+                  {[
+                    { key: 'l0', label: 'L0 Search', pct: pipelinePhase === 'l0' ? 50 : pipelinePhase !== 'idle' ? 100 : 0 },
+                    { key: 'l1', label: 'L1 Profile', pct: pipelinePhase === 'l1' ? 50 : pipelinePhase === 'l4' || pipelinePhase === 'persist' || pipelinePhase === 'done' ? 100 : 0 },
+                    { key: 'l4', label: 'L4 IBGE', pct: pipelinePhase === 'l4' ? 50 : pipelinePhase === 'persist' || pipelinePhase === 'done' ? 100 : 0 },
+                    { key: 'persist', label: 'Persistência', pct: pipelinePhase === 'persist' ? 50 : pipelinePhase === 'done' ? 100 : 0 },
+                  ].map(step => (
+                    <Box key={step.key} sx={{ flex: 1 }}>
+                      <Typography variant='caption' sx={{ fontSize: '0.55rem', color: 'text.secondary' }}>
+                        {step.label}
+                      </Typography>
+                      <LinearProgress variant='determinate' value={step.pct}
+                        color={step.pct === 100 ? 'success' : step.pct > 0 ? 'primary' : 'inherit'}
+                        sx={{ height: 4, borderRadius: 2, mt: 0.3 }} />
+                    </Box>
+                  ))}
+                </Box>
+                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>
+                  {pipelinePhase === 'l0' && '🔄 Buscando negócios no Google Maps...'}
+                  {pipelinePhase === 'l1' && '📋 Enriqueçendo perfis GMB (2 ondas de 30)...'}
+                  {pipelinePhase === 'l4' && '📊 Cruzando com IBGE (população, PIB, densidade)...'}
+                  {pipelinePhase === 'done' && '✅ Pipeline completo — dados persistidos no Supabase'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
             <Typography variant='subtitle2' fontWeight={600}>
               📁 Categorias ({selected.length} selecionadas)
               {selected.length > 0 && (
                 <Chip label={`~$${(totalCost).toFixed(4)}`} size='small' color='warning' variant='tonal' sx={{ ml: 1 }} />
+              )}
+              {batchMode !== 'single' && (
+                <Chip label={`${batchMultiplier} municípios`} size='small' color='error' variant='tonal' sx={{ ml: 0.5 }} />
               )}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -826,31 +919,33 @@ return (
 
       {/* ═══ CONFIRMATION DIALOG ═══ */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle>🤖 Pipeline Automático L0 → L1 → L4</DialogTitle>
+        <DialogTitle>
+          🚀 Pipeline {' '}
+          {[
+            selectedLayers.l0 && 'L0',
+            selectedLayers.l1 && 'L1',
+            selectedLayers.l4 && 'L4',
+          ].filter(Boolean).join('→')}
+          {batchMode !== 'single' && ` · ${batchMultiplier} municípios`}
+        </DialogTitle>
         <DialogContent>
-          <Typography variant='body1' gutterBottom>
-            Chamada <strong>LIVE</strong> ao DataForSEO via provider-core.
-          </Typography>
-          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, my: 2 }}>
+          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mt: 1 }}>
             <Typography variant='body2'>📍 <strong>{cityLabel}</strong> · {radius}km raio</Typography>
             <Typography variant='body2'>📁 <strong>{selected.length}</strong> categorias: {selected.join(', ')}</Typography>
+            {batchMode !== 'single' && (
+              <Typography variant='body2'>🏙️ <strong>{batchMultiplier}</strong> municípios</Typography>
+            )}
             <Typography variant='body2' color='warning.main' fontWeight={600} sx={{ mt: 1 }}>
-              💰 Custo: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
+              💰 Custo estimado: <strong>${totalCost.toFixed(4)}</strong> (R${(totalCost * 5.5).toFixed(2)})
             </Typography>
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (100 listings, API DataForSEO)</Typography>
-              <Typography variant='caption'>📋 L1 Profile: ${l1Cost.toFixed(4)} (ALL leads, 27 campos GMB)</Typography>
-              <Typography variant='caption'>📱 L2 SEO + L3 Social: <strong>ADIADO</strong> (pós-conversão — Raio-X Warp → engajamento → ações automáticas)</Typography>
-              <Typography variant='caption'>📊 L4 IBGE: $0.00 (população, PIB, renda — via Supabase)</Typography>
+              {selectedLayers.l0 && <Typography variant='caption'>🔍 L0 Search: ${l0Cost.toFixed(4)} (100 listings, API DataForSEO)</Typography>}
+              {selectedLayers.l1 && <Typography variant='caption'>📋 L1 Profile: ${l1Cost.toFixed(4)} (50 perfis GMB, 2 ondas de 30)</Typography>}
+              {!selectedLayers.l1 && selectedLayers.l4 && <Typography variant='caption'>⚠️ L4 sem L1: usa city do address_info (L0), não do perfil GMB</Typography>}
+              {selectedLayers.l4 && <Typography variant='caption'>📊 L4 IBGE: $0.00 (pop/PIB/densidade — Supabase)</Typography>}
+              {!selectedLayers.l1 && !selectedLayers.l4 && <Typography variant='caption'>⚡ Somente L0 — sem enriquecimento</Typography>}
             </Box>
           </Box>
-          <Alert severity='info' sx={{ mt: 1 }}>
-            <Typography variant='caption'>
-              <strong>Pipeline ADR-0024:</strong> L0 (100 listings) → L1 (perfil GMB) → L4 (IBGE $0) → Supabase + Redis + R2.
-              L2 (SEO) + L3 (Social) adiados para pós-conversão. Raio-X Warp gratuito primeiro, depois ações automáticas.
-              Search Tracker registra quantos foram capturados e quantos faltam. Paginação sob demanda.
-            </Typography>
-          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
