@@ -13,6 +13,7 @@ import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
 import Alert from '@mui/material/Alert'
+import Tooltip from '@mui/material/Tooltip'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
@@ -152,38 +153,67 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
               <Card sx={{ bgcolor: 'secondary.50', border: '1px solid', borderColor: 'secondary.main' }}>
                 <CardContent sx={{ py: 1.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Chip label='🔬 Inteligência Primitiva' size='small' color='secondary' />
-                    <Typography variant='caption' color='text.secondary'>
-                      Pré-flight · $0.012/mun · sem listings
-                    </Typography>
+                    <Box>
+                      <Chip label='🔬 Inteligência Primitiva' size='small' color='secondary' />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 1 }}>
+                        Pré-flight · $0.012/mun · coordenadas → município real (district_registry + IBGE)
+                      </Typography>
+                    </Box>
                   </Box>
-                  {preflightIntel.slice(0, 3).map(pf => (
-                    <Box key={pf.stateUf} sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 0.3 }}>
+                  {preflightIntel.map(pf => (
+                    <Box key={pf.stateUf} sx={{ mb: 1.5, p: 1, bgcolor: 'background.paper', borderRadius: 1 }}>
+                      {/* Header row */}
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
                         <Typography variant='body2' fontWeight={700}>
                           {pf.stateName} ({pf.stateUf})
                         </Typography>
+                        <Chip label={`RM ${pf.rmName}`} size='small' color='primary' variant='tonal' />
                         <Chip label={`${pf.totalMunicipalities} municípios`} size='small' variant='outlined' />
-                        <Chip label={`${pf.totalLeads.toLocaleString('pt-BR')} leads`} size='small' color='secondary' variant='tonal' />
+                        <Chip label={`${pf.totalLeads.toLocaleString('pt-BR')} leads est.`} size='small' color='secondary' variant='tonal' />
                         <Chip label={`$${pf.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {pf.byCategory.slice(0, 8).map(c => (
-                          <Chip key={c.category}
-                            label={`${c.label} ${c.totalCount.toLocaleString('pt-BR')}`}
-                            size='small' variant='outlined'
-                            sx={{ fontSize: '0.58rem', height: 20 }} />
-                        ))}
-                        {pf.byCategory.length > 8 && (
-                          <Chip label={`+${pf.byCategory.length - 8}`} size='small' variant='outlined'
-                            sx={{ fontSize: '0.58rem', height: 20 }} />
+                        {pf.ibgeContext?.populacao && (
+                          <Typography variant='caption' color='text.secondary'>
+                            🏙️ {pf.ibgeContext.populacao.toLocaleString('pt-BR')} hab · R${pf.ibgeContext.pibPerCapita?.toLocaleString('pt-BR')}/cap
+                          </Typography>
                         )}
+                      </Box>
+
+                      {/* Municipality breakdown */}
+                      <Box sx={{ mb: 0.5 }}>
+                        <Typography variant='caption' color='text.secondary' fontWeight={600}>
+                          🏙️ Por município:
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
+                          {pf.byMunicipality.map(m => (
+                            <Tooltip key={m.nome} title={m.populacao ? `IBGE: ${m.populacao.toLocaleString('pt-BR')} hab` : ''}>
+                              <Chip
+                                label={`${m.nome} ${m.totalCount.toLocaleString('pt-BR')}`}
+                                size='small' variant='outlined'
+                                sx={{ fontSize: '0.6rem', height: 20 }} />
+                            </Tooltip>
+                          ))}
+                        </Box>
+                      </Box>
+
+                      {/* Category breakdown (ALL categories) */}
+                      <Box>
+                        <Typography variant='caption' color='text.secondary' fontWeight={600}>
+                          📁 Por categoria:
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
+                          {pf.byCategory.map(c => (
+                            <Chip key={c.category}
+                              label={`${c.label} ${c.totalCount.toLocaleString('pt-BR')}`}
+                              size='small' variant='outlined'
+                              sx={{ fontSize: '0.58rem', height: 20 }} />
+                          ))}
+                        </Box>
                       </Box>
                     </Box>
                   ))}
-                  {preflightIntel.length > 3 && (
+                  {preflightIntel.length > 1 && (
                     <Typography variant='caption' color='text.secondary'>
-                      +{preflightIntel.length - 3} estados com pre-flight
+                      {preflightIntel.length} estados com pre-flight · dados geolocalizados via district_registry (422 municípios, 28 RMs)
                     </Typography>
                   )}
                 </CardContent>

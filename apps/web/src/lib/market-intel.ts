@@ -463,28 +463,89 @@ return { overview, gaps, opportunity: opportunity!, density: density!, recommend
 
 export interface PreflightMarketIntel {
   stateName: string; stateUf: string
+  rmName: string  // nome da RM (ex: "Vitória")
   totalMunicipalities: number
   totalLeads: number
   totalCost: number
   newestAt: string
-  byMunicipality: { nome: string; totalCount: number }[]
+  byMunicipality: { nome: string; totalCount: number; populacao?: number | null; cep?: string | null }[]
   byCategory: { category: string; label: string; totalCount: number }[]
+  ibgeContext?: { populacao: number | null; pibPerCapita: number | null; densidade: number | null } | null
+}
+
+// ── Cache interno (TTL 24h — mesmo do dataset municipios) ──
+let _geoCache: { data: { nome: string; cidade: string; uf: string; lat: number; lng: number }[] | null; ts: number } = { data: null, ts: 0 }
+
+async function loadGeoCache(): Promise<{ nome: string; cidade: string; uf: string; lat: number; lng: number }[]> {
+  if (_geoCache.data && (Date.now() - _geoCache.ts) < 86_400_000) return _geoCache.data
+  try {
+    const supabase = getAdminClient()
+    // Load district_registry + IBGE coordinates via municipios dataset
+    const { data: districts } = await supabase.from("district_registry").select("district,city,uf").limit(500)
+    if (!districts?.length) return _geoCache.data || []
+
+    // Fetch municipio coords from public dataset
+    const res = await fetch(
+      "https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/json/municipios.json",
+      { signal: AbortSignal.timeout(8000) }
+    )
+    if (!res.ok) return _geoCache.data || []
+    const coords = await res.json() as { nome: string; latitude: number; longitude: number; codigo_uf: number }[]
+
+    const UF_CODES: Record<number, string> = { 11:'RO',12:'AC',13:'AM',14:'RR',15:'PA',16:'AP',17:'TO',21:'MA',22:'PI',23:'CE',24:'RN',25:'PB',26:'PE',27:'AL',28:'SE',29:'BA',31:'MG',32:'ES',33:'RJ',35:'SP',41:'PR',42:'SC',43:'RS',50:'MS',51:'MT',52:'GO',53:'DF' }
+    const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")
+    const coordMap = new Map<string, { lat: number; lng: number }>()
+    for (const c of coords) {
+      const uf = UF_CODES[c.codigo_uf] || 'XX'
+      coordMap.set(`${normalize(c.nome)}|${uf}`, { lat: c.latitude, lng: c.longitude })
+    }
+
+    const result = districts.map((d: any) => {
+      const key = `${normalize(d.district)}|${d.uf}`
+      const coord = coordMap.get(key)
+      return { nome: d.district, cidade: d.city, uf: d.uf, lat: coord?.lat || 0, lng: coord?.lng || 0 }
+    }).filter((d: any) => d.lat !== 0)
+
+    _geoCache = { data: result, ts: Date.now() }
+    return result
+  } catch { return _geoCache.data || [] }
+}
+
+/** Nearest municipality match by lat/lng distance */
+function findNearestMun(lat: number, lng: number, geoNames: { nome: string; cidade: string; uf: string; lat: number; lng: number }[]): { nome: string; cidade: string; uf: string } | null {
+  let best: { nome: string; cidade: string; uf: string } | null = null; let bestD = Infinity
+  for (const g of geoNames) {
+    if (!g.lat || !g.lng) continue
+    const d = Math.abs(lat - g.lat) + Math.abs(lng - g.lng)
+    if (d < bestD && d < 0.5) { bestD = d; best = { nome: g.nome, cidade: g.cidade, uf: g.uf } }
+  }
+  return best
 }
 
 /** Agrega pre-flights do discovery_searches por estado/UF.
- *  Usa search_metadata->>'preflight' = 'true' para filtrar.
+ *  Cruza com district_registry + IBGE + dataset municipios-brasileiros.
  *  $0 — Supabase read-only, sem DataForSEO. */
 export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]> {
   try {
     const supabase = getAdminClient()
 
-    const { data: rows } = await supabase
-      .from("discovery_searches")
-      .select("id,categories,lat,lng,total_count,cost_usd,created_at,search_metadata")
-      .order("created_at", { ascending: false })
-      .limit(500)
+    const [searchRows, geoNames, ibgeRows] = await Promise.all([
+      supabase.from("discovery_searches")
+        .select("id,categories,lat,lng,total_count,cost_usd,created_at,search_metadata")
+        .order("created_at", { ascending: false }).limit(500),
+      loadGeoCache(),
+      supabase.from("ibge_panorama").select("municipio_nome,uf,populacao,pib_per_capita,densidade_demografica").limit(500),
+    ])
 
+    const rows = searchRows.data
     if (!rows?.length) return []
+
+    // IBGE map by normalized name
+    const normalize = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")
+    const ibgeMap = new Map<string, any>()
+    for (const r of (ibgeRows.data || [])) {
+      ibgeMap.set(normalize(r.municipio_nome), r)
+    }
 
     // Filter pre-flight rows only
     const pfRows = rows.filter((r: any) => {
@@ -493,92 +554,90 @@ export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]>
         return meta?.preflight === true
       } catch { return false }
     })
-
     if (!pfRows.length) return []
 
-    // Group by batch_id → per-state aggregates
+    // Group by UF
     const stateMap = new Map<string, {
-      rows: any[]
-      totalLeads: number
-      totalCost: number
-      newestAt: string
-      municipalities: Map<string, number>
+      rmName: string; uf: string
+      totalLeads: number; totalCost: number; newestAt: string
+      municipalities: Map<string, { totalCount: number; lat: number; lng: number }>
       categories: Map<string, number>
     }>()
 
     for (const r of pfRows) {
-      // Resolve UF from coord
-      const uf = resolveUf(r.lat, r.lng)
+      const mun = findNearestMun(r.lat, r.lng, geoNames)
+      const uf = mun?.uf || resolveUf(r.lat, r.lng)
       if (!uf) continue
+      const munName = mun?.nome || `${r.lat?.toFixed(2)},${r.lng?.toFixed(2)}`
+      const rmName = mun?.cidade || uf
 
       let entry = stateMap.get(uf)
       if (!entry) {
-        entry = {
-          rows: [], totalLeads: 0, totalCost: 0, newestAt: r.created_at,
-          municipalities: new Map(), categories: new Map(),
-        }
+        entry = { rmName, uf, totalLeads: 0, totalCost: 0, newestAt: r.created_at,
+          municipalities: new Map(), categories: new Map() }
         stateMap.set(uf, entry)
       }
 
-      entry.rows.push(r)
       entry.totalLeads += r.total_count || 0
       entry.totalCost += r.cost_usd || 0
       if (r.created_at > entry.newestAt) entry.newestAt = r.created_at
 
-      // Municipality name from nearest capital + coords
-      const munName = `${r.lat?.toFixed(2)},${r.lng?.toFixed(2)}`
-      entry.municipalities.set(munName, (entry.municipalities.get(munName) || 0) + (r.total_count || 0))
+      const existing = entry.municipalities.get(munName)
+      if (!existing || r.total_count > existing.totalCount) {
+        entry.municipalities.set(munName, { totalCount: r.total_count || 0, lat: r.lat, lng: r.lng })
+      }
 
-      // Categories
       for (const cat of (r.categories || [])) {
         entry.categories.set(cat, (entry.categories.get(cat) || 0) + (r.total_count || 0))
       }
     }
 
     const UF_LABELS: Record<string, string> = {
-      SP: "São Paulo", RJ: "Rio de Janeiro", ES: "Espírito Santo",
-      MG: "Minas Gerais", BA: "Bahia", PR: "Paraná", RS: "Rio Grande do Sul",
-      CE: "Ceará", PE: "Pernambuco", SC: "Santa Catarina", GO: "Goiás",
-      DF: "Distrito Federal", AM: "Amazonas", PA: "Pará", MA: "Maranhão",
-      MT: "Mato Grosso", MS: "Mato Grosso do Sul", AL: "Alagoas",
-      RN: "Rio Grande do Norte", PI: "Piauí", PB: "Paraíba",
-      SE: "Sergipe", RO: "Rondônia", TO: "Tocantins", AC: "Acre",
-      AP: "Amapá", RR: "Roraima",
+      SP:"São Paulo",RJ:"Rio de Janeiro",ES:"Espírito Santo",MG:"Minas Gerais",
+      BA:"Bahia",PR:"Paraná",RS:"Rio Grande do Sul",CE:"Ceará",PE:"Pernambuco",
+      SC:"Santa Catarina",GO:"Goiás",DF:"Distrito Federal",AM:"Amazonas",
+      PA:"Pará",MA:"Maranhão",MT:"Mato Grosso",MS:"Mato Grosso do Sul",
+      AL:"Alagoas",RN:"Rio Grande do Norte",PI:"Piauí",PB:"Paraíba",
+      SE:"Sergipe",RO:"Rondônia",TO:"Tocantins",AC:"Acre",AP:"Amapá",RR:"Roraima",
     }
 
     const result: PreflightMarketIntel[] = []
     for (const [uf, entry] of stateMap) {
-      // Deduplicate municipalities by batch_id
-      const munByBatch = new Map<string, Set<string>>()
-      for (const r of entry.rows) {
-        try {
-          const meta = typeof r.search_metadata === "string" ? JSON.parse(r.search_metadata) : r.search_metadata
-          const batchId = meta?.batch_id || "unknown"
-          if (!munByBatch.has(batchId)) munByBatch.set(batchId, new Set())
-          munByBatch.get(batchId)!.add(`${r.lat?.toFixed(3)},${r.lng?.toFixed(3)}`)
-        } catch {}
-      }
-      const totalMun = munByBatch.size > 0 ? Math.max(...[...munByBatch.values()].map(s => s.size)) : 1
+      // IBGE context for the capital/RM city
+      const ibgeCtx = ibgeMap.get(normalize(entry.rmName))
+      const ibgeContext = ibgeCtx ? {
+        populacao: ibgeCtx.populacao || null,
+        pibPerCapita: ibgeCtx.pib_per_capita || null,
+        densidade: ibgeCtx.densidade_demografica || null,
+      } : null
 
       result.push({
         stateName: UF_LABELS[uf] || uf,
         stateUf: uf,
-        totalMunicipalities: totalMun,
+        rmName: entry.rmName,
+        totalMunicipalities: entry.municipalities.size,
         totalLeads: entry.totalLeads,
         totalCost: Math.round(entry.totalCost * 10000) / 10000,
         newestAt: entry.newestAt,
         byMunicipality: [...entry.municipalities.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([nome, totalCount]) => ({ nome, totalCount })),
+          .sort((a, b) => b[1].totalCount - a[1].totalCount)
+          .map(([nome, d]) => {
+            const ibge = ibgeMap.get(normalize(nome))
+            return {
+              nome,
+              totalCount: d.totalCount,
+              populacao: ibge?.populacao || null,
+              cep: null,  // Nominatim preenchido sob demanda
+            }
+          }),
         byCategory: [...entry.categories.entries()]
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 15)
           .map(([category, totalCount]) => ({
             category,
             label: CATEGORY_LABELS[category] || category,
             totalCount,
           })),
+        ibgeContext,
       })
     }
 
