@@ -1,12 +1,14 @@
 {
-  "version": "v028.1",
-  "sealed_at": "2026-07-17T14:30:20.524774+00:00",
-  "commit": "2e569ca",
-  "commits_total": 409,
+  "version": "v029",
+  "sealed_at": "2026-07-17T14:48:41.964579+00:00",
+  "commit": "e4919d3",
+  "commits_total": 412,
   "adrs_total": 29,
   "changes": [
-    "Session Log v2: timeline visual + cards + contexto real + auto-refresh",
-    "API sessions: resolveCity com UF, dateGroup, batch summary",
-    "batch_id grouping + Viana/ES fix + L0 cost fix"
+    "custo estimado real-time baseado total_count API",
+    "Session Log v2: timeline + cards + contexto + auto-refresh",
+    "batch_id grouping + Viana/ES fix",
+    "L0 cost fix + city fallback + L4 desacoplado",
+    "market_holds UPSERT migration 013"
   ]
 }
