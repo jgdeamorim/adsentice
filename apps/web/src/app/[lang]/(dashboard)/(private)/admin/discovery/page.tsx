@@ -309,6 +309,7 @@ const DiscoveryPage = () => {
   const [selectedLayers, setSelectedLayers] = useState<{ l0: true; l1: boolean; l4: true }>({
     l0: true, l1: true, l4: true,
   })
+  const [paginatePartial, setPaginatePartial] = useState(false)  // batch parcial: só 1 página (top 100)
 
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
   const [selectedMunicipios, setSelectedMunicipios] = useState<string[]>([]) // RM multi-select
@@ -425,7 +426,7 @@ const DiscoveryPage = () => {
               radiusKm: radius,
               limit: 100, force: force,
               enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
-              paginate: !isContinue,
+              paginate: !paginatePartial && !isContinue,  // batch parcial: 1 página por mun
               batchId,
               ...(isContinue ? { offset: offsetOverride } : {}),
             }),
@@ -1085,6 +1086,15 @@ return colors[level ?? 0] || colors[0]
               {/* L4: obrigatório */}
               <Chip label='🟢 L4 · IBGE $0' size='small' color='primary' variant='filled'
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }} />
+              {/* Batch partial toggle */}
+              <Chip
+                label={paginatePartial ? '🛑 1 pág (top 100)' : '🔄 Todas páginas'}
+                clickable size='small'
+                color={paginatePartial ? 'warning' : 'default'}
+                variant={paginatePartial ? 'filled' : 'outlined'}
+                onClick={() => setPaginatePartial(!paginatePartial)}
+                sx={{ fontSize: '0.6rem', fontFamily: 'monospace' }}
+              />
               <Box sx={{ flex: 1 }} />
               {/* Batch mode */}
               <Typography variant='caption' color='text.secondary'>
