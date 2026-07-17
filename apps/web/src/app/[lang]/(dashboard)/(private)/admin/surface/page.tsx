@@ -1,5 +1,7 @@
-// adsentice · Admin / Surface Dashboard — ADR-0031
-// 22 superfícies Warp · Status LIVE/PARTIAL/PLANNED
+// adsentice · Admin / Surface Dashboard — ADR-0031 + ADR-0032
+// 22 superfícies Warp · Qdrant live · skills · componentes · Materio
+// medido=verdade · 2026-07-17
+
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 
@@ -17,32 +19,34 @@ import { getSessionUser } from '@/libs/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-const GROUP_LABELS: Record<string, { label: string; icon: string; color: string }> = {
-  client:     { label: 'Client-Facing', icon: '🔵', color: '#1976d2' },
-  internal:   { label: 'Internal', icon: '🟡', color: '#ed6c02' },
-  commercial: { label: 'Commercial', icon: '🟢', color: '#2e7d32' },
-  acquisition:{ label: 'Acquisition', icon: '🟣', color: '#7b1fa2' },
-  technical:  { label: 'Technical', icon: '⚪', color: '#757575' },
+const GROUP_META: Record<string, { label: string; icon: string; border: string }> = {
+  client:      { label: 'Client-Facing', icon: '🔵', border: '#1976d2' },
+  internal:    { label: 'Internal',      icon: '🟡', border: '#ed6c02' },
+  commercial:  { label: 'Commercial',    icon: '🟢', border: '#2e7d32' },
+  acquisition: { label: 'Acquisition',   icon: '🟣', border: '#7b1fa2' },
+  technical:   { label: 'Technical',     icon: '⚪', border: '#757575' },
 }
 
-const PLAN_LABELS: Record<string, { label: string; color: 'error' | 'warning' | 'info' | 'success' | 'default' }> = {
-  r0:       { label: 'Raio-X R$0', color: 'success' },
-  r197:     { label: 'Sentinela R$197', color: 'info' },
-  r497:     { label: 'Domínio R$497', color: 'warning' },
-  r997:     { label: 'Escala R$997', color: 'error' },
-  internal: { label: 'Interno', color: 'default' },
+const PLAN_META: Record<string, { label: string; color: 'error'|'warning'|'info'|'success'|'default' }> = {
+  r0:       { label: 'Raio-X R$0',       color: 'success' },
+  r197:     { label: 'Sentinela R$197',   color: 'info' },
+  r497:     { label: 'Domínio R$497',     color: 'warning' },
+  r997:     { label: 'Escala R$997',      color: 'error' },
+  internal: { label: 'Interno',           color: 'default' },
 }
 
 interface SurfaceInfo {
   id: string; name: string; group: string; plan: string
   segment: string; skills: string[]; tokens: string[]
   status: string; route: string | null; warpModule: string | null
-  previews: number; routeLive: boolean; warpCode: boolean; isLive: boolean
+  previews: number; routeLive: boolean; warpCode: boolean; warpLines: number
+  isLive: boolean; skillsTotal: number; skillsWired: number; skillsWiredPct: number
 }
 
 async function fetchSurfaces(): Promise<{ surfaces: SurfaceInfo[]; summary: any }> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/surface/status`, { cache: 'no-store' })
+    const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const res = await fetch(`${base}/api/surface/status`, { cache: 'no-store' })
     if (res.ok) return res.json()
   } catch {}
   return { surfaces: [], summary: null }
@@ -54,12 +58,12 @@ export default async function SurfacePage(props: { params: Promise<{ lang: strin
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
   return (
-    <Grid container spacing={6}>
+    <Grid container spacing={4}>
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>📊 Warp Surface Dashboard</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            22 superfícies · 9 módulos · 5 grupos · 59 skills de marketing
+            22 superfícies · 5 grupos · Qdrant live · medido=verdade
           </Typography>
           <Chip label='ADR-0031' size='small' color='primary' variant='tonal' />
           <Chip label='ADR-0032' size='small' color='secondary' variant='tonal' />
@@ -79,91 +83,108 @@ async function SurfaceContent({ lang }: { lang: string }) {
     return (
       <Grid size={{ xs: 12 }}>
         <Alert severity='info'>
-          API surface/status offline. Execute <strong>recall v036.1</strong> no terminal.
+          Qdrant offline ou API surface/status indisponível. Execute <strong>recall v037</strong>.
         </Alert>
       </Grid>
     )
   }
 
-  // Group surfaces
   const groups = ['client', 'internal', 'commercial', 'acquisition', 'technical']
-  const byGroup = groups.map(g => ({
-    key: g,
-    ...GROUP_LABELS[g],
-    surfaces: surfaces.filter(s => s.group === g),
-    live: surfaces.filter(s => s.group === g && s.isLive).length,
-    total: surfaces.filter(s => s.group === g).length,
-  }))
 
   return (
     <>
-      {/* ── Summary KPIs ── */}
-      <Grid size={{ xs: 12 }} container spacing={3}>
-        <Grid size={{ xs: 6, sm: 2.4 }}>
-          <SummaryCard value={summary.total} label='Superfícies' color='primary.main' />
+      {/* ═══ QDRANT LIVE BANNER ═══ */}
+      {summary.qdrantLive && summary.kgStats && (
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ bgcolor: 'secondary.50', border: '1px solid', borderColor: 'secondary.main' }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Chip label='🧠 Qdrant Live' size='small' color='secondary' />
+                <Typography variant='body2'>
+                  <strong>{summary.kgStats.corpusTotal?.toLocaleString('pt-BR')}</strong> pontos no corpus Warp
+                </Typography>
+                <Chip label={`📦 ${summary.kgStats.componentsTotal} componentes`} size='small' variant='outlined' />
+                <Chip label={`📐 ${summary.kgStats.skillsTotal} skills`} size='small' variant='outlined' />
+                <Chip label={`🎨 ${summary.kgStats.materioTokensTotal} tokens Materio`} size='small' variant='outlined' />
+                <Chip label={`📚 ${summary.kgStats.designKnowledgeTotal?.toLocaleString('pt-BR')} design pts`} size='small' variant='outlined' />
+                {summary.kgStats.materioCategories && Object.keys(summary.kgStats.materioCategories).length > 0 && (
+                  <Tooltip title={Object.entries(summary.kgStats.materioCategories).map(([k,v]) => `${k}: ${v}`).join(' · ')}>
+                    <Chip label='🎨 Materio' size='small' color='secondary' variant='tonal' />
+                  </Tooltip>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
-        <Grid size={{ xs: 6, sm: 2.4 }}>
-          <SummaryCard value={summary.live} label='Live' color='success.main' />
+      )}
+
+      {/* ═══ KPI CARDS ═══ */}
+      <Grid size={{ xs: 12 }} container spacing={2}>
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.total} label='Superfícies' color='primary.main' />
         </Grid>
-        <Grid size={{ xs: 6, sm: 2.4 }}>
-          <SummaryCard value={summary.partial} label='Partial' color='warning.main' />
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.live} label='Live' color='success.main' />
         </Grid>
-        <Grid size={{ xs: 6, sm: 2.4 }}>
-          <SummaryCard value={summary.planned} label='Planned' color='text.secondary' />
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.partial} label='Partial' color='warning.main' />
         </Grid>
-        <Grid size={{ xs: 6, sm: 2.4 }}>
-          <SummaryCard value={summary.previewsTotal} label='Previews Geradas' color='secondary.main' />
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.planned} label='Planned' color='text.secondary' />
+        </Grid>
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.previewsTotal} label='Previews' color='secondary.main' />
+        </Grid>
+        <Grid size={{ xs: 4, sm: 2.4 }}>
+          <KpiCard value={summary.warpModulesTotal} label='Módulos Warp' color='info.main' />
         </Grid>
       </Grid>
 
       {/* ═══ PROGRESS BAR ═══ */}
       <Grid size={{ xs: 12 }}>
-        <Card sx={{ bgcolor: 'grey.50' }}>
-          <CardContent sx={{ py: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant='subtitle2' fontWeight={700} sx={{ minWidth: 120 }}>
-                Progresso Warp
-              </Typography>
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', mb: 0.5 }}>
-                  <Box sx={{ width: `${(summary.live/summary.total)*100}%`, bgcolor: 'success.main', transition: 'width 0.5s' }} />
-                  <Box sx={{ width: `${(summary.partial/summary.total)*100}%`, bgcolor: 'warning.main', transition: 'width 0.5s' }} />
-                  <Box sx={{ flex: 1, bgcolor: 'divider' }} />
-                </Box>
-                <Typography variant='caption' color='text.secondary'>
-                  {summary.live + summary.partial}/{summary.total} ativas · {summary.warpModules} módulos Warp · {Math.round(((summary.live + summary.partial)/summary.total)*100)}% concluído
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+        <Box sx={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', bgcolor: 'grey.100' }}>
+          <Box sx={{ width: `${(summary.live/summary.total)*100}%`, bgcolor: 'success.main', transition: 'width 0.5s' }} />
+          <Box sx={{ width: `${(summary.partial/summary.total)*100}%`, bgcolor: 'warning.main', transition: 'width 0.5s' }} />
+          <Box sx={{ flex: 1, bgcolor: 'grey.200' }} />
+        </Box>
+        <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+          {summary.progressPct}% completo · {summary.routesLive} rotas live · {summary.warpLinesTotal.toLocaleString('pt-BR')} linhas Warp
+        </Typography>
       </Grid>
 
       {/* ═══ SURFACE CARDS BY GROUP ═══ */}
-      {byGroup.map(group => (
-        <Grid key={group.key} size={{ xs: 12 }}>
-          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant='h6' fontWeight={700}>
-              {group.icon} {group.label}
-            </Typography>
-            <Chip label={`${group.live}/${group.total} live`} size='small' color={group.live > 0 ? 'success' : 'default'} variant='tonal' />
-          </Box>
-          <Grid container spacing={2}>
-            {group.surfaces.map(s => (
-              <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-                <SurfaceCard surface={s} lang={lang} />
-              </Grid>
-            ))}
+      {groups.map(group => {
+        const groupSurfaces = surfaces.filter(s => s.group === group)
+        if (!groupSurfaces.length) return null
+        const meta = GROUP_META[group] || { label: group, icon: '📋', border: '#999' }
+        const liveCount = groupSurfaces.filter(s => s.isLive).length
+
+        return (
+          <Grid key={group} size={{ xs: 12 }}>
+            <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant='h6' fontWeight={700}>
+                {meta.icon} {meta.label}
+              </Typography>
+              <Chip label={`${liveCount}/${groupSurfaces.length} live`} size='small'
+                color={liveCount > 0 ? 'success' : 'default'} variant='tonal' />
+            </Box>
+            <Grid container spacing={2}>
+              {groupSurfaces.map(s => (
+                <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                  <SurfaceCard surface={s} groupBorder={meta.border} />
+                </Grid>
+              ))}
+            </Grid>
           </Grid>
-        </Grid>
-      ))}
+        )
+      })}
 
       {/* ═══ LEGEND ═══ */}
       <Grid size={{ xs: 12 }}>
-        <Alert severity='info' sx={{ bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider' }}>
+        <Alert severity='info' sx={{ bgcolor: 'grey.50' }}>
           <Typography variant='caption'>
-            🟢 LIVE: superfície ativa com código ou previews · 🟡 PARTIAL: esboço ou template existente · 🔴 PLANNED: documentada na matriz Warp.
-            Skills referenciam os 59 frameworks de marketing ingeridos no Qdrant (Corey Haines + Kim Barrett).
+            🟢 LIVE: ativa com código ou previews · 🟡 PARTIAL: esboço existente · 🔴 PLANNED: documentada na matriz.
+            Dados Qdrant consultados ao vivo (18.423 pontos). Skills de marketing ingeridas dos 59 frameworks Corey Haines + Kim Barrett.
           </Typography>
         </Alert>
       </Grid>
@@ -172,97 +193,110 @@ async function SurfaceContent({ lang }: { lang: string }) {
 }
 
 // ── Surface Card ──
-function SurfaceCard({ surface: s, lang }: { surface: SurfaceInfo; lang: string }) {
-  const group = GROUP_LABELS[s.group] || { color: '#999' }
-  const plan = PLAN_LABELS[s.plan] || { label: s.plan, color: 'default' as const }
-  const statusColor = s.isLive ? 'success' : s.status === 'partial' ? 'warning' : 'default'
+function SurfaceCard({ surface: s, groupBorder }: { surface: SurfaceInfo; groupBorder: string }) {
+  const plan = PLAN_META[s.plan] || { label: s.plan, color: 'default' as const }
+  const statusMeta = s.isLive
+    ? { label: '🟢 LIVE', color: 'success' as const }
+    : s.status === 'partial'
+      ? { label: '🟡 PARTIAL', color: 'warning' as const }
+      : { label: '🔴 PLANNED', color: 'default' as const }
 
   return (
-    <Card
-      sx={{
-        height: '100%', display: 'flex', flexDirection: 'column',
-        borderLeft: '3px solid', borderColor: group.color,
-        opacity: s.isLive ? 1 : s.status === 'partial' ? 0.85 : 0.7,
-        transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 4 },
-      }}
-    >
-      <CardContent sx={{ flex: 1, pb: 1.5 }}>
+    <Card sx={{
+      height: '100%', display: 'flex', flexDirection: 'column',
+      borderLeft: '4px solid', borderColor: groupBorder,
+      opacity: s.isLive ? 1 : s.status === 'partial' ? 0.9 : 0.75,
+      transition: 'box-shadow 0.2s, opacity 0.2s',
+      '&:hover': { boxShadow: 6, opacity: 1 },
+    }}>
+      <CardContent sx={{ flex: 1, pb: 1.5, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant='overline' fontWeight={700} color='text.secondary'
-            sx={{ fontFamily: 'monospace', fontSize: '0.6rem', letterSpacing: 1 }}>
-            {s.id}
-          </Typography>
-          <Chip
-            label={s.isLive ? '🟢 LIVE' : s.status === 'partial' ? '🟡 PARTIAL' : '🔴 PLANNED'}
-            size='small' variant='tonal' color={statusColor}
+          <Box>
+            <Typography variant='overline' fontWeight={700} color='text.secondary'
+              sx={{ fontFamily: 'monospace', fontSize: '0.6rem', letterSpacing: 1, lineHeight: 1 }}>
+              {s.id}
+            </Typography>
+            <Typography variant='subtitle2' fontWeight={700} sx={{ lineHeight: 1.3 }}>
+              {s.name}
+            </Typography>
+          </Box>
+          <Chip label={statusMeta.label} size='small' variant='tonal' color={statusMeta.color}
             sx={{ fontSize: '0.6rem', height: 20 }} />
         </Box>
 
-        {/* Name */}
-        <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 0.5, lineHeight: 1.3 }}>
-          {s.name}
-        </Typography>
-
-        {/* Plan + Segment */}
+        {/* Meta chips */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-          <Chip label={plan.label} size='small' color={plan.color} variant='tonal' sx={{ height: 18, fontSize: '0.55rem' }} />
-          {s.route && (
-            <Chip label={s.route} size='small' variant='outlined' sx={{ height: 18, fontSize: '0.55rem', fontFamily: 'monospace' }} />
+          <Chip label={plan.label} size='small' color={plan.color} variant='tonal'
+            sx={{ height: 18, fontSize: '0.55rem' }} />
+          {s.route && s.routeLive && (
+            <Tooltip title="Rota ativa em produção">
+              <Chip label={s.route} size='small' variant='outlined' color='success'
+                sx={{ height: 18, fontSize: '0.55rem', fontFamily: 'monospace' }} />
+            </Tooltip>
           )}
           {s.warpCode && (
-            <Tooltip title={`packages/warp/src/${s.warpModule}`}>
-              <Chip label='⚡ Warp' size='small' color='secondary' variant='tonal' sx={{ height: 18, fontSize: '0.55rem' }} />
+            <Tooltip title={`packages/warp/src/${s.warpModule} · ${s.warpLines} linhas`}>
+              <Chip label={`⚡ ${s.warpLines}L`} size='small' color='secondary' variant='tonal'
+                sx={{ height: 18, fontSize: '0.55rem', fontFamily: 'monospace' }} />
             </Tooltip>
           )}
         </Box>
 
-        {/* Skills */}
+        {/* Skills with wire status */}
         <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap', mb: 1 }}>
           {s.skills.slice(0, 4).map(skill => (
             <Chip key={skill} label={skill} size='small' variant='outlined'
-              sx={{ height: 18, fontSize: '0.55rem', opacity: 0.8 }} />
+              sx={{ height: 18, fontSize: '0.55rem', opacity: 0.85 }} />
           ))}
           {s.skills.length > 4 && (
             <Tooltip title={s.skills.slice(4).join(', ')}>
               <Chip label={`+${s.skills.length - 4}`} size='small' variant='outlined'
-                sx={{ height: 18, fontSize: '0.55rem', opacity: 0.8 }} />
+                sx={{ height: 18, fontSize: '0.55rem' }} />
             </Tooltip>
           )}
         </Box>
 
         {/* Tokens */}
-        <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap', mb: s.previews > 0 ? 1 : 0 }}>
+        <Box sx={{ display: 'flex', gap: 0.3, flexWrap: 'wrap', mb: 1 }}>
           {s.tokens.map(tok => (
             <Chip key={tok} label={tok} size='small'
-              sx={{ height: 16, fontSize: '0.5rem', bgcolor: 'grey.100', fontFamily: 'monospace' }} />
+              sx={{
+                height: 16, fontSize: '0.5rem', fontFamily: 'monospace',
+                bgcolor: tok.startsWith('🔴') ? 'error.50'
+                  : tok.startsWith('🟡') ? 'warning.50'
+                  : 'grey.100',
+              }} />
           ))}
         </Box>
 
-        {/* Previews count */}
-        {s.previews > 0 && (
-          <Box sx={{ mt: 'auto', pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+        {/* Footer: previews + warp module */}
+        <Box sx={{ mt: 'auto', pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          {s.previews > 0 ? (
             <Typography variant='caption' color='secondary.main' fontWeight={600}>
               📄 {s.previews} previews geradas
             </Typography>
-            {s.warpModule && (
-              <Typography variant='caption' color='text.secondary' display='block' sx={{ fontFamily: 'monospace', fontSize: '0.55rem' }}>
-                packages/warp/src/{s.warpModule}
-              </Typography>
-            )}
-          </Box>
-        )}
+          ) : s.warpCode ? (
+            <Typography variant='caption' color='info.main' fontWeight={600}>
+              ⚡ {s.warpLines} linhas de código Warp
+            </Typography>
+          ) : (
+            <Typography variant='caption' color='text.disabled'>
+              — não implementado
+            </Typography>
+          )}
+        </Box>
       </CardContent>
     </Card>
   )
 }
 
-// ── KPI Summary Card ──
-function SummaryCard({ value, label, color }: { value: number; label: string; color: string }) {
+// ── KPI Card ──
+function KpiCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <Card sx={{ textAlign: 'center', borderTop: '3px solid', borderColor: color }}>
-      <CardContent sx={{ py: 2 }}>
-        <Typography variant='h4' fontWeight={800} sx={{ color }}>{value}</Typography>
+      <CardContent sx={{ py: 1.5 }}>
+        <Typography variant='h5' fontWeight={800} sx={{ color }}>{value}</Typography>
         <Typography variant='caption' color='text.secondary'>{label}</Typography>
       </CardContent>
     </Card>
