@@ -18,6 +18,7 @@ import type { ScoringInput, ScoreData, ScoreDistribution } from "@/lib/scoring"
 import { scoreLeads, computeDistribution, detectContactMethods } from "@/lib/scoring"
 import { saveDiscoverySearch } from "@/lib/discovery-persistence"
 import { scoreContentGap, generateContentGapRecommendations } from "@/lib/content-gap"
+import { reverseGeocode } from "@/lib/geo-resolver"
 import { vaultWriteBatch } from "@/lib/r2-vault"
 import { pushEvent } from "@/lib/telemetry"
 import { getAdminClient } from "@/lib/supabase-admin"
@@ -539,6 +540,28 @@ export async function POST(request: NextRequest) {
           lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10,
           costUsd: enrichmentCost, totalCount: enrichedCount,
         })
+      }
+
+      // ═══ City Fallback: Nominatim reverse geocode para listings sem city ═══
+      // DataForSEO às vezes retorna address_info.city = null (ex: perfis GMB incompletos).
+      // Sem city, o L4 IBGE não consegue fazer match → listing fica sem contexto.
+      // Solução: reverse geocode via Nominatim (gratuito, ~1 req/s) usando lat/lng.
+      let cityFallbackCount = 0
+      for (let i = 0; i < listings.length; i++) {
+        const l = listings[i] as any
+        if (!l.city && l.latitude && l.longitude) {
+          try {
+            const geo = await reverseGeocode(l.latitude, l.longitude)
+            if (geo?.city) {
+              l.city = geo.city
+              l.district = geo.district || l.district
+              cityFallbackCount++
+            }
+          } catch { /* Nominatim offline — prossegue sem city */ }
+        }
+      }
+      if (cityFallbackCount > 0) {
+        console.log(`[enrichment] City fallback: ${cityFallbackCount}/${listings.length} listings filled via Nominatim`)
       }
 
       // ═══ L2 + L3: ADIADO para pós-conversão ═══
