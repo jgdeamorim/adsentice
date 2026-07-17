@@ -9,7 +9,7 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server"
 
-import { businessListingsSearch, businessProfileGmb, onPageInstantAudit, domainTechnologies, extractDomain, parseWebsiteContacts , appendMarketHolds } from "@/lib/provider-core-adapter"
+import { businessListingsSearch, businessProfileGmb, businessProfileGmbBatch, onPageInstantAudit, domainTechnologies, extractDomain, parseWebsiteContacts , appendMarketHolds } from "@/lib/provider-core-adapter"
 import {
   getCached, setCache, trackCost, persistResults, getPersistedResults,
   getCostToday, getCostTotal, getCostLast,
@@ -41,31 +41,16 @@ async function enrichTopLeads(
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
-  // DataForSEO limits: 2000 req/min, max 30 simultaneous, 20 tasks/POST, max 5 same-domain URLs
-  // Strategy: batch 30 per wave (API limit), iterate até maxEnrich
-  const BATCH = 30  // DataForSEO limit: max 30 simultaneous
+  // 🔥 BATCH L1: 1 POST com até 100 keywords (doc DataForSEO: max 100 tasks/POST)
+  // Antes: 50 chamadas individuais (~8s). Agora: 1 chamada HTTP (~1s)
+  const keywords = toEnrich.map(e => e.listing.title)
+  const profiles = await businessProfileGmbBatch(keywords)
+
   let enrichmentCost = 0
 
-  // Process in waves of BATCH (30) to respect API concurrency limits
-  for (let offset = 0; offset < toEnrich.length; offset += BATCH) {
-    const batchItems = toEnrich.slice(offset, offset + BATCH)
-
-  const results = await Promise.allSettled(
-      batchItems.map(async ({ listing, index }) => {
-      const profile = await businessProfileGmb({
-        keyword: listing.title,
-        location_code: 2076,
-        language_code: "pt",
-      })
-
-      
-return { profile, listing, index }
-    })
-  )
-
-  for (const r of results) {
-    if (r.status === 'rejected') { continue }
-    const { profile, listing, index } = r.value
+  for (let i = 0; i < toEnrich.length; i++) {
+    const { listing, index } = toEnrich[i]
+    const profile = profiles[i]
 
     if (!profile || !profile.place_id) continue
     enrichmentCost += 0.0054
@@ -105,11 +90,10 @@ return { profile, listing, index }
     enrichedListings[index] = enriched
     enrichedScores[index] = newScores[0]
   }
-  }  // end batch wave
 
   const actualEnriched = enrichedListings.filter((l: any) => (l.enrichment_level || 0) >= 1).length
 
-  console.log(`[enrichment] L1: ${actualEnriched}/${toEnrich.length} leads enriched, cost $${enrichmentCost.toFixed(4)}`)
+  console.log(`[enrichment] L1: ${actualEnriched}/${toEnrich.length} leads enriched (1 POST batch), cost $${enrichmentCost.toFixed(4)}`)
   
 return { enrichedListings, enrichedScores, enrichmentCost }
 }

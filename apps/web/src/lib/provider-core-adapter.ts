@@ -177,7 +177,7 @@ export async function businessProfileGmb(params: {
   const rating = (item.rating || {}) as Record<string, unknown>
   const addrInfo = (item.address_info || {}) as Record<string, unknown>
 
-  
+
 return {
     title: (item.title as string) || "?",
     category: (item.category as string) || null,
@@ -203,6 +203,72 @@ return {
     price_level: (item.price_level as number) ?? null,
     types: (item.types as string[]) || null,
   }
+}
+
+/** L1 BATCH: Google Business Profile — até 100 keywords em 1 POST. $0.0054/lead */
+export async function businessProfileGmbBatch(keywords: string[]): Promise<(GMBProfile | null)[]> {
+  const c = getClient()
+
+  // Doc: max 100 tasks per POST
+  const batchSize = 100
+  const results: (GMBProfile | null)[] = []
+
+  for (let i = 0; i < keywords.length; i += batchSize) {
+    const chunk = keywords.slice(i, i + batchSize)
+
+    const body = chunk.map(kw => ({
+      keyword: kw,
+      location_code: 2076,
+      language_code: "pt",
+    }))
+
+    const data = await c.post<{ items: Record<string, unknown>[] }>(
+      "/v3/business_data/google/my_business_info/live", body)
+
+    // Response items are in same order as body tasks
+    const items = data.items || []
+
+    for (let j = 0; j < chunk.length; j++) {
+      const item = items[j]
+
+      if (!item || !item.place_id) {
+        results.push(null)
+        continue
+      }
+
+      const rating = (item.rating || {}) as Record<string, unknown>
+      const addrInfo = (item.address_info || {}) as Record<string, unknown>
+
+      results.push({
+        title: (item.title as string) || "?",
+        category: (item.category as string) || null,
+        categories: (item.category_ids as string[]) || null,
+        address: (item.address as string) || null,
+        city: (addrInfo.city as string) || null,
+        district: (addrInfo.borough as string) || null,
+        country_code: (addrInfo.country_code as string) || null,
+        postal_code: (addrInfo.zip as string) || null,
+        phone: (item.phone as string) || null,
+        rating_value: (rating.value as number) ?? null,
+        rating_votes: (rating.votes_count as number) ?? null,
+        is_claimed: (item.is_claimed as boolean) ?? null,
+        place_id: (item.place_id as string) || null,
+        cid: (item.cid as string) || null,
+        website: (item.url as string) || null,
+        main_image: (item.main_image as string) || null,
+        total_photos: (item.total_photos as number) ?? null,
+        description: (item.description as string) || null,
+        latitude: (item.latitude as number) ?? null,
+        longitude: (item.longitude as number) ?? null,
+        business_status: (item.business_status as string) || null,
+        price_level: (item.price_level as number) ?? null,
+        types: (item.types as string[]) || null,
+      })
+    }
+  }
+
+
+return results
 }
 
 /** L2: OnPage Instant Pages — $0.000125/call */
