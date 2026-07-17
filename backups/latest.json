@@ -1,7 +1,14 @@
 {
-  "version": "v029.1",
-  "sealed_at": "2026-07-17T14:57:40.337626+00:00",
-  "commit": "d004931",
-  "commits_total": 414,
-  "adrs_total": 29
+  "version": "v030",
+  "sealed_at": "2026-07-17T15:38:46.773691+00:00",
+  "commit": "4a09497",
+  "commits_total": 419,
+  "adrs_total": 29,
+  "changes": [
+    "PRE-FLIGHT limit=1: custo real antes do batch",
+    "Select-all categorias ☑ Todos",
+    "Session Log mostra pre-flights",
+    "L0 cost curve test ($0.01236/limit=1)",
+    "Session Log v2 timeline + cards + auto-refresh"
+  ]
 }
