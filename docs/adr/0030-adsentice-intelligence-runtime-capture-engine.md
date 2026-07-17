@@ -323,13 +323,87 @@ Phase 3: Conversão estimada (5% dos 240)
 | 4.2 | `lib/intel-config.ts` (NOVO) | Persistir config no Redis (`adsentice:intel:config`) |
 | 4.3 | `lib/intel-scorer.ts` | Ler config do Redis, recalcular scores em tempo real |
 
-### Nível 5: Wirear 55 frameworks de marketing
+### Nível 5: Wirear 59 skills de marketing do KG no runtime
+
+**Inventário:** 59 skills ingeridas no Qdrant a partir de 2 fontes MIT:
+
+```
+vendor/marketingskills/  (Corey Haines — 47 skills)
+  SEO/Técnico:   seo-audit, programmatic-seo, ai-seo, site-architecture, schema, directory-submissions
+  Conteúdo:      content-strategy, copywriting, copy-editing, image, video
+  Prospecção:    prospecting, cold-email, lead-magnets, competitor-profiling, competitors, customer-research
+  Vendas:        sales-enablement, offers, pricing, revops, signup, onboarding
+  Crescimento:   marketing-loops, marketing-ideas, marketing-plan, free-tools, referrals
+  Retenção:      churn-prevention, emails, sms, community-marketing, co-marketing
+  Ads:           ads, ad-creative, ab-testing, cro, aso
+  Estratégia:    product-marketing, marketing-council, marketing-psychology, analytics
+  Operacional:   launch, public-relations, paywalls, popups, social
+
+vendor/advertising-skills/  (Kim Barrett — 12 skills)
+  Copy Chief:    headline-matrix, mechanism-builder, objection-crusher, schwartz-awareness-mapper
+  Foundations:   avatar-extraction, offer-extraction
+  Operator OS:   ad-angle-multiplier, conversion-path-builder, performance-diagnosis, scroll-stopping-creative
+  Orchestrators: full-funnel-campaign-orchestrator
+  QA:            generic-language-killer
+```
+
+**Status atual de wire no pipeline adsentice:**
+
+| Skill | Pipeline adsentice | Wire? |
+|-------|-------------------|:---:|
+| `seo-audit` | L2 on_page_instant_audit (comentado) | ❌ |
+| `programmatic-seo` | L2 domain_technologies (comentado) | ❌ |
+| `site-architecture` | L2 domain_technologies (comentado) | ❌ |
+| `schema` | L2 seo_checks (comentado) | ❌ |
+| `content-strategy` | Content Gap Analyzer v0.5 | ✅ |
+| `copywriting` | Battle Card PDF (não implementado) | ❌ |
+| `competitor-profiling` | Competitive Landscape | ❌ |
+| `competitors` | domain_competitors (não implementado) | ❌ |
+| `prospecting` | Discovery Auto-Pilot + pre-flight | ✅ Parcial |
+| `customer-research` | Reviews → persona (não implementado) | ❌ |
+| `sales-enablement` | Battle Card + proposta automática | ❌ |
+| `product-marketing` | Brand IQ (não implementado) | ❌ |
+| `schwartz-awareness-mapper` | Scoring engine (SCHWARTZ_LEVELS) | ✅ |
+| `lead-magnets` | Raio-X ($0) — já é um lead magnet | ✅ Parcial |
+| `marketing-plan` | Plano mensal automático | ❌ |
+| `pricing` | Ticket por categoria (CATEGORY_TICKETS) | ✅ Parcial |
+| `analytics` | L2 has_analytics (comentado) | ❌ |
+
+**Wire mapping — onde cada skill se encaixa:**
+
+| Fase ADR-0030 | Skills que consome |
+|---------------|-------------------|
+| **Phase 1: Scoring Engine** | `prospecting` (qual leads priorizar), `competitor-profiling` (densidade competitiva), `marketing-psychology` (ICP fit), `product-marketing` (Brand IQ como baseline) |
+| **Phase 2: Batch Parcial + L2** | `seo-audit` (L2 diagnóstico), `programmatic-seo` (escala), `site-architecture` (infra), `schema` (marcação), `analytics` (maturidade) |
+| **Phase 3: Match Plano** | `sales-enablement` (battle card), `offers` (proposta), `pricing` (ticket), `lead-magnets` (Raio-X), `copywriting` (pitch), `objection-crusher` (objecções) |
+| **Phase 4: Pós-conversão** | `content-strategy` (plano editorial), `marketing-plan` (roadmap 90 dias), `customer-research` (persona do cliente), `onboarding` (setup), `churn-prevention` (retenção) |
+| **Auto-Pilot contínuo** | `full-funnel-campaign-orchestrator` (orquestração), `marketing-loops` (ciclos), `performance-diagnosis` (métricas), `analytics` (tracking) |
+
+**Arquitetura do `lib/marketing-kg.ts`:**
+
+```typescript
+// Query Qdrant por skill → retorna framework + instruções
+async function queryMarketingSkill(skillName: string): Promise<MarketingFramework>
+
+// Aplica o framework ao contexto do lead
+function applyFramework(framework: MarketingFramework, context: LeadContext): ActionPlan
+
+// Exemplos de uso:
+// → intel-scorer.ts: queryMarketingSkill("prospecting") → como priorizar
+// → plan-matcher.ts: queryMarketingSkill("sales-enablement") → como vender
+// → pitch-generator.ts: queryMarketingSkill("copywriting") → o que escrever
+```
+
+**Custo do Nível 5:** $0 (Qdrant local, sem APIs externas). O embedding dos frameworks já existe (59 documentos no `adsentice-self`). A query é semântica (similaridade de cosseno contra o corpus existente).
 
 | Passo | Arquivo | Ação |
 |-------|---------|------|
-| 5.1 | `lib/marketing-kg.ts` (NOVO) | `queryMarketingSkill(skillName)` → framework do Qdrant |
-| 5.2 | `lib/plan-matcher.ts` | Usar `prospecting`, `sales-enablement`, `content-strategy` no match |
-| 5.3 | `lib/intel-scorer.ts` | Usar `customer-research`, `competitor-profiling` no scoring |
+| 5.1 | `lib/marketing-kg.ts` (NOVO) | `queryMarketingSkill(skillName)` → framework do Qdrant via `adsentice_search` |
+| 5.2 | `lib/marketing-kg.ts` | `applyFramework(framework, context)` → ActionPlan com steps + templates |
+| 5.3 | `lib/intel-scorer.ts` | Consumir `prospecting`, `competitor-profiling`, `marketing-psychology` no scoring |
+| 5.4 | `lib/plan-matcher.ts` | Consumir `sales-enablement`, `offers`, `pricing`, `copywriting`, `objection-crusher` no match |
+| 5.5 | `lib/plan-matcher.ts` | Pitch auto-gerado por lead usando `headline-matrix` + `schwartz-awareness-mapper` |
+| 5.6 | `lib/pitch-generator.ts` (NOVO) | Gerar parágrafo de abordagem personalizado por lead usando `copywriting` + `customer-research` |
 
 ## Custos
 
