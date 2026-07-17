@@ -329,7 +329,7 @@ const DiscoveryPage = () => {
   // L0: $0.048/página (limit=100, confirmado via API: limit=100→$0.048)
   // L1: $0.0054/POST batch (flat rate, confirmado: 1,3,6 keywords = $0.0054)
   // Paginação extra: ~$0.048/página adicional (grandes centros ~2-9 páginas)
-  const l0Cost = selected.length * 0.048 * batchEffective  // $0.048/página com limit=100
+  const l0Cost = 0.048 * batchEffective  // $0.048/página por município (categories array = 1 call)
   const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective  // $0.0054/POST flat rate
   const totalCost = l0Cost + l1Cost  // L0 + L1 condicional + L4 ($0)
   const [batchProgress, setBatchProgress] = useState('')
