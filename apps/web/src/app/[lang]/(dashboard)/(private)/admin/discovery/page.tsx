@@ -522,30 +522,24 @@ const DiscoveryPage = () => {
   const doSearchRef = useRef(doSearch)
   doSearchRef.current = doSearch  // always points to latest, for session log Continue button
 
-  // ── PRE-FLIGHT: limit=1 em cada município → custo EXATO antes do batch ──
-  // Custo: $0.01236/município (validado API live 2026-07-17, Vitória/ES)
-  // total_count é idêntico independente do limit → revela páginas necessárias
-  const doPreflight = useCallback(async () => {
-    if (!selected.length || batchMode === 'single') return
-    const batch = buildBatchList()
-    if (batch.length === 0) return
+  // ── PRE-FLIGHT core: limit=1 → reveals total_count EXACT ──
+  async function runPreflightCore(municipios: { nome: string; lat: number; lng: number }[]): Promise<Record<string, { totalCount: number; cost: number }>> {
+    if (municipios.length === 0 || !selected.length) return {}
 
     setPreflightRunning(true)
-    setPreflightProgress(`🔬 0/${batch.length}`)
+    setPreflightProgress(`🔬 0/${municipios.length}`)
     const data: Record<string, { totalCount: number; cost: number }> = {}
-
-    // Pre-flight batch ID groups all municipalities → visible in Session Log
     const pfBatchId = `preflight_${Date.now().toString(36)}`
 
-    for (let i = 0; i < batch.length; i++) {
-      const m = batch[i]
-      setPreflightProgress(`🔬 ${m.nome} (${i + 1}/${batch.length})`)
+    for (let i = 0; i < municipios.length; i++) {
+      const m = municipios[i]
+      setPreflightProgress(`🔬 ${m.nome} (${i + 1}/${municipios.length})`)
 
       try {
         const res = await fetch('/api/discovery-search', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            categories: selected,
+            categories: selected.slice(0, 10),  // DataForSEO max 10 cats
             lat: m.lat, lng: m.lng,
             radiusKm: radius,
             limit: 1,
@@ -563,19 +557,35 @@ const DiscoveryPage = () => {
             cost: json.cost_usd || 0.01236,
           }
         }
-      } catch { /* municipality offline — skip */ }
+      } catch { /* offline — skip */ }
 
-      // Rate limit respect: 150ms between calls
-      if (i < batch.length - 1) await new Promise(r => setTimeout(r, 200))
+      if (i < municipios.length - 1) await new Promise(r => setTimeout(r, 200))
     }
 
     setPreflightData(data)
     setPreflightRunning(false)
     setPreflightProgress('')
+    setSessionVersion(v => v + 1)  // triggers Session Log refresh
+    return data
+  }
 
-    // Auto-open confirmation dialog with real costs
+  const doPreflight = useCallback(async () => {
+    if (!selected.length || batchMode === 'single') return
+    const batch = buildBatchList()
+    if (batch.length === 0) return
+    await runPreflightCore(batch)
     setTimeout(() => setConfirmOpen(true), 100)
   }, [selected, radius, batchMode, rmMunicipios, selectedMunicipios])
+
+  // Pre-flight specific list (called by Session Log "Pre-flight faltantes" button)
+  const doPreflightForList = useCallback(async (municipios: { nome: string; lat: number; lng: number }[]) => {
+    if (!selected.length) {
+      // Auto-select top 10 categories if none selected
+      setSelected(CATS.slice(0, 10).map(c => c.id))
+    }
+    await runPreflightCore(municipios)
+    setTimeout(() => setConfirmOpen(true), 100)
+  }, [selected, radius])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -1929,18 +1939,25 @@ return (
         )}
       </Dialog>
 
-      {/* ═══ Session Log (ADR-0029) ═══ */}
+      {/* ═══ Session Log / Gerenciador (ADR-0029) ═══ */}
       <Grid size={{ xs: 12 }}>
         <DiscoverySessionLog
           refreshTrigger={sessionVersion}
+          stateKey={batchMode !== 'single' ? stateKey : undefined}
+          rmMunicipios={batchMode !== 'single' ? rmMunicipios : undefined}
           onContinue={(params) => {
             setSelected(params.categories)
             setCityLat(params.lat)
             setCityLng(params.lng)
             setRadius(params.radiusKm)
             setBatchMode('single')
-            // Fire via ref to avoid stale closure — state will be updated by the time it runs
             setTimeout(() => doSearchRef.current?.(false, params.offset), 300)
+          }}
+          onPreflightMissing={(municipios) => {
+            if (municipios.length > 0) {
+              setSelected(prev => prev.length === 0 ? CATS.slice(0, 10).map(c => c.id) : prev)
+              doPreflightForList(municipios)
+            }
           }}
         />
       </Grid>

@@ -67,15 +67,18 @@ interface SessionRow {
   dateGroup: string
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const ufFilter = searchParams.get("uf")?.toUpperCase() || null
+
     const supabase = getAdminClient()
 
     const { data: searches, error } = await supabase
       .from("discovery_searches")
       .select("id,categories,lat,lng,radius_km,total_count,cost_usd,avg_score,created_at,search_metadata")
       .order("created_at", { ascending: false })
-      .limit(100)
+      .limit(200)
 
     if (error || !searches) {
       return NextResponse.json({ sessions: [], batches: [], summary: { totalSearches: 0, totalCost: 0, activeCaches: 0 } })
@@ -129,11 +132,14 @@ export async function GET() {
       }
     }))
 
+    // UF filter (state-aware mode)
+    const filteredRows = ufFilter ? rows.filter(r => r.uf === ufFilter) : rows
+
     // Group by batch_id — separate preflights
     const batchMap = new Map<string, SessionRow[]>()
     const preflightMap = new Map<string, SessionRow[]>()
     const orphans: SessionRow[] = []
-    for (const r of rows) {
+    for (const r of filteredRows) {
       if (r.batchId && r.isPreflight) {
         const g = preflightMap.get(r.batchId) || []
         g.push(r); preflightMap.set(r.batchId, g)
@@ -185,15 +191,15 @@ export async function GET() {
       radiusKm: items[0]?.radiusKm || 10,
     }))
 
-    const totalCost = rows.reduce((s, r) => s + (r.costUsd || 0), 0)
-    const activeCaches = rows.filter(r => r.cacheActive).length
+    const totalCost = filteredRows.reduce((s, r) => s + (r.costUsd || 0), 0)
+    const activeCaches = filteredRows.filter(r => r.cacheActive).length
 
     return NextResponse.json({
       batches,
       preflights,
       orphans,
       summary: {
-        totalSearches: rows.length,
+        totalSearches: filteredRows.length,
         totalCost: Math.round(totalCost * 10000) / 10000,
         activeCaches,
         incompleteBatches: batches.filter(b => b.hasIncomplete).length,

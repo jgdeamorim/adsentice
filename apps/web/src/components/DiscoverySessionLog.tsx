@@ -1,12 +1,5 @@
 'use client'
 
-// ══════════════════════════════════════════════════════════════════
-// ADSENTICE · DiscoverySessionLog v2
-// Timeline visual · cards por município · agrupado por data
-// Auto-refresh ao completar busca · contexto real da RM
-// ADR-0029 v2 · 2026-07-17
-// ══════════════════════════════════════════════════════════════════
-
 import { useEffect, useState, useCallback } from 'react'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -18,10 +11,7 @@ import LinearProgress from '@mui/material/LinearProgress'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
-import Collapse from '@mui/material/Collapse'
-import { keyframes } from '@mui/material/styles'
 
-// ── Types ──
 interface MunEntry {
   id: string; categories: string[]; catLabels: string[]
   lat: number; lng: number; radiusKm: number
@@ -44,11 +34,13 @@ interface BatchInfo {
   newestAt: string; dateGroup: string
   categories: string[]; catLabels: string[]
   uf: string; city: string; radiusKm: number
+  isPreflight: boolean
 }
 
-interface SessionSummary { totalSearches: number; totalCost: number; activeCaches: number; incompleteBatches: number }
-
-export interface ContinueParams { categories: string[]; lat: number; lng: number; radiusKm: number; offset: number; trackerId: string }
+interface ContinueParams {
+  categories: string[]; lat: number; lng: number
+  radiusKm: number; offset: number; trackerId: string
+}
 
 // ── Helpers ──
 function fmtRelative(iso: string): string {
@@ -61,310 +53,244 @@ function fmtRelative(iso: string): string {
   return `há ${Math.round(hours / 24)}d`
 }
 
-function fmtTtl(s: number): string {
-  if (s <= 0) return 'expirado'
-  if (s < 3600) return `${Math.round(s / 60)}min`
-  return `${Math.round(s / 3600)}h`
-}
+interface RmMunicipio { nome: string; lat?: number | null; lng?: number | null }
 
-const pulse = keyframes`
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-`
-
-// ── Component ──
-export default function DiscoverySessionLog({ refreshTrigger, onContinue }: {
+export default function DiscoverySessionLog({
+  refreshTrigger, onContinue, onPreflightMissing, stateKey, rmMunicipios,
+}: {
   refreshTrigger?: number
   onContinue?: (p: ContinueParams) => void
+  onPreflightMissing?: (municipios: { nome: string; lat: number; lng: number }[]) => void
+  stateKey?: string
+  rmMunicipios?: RmMunicipio[]
 }) {
   const [batches, setBatches] = useState<BatchInfo[]>([])
   const [preflights, setPreflights] = useState<BatchInfo[]>([])
   const [orphans, setOrphans] = useState<MunEntry[]>([])
-  const [summary, setSummary] = useState<SessionSummary | null>(null)
   const [loading, setLoading] = useState(true)
-  const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
-  const [animBatch, setAnimBatch] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/discovery/sessions')
+      const url = stateKey ? `/api/discovery/sessions?uf=${stateKey}` : '/api/discovery/sessions'
+      const res = await fetch(url)
       const data = await res.json()
       setBatches(data.batches || [])
       setPreflights(data.preflights || [])
       setOrphans(data.orphans || [])
-      setSummary(data.summary || null)
-      // Animate newest batch briefly
-      if (data.batches?.length) {
-        const newest = data.batches[0].batchId
-        setAnimBatch(newest)
-        setTimeout(() => setAnimBatch(null), 3000)
-      }
     } catch {} finally { setLoading(false) }
-  }, [])
+  }, [stateKey])
 
   useEffect(() => { fetchSessions() }, [fetchSessions, refreshTrigger])
 
   if (loading) return <Card><CardContent><LinearProgress /></CardContent></Card>
-  if (!batches.length && !orphans.length) return null
 
-  // Group by dateGroup (Hoje / Ontem / dd/mm)
-  const dateGroups = new Map<string, BatchInfo[]>()
-  for (const b of batches) {
-    const g = dateGroups.get(b.dateGroup) || []
-    g.push(b); dateGroups.set(b.dateGroup, g)
+  // ── State-aware mode: gerenciador ──
+  if (stateKey && rmMunicipios) {
+    const latestPf = preflights[0]  // Only latest pre-flight
+    const pfMuns = new Set<string>()
+    let totalLeads = 0; let totalPages = 0
+
+    // Build preflight municipality map
+    if (latestPf) {
+      for (const m of latestPf.municipalities) {
+        // Match municipality name to RM list
+        const matched = rmMunicipios.find(rm => {
+          if (!rm.lat || !rm.lng) return false
+          const d = Math.abs(m.lat - rm.lat) + Math.abs(m.lng - rm.lng)
+          return d < 0.3
+        })
+        if (matched) {
+          pfMuns.add(matched.nome)
+          totalLeads += m.totalCount || 0
+          totalPages += Math.ceil((m.totalCount || 0) / 100)
+        }
+      }
+    }
+
+    // Missing municipalities
+    const missing = rmMunicipios.filter(m => m.lat && m.lng && !pfMuns.has(m.nome))
+    const complete = pfMuns.size === rmMunicipios.length
+
+    // Pre-flight cost
+    const pfCost = latestPf?.totalCost || 0
+    const batchCost = totalPages * 0.048 + (latestPf?.munCount || rmMunicipios.length) * 0.0054
+
+    return (
+      <Card sx={{ borderTop: '2px solid', borderColor: complete ? 'success.main' : 'warning.main' }}>
+        <CardContent sx={{ pb: 1.5 }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Box>
+              <Typography variant='subtitle1' fontWeight={700}>
+                📋 Gerenciador {stateKey}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Chip
+                label={complete ? `🟢 ${pfMuns.size}/${rmMunicipios.length} completo` : `⚠️ ${pfMuns.size}/${rmMunicipios.length} pre-flight`}
+                size='small' color={complete ? 'success' : 'warning'}
+              />
+              <Tooltip title='Atualizar'>
+                <IconButton size='small' onClick={fetchSessions}><span style={{ fontSize: '1rem' }}>🔄</span></IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {/* Municipality checklist */}
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
+            {rmMunicipios.filter(m => m.lat && m.lng).map(m => {
+              const hasPf = pfMuns.has(m.nome)
+              // Find the matching preflight entry for lead count
+              let leadCount = 0
+              if (hasPf && latestPf) {
+                const entry = latestPf.municipalities.find(pm => {
+                  if (!m.lat || !m.lng) return false
+                  const d = Math.abs(pm.lat - m.lat) + Math.abs(pm.lng - m.lng)
+                  return d < 0.3
+                })
+                leadCount = entry?.totalCount || 0
+              }
+              return (
+                <Tooltip key={m.nome} title={hasPf ? `${leadCount.toLocaleString('pt-BR')} leads` : 'Sem pre-flight'}>
+                  <Chip
+                    label={hasPf ? `✅ ${m.nome}` : `❌ ${m.nome}`}
+                    size='small' variant='outlined'
+                    color={hasPf ? 'success' : 'default'}
+                    sx={{ fontSize: '0.6rem', opacity: hasPf ? 1 : 0.7 }}
+                  />
+                </Tooltip>
+              )
+            })}
+          </Box>
+
+          {/* Stats row */}
+          {latestPf && (
+            <Box sx={{ mb: 1.5, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Chip label={`${latestPf.catLabels?.length || '?'} categorias`} size='small' variant='outlined' />
+                <Typography variant='body2' fontWeight={600}>
+                  {totalLeads.toLocaleString('pt-BR')} leads est.
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  · {totalPages} págs · ~${batchCost.toFixed(2)}
+                </Typography>
+                <Chip label={`🔬 $${pfCost.toFixed(4)}`} size='small' color='secondary' variant='tonal' />
+                <Typography variant='caption' color='text.secondary' sx={{ ml: 'auto' }}>
+                  {fmtRelative(latestPf.newestAt)}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Actions */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {latestPf && (
+              <Button variant='contained' color='primary' size='small'
+                onClick={() => {
+                  if (latestPf.categories?.length && latestPf.municipalities?.length) {
+                    // Trigger batch via preflight dialog first
+                    onContinue?.({
+                      categories: latestPf.categories,
+                      lat: latestPf.municipalities[0].lat,
+                      lng: latestPf.municipalities[0].lng,
+                      radiusKm: latestPf.radiusKm || 5,
+                      offset: 0,
+                      trackerId: '',
+                    })
+                  }
+                }}>
+                ▶ Executar Batch Completo
+              </Button>
+            )}
+            <Button variant='outlined' size='small' color='secondary'
+              onClick={() => {
+                const munList = rmMunicipios
+                  .filter(m => m.lat && m.lng)
+                  .map(m => ({ nome: m.nome, lat: m.lat!, lng: m.lng! }))
+                onPreflightMissing?.(munList)
+              }}>
+              🔬 Pre-flight {missing.length > 0 ? `faltantes (${missing.length})` : `atualizar`}
+            </Button>
+          </Box>
+
+          {/* Missing warning */}
+          {missing.length > 0 && (
+            <Alert severity='warning' sx={{ mt: 1, py: 0 }}>
+              <Typography variant='caption'>
+                {missing.length} municípios sem pre-flight: {missing.map(m => m.nome).join(', ')}
+              </Typography>
+            </Alert>
+          )}
+
+          {/* History toggle */}
+          {(batches.length > 0 || preflights.length > 1) && (
+            <Box sx={{ mt: 1.5, borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+              <Button size='small' onClick={() => setShowHistory(!showHistory)}
+                sx={{ fontSize: '0.7rem' }}>
+                {showHistory ? '▲' : '▼'} 📜 Histórico {stateKey} ({batches.length + preflights.length})
+              </Button>
+              {showHistory && (
+                <Box sx={{ mt: 0.5 }}>
+                  {batches.map(b => (
+                    <Box key={b.batchId} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.3 }}>
+                      <Chip label='✅ Batch' size='small' color='success' variant='tonal' sx={{ height: 18, fontSize: '0.6rem' }} />
+                      <Typography variant='caption'>{b.catLabels?.slice(0, 2).join(', ')} · {b.city}</Typography>
+                      <Typography variant='caption' fontWeight={600}>{b.totalLeads.toLocaleString('pt-BR')} leads</Typography>
+                      <Typography variant='caption' color='text.secondary'>${b.totalCost.toFixed(4)}</Typography>
+                      <Typography variant='caption' color='text.secondary'>{fmtRelative(b.newestAt)}</Typography>
+                    </Box>
+                  ))}
+                  {preflights.map(pf => (
+                    <Box key={pf.batchId} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.3 }}>
+                      <Chip label='🔬 Pre-flight' size='small' color='secondary' variant='tonal' sx={{ height: 18, fontSize: '0.6rem' }} />
+                      <Typography variant='caption'>{pf.catLabels?.slice(0, 2).join(', ')} · {pf.city}</Typography>
+                      <Typography variant='caption' fontWeight={600}>{pf.totalLeads.toLocaleString('pt-BR')} leads</Typography>
+                      <Typography variant='caption' color='text.secondary'>${pf.totalCost.toFixed(4)}</Typography>
+                      <Typography variant='caption' color='text.secondary'>{fmtRelative(pf.newestAt)}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+    )
   }
+
+  // ── Legacy mode (no stateKey) ──
+  if (!preflights.length && !batches.length && !orphans.length) return null
 
   return (
     <Card sx={{ borderTop: '2px solid', borderColor: 'primary.main' }}>
       <CardContent sx={{ pb: 1.5 }}>
-        {/* ── Header ── */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
-            <Typography variant='subtitle1' fontWeight={700}>
-              📋 Histórico de Discovery
-            </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              {summary ? `${summary.totalSearches} buscas · $${summary.totalCost.toFixed(4)} · ${summary.activeCaches} em cache` : ''}
-            </Typography>
-          </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Typography variant='subtitle1' fontWeight={700}>📋 Histórico de Discovery</Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            {summary && summary.incompleteBatches > 0 && (
-              <Chip label={`⚠️ ${summary.incompleteBatches} incompletos`} size='small' color='warning' />
-            )}
             <Tooltip title='Atualizar'>
               <IconButton size='small' onClick={fetchSessions}><span style={{ fontSize: '1rem' }}>🔄</span></IconButton>
             </Tooltip>
           </Box>
         </Box>
 
-        {/* ── PREFLIGHTS ── */}
-        {preflights.length > 0 && (
-          <Box sx={{ mb: 3, p: 1.5, bgcolor: 'secondary.50', borderRadius: 2, border: '1px solid', borderColor: 'secondary.main' }}>
-            <Typography variant='overline' fontWeight={700} color='secondary' sx={{ letterSpacing: 1 }}>
-              🔬 PRE-FLIGHTS ({preflights.length})
-            </Typography>
-            {preflights.map(pf => (
-              <Box key={pf.batchId} sx={{ mt: 1 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Chip label='🔬 Pre-flight' size='small' color='secondary' />
-                  <Typography variant='body2' fontWeight={600}>
-                    {pf.catLabels.join(' · ')} · {pf.city} · {pf.uf}
-                  </Typography>
-                  <Chip label={`${pf.munCount} municípios`} size='small' variant='outlined' />
-                  <Chip label={`$${pf.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-                  <Typography variant='caption' color='text.secondary'>
-                    {fmtRelative(pf.newestAt)}
-                  </Typography>
-                </Box>
-                {/* Per-municipality results */}
-                <Box sx={{ ml: 4, mt: 0.5 }}>
-                  {pf.municipalities.map((m: any) => (
-                    <Typography key={m.id} variant='caption' sx={{ fontFamily: 'monospace', mr: 2 }}>
-                      {m.city}: {m.totalCount.toLocaleString('pt-BR')} leads
-                    </Typography>
-                  ))}
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {/* ── Rate limit info ── */}
-        <Alert severity='info' sx={{ mb: 2, py: 0, '& .MuiAlert-message': { py: 0.3 } }}>
-          <Typography variant='caption'>⚡ DataForSEO: 2000 req/min · 30 simultâneas · 150ms entre municípios</Typography>
+        <Alert severity='info' sx={{ mb: 1, py: 0 }}>
+          <Typography variant='caption'>⚡ Selecione um estado no mapa para ver o gerenciador por estado</Typography>
         </Alert>
 
-        {/* ── Timeline ── */}
-        <Box sx={{ position: 'relative' }}>
-          {[...dateGroups.entries()].map(([dateGroup, groupBatches]) => (
-            <Box key={dateGroup} sx={{ mb: 3 }}>
-              {/* Date header */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
-                <Typography variant='overline' fontWeight={700} color='primary' sx={{ letterSpacing: 1 }}>
-                  {dateGroup}
-                </Typography>
-                <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
-                <Typography variant='caption' color='text.secondary'>
-                  {groupBatches.length} {groupBatches.length === 1 ? 'batch' : 'batches'}
-                </Typography>
-              </Box>
-
-              {/* Batch cards */}
-              {groupBatches.map((batch) => {
-                const isExpanded = expandedBatch === batch.batchId
-                const isNew = animBatch === batch.batchId
-                const donePct = Math.round((batch.completeCount / batch.munCount) * 100)
-
-                return (
-                  <Box key={batch.batchId} sx={{ ml: 3, mb: 1.5, position: 'relative' }}>
-                    {/* Vertical timeline connector */}
-                    <Box sx={{
-                      position: 'absolute', left: -18, top: 24, bottom: -24,
-                      width: 2, bgcolor: 'divider',
-                      display: groupBatches.indexOf(batch) === groupBatches.length - 1 ? 'none' : 'block',
-                    }} />
-
-                    {/* Batch card */}
-                    <Box
-                      onClick={() => setExpandedBatch(isExpanded ? null : batch.batchId)}
-                      sx={{
-                        border: '1px solid', borderRadius: 2,
-                        borderColor: isNew ? 'primary.main' : batch.hasIncomplete ? 'warning.main' : 'divider',
-                        bgcolor: isNew ? 'primary.50' : 'background.paper',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        animation: isNew ? `${pulse} 1.5s ease-in-out` : 'none',
-                        transition: 'box-shadow 0.2s',
-                        '&:hover': { boxShadow: 2 },
-                      }}
-                    >
-                      {/* Top row: context + status */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1.5, flexWrap: 'wrap' }}>
-                        {/* Status dot */}
-                        <Box sx={{
-                          width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                          bgcolor: batch.hasIncomplete ? 'warning.main' : batch.hasActiveCache ? 'success.main' : 'text.disabled',
-                        }} />
-
-                        {/* Categories */}
-                        <Typography variant='body2' fontWeight={700} noWrap>
-                          {batch.catLabels.join(' · ')}
-                        </Typography>
-
-                        {/* Context: RM + state */}
-                        <Chip label={`${batch.city} · ${batch.uf}`} size='small' color='primary' variant='tonal' />
-
-                        {/* Pipeline badge */}
-                        <Chip label='L0+L4' size='small' variant='outlined' sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }} />
-
-                        {/* Municipality count */}
-                        <Chip
-                          icon={<span>{isExpanded ? '▼' : '▶'}</span>}
-                          label={`${batch.munCount} municípios`}
-                          size='small' variant='outlined'
-                        />
-
-                        {/* Progress */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 100 }}>
-                          <LinearProgress
-                            variant='determinate' value={donePct}
-                            color={batch.hasIncomplete ? 'warning' : 'success'}
-                            sx={{ flex: 1, height: 5, borderRadius: 3 }}
-                          />
-                          <Typography variant='caption' fontWeight={600}>
-                            {batch.completeCount}/{batch.munCount}
-                          </Typography>
-                        </Box>
-
-                        {/* Cost */}
-                        <Chip label={`$${batch.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-
-                        {/* Time */}
-                        <Tooltip title={new Date(batch.newestAt).toLocaleString('pt-BR')}>
-                          <Typography variant='caption' color='text.secondary' sx={{ ml: 'auto' }}>
-                            {fmtRelative(batch.newestAt)}
-                          </Typography>
-                        </Tooltip>
-                      </Box>
-
-                      {/* Expanded: municipality cards */}
-                      <Collapse in={isExpanded}>
-                        <Box sx={{ borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50', px: 2, py: 1 }}>
-                          {batch.municipalities.map((m) => (
-                            <Box key={m.id} sx={{
-                              display: 'flex', alignItems: 'center', gap: 1, py: 1,
-                              borderBottom: '1px solid', borderColor: 'divider',
-                              '&:last-child': { borderBottom: 'none' },
-                              flexWrap: 'wrap',
-                            }}>
-                              {/* Mun status */}
-                              <Box sx={{
-                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                                bgcolor: m.isIncomplete ? 'warning.main' : m.cacheActive ? 'success.main' : 'text.disabled',
-                              }} />
-
-                              {/* Mun name */}
-                              <Typography variant='body2' fontWeight={600} sx={{ minWidth: 80 }}>
-                                {m.city}
-                              </Typography>
-
-                              {/* Radius */}
-                              <Typography variant='caption' color='text.secondary'>{m.radiusKm}km</Typography>
-
-                              {/* Progress */}
-                              <Box sx={{ flex: 1, minWidth: 120, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <LinearProgress
-                                  variant='determinate' value={m.progressPct}
-                                  color={m.isIncomplete ? 'warning' : 'success'}
-                                  sx={{ flex: 1, height: 4, borderRadius: 2 }}
-                                />
-                                <Typography variant='caption' fontWeight={600} noWrap>
-                                  {m.fetchedCount || m.listingsSaved}/{m.totalCount}
-                                </Typography>
-                              </Box>
-
-                              {/* Leads count */}
-                              <Chip label={`${m.listingsSaved} leads`} size='small' variant='outlined' sx={{ height: 20, fontSize: '0.65rem' }} />
-
-                              {/* Cost */}
-                              <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace' }}>
-                                ${m.costUsd.toFixed(4)}
-                              </Typography>
-
-                              {/* Cache TTL */}
-                              {m.cacheActive && m.cacheTtl ? (
-                                <Chip label={`🟢 ${fmtTtl(m.cacheTtl)}`} size='small' color='success' variant='tonal' sx={{ height: 20, fontSize: '0.6rem' }} />
-                              ) : (
-                                <Chip label='🔴 expirado' size='small' variant='tonal' sx={{ height: 20, fontSize: '0.6rem', opacity: 0.6 }} />
-                              )}
-
-                              {/* Continue button */}
-                              {m.isIncomplete && m.remaining > 0 && onContinue && (
-                                <Button
-                                  size='small' variant='contained' color='warning'
-                                  sx={{ fontSize: '0.6rem', py: 0, px: 1, ml: 'auto', minWidth: 0 }}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    const nextOffset = (m.offsetsUsed?.[m.offsetsUsed.length - 1] || 0) + 100
-                                    onContinue({ categories: m.categories, lat: m.lat, lng: m.lng, radiusKm: m.radiusKm, offset: nextOffset, trackerId: m.trackerId })
-                                  }}
-                                >
-                                  ▶ +{m.remaining}
-                                </Button>
-                              )}
-                            </Box>
-                          ))}
-                        </Box>
-                      </Collapse>
-                    </Box>
-                  </Box>
-                )
-              })}
+        {preflights.slice(0, 2).map(pf => (
+          <Box key={pf.batchId} sx={{ mb: 1, p: 1, bgcolor: 'secondary.50', borderRadius: 1, border: '1px solid', borderColor: 'secondary.main' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Chip label='🔬 Pre-flight' size='small' color='secondary' />
+              <Typography variant='body2' fontWeight={600}>{pf.catLabels?.slice(0, 3).join(' · ')} · {pf.city} · {pf.uf}</Typography>
+              <Chip label={`${pf.munCount} mun`} size='small' variant='outlined' />
+              <Chip label={`${pf.totalLeads.toLocaleString('pt-BR')} leads`} size='small' color='secondary' variant='tonal' />
+              <Chip label={`$${pf.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
+              <Typography variant='caption' color='text.secondary'>{fmtRelative(pf.newestAt)}</Typography>
             </Box>
-          ))}
-        </Box>
-
-        {/* ── Orphans (pré-batch_id) ── */}
-        {orphans.length > 0 && (
-          <Box sx={{ mt: 3, borderTop: '1px dashed', borderColor: 'divider', pt: 2 }}>
-            <Typography variant='caption' color='text.secondary' sx={{ mb: 1, display: 'block' }}>
-              🔹 Buscas avulsas (sem batch_id — sessões anteriores)
-            </Typography>
-            {orphans.slice(0, 3).map(m => (
-              <Box key={m.id} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.5, opacity: 0.65 }}>
-                <Chip label={m.cacheActive ? '🟢' : '🔴'} size='small' sx={{ minWidth: 38 }} />
-                <Typography variant='caption'>{m.catLabels.join(', ')}</Typography>
-                <Chip label={m.city} size='small' variant='outlined' />
-                <Typography variant='caption'>{m.totalCount} leads</Typography>
-                <Chip label={`$${m.costUsd.toFixed(4)}`} size='small' color='warning' variant='tonal' />
-                <Typography variant='caption' color='text.secondary'>{fmtRelative(m.createdAt)}</Typography>
-              </Box>
-            ))}
           </Box>
-        )}
+        ))}
       </CardContent>
     </Card>
   )

@@ -648,7 +648,7 @@ export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]>
   }
 }
 
-function resolveUf(lat: number, lng: number): string | null {
+export function resolveUf(lat: number, lng: number): string | null {
   const caps: [string, number, number][] = [
     ["SP", -23.55, -46.63], ["RJ", -22.91, -43.17], ["ES", -20.32, -40.34],
     ["MG", -19.92, -43.93], ["DF", -15.78, -47.93], ["BA", -12.97, -38.50],
