@@ -8,6 +8,7 @@ const DEEPSEEK_MODEL = "deepseek-v4-flash"
 let _keyCache: string | null = null
 function getKey(): string {
   if (_keyCache) return _keyCache
+  // Next.js .env (gitignored) — same key Python tools load from docs/secret/.env.DEEPSEEK
   _keyCache = process.env.DEEPSEEK_API_KEY || ""
   return _keyCache
 }
