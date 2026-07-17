@@ -61,7 +61,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
 
   // Fallback: use Redis data if Supabase is empty
   // Build enrichment-level counts from Supabase data
-  const enrichmentCounts = { l0: supabaseTotal, l1: 0, l2: 0 }
+  const enrichmentCounts = { l0: supabaseTotal, l1: 0, l2: 0, l5: 0 }
 
   try {
     const supabase = getAdminClient()
@@ -80,6 +80,11 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       enrichmentCounts.l1 = Array.from(deduped.values()).filter(v => v >= 1).length
       enrichmentCounts.l2 = Array.from(deduped.values()).filter(v => v >= 2).length
     }
+
+    // CNPJ enriched count (ADR-0028)
+    const { data: cnpjData } = await supabase.from("discovery_listings").select("place_id").eq("cnpj_enriched", true).limit(3000)
+
+    if (cnpjData) enrichmentCounts.l5 = cnpjData.length
   } catch { /* keep defaults */ }
 
   // ═══ Funil Ativo de Captação adsentice ═══
@@ -145,6 +150,15 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
           subtitle={`${Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100)}% de conversão S0→S1 · Contato disponível`}
           avatarColor='info' avatarIcon='ri-profile-line'
           trendNumber={String(enrichmentCounts.l1)} trend='positive' />
+      </Grid>
+
+      {/* ═══ L5 CNPJ (ADR-0028) ═══ */}
+      <Grid size={{ xs: 12, sm: 4 }}>
+        <CardStatVertical stats={enrichmentCounts.l5.toLocaleString('pt-BR')}
+          title='L5 · CNPJ Validados'
+          subtitle={`${Math.round((enrichmentCounts.l5/Math.max(enrichmentCounts.l0,1))*100)}% dos leads · CNAE + regime + sócios`}
+          avatarColor='warning' avatarIcon='ri-government-line'
+          trendNumber={String(enrichmentCounts.l5)} trend={enrichmentCounts.l5 > 0 ? 'positive' : undefined} />
       </Grid>
 
       {/* Funnel stage cards — clicáveis */}
