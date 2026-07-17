@@ -3,7 +3,7 @@
 // medido=verdade · zero hardcoded · 2026-07-17
 
 import { NextResponse } from "next/server"
-import { compose } from "@/lib/warp-composer"
+import { compose, composeS10 } from "@/lib/warp-composer"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -12,6 +12,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
+    // REAL PIPELINE: composeS10 with place_id
+    if (body.place_id) {
+      const html = await composeS10(body.place_id)
+      if (!html) return NextResponse.json({ error: "Lead not found or S10 generation failed" }, { status: 404 })
+      return NextResponse.json({ html, _meta: { pipeline: "composeS10", source: "Supabase + DeepSeek V4" } })
+    }
+
+    // GENERIC COMPOSER: compose with Intend (no real data)
     const intend = {
       surface: body.surface || 'S10',
       segment: body.segment || 'saude',
