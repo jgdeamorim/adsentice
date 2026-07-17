@@ -17,7 +17,7 @@ import Alert from '@mui/material/Alert'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { nicheIntelligence, listMarketCategories, marketOverview } from '@/lib/market-intel'
+import { nicheIntelligence, listMarketCategories, marketOverview, getPreflightMarketIntel } from '@/lib/market-intel'
 import MarketCoverageMapWrapper from '@/components/MarketCoverageMapWrapper'
 
 export const dynamic = 'force-dynamic'
@@ -56,10 +56,11 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
   const filterCategory = sp.category || ''
   const filterCity = sp.city || ''
 
-  const [categories, overview, mapPins] = await Promise.all([
+  const [categories, overview, mapPins, preflightIntel] = await Promise.all([
     listMarketCategories(),
     marketOverview(),
     getMapPins(),
+    getPreflightMarketIntel(),
   ])
 
   const intel = filterCategory ? await nicheIntelligence(filterCategory, filterCity || null) : null
@@ -144,6 +145,51 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
               subtitle={`${overview.hasAnalyticsPct}% com analytics`} avatarColor='error' avatarIcon='ri-global-line'
               trendNumber={String(overview.hasWebsitePct)} trend='positive' />
           </Grid>
+
+          {/* ═══ PRE-FLIGHT MARKET INTEL (ADR-0029) ═══ */}
+          {preflightIntel.length > 0 && (
+            <Grid size={{ xs: 12 }}>
+              <Card sx={{ bgcolor: 'secondary.50', border: '1px solid', borderColor: 'secondary.main' }}>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Chip label='🔬 Inteligência Primitiva' size='small' color='secondary' />
+                    <Typography variant='caption' color='text.secondary'>
+                      Pré-flight · $0.012/mun · sem listings
+                    </Typography>
+                  </Box>
+                  {preflightIntel.slice(0, 3).map(pf => (
+                    <Box key={pf.stateUf} sx={{ mb: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 0.3 }}>
+                        <Typography variant='body2' fontWeight={700}>
+                          {pf.stateName} ({pf.stateUf})
+                        </Typography>
+                        <Chip label={`${pf.totalMunicipalities} municípios`} size='small' variant='outlined' />
+                        <Chip label={`${pf.totalLeads.toLocaleString('pt-BR')} leads`} size='small' color='secondary' variant='tonal' />
+                        <Chip label={`$${pf.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {pf.byCategory.slice(0, 8).map(c => (
+                          <Chip key={c.category}
+                            label={`${c.label} ${c.totalCount.toLocaleString('pt-BR')}`}
+                            size='small' variant='outlined'
+                            sx={{ fontSize: '0.58rem', height: 20 }} />
+                        ))}
+                        {pf.byCategory.length > 8 && (
+                          <Chip label={`+${pf.byCategory.length - 8}`} size='small' variant='outlined'
+                            sx={{ fontSize: '0.58rem', height: 20 }} />
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                  {preflightIntel.length > 3 && (
+                    <Typography variant='caption' color='text.secondary'>
+                      +{preflightIntel.length - 3} estados com pre-flight
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
 
           {/* ═══ IBGE + Market Holds Context (ADR-0027) ═══ */}
           {(overview as any).marketHolds && (

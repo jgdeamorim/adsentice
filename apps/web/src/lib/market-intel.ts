@@ -455,8 +455,158 @@ export async function nicheIntelligence(cat: string, city?: string | null): Prom
   const actions = top.map(g => ({ action: `Resolver ${g.signalLabel} — ${g.affectedPct}% do mercado (${g.affectedCount} negocios)`, impact: g.severity === "critico" ? "🔥 Critico" : g.severity === "alto" ? "⚡ Alto" : "📊 Medio", targetPct: Math.min(g.affectedPct + 20, 100) }))
 
   if (overview.hasWebsitePct < 50) actions.push({ action: `Criar sites para ${Math.round(overview.totalBusinesses * 0.1)} negocios sem presenca web`, impact: "⚡ Alto", targetPct: Math.min(overview.hasWebsitePct + 20, 80) })
-  
+
 return { overview, gaps, opportunity: opportunity!, density: density!, recommendedActions: actions.slice(0, 5) }
+}
+
+// ── PRE-FLIGHT MARKET INTEL (ADR-0029 · $0 queries) ──
+
+export interface PreflightMarketIntel {
+  stateName: string; stateUf: string
+  totalMunicipalities: number
+  totalLeads: number
+  totalCost: number
+  newestAt: string
+  byMunicipality: { nome: string; totalCount: number }[]
+  byCategory: { category: string; label: string; totalCount: number }[]
+}
+
+/** Agrega pre-flights do discovery_searches por estado/UF.
+ *  Usa search_metadata->>'preflight' = 'true' para filtrar.
+ *  $0 — Supabase read-only, sem DataForSEO. */
+export async function getPreflightMarketIntel(): Promise<PreflightMarketIntel[]> {
+  try {
+    const supabase = getAdminClient()
+
+    const { data: rows } = await supabase
+      .from("discovery_searches")
+      .select("id,categories,lat,lng,total_count,cost_usd,created_at,search_metadata")
+      .order("created_at", { ascending: false })
+      .limit(500)
+
+    if (!rows?.length) return []
+
+    // Filter pre-flight rows only
+    const pfRows = rows.filter((r: any) => {
+      try {
+        const meta = typeof r.search_metadata === "string" ? JSON.parse(r.search_metadata) : r.search_metadata
+        return meta?.preflight === true
+      } catch { return false }
+    })
+
+    if (!pfRows.length) return []
+
+    // Group by batch_id → per-state aggregates
+    const stateMap = new Map<string, {
+      rows: any[]
+      totalLeads: number
+      totalCost: number
+      newestAt: string
+      municipalities: Map<string, number>
+      categories: Map<string, number>
+    }>()
+
+    for (const r of pfRows) {
+      // Resolve UF from coord
+      const uf = resolveUf(r.lat, r.lng)
+      if (!uf) continue
+
+      let entry = stateMap.get(uf)
+      if (!entry) {
+        entry = {
+          rows: [], totalLeads: 0, totalCost: 0, newestAt: r.created_at,
+          municipalities: new Map(), categories: new Map(),
+        }
+        stateMap.set(uf, entry)
+      }
+
+      entry.rows.push(r)
+      entry.totalLeads += r.total_count || 0
+      entry.totalCost += r.cost_usd || 0
+      if (r.created_at > entry.newestAt) entry.newestAt = r.created_at
+
+      // Municipality name from nearest capital + coords
+      const munName = `${r.lat?.toFixed(2)},${r.lng?.toFixed(2)}`
+      entry.municipalities.set(munName, (entry.municipalities.get(munName) || 0) + (r.total_count || 0))
+
+      // Categories
+      for (const cat of (r.categories || [])) {
+        entry.categories.set(cat, (entry.categories.get(cat) || 0) + (r.total_count || 0))
+      }
+    }
+
+    const UF_LABELS: Record<string, string> = {
+      SP: "São Paulo", RJ: "Rio de Janeiro", ES: "Espírito Santo",
+      MG: "Minas Gerais", BA: "Bahia", PR: "Paraná", RS: "Rio Grande do Sul",
+      CE: "Ceará", PE: "Pernambuco", SC: "Santa Catarina", GO: "Goiás",
+      DF: "Distrito Federal", AM: "Amazonas", PA: "Pará", MA: "Maranhão",
+      MT: "Mato Grosso", MS: "Mato Grosso do Sul", AL: "Alagoas",
+      RN: "Rio Grande do Norte", PI: "Piauí", PB: "Paraíba",
+      SE: "Sergipe", RO: "Rondônia", TO: "Tocantins", AC: "Acre",
+      AP: "Amapá", RR: "Roraima",
+    }
+
+    const result: PreflightMarketIntel[] = []
+    for (const [uf, entry] of stateMap) {
+      // Deduplicate municipalities by batch_id
+      const munByBatch = new Map<string, Set<string>>()
+      for (const r of entry.rows) {
+        try {
+          const meta = typeof r.search_metadata === "string" ? JSON.parse(r.search_metadata) : r.search_metadata
+          const batchId = meta?.batch_id || "unknown"
+          if (!munByBatch.has(batchId)) munByBatch.set(batchId, new Set())
+          munByBatch.get(batchId)!.add(`${r.lat?.toFixed(3)},${r.lng?.toFixed(3)}`)
+        } catch {}
+      }
+      const totalMun = munByBatch.size > 0 ? Math.max(...[...munByBatch.values()].map(s => s.size)) : 1
+
+      result.push({
+        stateName: UF_LABELS[uf] || uf,
+        stateUf: uf,
+        totalMunicipalities: totalMun,
+        totalLeads: entry.totalLeads,
+        totalCost: Math.round(entry.totalCost * 10000) / 10000,
+        newestAt: entry.newestAt,
+        byMunicipality: [...entry.municipalities.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([nome, totalCount]) => ({ nome, totalCount })),
+        byCategory: [...entry.categories.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 15)
+          .map(([category, totalCount]) => ({
+            category,
+            label: CATEGORY_LABELS[category] || category,
+            totalCount,
+          })),
+      })
+    }
+
+    return result.sort((a, b) => b.totalLeads - a.totalLeads)
+  } catch (e: any) {
+    console.error("[market-intel] preflight:", e.message)
+    return []
+  }
+}
+
+function resolveUf(lat: number, lng: number): string | null {
+  const caps: [string, number, number][] = [
+    ["SP", -23.55, -46.63], ["RJ", -22.91, -43.17], ["ES", -20.32, -40.34],
+    ["MG", -19.92, -43.93], ["DF", -15.78, -47.93], ["BA", -12.97, -38.50],
+    ["CE", -3.72, -38.53], ["PE", -8.05, -34.88], ["PR", -25.43, -49.27],
+    ["RS", -30.03, -51.23], ["AM", -3.12, -60.03], ["PA", -1.46, -48.48],
+    ["GO", -16.68, -49.25], ["MA", -2.53, -44.30], ["AL", -9.67, -35.73],
+    ["RN", -5.80, -35.21], ["PI", -5.09, -42.80], ["PB", -7.12, -34.86],
+    ["MT", -15.60, -56.10], ["MS", -20.44, -54.64], ["SE", -10.95, -37.07],
+    ["SC", -27.60, -48.55], ["RO", -8.76, -63.90], ["AP", 0.03, -51.07],
+    ["AC", -9.97, -67.81], ["RR", 2.82, -60.67], ["TO", -10.18, -48.33],
+  ]
+  let best: string | null = null; let bestD = Infinity
+  for (const [uf, clat, clng] of caps) {
+    const d = Math.abs(lat - clat) + Math.abs(lng - clng) * 0.5
+    if (d < bestD && d < 3) { bestD = d; best = uf }
+  }
+  return best
 }
 
 export async function listMarketCategories(): Promise<{ category: string; label: string; count: number }[]> {

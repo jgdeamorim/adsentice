@@ -22,6 +22,7 @@ import Alert from '@mui/material/Alert'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getPreflightMarketIntel } from '@/lib/market-intel'
 
 export const dynamic = 'force-dynamic'
 
@@ -165,6 +166,17 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
     if (l5Rows) enrichmentStats.l5 = l5Rows.length
   } catch { /* Supabase offline */ }
 
+  // ═══ Pre-flight market intel (ADR-0029) ═══
+  let pfMarket: Record<string, number> = {}  // category → estimated total leads
+  try {
+    const pfIntel = await getPreflightMarketIntel()
+    for (const state of pfIntel) {
+      for (const cat of state.byCategory) {
+        pfMarket[cat.category] = (pfMarket[cat.category] || 0) + cat.totalCount
+      }
+    }
+  } catch { /* no preflight data */ }
+
   const hasData = categories.length > 0
   const totalBusinesses = hasData ? categories.reduce((s, c) => s + c.total_listings, 0) : 0
   const totalLeads = hasData ? categories.reduce((s, c) => s + c.solution_aware_plus, 0) : 0
@@ -279,6 +291,7 @@ return acc
                 <TableCell>Categoria</TableCell>
                 <TableCell>Segmento</TableCell>
                 <TableCell>Mercado BR</TableCell>
+                {Object.keys(pfMarket).length > 0 && <TableCell>🔬 Pré-flight</TableCell>}
                 <TableCell>Por que Importa?</TableCell>
               </TableRow>
             </TableHead>
@@ -312,6 +325,15 @@ return acc
                         <Typography fontWeight={600}>{info.market}</Typography>
                         <Typography variant='caption' color='text.secondary'>negócios</Typography>
                       </TableCell>
+                      {Object.keys(pfMarket).length > 0 && (
+                        <TableCell>
+                          {pfMarket[id] ? (
+                            <Chip label={pfMarket[id].toLocaleString('pt-BR')} size='small' color='secondary' variant='tonal' />
+                          ) : (
+                            <Typography variant='caption' color='text.disabled'>—</Typography>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.4 }}>
                           {info.why}
