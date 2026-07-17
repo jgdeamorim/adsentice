@@ -353,6 +353,22 @@ const DiscoveryPage = () => {
   const [batchDoneCost, setBatchDoneCost] = useState(0)  // final total cost after completion
   const [batchDoneListings, setBatchDoneListings] = useState(0)  // final listings count after completion
 
+  // ── PRE-FLIGHT state (limit=1 cost check per municipality) ──
+  const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number }>>({})
+  const [preflightRunning, setPreflightRunning] = useState(false)
+  const [preflightProgress, setPreflightProgress] = useState('')
+  const [searchedStates, setSearchedStates] = useState<Set<string>>(new Set())  // red dot
+
+  // Pre-flight: limit=1 for all municipalities → reveals EXACT total_count → exact cost
+  // Custo real: $0.01236/município (validado API live 2026-07-17)
+  const preflightCost = batchEffective > 0 ? batchEffective * 0.01236 : 0
+
+  // Real cost from preflight data (if available) vs heuristic estimate
+  const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / 100), 0)
+  const preflightL0Cost = preflightTotalPages * 0.048
+  const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost
+  const hasPreflight = Object.keys(preflightData).length > 0
+
   // ── Build municipality batch list ──
   function buildBatchList(): { nome: string; lat: number; lng: number }[] {
     if (batchMode === 'single') return [{ nome: cityLabel, lat: cityLat, lng: cityLng }]
@@ -494,12 +510,66 @@ const DiscoveryPage = () => {
       setPipelinePhase('done')
       setBatchProgress('')
       setSessionVersion(v => v + 1)  // triggers SessionLog auto-refresh
+      // Mark state as searched → red dot on capital chip
+      if (stateKey && !isContinue) {
+        setSearchedStates(prev => new Set([...prev, stateKey]))
+      }
       setTimeout(() => setPipelinePhase('idle'), 3000)
     }
   }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers, batchMode, rmMunicipios, selectedMunicipios, results])
 
   const doSearchRef = useRef(doSearch)
   doSearchRef.current = doSearch  // always points to latest, for session log Continue button
+
+  // ── PRE-FLIGHT: limit=1 em cada município → custo EXATO antes do batch ──
+  // Custo: $0.01236/município (validado API live 2026-07-17, Vitória/ES)
+  // total_count é idêntico independente do limit → revela páginas necessárias
+  const doPreflight = useCallback(async () => {
+    if (!selected.length || batchMode === 'single') return
+    const batch = buildBatchList()
+    if (batch.length === 0) return
+
+    setPreflightRunning(true)
+    setPreflightProgress(`🔬 0/${batch.length}`)
+    const data: Record<string, { totalCount: number; cost: number }> = {}
+
+    for (let i = 0; i < batch.length; i++) {
+      const m = batch[i]
+      setPreflightProgress(`🔬 ${m.nome} (${i + 1}/${batch.length})`)
+
+      try {
+        const res = await fetch('/api/discovery-search', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            categories: selected,
+            lat: m.lat, lng: m.lng,
+            radiusKm: radius,
+            limit: 1,
+            force: true,
+            enrich: 0,
+            paginate: false,
+          }),
+        })
+        if (res.ok) {
+          const json = await res.json()
+          data[m.nome] = {
+            totalCount: json.total_count || 0,
+            cost: json.cost_usd || 0.01236,
+          }
+        }
+      } catch { /* municipality offline — skip */ }
+
+      // Rate limit respect: 150ms between calls
+      if (i < batch.length - 1) await new Promise(r => setTimeout(r, 200))
+    }
+
+    setPreflightData(data)
+    setPreflightRunning(false)
+    setPreflightProgress('')
+
+    // Auto-open confirmation dialog with real costs
+    setTimeout(() => setConfirmOpen(true), 100)
+  }, [selected, radius, batchMode, rmMunicipios, selectedMunicipios])
 
   const toggle = (catId: string) => {
     setSelected(prev => prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId])
@@ -791,9 +861,11 @@ return colors[level ?? 0] || colors[0]
                 <Box sx={{ flex: 1 }} />
                 <Typography variant='caption' color='text.secondary'>Capitais:</Typography>
                 {BR_CAPITALS.map(c => (
-                  <Chip key={c.uf} label={c.uf} clickable size='small'
-                    color={stateKey === c.uf ? 'primary' : 'default'}
-                    variant={stateKey === c.uf ? 'filled' : 'outlined'}
+                  <Chip key={c.uf}
+                    label={searchedStates.has(c.uf) ? `🔴 ${c.uf}` : c.uf}
+                    clickable size='small'
+                    color={searchedStates.has(c.uf) ? 'error' : stateKey === c.uf ? 'primary' : 'default'}
+                    variant={searchedStates.has(c.uf) ? 'filled' : stateKey === c.uf ? 'filled' : 'outlined'}
                     onClick={() => { changeCapital(c); setGeoQuery(''); setGeoSuggestions([]) }}
                     sx={{ fontFamily: 'monospace', fontWeight: stateKey === c.uf ? 700 : 400, fontSize: '0.65rem' }} />
                 ))}
@@ -970,6 +1042,21 @@ return colors[level ?? 0] || colors[0]
                 )
               })}
             </Box>
+            {/* Pre-flight progress */}
+            {preflightRunning && (
+              <Box sx={{ mt: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+                  <Typography variant='caption' fontWeight={600} color='secondary.main'>
+                    🔬 {preflightProgress}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    ~${preflightCost.toFixed(4)} · limit=1 · $0.01236/mun
+                  </Typography>
+                </Box>
+                <LinearProgress variant='indeterminate' color='secondary' sx={{ height: 3, borderRadius: 2 }} />
+              </Box>
+            )}
+
             {/* Pipeline progress bar */}
             {loading && (
               <Box sx={{ mt: 1.5 }}>
@@ -1056,9 +1143,27 @@ return colors[level ?? 0] || colors[0]
                 color={forceRefresh ? 'warning' : 'default'} variant='tonal'
                 onClick={() => setForceRefresh(!forceRefresh)}
                 sx={{ cursor: 'pointer' }} />
+              {batchMode !== 'single' && (
+                <Button
+                  variant='outlined' size='small' color='secondary'
+                  disabled={selected.length === 0 || loading || preflightRunning}
+                  onClick={doPreflight}
+                  sx={{ fontSize: '0.7rem', fontFamily: 'monospace' }}
+                >
+                  {preflightRunning
+                    ? preflightProgress
+                    : hasPreflight
+                      ? `🔬 ATUALIZAR $${(preflightCost).toFixed(3)}`
+                      : `🔬 PREFLIGHT $${(preflightCost).toFixed(3)}`
+                  }
+                </Button>
+              )}
               <Button variant='contained' color='primary' disabled={selected.length === 0 || loading}
                 onClick={() => setConfirmOpen(true)}>
-                {loading ? 'Buscando...' : `Buscar Agora ($${(totalEstCost).toFixed(2)})`}
+                {loading ? 'Buscando...'
+                  : hasPreflight
+                    ? `Buscar Agora ($${preflightTotalCost.toFixed(2)})`
+                    : `Buscar Agora ($${(totalEstCost).toFixed(2)})`}
               </Button>
             </Box>
           </Box>
@@ -1143,40 +1248,81 @@ return (
 
           {/* ── Pipeline Breakdown (checkout) ── */}
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
-            <Typography variant='subtitle2' gutterBottom>📊 Pipeline selecionado</Typography>
+            <Typography variant='subtitle2' gutterBottom>
+              {hasPreflight ? '📊 Pipeline (REAL — via pre-flight limit=1)' : '📊 Pipeline selecionado'}
+            </Typography>
+
+            {/* Pre-flight: per-municipality real costs */}
+            {hasPreflight && (
+              <Box sx={{ mb: 1.5, maxHeight: 160, overflowY: 'auto' }}>
+                {Object.entries(preflightData).slice(0, 10).map(([nome, d]) => {
+                  const pages = Math.ceil(d.totalCount / 100)
+                  const cost = pages * 0.048
+                  return (
+                    <Box key={nome} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3 }}>
+                      <Typography variant='caption'>{nome}</Typography>
+                      <Typography variant='caption' fontWeight={600} fontFamily='monospace'>
+                        {d.totalCount.toLocaleString('pt-BR')} leads · {pages} págs · ${cost.toFixed(3)}
+                      </Typography>
+                    </Box>
+                  )
+                })}
+                {Object.keys(preflightData).length > 10 && (
+                  <Typography variant='caption' color='text.secondary'>
+                    +{Object.keys(preflightData).length - 10} municípios
+                  </Typography>
+                )}
+              </Box>
+            )}
+
             {[
-              { label: 'L0 · Google Maps Search', cost: l0MinCost, costEst: l0EstCost, detail: selected.length > 1
-                ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $0.048 — baseado em ${catCount} categorias`
-                : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
-                always: true, hasRange: selected.length > 1 },
+              { label: 'L0 · Google Maps Search', cost: hasPreflight ? preflightL0Cost : l0MinCost,
+                detail: hasPreflight
+                  ? `${preflightTotalPages} páginas reais × $0.048 (total_count via pre-flight limit=1)`
+                  : selected.length > 1
+                    ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $0.048 — baseado em ${catCount} categorias`
+                    : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
+                always: true },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)`, optional: true, selected: selectedLayers.l1 },
+              { label: '🔬 Pre-flight', cost: preflightCost, detail: `limit=1 × ${batchEffective} municípios · $0.01236/mun (API validado)`, always: true, isPreflight: true },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', always: true, free: true },
-            ].filter(s => s.always || s.selected).map((s, i, arr) => (
+            ].filter(s => s.always || s.selected).map((s: any, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
                 <Box>
                   <Typography variant='body2' fontWeight={600}>{s.label}</Typography>
                   <Typography variant='caption' color='text.secondary'>{s.detail}</Typography>
                 </Box>
                 <Typography variant='body2' fontWeight={700} color={s.cost > 0 ? 'warning.main' : 'success.main'}>
-                  {s.cost > 0 ? (s.hasRange ? `$${l0MinCost.toFixed(2)} — $${l0EstCost.toFixed(2)}` : `$${s.cost.toFixed(4)}`) : 'GRÁTIS'}
+                  {s.free ? 'GRÁTIS' : s.isPreflight ? `$${s.cost.toFixed(4)}` : `$${s.cost.toFixed(4)}`}
                 </Typography>
               </Box>
             ))}
             {/* Total */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, mt: 0.5 }}>
-              <Typography variant='subtitle2'>💰 {selected.length > 1 ? 'Estimado' : 'A partir de'}</Typography>
+              <Typography variant='subtitle2'>
+                💰 {hasPreflight ? 'TOTAL REAL (pré-flight)' : selected.length > 1 ? 'Estimado' : 'A partir de'}
+              </Typography>
               <Box sx={{ textAlign: 'right' }}>
-                <Typography variant='h6' color='warning.main' fontWeight={800}>
-                  ${selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
+                <Typography variant='h6' color={hasPreflight ? 'success.main' : 'warning.main'} fontWeight={800}>
+                  ${hasPreflight ? preflightTotalCost.toFixed(2) : selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>
-                  R${(totalEstCost * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias{selected.length > 1 ? ` · ~${estPagesPerMun} págs/mun` : ''}
+                  R${((hasPreflight ? preflightTotalCost : totalEstCost) * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias{hasPreflight ? ` · ${preflightTotalPages} págs reais` : selected.length > 1 ? ` · ~${estPagesPerMun} págs/mun` : ''}
                 </Typography>
               </Box>
             </Box>
           </Box>
 
-          {/* ⚠️ Real cost warning */}
+          {/* ⚠️ Pre-flight status or heuristic warning */}
+          {hasPreflight ? (
+            <Alert severity='success' sx={{ mt: 2 }}>
+              <Typography variant='caption'>
+                ✅ Custo <strong>REAL</strong> calculado via pre-flight limit=1 ({batchEffective} municípios).
+                {batchEffective > 1 && <> Cada município teve seu <strong>total_count</strong> real da API.</>}
+                Pre-flight custou <strong>${preflightCost.toFixed(4)}</strong> ({(preflightCost / preflightTotalCost * 100).toFixed(1)}% do batch).
+              </Typography>
+            </Alert>
+          ) : (
           <Alert severity='warning' sx={{ mt: 2 }}>
             <Typography variant='caption'>
               ⚠️ Este é o custo <strong>mínimo</strong> (1ª página por município). O custo real depende
@@ -1184,13 +1330,14 @@ return (
               Ex: Vitória 3 categorias 5km = <strong>3038 leads · 31 páginas · $1.49</strong>.
             </Typography>
           </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
           <Button variant='contained' color='primary'
             onClick={() => { setConfirmOpen(false); doSearch(forceRefresh); }}
             startIcon={<i className='ri-send-plane-line' />}>
-            Confirmar · ${totalMinCost.toFixed(3)}
+            Confirmar · ${hasPreflight ? preflightTotalCost.toFixed(2) : totalEstCost.toFixed(2)}
           </Button>
         </DialogActions>
       </Dialog>
