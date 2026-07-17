@@ -92,17 +92,18 @@ export default function DiscoverySessionLog({
     const pfMuns = new Set<string>()
     let totalLeads = 0; let totalPages = 0
 
-    // Build preflight municipality map
+    // Build preflight municipality map — match by nearest RM municipality
+    // Distance-based: find the closest rmMunicipios entry for each preflight lat/lng
     if (latestPf) {
       for (const m of latestPf.municipalities) {
-        // Match municipality name to RM list
-        const matched = rmMunicipios.find(rm => {
-          if (!rm.lat || !rm.lng) return false
+        let bestMatch: string | null = null; let bestD = Infinity
+        for (const rm of rmMunicipios) {
+          if (!rm.lat || !rm.lng) continue
           const d = Math.abs(m.lat - rm.lat) + Math.abs(m.lng - rm.lng)
-          return d < 0.3
-        })
-        if (matched) {
-          pfMuns.add(matched.nome)
+          if (d < bestD && d < 0.5) { bestD = d; bestMatch = rm.nome }
+        }
+        if (bestMatch) {
+          pfMuns.add(bestMatch)
           totalLeads += m.totalCount || 0
           totalPages += Math.ceil((m.totalCount || 0) / 100)
         }
@@ -142,15 +143,15 @@ export default function DiscoverySessionLog({
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
             {rmMunicipios.filter(m => m.lat && m.lng).map(m => {
               const hasPf = pfMuns.has(m.nome)
-              // Find the matching preflight entry for lead count
+              // Find the matching preflight entry by nearest coordinate
               let leadCount = 0
               if (hasPf && latestPf) {
-                const entry = latestPf.municipalities.find(pm => {
-                  if (!m.lat || !m.lng) return false
+                let bestD = Infinity
+                for (const pm of latestPf.municipalities) {
+                  if (!m.lat || !m.lng) continue
                   const d = Math.abs(pm.lat - m.lat) + Math.abs(pm.lng - m.lng)
-                  return d < 0.3
-                })
-                leadCount = entry?.totalCount || 0
+                  if (d < bestD && d < 0.5) { bestD = d; leadCount = pm.totalCount || 0 }
+                }
               }
               return (
                 <Tooltip key={m.nome} title={hasPf ? `${leadCount.toLocaleString('pt-BR')} leads` : 'Sem pre-flight'}>
