@@ -1,9 +1,10 @@
 'use client'
 
 // ══════════════════════════════════════════════════════════════════
-// ADSENTICE · DiscoverySessionLog — Histórico de sessão Discovery
-// Agrupa buscas por batch_id. Expansível para ver detalhes por município.
-// ADR-0029 · 2026-07-17
+// ADSENTICE · DiscoverySessionLog v2
+// Timeline visual · cards por município · agrupado por data
+// Auto-refresh ao completar busca · contexto real da RM
+// ADR-0029 v2 · 2026-07-17
 // ══════════════════════════════════════════════════════════════════
 
 import { useEffect, useState, useCallback } from 'react'
@@ -18,269 +19,316 @@ import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import Collapse from '@mui/material/Collapse'
+import { keyframes } from '@mui/material/styles'
 
-interface SessionEntry {
-  id: string
-  categories: string[]
+// ── Types ──
+interface MunEntry {
+  id: string; categories: string[]; catLabels: string[]
   lat: number; lng: number; radiusKm: number
-  totalCount: number; costUsd: number; avgScore: number
-  listingsSaved: number
+  totalCount: number; costUsd: number
+  city: string; uf: string; progressPct: number
   cacheTtl: number | null; cacheActive: boolean
-  trackerId: string; batchId: string | null
+  trackerId: string; isIncomplete: boolean
   fetchedCount: number; remaining: number
   pagesFetched: number; offsetsUsed: number[]
-  isIncomplete: boolean
-  createdAt: string
+  createdAt: string; listingsSaved: number
+  avgScore: number
 }
 
-interface BatchGroup {
+interface BatchInfo {
   batchId: string
-  sessions: SessionEntry[]
-  totalCost: number
-  totalLeads: number
-  municipalityCount: number
-  hasActiveCache: boolean
-  hasIncomplete: boolean
-  newestAt: string
-  categories: string[]
+  municipalities: MunEntry[]
+  totalCost: number; totalLeads: number
+  munCount: number; completeCount: number
+  hasIncomplete: boolean; hasActiveCache: boolean
+  newestAt: string; dateGroup: string
+  categories: string[]; catLabels: string[]
+  uf: string; city: string; radiusKm: number
 }
 
-interface ContinueParams {
-  categories: string[]; lat: number; lng: number
-  radiusKm: number; offset: number; trackerId: string
+interface SessionSummary { totalSearches: number; totalCost: number; activeCaches: number; incompleteBatches: number }
+
+export interface ContinueParams { categories: string[]; lat: number; lng: number; radiusKm: number; offset: number; trackerId: string }
+
+// ── Helpers ──
+function fmtRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.round(diff / 60000)
+  if (mins < 1) return 'agora'
+  if (mins < 60) return `há ${mins}min`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `há ${hours}h`
+  return `há ${Math.round(hours / 24)}d`
 }
 
-const CAT_LABELS: Record<string, string> = {
-  dentist: '🦷 Dentista', medical_aesthetic_clinic: '💉 Estética',
-  restaurant: '🍽️ Restaurante', gym: '🏋️ Academia', lawyer: '⚖️ Advogado',
-  beauty_salon: '💇 Salão', pharmacy: '💊 Farmácia', veterinarian: '🐾 Veterinário',
-  psychologist: '🧠 Psicólogo', physical_therapist: '🦴 Fisioterapeuta',
-  barber_shop: '💈 Barbearia', accountant: '📊 Contador',
-}
-function catLabel(c: string): string { return CAT_LABELS[c] || c }
-
-function fmtTtl(seconds: number): string {
-  if (seconds <= 0) return 'expirado'
-  if (seconds < 60) return `${seconds}s`
-  if (seconds < 3600) return `${Math.round(seconds / 60)}min`
-  return `${Math.round(seconds / 3600)}h`
+function fmtTtl(s: number): string {
+  if (s <= 0) return 'expirado'
+  if (s < 3600) return `${Math.round(s / 60)}min`
+  return `${Math.round(s / 3600)}h`
 }
 
-function fmtTime(iso: string): string {
-  try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
-  catch { return iso?.slice(0, 16) || '' }
-}
+const pulse = keyframes`
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+`
 
-const CAPS: [string, number, number][] = [
-  ['São Paulo', -23.55, -46.63], ['Rio de Janeiro', -22.91, -43.17],
-  ['Vitória', -20.32, -40.34], ['Belo Horizonte', -19.92, -43.93],
-  ['Brasília', -15.78, -47.93], ['Salvador', -12.97, -38.50],
-  ['Fortaleza', -3.72, -38.53], ['Recife', -8.05, -34.88],
-  ['Curitiba', -25.43, -49.27], ['Porto Alegre', -30.03, -51.23],
-]
-function nearestCapital(lat: number, lng: number): string {
-  let best = 'BR'; let bestD = Infinity
-  for (const c of CAPS) {
-    const d = Math.abs(lat - c[1]) + Math.abs(lng - c[2]) * 0.5
-    if (d < bestD && d < 2) { bestD = d; best = c[0] }
-  }
-  return best
-}
-
-export default function DiscoverySessionLog({ onContinue }: { onContinue?: (params: ContinueParams) => void }) {
-  const [sessions, setSessions] = useState<SessionEntry[]>([])
+// ── Component ──
+export default function DiscoverySessionLog({ refreshTrigger, onContinue }: {
+  refreshTrigger?: number
+  onContinue?: (p: ContinueParams) => void
+}) {
+  const [batches, setBatches] = useState<BatchInfo[]>([])
+  const [orphans, setOrphans] = useState<MunEntry[]>([])
+  const [summary, setSummary] = useState<SessionSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
+  const [animBatch, setAnimBatch] = useState<string | null>(null)
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/discovery/sessions')
       const data = await res.json()
-      setSessions(data.sessions || [])
-    } catch { /* offline */ }
-    finally { setLoading(false) }
+      setBatches(data.batches || [])
+      setOrphans(data.orphans || [])
+      setSummary(data.summary || null)
+      // Animate newest batch briefly
+      if (data.batches?.length) {
+        const newest = data.batches[0].batchId
+        setAnimBatch(newest)
+        setTimeout(() => setAnimBatch(null), 3000)
+      }
+    } catch {} finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { fetchSessions() }, [fetchSessions])
+  useEffect(() => { fetchSessions() }, [fetchSessions, refreshTrigger])
 
   if (loading) return <Card><CardContent><LinearProgress /></CardContent></Card>
-  if (sessions.length === 0) return null
+  if (!batches.length && !orphans.length) return null
 
-  // ── Group by batch_id ──
-  const grouped = new Map<string, SessionEntry[]>()
-  const orphans: SessionEntry[] = []
-
-  for (const s of sessions) {
-    if (s.batchId) {
-      const g = grouped.get(s.batchId) || []
-      g.push(s)
-      grouped.set(s.batchId, g)
-    } else {
-      orphans.push(s)
-    }
+  // Group by dateGroup (Hoje / Ontem / dd/mm)
+  const dateGroups = new Map<string, BatchInfo[]>()
+  for (const b of batches) {
+    const g = dateGroups.get(b.dateGroup) || []
+    g.push(b); dateGroups.set(b.dateGroup, g)
   }
 
-  const batches: BatchGroup[] = [...grouped.entries()].map(([batchId, batchSessions]) => ({
-    batchId,
-    sessions: batchSessions,
-    totalCost: batchSessions.reduce((sum, s) => sum + (s.costUsd || 0), 0),
-    totalLeads: batchSessions.reduce((sum, s) => sum + (s.fetchedCount || 0), 0),
-    municipalityCount: batchSessions.length,
-    hasActiveCache: batchSessions.some(s => s.cacheActive),
-    hasIncomplete: batchSessions.some(s => s.isIncomplete),
-    newestAt: batchSessions[0]?.createdAt || '',
-    categories: [...new Set(batchSessions.flatMap(s => s.categories))],
-  }))
-
-  const totalBatches = batches.length + (orphans.length > 0 ? 1 : 0)
-
   return (
-    <Card>
+    <Card sx={{ borderTop: '2px solid', borderColor: 'primary.main' }}>
       <CardContent sx={{ pb: 1.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant='subtitle2' fontWeight={600}>
-            📋 Histórico de Sessão · {totalBatches} {totalBatches === 1 ? 'batch' : 'batches'}
-          </Typography>
+        {/* ── Header ── */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant='subtitle1' fontWeight={700}>
+              📋 Histórico de Discovery
+            </Typography>
+            <Typography variant='caption' color='text.secondary'>
+              {summary ? `${summary.totalSearches} buscas · $${summary.totalCost.toFixed(4)} · ${summary.activeCaches} em cache` : ''}
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Chip label={`${sessions.length} buscas`} size='small' variant='tonal' color='primary' />
-            {batches.filter(b => b.hasIncomplete).length > 0 && (
-              <Chip label={`⚠️ ${batches.filter(b => b.hasIncomplete).length} incompletos`} size='small' color='warning' />
+            {summary && summary.incompleteBatches > 0 && (
+              <Chip label={`⚠️ ${summary.incompleteBatches} incompletos`} size='small' color='warning' />
             )}
             <Tooltip title='Atualizar'>
-              <IconButton size='small' onClick={fetchSessions}>
-                <span style={{ fontSize: '1rem' }}>🔄</span>
-              </IconButton>
+              <IconButton size='small' onClick={fetchSessions}><span style={{ fontSize: '1rem' }}>🔄</span></IconButton>
             </Tooltip>
           </Box>
         </Box>
 
-        <Alert severity='info' sx={{ mb: 1.5, py: 0 }}>
-          <Typography variant='caption'>
-            ⚡ DataForSEO: 2000 req/min · Cada batch = 1 linha · Clique para expandir municípios
-          </Typography>
+        {/* ── Rate limit info ── */}
+        <Alert severity='info' sx={{ mb: 2, py: 0, '& .MuiAlert-message': { py: 0.3 } }}>
+          <Typography variant='caption'>⚡ DataForSEO: 2000 req/min · 30 simultâneas · 150ms entre municípios</Typography>
         </Alert>
 
-        {/* ── BATCH GROUPS ── */}
-        {batches.map((batch) => {
-          const isExpanded = expandedBatch === batch.batchId
-          const completePct = batch.sessions.length > 0
-            ? Math.round((batch.sessions.filter(s => !s.isIncomplete).length / batch.sessions.length) * 100)
-            : 100
-
-          return (
-            <Box key={batch.batchId} sx={{ mb: 1 }}>
-              {/* Batch header row */}
-              <Box
-                onClick={() => setExpandedBatch(isExpanded ? null : batch.batchId)}
-                sx={{
-                  display: 'flex', gap: 1.5, alignItems: 'center', py: 1.5, px: 1,
-                  bgcolor: batch.hasIncomplete ? 'warning.50' : 'grey.50',
-                  borderRadius: 1, cursor: 'pointer',
-                  border: '1px solid', borderColor: 'divider',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Chip label={isExpanded ? '▼' : '▶'} size='small' variant='outlined' sx={{ minWidth: 32 }} />
-
-                {/* Status */}
-                {batch.hasIncomplete ? (
-                  <Chip label={`⚠️ ${completePct}%`} size='small' color='warning' />
-                ) : batch.hasActiveCache ? (
-                  <Chip label='🟢 Completo' size='small' color='success' variant='tonal' />
-                ) : (
-                  <Chip label='🔴 Expirado' size='small' color='default' variant='tonal' />
-                )}
-
-                {/* Categories */}
-                <Typography variant='body2' fontWeight={600} noWrap sx={{ minWidth: 80 }}>
-                  {batch.categories.slice(0, 2).map(catLabel).join(', ')}
-                  {batch.categories.length > 2 ? ` +${batch.categories.length - 2}` : ''}
+        {/* ── Timeline ── */}
+        <Box sx={{ position: 'relative' }}>
+          {[...dateGroups.entries()].map(([dateGroup, groupBatches]) => (
+            <Box key={dateGroup} sx={{ mb: 3 }}>
+              {/* Date header */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
+                <Typography variant='overline' fontWeight={700} color='primary' sx={{ letterSpacing: 1 }}>
+                  {dateGroup}
                 </Typography>
-
-                {/* Municipality count */}
-                <Chip label={`${batch.municipalityCount} municípios`} size='small' variant='outlined' />
-
-                {/* Total leads */}
-                <Typography variant='body2' fontWeight={600}>
-                  {batch.totalLeads.toLocaleString('pt-BR')} leads
-                </Typography>
-
-                {/* Cost */}
-                <Chip label={`$${batch.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-
-                {/* Batch ID */}
-                <Typography variant='caption' sx={{ fontFamily: 'monospace', color: 'text.secondary', fontSize: '0.6rem' }}>
-                  🔑 {batch.batchId.slice(0, 14)}
-                </Typography>
-
-                {/* Time */}
-                <Typography variant='caption' color='text.secondary' sx={{ ml: 'auto' }}>
-                  {fmtTime(batch.newestAt)}
+                <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
+                <Typography variant='caption' color='text.secondary'>
+                  {groupBatches.length} {groupBatches.length === 1 ? 'batch' : 'batches'}
                 </Typography>
               </Box>
 
-              {/* Expanded: municipality details */}
-              <Collapse in={isExpanded}>
-                <Box sx={{ pl: 4, pr: 1, py: 1 }}>
-                  {batch.sessions.map((s) => {
-                    const pct = s.totalCount > 0 ? Math.round(((s.fetchedCount || 0) / s.totalCount) * 100) : 100
-                    return (
-                      <Box key={s.id} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap' }}>
-                        <Chip
-                          label={s.isIncomplete ? '⚠️' : s.cacheActive ? '🟢' : '🔴'}
-                          size='small' variant='tonal'
-                          color={s.isIncomplete ? 'warning' : s.cacheActive ? 'success' : 'default'}
-                          sx={{ minWidth: 38 }}
-                        />
-                        <Chip label={nearestCapital(s.lat, s.lng)} size='small' variant='outlined' />
-                        <Typography variant='caption'>{s.radiusKm}km</Typography>
-                        <Box sx={{ flex: 1, minWidth: 100, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <LinearProgress variant='determinate' value={pct} color={s.isIncomplete ? 'warning' : 'success'} sx={{ flex: 1, height: 4, borderRadius: 2 }} />
-                          <Typography variant='caption' fontWeight={600}>{s.fetchedCount || 0}/{s.totalCount}</Typography>
-                        </Box>
-                        <Chip label={`$${s.costUsd.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-                        {s.cacheTtl && s.cacheTtl > 0 ? (
-                          <Chip label={fmtTtl(s.cacheTtl)} size='small' color='success' variant='tonal' />
-                        ) : <Typography variant='caption' color='text.disabled'>—</Typography>}
-                        <Typography variant='caption' sx={{ fontFamily: 'monospace', fontSize: '0.55rem', color: 'text.secondary' }}>
-                          {s.trackerId.slice(0, 14)}
-                        </Typography>
-                        {s.isIncomplete && s.remaining > 0 && onContinue && (
-                          <Button size='small' variant='outlined' color='warning' sx={{ fontSize: '0.6rem', py: 0, ml: 'auto' }}
-                            onClick={(e) => { e.stopPropagation(); onContinue({ categories: s.categories, lat: s.lat, lng: s.lng, radiusKm: s.radiusKm, offset: (s.offsetsUsed?.[s.offsetsUsed.length - 1] || 0) + 100, trackerId: s.trackerId }) }}>
-                            ▶ +{s.remaining}
-                          </Button>
-                        )}
-                      </Box>
-                    )
-                  })}
-                </Box>
-              </Collapse>
-            </Box>
-          )
-        })}
+              {/* Batch cards */}
+              {groupBatches.map((batch) => {
+                const isExpanded = expandedBatch === batch.batchId
+                const isNew = animBatch === batch.batchId
+                const donePct = Math.round((batch.completeCount / batch.munCount) * 100)
 
-        {/* ── Ungrouped (pré-batch_id) ── */}
+                return (
+                  <Box key={batch.batchId} sx={{ ml: 3, mb: 1.5, position: 'relative' }}>
+                    {/* Vertical timeline connector */}
+                    <Box sx={{
+                      position: 'absolute', left: -18, top: 24, bottom: -24,
+                      width: 2, bgcolor: 'divider',
+                      display: groupBatches.indexOf(batch) === groupBatches.length - 1 ? 'none' : 'block',
+                    }} />
+
+                    {/* Batch card */}
+                    <Box
+                      onClick={() => setExpandedBatch(isExpanded ? null : batch.batchId)}
+                      sx={{
+                        border: '1px solid', borderRadius: 2,
+                        borderColor: isNew ? 'primary.main' : batch.hasIncomplete ? 'warning.main' : 'divider',
+                        bgcolor: isNew ? 'primary.50' : 'background.paper',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        animation: isNew ? `${pulse} 1.5s ease-in-out` : 'none',
+                        transition: 'box-shadow 0.2s',
+                        '&:hover': { boxShadow: 2 },
+                      }}
+                    >
+                      {/* Top row: context + status */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1.5, flexWrap: 'wrap' }}>
+                        {/* Status dot */}
+                        <Box sx={{
+                          width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                          bgcolor: batch.hasIncomplete ? 'warning.main' : batch.hasActiveCache ? 'success.main' : 'text.disabled',
+                        }} />
+
+                        {/* Categories */}
+                        <Typography variant='body2' fontWeight={700} noWrap>
+                          {batch.catLabels.join(' · ')}
+                        </Typography>
+
+                        {/* Context: RM + state */}
+                        <Chip label={`${batch.city} · ${batch.uf}`} size='small' color='primary' variant='tonal' />
+
+                        {/* Pipeline badge */}
+                        <Chip label='L0+L4' size='small' variant='outlined' sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }} />
+
+                        {/* Municipality count */}
+                        <Chip
+                          icon={<span>{isExpanded ? '▼' : '▶'}</span>}
+                          label={`${batch.munCount} municípios`}
+                          size='small' variant='outlined'
+                        />
+
+                        {/* Progress */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 100 }}>
+                          <LinearProgress
+                            variant='determinate' value={donePct}
+                            color={batch.hasIncomplete ? 'warning' : 'success'}
+                            sx={{ flex: 1, height: 5, borderRadius: 3 }}
+                          />
+                          <Typography variant='caption' fontWeight={600}>
+                            {batch.completeCount}/{batch.munCount}
+                          </Typography>
+                        </Box>
+
+                        {/* Cost */}
+                        <Chip label={`$${batch.totalCost.toFixed(4)}`} size='small' variant='tonal' color='warning' />
+
+                        {/* Time */}
+                        <Tooltip title={new Date(batch.newestAt).toLocaleString('pt-BR')}>
+                          <Typography variant='caption' color='text.secondary' sx={{ ml: 'auto' }}>
+                            {fmtRelative(batch.newestAt)}
+                          </Typography>
+                        </Tooltip>
+                      </Box>
+
+                      {/* Expanded: municipality cards */}
+                      <Collapse in={isExpanded}>
+                        <Box sx={{ borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50', px: 2, py: 1 }}>
+                          {batch.municipalities.map((m) => (
+                            <Box key={m.id} sx={{
+                              display: 'flex', alignItems: 'center', gap: 1, py: 1,
+                              borderBottom: '1px solid', borderColor: 'divider',
+                              '&:last-child': { borderBottom: 'none' },
+                              flexWrap: 'wrap',
+                            }}>
+                              {/* Mun status */}
+                              <Box sx={{
+                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                bgcolor: m.isIncomplete ? 'warning.main' : m.cacheActive ? 'success.main' : 'text.disabled',
+                              }} />
+
+                              {/* Mun name */}
+                              <Typography variant='body2' fontWeight={600} sx={{ minWidth: 80 }}>
+                                {m.city}
+                              </Typography>
+
+                              {/* Radius */}
+                              <Typography variant='caption' color='text.secondary'>{m.radiusKm}km</Typography>
+
+                              {/* Progress */}
+                              <Box sx={{ flex: 1, minWidth: 120, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <LinearProgress
+                                  variant='determinate' value={m.progressPct}
+                                  color={m.isIncomplete ? 'warning' : 'success'}
+                                  sx={{ flex: 1, height: 4, borderRadius: 2 }}
+                                />
+                                <Typography variant='caption' fontWeight={600} noWrap>
+                                  {m.fetchedCount || m.listingsSaved}/{m.totalCount}
+                                </Typography>
+                              </Box>
+
+                              {/* Leads count */}
+                              <Chip label={`${m.listingsSaved} leads`} size='small' variant='outlined' sx={{ height: 20, fontSize: '0.65rem' }} />
+
+                              {/* Cost */}
+                              <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace' }}>
+                                ${m.costUsd.toFixed(4)}
+                              </Typography>
+
+                              {/* Cache TTL */}
+                              {m.cacheActive && m.cacheTtl ? (
+                                <Chip label={`🟢 ${fmtTtl(m.cacheTtl)}`} size='small' color='success' variant='tonal' sx={{ height: 20, fontSize: '0.6rem' }} />
+                              ) : (
+                                <Chip label='🔴 expirado' size='small' variant='tonal' sx={{ height: 20, fontSize: '0.6rem', opacity: 0.6 }} />
+                              )}
+
+                              {/* Continue button */}
+                              {m.isIncomplete && m.remaining > 0 && onContinue && (
+                                <Button
+                                  size='small' variant='contained' color='warning'
+                                  sx={{ fontSize: '0.6rem', py: 0, px: 1, ml: 'auto', minWidth: 0 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const nextOffset = (m.offsetsUsed?.[m.offsetsUsed.length - 1] || 0) + 100
+                                    onContinue({ categories: m.categories, lat: m.lat, lng: m.lng, radiusKm: m.radiusKm, offset: nextOffset, trackerId: m.trackerId })
+                                  }}
+                                >
+                                  ▶ +{m.remaining}
+                                </Button>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Collapse>
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          ))}
+        </Box>
+
+        {/* ── Orphans (pré-batch_id) ── */}
         {orphans.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant='caption' color='text.secondary' sx={{ mb: 0.5, display: 'block' }}>
-              🔹 Buscas avulsas (sem batch_id — anteriores a 2026-07-17)
+          <Box sx={{ mt: 3, borderTop: '1px dashed', borderColor: 'divider', pt: 2 }}>
+            <Typography variant='caption' color='text.secondary' sx={{ mb: 1, display: 'block' }}>
+              🔹 Buscas avulsas (sem batch_id — sessões anteriores)
             </Typography>
-            {orphans.slice(0, 5).map((s) => (
-              <Box key={s.id} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap', opacity: 0.7 }}>
-                <Chip label={s.cacheActive ? '🟢' : '🔴'} size='small' variant='tonal' color={s.cacheActive ? 'success' : 'default'} sx={{ minWidth: 38 }} />
-                <Typography variant='body2'>{s.categories.slice(0, 2).map(catLabel).join(', ')}</Typography>
-                <Chip label={nearestCapital(s.lat, s.lng)} size='small' variant='outlined' />
-                <Typography variant='caption'>{s.totalCount} leads</Typography>
-                <Chip label={`$${s.costUsd.toFixed(4)}`} size='small' variant='tonal' color='warning' />
-                <Typography variant='caption' color='text.secondary'>{fmtTime(s.createdAt)}</Typography>
+            {orphans.slice(0, 3).map(m => (
+              <Box key={m.id} sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.5, opacity: 0.65 }}>
+                <Chip label={m.cacheActive ? '🟢' : '🔴'} size='small' sx={{ minWidth: 38 }} />
+                <Typography variant='caption'>{m.catLabels.join(', ')}</Typography>
+                <Chip label={m.city} size='small' variant='outlined' />
+                <Typography variant='caption'>{m.totalCount} leads</Typography>
+                <Chip label={`$${m.costUsd.toFixed(4)}`} size='small' color='warning' variant='tonal' />
+                <Typography variant='caption' color='text.secondary'>{fmtRelative(m.createdAt)}</Typography>
               </Box>
             ))}
-            {orphans.length > 5 && (
-              <Typography variant='caption' color='text.secondary'>+{orphans.length - 5} buscas antigas</Typography>
-            )}
           </Box>
         )}
       </CardContent>

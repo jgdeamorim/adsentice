@@ -303,6 +303,7 @@ const DiscoveryPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [forceRefresh, setForceRefresh] = useState(false)
+  const [sessionVersion, setSessionVersion] = useState(0)  // triggers SessionLog refresh
 
   // ── Pipeline Config (ADR-0026) ──
   const [selectedLayers, setSelectedLayers] = useState<{ l0: true; l1: boolean; l4: true }>({
@@ -470,6 +471,7 @@ const DiscoveryPage = () => {
       setLoading(false)
       setPipelinePhase('done')
       setBatchProgress('')
+      setSessionVersion(v => v + 1)  // triggers SessionLog auto-refresh
       setTimeout(() => setPipelinePhase('idle'), 3000)
     }
   }, [selected, cityLat, cityLng, radius, forceRefresh, selectedLayers, batchMode, rmMunicipios, selectedMunicipios, results])
@@ -1707,6 +1709,7 @@ return (
       {/* ═══ Session Log (ADR-0029) ═══ */}
       <Grid size={{ xs: 12 }}>
         <DiscoverySessionLog
+          refreshTrigger={sessionVersion}
           onContinue={(params) => {
             setSelected(params.categories)
             setCityLat(params.lat)
