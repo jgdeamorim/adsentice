@@ -291,6 +291,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
+import { searchDesignInspiration, queryDesignBestPractices } from "./warp-kg"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[] }
@@ -554,7 +555,20 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const website = lead.website || "sem site"
     const claimed = lead.is_claimed ? "✅ Sim" : "❌ Não"
 
-    // 6. Build HTML (FULL Python template port)
+    // 6. Design Intelligence (Qdrant live · adsentice vivo)
+    const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
+    const inspoUrls = designIntel?.inspirationUrls || []
+
+    // Auto-critique via design knowledge
+    const critiqueNotes: string[] = []
+    if (designIntel) {
+      if (designIntel.colorRecommendation) critiqueNotes.push(`🎨 ${designIntel.colorRecommendation}`)
+      if (designIntel.typographyRecommendation) critiqueNotes.push(`🔤 ${designIntel.typographyRecommendation}`)
+      if (designIntel.motionRecommendation) critiqueNotes.push(`🎯 ${designIntel.motionRecommendation}`)
+    }
+    const hasCritique = critiqueNotes.length > 0
+
+    // 7. Build HTML (FULL Python template port + Qdrant design intelligence)
     const html = `<!DOCTYPE html><html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="${copy.headline}">
@@ -653,6 +667,7 @@ ${gaps.map(g => {
 }).join("")}
 </div>
 <div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" target="_blank">💬 ${copy.cta} no WhatsApp</a></div></div>
+${hasCritique ? `<div class="section" style="padding-top:0"><div class="info-grid"><div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div></div></div>` : ""}
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
 

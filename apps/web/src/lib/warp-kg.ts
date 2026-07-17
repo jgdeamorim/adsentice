@@ -186,3 +186,58 @@ export async function searchDesignInspiration(segment: string, surface: string):
     return []
   }
 }
+
+/** Query design best practices for a segment + surface from Qdrant.
+ *  Returns CSS/design recommendations from the 6,267 design knowledge points. */
+export async function queryDesignBestPractices(segment: string, surface: string): Promise<{
+  colorRecommendation: string
+  typographyRecommendation: string
+  spacingRecommendation: string
+  motionRecommendation: string
+  inspirationUrls: string[]
+}> {
+  try {
+    const query = `${segment} ${surface} best design practices landing page conversion optimization`
+    const vec = await embedQuery(query)
+    if (vec.length === 0) {
+      return {
+        colorRecommendation: "Use high contrast primary color with white background",
+        typographyRecommendation: "Sans-serif, 16px base, 1.5 line-height",
+        spacingRecommendation: "1.5rem grid, generous whitespace",
+        motionRecommendation: "subtle transitions, 200ms ease",
+        inspirationUrls: [],
+      }
+    }
+    
+    const results = await qdrantSearch(vec, {
+      must: [{ key: "tag", match: { value: "adsentice-warp" } }],
+    }, 5)
+    
+    const sources = results.map(p => (p.payload?.source as string) || "").filter(Boolean)
+    
+    // Derive recommendations from design knowledge
+    const recs: Record<string, string> = {}
+    for (const r of results) {
+      const payload = r.payload || {}
+      const name = (payload.name as string) || ""
+      const kind = (payload.kind as string) || ""
+      if (name && kind) recs[kind] = name
+    }
+    
+    return {
+      colorRecommendation: recs["color"] || `Use segment-appropriate palette (${segment} market research)`,
+      typographyRecommendation: recs["typography"] || "Inter font family, 65ch max-width for readability",
+      spacingRecommendation: recs["spacing"] || "1.5rem base grid with responsive breakpoints",
+      motionRecommendation: recs["motion"] || "Prefer reduced motion for accessibility, 200ms for interactions",
+      inspirationUrls: sources.slice(0, 3),
+    }
+  } catch {
+    return {
+      colorRecommendation: "OKLCH palette derived from market segment",
+      typographyRecommendation: "System font stack with 1.5 line-height",
+      spacingRecommendation: "Consistent 1.5rem rhythm",
+      motionRecommendation: "subtle, accessible transitions",
+      inspirationUrls: [],
+    }
+  }
+}
