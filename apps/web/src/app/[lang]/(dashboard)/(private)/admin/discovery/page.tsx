@@ -36,7 +36,7 @@ import DiscoveryAutoPilot from '@/components/DiscoveryAutoPilot'
 import BrazilDiscoveryMap from '@/components/BrazilDiscoveryMap'
 import DiscoverySessionLog from '@/components/DiscoverySessionLog'
 
-import { BR_CAPITALS, suggestRadius } from '@/lib/geo-data'
+import { BR_CAPITALS, suggestRadius, suggestRadiusByArea } from '@/lib/geo-data'
 
 // ── Scoring types (client-safe) ──
 interface ScoreData {
@@ -352,6 +352,7 @@ const DiscoveryPage = () => {
   const [batchLastTotalCount, setBatchLastTotalCount] = useState(0)  // last municipality total_count
   const [batchDoneCost, setBatchDoneCost] = useState(0)  // final total cost after completion
   const [batchDoneListings, setBatchDoneListings] = useState(0)  // final listings count after completion
+  const [ibgeAreas, setIbgeAreas] = useState<Record<string, number>>({})  // municipio_nome → area_km2
 
   // ── PRE-FLIGHT state (limit=1 cost check per municipality) ──
   const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number }>>({})
@@ -527,6 +528,19 @@ const DiscoveryPage = () => {
     const cats = catOverride || selected
     if (municipios.length === 0 || !cats.length) return {}
 
+    // Lazy-load IBGE areas for radius calculation (server-side API, $0)
+    if (!Object.keys(ibgeAreas).length) {
+      try {
+        const res = await fetch('/api/geo/ibge-areas')
+        if (res.ok) {
+          const json = await res.json()
+          setIbgeAreas(json.areas || {})
+        }
+      } catch { /* API offline — fallthrough to default 15km */ }
+    }
+
+    const areas = ibgeAreas  // snapshot
+
     setPreflightRunning(true)
     setPreflightProgress(`🔬 0/${municipios.length}`)
     const data: Record<string, { totalCount: number; cost: number }> = {}
@@ -537,12 +551,18 @@ const DiscoveryPage = () => {
       setPreflightProgress(`🔬 ${m.nome} (${i + 1}/${municipios.length})`)
 
       try {
+        // Raio inteligente via IBGE area_km2 (ADR-0030)
+        const normalize = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')
+        const areaKm2 = areas[normalize(m.nome)]
+        const { radiusKm: smartRadius } = suggestRadiusByArea(areaKm2 || 0)
+        const preflightRadius = areaKm2 ? smartRadius : 15
+
         const res = await fetch('/api/discovery-search', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             categories: cats.slice(0, 10),  // DataForSEO max 10 cats
             lat: m.lat, lng: m.lng,
-            radiusKm: 15,  // pre-flight: 15km fixo para cobertura territorial (ADR-0030)
+            radiusKm: preflightRadius,  // IBGE area-based: 5-25km (ADR-0030)
             limit: 1,
             force: true,
             enrich: 0,
