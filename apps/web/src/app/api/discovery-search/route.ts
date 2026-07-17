@@ -542,39 +542,41 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // ═══ City Fallback: Nominatim reverse geocode para listings sem city ═══
-      // DataForSEO às vezes retorna address_info.city = null (ex: perfis GMB incompletos).
-      // Sem city, o L4 IBGE não consegue fazer match → listing fica sem contexto.
-      // Solução: reverse geocode via Nominatim (gratuito, ~1 req/s) usando lat/lng.
-      let cityFallbackCount = 0
-      for (let i = 0; i < listings.length; i++) {
-        const l = listings[i] as any
-        if (!l.city && l.latitude && l.longitude) {
-          try {
-            const geo = await reverseGeocode(l.latitude, l.longitude)
-            if (geo?.city) {
-              l.city = geo.city
-              l.district = geo.district || l.district
-              cityFallbackCount++
-            }
-          } catch { /* Nominatim offline — prossegue sem city */ }
-        }
-      }
-      if (cityFallbackCount > 0) {
-        console.log(`[enrichment] City fallback: ${cityFallbackCount}/${listings.length} listings filled via Nominatim`)
-      }
-
       // ═══ L2 + L3: ADIADO para pós-conversão ═══
       // Estratégia: L0+L1+L4 → Raio-X Warp (lead magnet) → conversão → L2 (SEO) + L3 (Social)
       // Executar L2/L3 só quando o lead já engajou — economia de ~30% por Discovery
       // Para ativar: descomentar blocos abaixo e ajustar custos no payload
-
-      // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
-      const l4Result = await enrichTopLeadsL4(listings, scores)
-
-      listings = l4Result.l4EnrichedListings
-      scores = l4Result.l4EnrichedScores
     }
+
+    // ═══ City Fallback: Nominatim reverse geocode para listings sem city ═══
+    // Roda SEMPRE após L0 (independente de L1), custo $0.
+    // DataForSEO às vezes retorna address_info.city = null (ex: perfis GMB incompletos).
+    // Sem city, o L4 IBGE não consegue fazer match → listing fica sem contexto.
+    // Modo L0+L4 (sem L1): essencial — é o único fallback de city disponível.
+    let cityFallbackCount = 0
+    for (let i = 0; i < listings.length; i++) {
+      const l = listings[i] as any
+      if (!l.city && l.latitude && l.longitude) {
+        try {
+          const geo = await reverseGeocode(l.latitude, l.longitude)
+          if (geo?.city) {
+            l.city = geo.city
+            l.district = geo.district || l.district
+            cityFallbackCount++
+          }
+        } catch { /* Nominatim offline — prossegue sem city */ }
+      }
+    }
+    if (cityFallbackCount > 0) {
+      console.log(`[enrichment] City fallback: ${cityFallbackCount}/${listings.length} listings filled via Nominatim`)
+    }
+
+    // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
+    // Roda SEMPRE (independente de L1). $0/lead, usa ibge_panorama + ibge_income.
+    const l4Result = await enrichTopLeadsL4(listings, scores)
+
+    listings = l4Result.l4EnrichedListings
+    scores = l4Result.l4EnrichedScores
 
     // ═══ FINAL SCORING + DISTRIBUTION ═══
     const distribution: ScoreDistribution = computeDistribution(scores)
