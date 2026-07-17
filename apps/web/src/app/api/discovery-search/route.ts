@@ -744,6 +744,20 @@ return null
       console.log("[discovery-persistence] ⚠️ Supabase offline — dados salvos no Redis (7d) + R2 vault")
     }
     } // end if (!preflight)
+    else {
+      // Pre-flight: salva APENAS metadata no Supabase (sem listings/cache/R2).
+      // Session Log precisa desta row para mostrar o pre-flight no historico.
+      const supabasePf = getAdminClient()
+      supabasePf.from("discovery_searches" as any).insert({
+        categories, lat: lat || -23.55, lng: lng || -46.63,
+        radius_km: radiusKm || 10, total_count: result.total_count,
+        cost_usd: searchCost, search_metadata: searchMetadata,
+      }).select("id").single().then((r: any) => {
+        if (r.data) console.log(`[preflight] Saved metadata · total_count=${result.total_count} · cost=$${searchCost.toFixed(6)}`)
+      }).catch(() => {})
+      // Track cost
+      trackCost({ categories: [...categories, "preflight"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: searchCost, totalCount: result.total_count })
+    }
 
     return NextResponse.json(payload)
   } catch (e: any) {
