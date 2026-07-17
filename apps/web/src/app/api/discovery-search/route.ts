@@ -536,7 +536,7 @@ export async function POST(request: NextRequest) {
     const l3Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field GMB profile, $0.0054/lead, ALL 50) ═══
-    const shouldEnrich = enrich || force
+    const shouldEnrich = !preflight && (enrich || force)
 
     if (shouldEnrich) {
       const enriched = await enrichTopLeads(listings, scores, enrich || 50)
