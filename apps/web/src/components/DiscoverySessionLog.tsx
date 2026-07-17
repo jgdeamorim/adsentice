@@ -55,14 +55,19 @@ function fmtRelative(iso: string): string {
 
 interface RmMunicipio { nome: string; lat?: number | null; lng?: number | null }
 
+interface CatInfo { id: string; label: string }
+
 export default function DiscoverySessionLog({
-  refreshTrigger, onContinue, onPreflightMissing, stateKey, rmMunicipios,
+  refreshTrigger, onContinue, onPreflightMissing, onPreflightWave,
+  stateKey, rmMunicipios, allCategories,
 }: {
   refreshTrigger?: number
   onContinue?: (p: ContinueParams) => void
   onPreflightMissing?: (municipios: { nome: string; lat: number; lng: number }[]) => void
+  onPreflightWave?: (categories: string[]) => void
   stateKey?: string
   rmMunicipios?: RmMunicipio[]
+  allCategories?: CatInfo[]
 }) {
   const [batches, setBatches] = useState<BatchInfo[]>([])
   const [preflights, setPreflights] = useState<BatchInfo[]>([])
@@ -165,6 +170,60 @@ export default function DiscoverySessionLog({
               )
             })}
           </Box>
+
+          {/* ── Category coverage (ondas) ── */}
+          {allCategories && allCategories.length > 0 && (() => {
+            const pfCatSet = new Set(latestPf?.categories?.map((c: string) => c.toLowerCase().replace(/\s+/g, '_')) || [])
+            const covered = allCategories.filter(c => pfCatSet.has(c.id))
+            const missing = allCategories.filter(c => !pfCatSet.has(c.id))
+            const totalWaves = Math.ceil(allCategories.length / 10)
+            const currentWave = Math.ceil(covered.length / 10) || 1
+            const nextWaveCats = allCategories.slice(covered.length, covered.length + 10)
+
+            return (
+              <Box sx={{ mb: 1.5 }}>
+                {/* Coverage chips */}
+                <Typography variant='caption' color='text.secondary' fontWeight={600}>
+                  📁 Categorias: {covered.length}/{allCategories.length}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3 }}>
+                  {allCategories.slice(0, 25).map(c => {
+                    const hasCat = pfCatSet.has(c.id)
+                    return (
+                      <Chip key={c.id}
+                        label={hasCat ? `✅ ${c.label}` : `❌ ${c.label}`}
+                        size='small' variant='outlined'
+                        color={hasCat ? 'success' : 'default'}
+                        sx={{ fontSize: '0.55rem', height: 20, opacity: hasCat ? 1 : 0.6 }} />
+                    )
+                  })}
+                  {allCategories.length > 25 && (
+                    <Chip label={`+${allCategories.length - 25}`} size='small' variant='outlined'
+                      sx={{ fontSize: '0.55rem', height: 20 }} />
+                  )}
+                </Box>
+
+                {/* Next wave button */}
+                {missing.length > 0 && onPreflightWave && (
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Typography variant='caption' color='text.secondary'>
+                      ⚡ {totalWaves} ondas de 10 categorias (DataForSEO max 10/chamada)
+                    </Typography>
+                    <Button variant='contained' size='small' color='secondary'
+                      onClick={() => onPreflightWave(nextWaveCats.map(c => c.id))}
+                      sx={{ fontSize: '0.65rem', fontFamily: 'monospace', py: 0.2 }}>
+                      🔬 Onda {currentWave + 1}/{totalWaves} · +{nextWaveCats.length} cats
+                    </Button>
+                    {missing.length > 10 && (
+                      <Typography variant='caption' color='text.secondary'>
+                        faltam {missing.length} categorias em {Math.ceil(missing.length/10)} ondas
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            )
+          })()}
 
           {/* Stats row */}
           {latestPf && (

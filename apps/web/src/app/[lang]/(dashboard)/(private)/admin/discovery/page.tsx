@@ -523,8 +523,9 @@ const DiscoveryPage = () => {
   doSearchRef.current = doSearch  // always points to latest, for session log Continue button
 
   // ── PRE-FLIGHT core: limit=1 → reveals total_count EXACT ──
-  async function runPreflightCore(municipios: { nome: string; lat: number; lng: number }[]): Promise<Record<string, { totalCount: number; cost: number }>> {
-    if (municipios.length === 0 || !selected.length) return {}
+  async function runPreflightCore(municipios: { nome: string; lat: number; lng: number }[], catOverride?: string[]): Promise<Record<string, { totalCount: number; cost: number }>> {
+    const cats = catOverride || selected
+    if (municipios.length === 0 || !cats.length) return {}
 
     setPreflightRunning(true)
     setPreflightProgress(`🔬 0/${municipios.length}`)
@@ -539,7 +540,7 @@ const DiscoveryPage = () => {
         const res = await fetch('/api/discovery-search', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            categories: selected.slice(0, 10),  // DataForSEO max 10 cats
+            categories: cats.slice(0, 10),  // DataForSEO max 10 cats
             lat: m.lat, lng: m.lng,
             radiusKm: radius,
             limit: 1,
@@ -578,12 +579,12 @@ const DiscoveryPage = () => {
   }, [selected, radius, batchMode, rmMunicipios, selectedMunicipios])
 
   // Pre-flight specific list (called by Session Log "Pre-flight faltantes" button)
-  const doPreflightForList = useCallback(async (municipios: { nome: string; lat: number; lng: number }[]) => {
-    if (!selected.length) {
-      // Auto-select top 10 categories if none selected
+  const doPreflightForList = useCallback(async (municipios: { nome: string; lat: number; lng: number }[], catOverride?: string[]) => {
+    const cats = catOverride || selected
+    if (!cats.length) {
       setSelected(CATS.slice(0, 10).map(c => c.id))
     }
-    await runPreflightCore(municipios)
+    await runPreflightCore(municipios, catOverride)
     setTimeout(() => setConfirmOpen(true), 100)
   }, [selected, radius])
 
@@ -1945,6 +1946,7 @@ return (
           refreshTrigger={sessionVersion}
           stateKey={batchMode !== 'single' ? stateKey : undefined}
           rmMunicipios={batchMode !== 'single' ? rmMunicipios : undefined}
+          allCategories={CATS.map(c => ({ id: c.id, label: c.label }))}
           onContinue={(params) => {
             setSelected(params.categories)
             setCityLat(params.lat)
@@ -1957,6 +1959,13 @@ return (
             if (municipios.length > 0) {
               setSelected(prev => prev.length === 0 ? CATS.slice(0, 10).map(c => c.id) : prev)
               doPreflightForList(municipios)
+            }
+          }}
+          onPreflightWave={(catIds) => {
+            setSelected(catIds)
+            const batch = buildBatchList()
+            if (batch.length > 0 && catIds.length > 0) {
+              doPreflightForList(batch, catIds)
             }
           }}
         />
