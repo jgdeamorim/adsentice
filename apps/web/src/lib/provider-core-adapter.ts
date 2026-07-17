@@ -118,7 +118,6 @@ export async function businessListingsSearch(params: {
   const body = [{
     categories: params.categories,
     location_coordinate: toCoord(params.lat, params.lng, params.radiusKm),
-    language_code: "pt",
     limit: params.limit || 100,  // DataForSEO default=100, max=1000
     offset: params.offset || 0,
     order_by: params.order_by || undefined,
