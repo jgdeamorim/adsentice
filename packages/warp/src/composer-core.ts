@@ -300,6 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
+import { S10RaioXPipeline } from "./s10-raio-x"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation } from "./warp-kg"
 import { pluginRegistry } from "./plugins"
 
@@ -631,26 +632,44 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       }
     }
 
-    // 5. Copy
-    let copyModel = "deepseek-v4-flash"
+    // 5. Copy (ADR-0036 Fase 3 — S10RaioXPipeline especialista + DeepSeek refina)
+    const s10pipeline = new S10RaioXPipeline()
+    const s10base = s10pipeline.compute({
+      category: cat, businessName: lead.title,
+      score: lead.score_compound || 50,
+      schwartzLevel: (lead.schwartz_label || "Problem Aware") as any,
+      signals: lead.signals_detected || [],
+      city, district,
+      rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+      photos: lead.total_photos || 0,
+      isClaimed: lead.is_claimed || false,
+      website: lead.website || undefined,
+      competitorCount: competitors,
+    })
+    const baseHeadline = s10base.headline
+    const baseCta = s10base.cta
+    const offer = s10base.offer
+
+    let copyModel = "deepseek-refine"
     let copy = await generateCopy({
       title: lead.title, category: lead.category, city, district,
       score: lead.score_compound, rating: lead.rating_value || 0,
       is_claimed: lead.is_claimed || false, gaps: gaps,
     })
-    if (copy) await trackLLMCost(0.001)
-    else copyModel = "template-fallback"
-    if (!copy) {
-      const fb = PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]
-      const N = competitors > 1 ? String(competitors - 1) : "Dezenas de"; const SERVICO = nicho.name.toLowerCase()
+    if (copy) {
+      await trackLLMCost(0.001)
+      if (!copy.headline || copy.headline.length < 10) {
+        copy.headline = baseHeadline
+        copyModel = "deepseek-refine-fallback-base"
+      }
+    } else {
+      copyModel = "s10-pipeline"
       copy = {
-        headline: fb.headline.replace("{N}", N).replace("{SERVIÇO}", SERVICO).replace("{LOCAL}", local),
-        subtitle: "Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
-        cta: fb.cta,
+        headline: baseHeadline,
+        subtitle: s10base.subtitle || "Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
+        cta: baseCta,
       }
     }
-
-    const offer = (PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]).offer
     const name = lead.title
     const score = lead.score_compound || 50
     const fit = lead.score_fit || 50; const eng = lead.score_engagement || 50; const ints = lead.score_intent || 50

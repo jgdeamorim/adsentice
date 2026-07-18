@@ -150,15 +150,31 @@ REGRAS:
         model: DEEPSEEK_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature,
-        max_tokens: 800,
+        max_tokens: 1600,
         response_format: { type: "json_object" },
       }),
       signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) return null
     const data = await res.json()
-    const text = data.choices?.[0]?.message?.content || ""
-    const json = JSON.parse(text)
+    // DeepSeek V4 Flash é reasoning model — gasta tokens em reasoning_content.
+    // Se content vier vazio, extrai do reasoning_content (padrão Python:208)
+    let text = data.choices?.[0]?.message?.content || ""
+    if (!text) {
+      text = data.choices?.[0]?.message?.reasoning_content || ""
+    }
+    if (!text) return null
+    // Parse robusto: JSON.parse → fallback regex
+    let json: { headline?: string; subtitle?: string; cta?: string }
+    try {
+      json = JSON.parse(text)
+    } catch {
+      const h = text.match(/"headline"\s*:\s*"([^"]*)"/)
+      const s = text.match(/"subtitle"\s*:\s*"([^"]*)"/)
+      const c = text.match(/"cta"\s*:\s*"([^"]*)"/)
+      if (!h) return null
+      json = { headline: h[1], subtitle: s?.[1] || "", cta: c?.[1] || "" }
+    }
     return { headline: json.headline || "", subtitle: json.subtitle || "", cta: json.cta || "" }
   } catch {
     return null
