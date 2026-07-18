@@ -1149,34 +1149,33 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '@media(max-width:600px){.' + cls('score-card') + '{flex-direction:column;text-align:center}.' + cls('info-grid') + '{grid-template-columns:1fr}}\n' +
 (function() {
   let css = ''
-  const cp = output.cssPatterns
+  const cp = (output as any).cssPatterns
   if (!cp) return css
-  // ── MICRO-INTERACTIONS (media-knowledge corpus → CSS rules) ──
+  // ── MICRO-INTERACTIONS: derive CSS from corpus text patterns ──
   if (cp.microInteractions?.length) {
     css += '/* ═══ MICRO-INTERACTIONS (corpus) ═══ */\n'
-    for (const text of cp.microInteractions) {
-      // Extract CSS rules from corpus text
-      const rules = text.match(/\.[a-z][a-z-]+:[a-z]+\s*\{[^}]+\}/g)
-      if (rules) for (const r of rules) { if (!css.includes(r)) css += r + '\n' }
-      // Extract transition/duration hints
-      const dur = text.match(/duration[:\s]+(\d+ms)/g)
-      if (dur && !css.includes('transition-duration')) css += '.card,.info-card,.gap{transition-duration:' + dur[0].replace(/duration[:\s]+/, '') + '}\n'
-    }
+    const allText = cp.microInteractions.join(' ')
+    // Derive rules from intent descriptions (corpus has text, not CSS)
+    if (/hover|whileHover/i.test(allText)) css += '.card:hover,.info-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg);transition:transform var(--motion),box-shadow var(--motion)}\n'
+    if (/tap|whileTap|active/i.test(allText)) css += '.cta-btn:active{transform:scale(.97)}\n'
+    if (/stagger|delayChildren|staggerChildren/i.test(allText)) css += '.info-card:nth-child(1){animation-delay:0ms}.info-card:nth-child(2){animation-delay:80ms}.info-card:nth-child(3){animation-delay:160ms}\n'
+    if (/spring|stiffness|damping/i.test(allText)) css += '.card,.cta-btn{transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)}\n'
+    if (/scroll|parallax/i.test(allText)) css += '@supports(animation-timeline:view()){.hero{animation:linear fade-in both;animation-timeline:view()}}\n'
+    if (/drag|gesture/i.test(allText)) css += '.score-ring{cursor:grab;user-select:none}\n'
   }
-  // ── LAYOUT RECOMMENDATIONS (design-knowledge corpus → spacing/grid hints) ──
+  // ── LAYOUT RECOMMENDATIONS: derive custom properties from design patterns ──
   if (cp.layoutRecommendations?.length) {
     css += '/* ═══ LAYOUT HINTS (corpus) ═══ */\n'
-    for (const text of cp.layoutRecommendations) {
-      // Extract spacing values: "1.5rem grid" "32px gap" etc.
-      const spacing = text.match(/(\d+(?:\.\d+)?(?:rem|px))\s*(?:grid|spacing|gap|rhythm)/i)
-      if (spacing) css += '.section{--corpus-gap:' + spacing[1] + '}\n'
-      // Extract column hints: "3-column" "2-col grid" etc.
-      const cols = text.match(/(\d+)-col(?:umn)?\s*(?:grid|layout)/i)
-      if (cols) css += '.info-grid{--corpus-cols:' + cols[1] + '}\n'
-      // Extract max-width: "860px max-width" "1200px container" etc.
-      const mw = text.match(/(\d+)px\s*(?:max-width|container)/i)
-      if (mw && !css.includes('max-width')) css += '.container{--corpus-max-width:' + mw[1] + 'px}\n'
-    }
+    const allText = cp.layoutRecommendations.join(' ')
+    // Spacing rhythm: "1.5rem grid" "32px spacing" etc.
+    const spacing = allText.match(/(\d+(?:\.\d+)?(?:rem|px))\s*(?:grid|spacing|gap|rhythm)/i)
+    if (spacing) css += ':root{--corpus-rhythm:' + spacing[1] + '}\n'
+    // Column count: "3-column grid" "2-col layout"
+    const cols = allText.match(/(\d+)-col(?:umn)?\s*(?:grid|layout)/i)
+    if (cols) css += ':root{--corpus-cols:' + cols[1] + '}\n'
+    // Typography hints: "sans-serif" "headings:" "body:"
+    if (/headline\s*→\s*support|heading\s*clarity|typography/i.test(allText)) css += 'h1,h2,h3{text-wrap:balance}\n'
+    if (/whitespace|white.space/i.test(allText)) css += '.section+.section{margin-top:var(--corpus-rhythm,2rem)}\n'
   }
   return css
 })() +
