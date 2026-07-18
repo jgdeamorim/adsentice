@@ -95,6 +95,20 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0021` | Dual Embed e0+e1 — Arquitetura multilíngue (EN code + PT prose) para busca semântica | ✅ accepted (2026-07-15) |
 | `ADS.COR.adr.0022` | Geo Intelligence Engine — Turf.js + H3 + Leaflet para Discovery Geoespacial ($0, 3 fases) | ✅ accepted (2026-07-15) |
 | `ADS.COR.adr.0023` | Discovery Auto-Pilot — Cobertura Geoespacial + Localização Automática + Conversão Intelligence (3 camadas) | ✅ accepted (2026-07-15) |
+| `ADS.COR.adr.0024` | Enrichment Layers L0-L4 — Market Intelligence Orchestrator | ✅ accepted (2026-07-16) |
+| `ADS.COR.adr.0025` | RM Intelligent Discovery — Município Selection | ✅ accepted (2026-07-16) |
+| `ADS.COR.adr.0026` | Coverage Planner — Budget-Aware Geo Scheduler | ✅ accepted (2026-07-16) |
+| `ADS.COR.adr.0027` | Market Estimator — IBGE × DataForSEO Cross-Reference | ✅ accepted (2026-07-16) |
+| `ADS.COR.adr.0028` | CNPJ Queue — Cron Enrichment Pipeline | ✅ accepted (2026-07-16) |
+| `ADS.COR.adr.0029` | Discovery Session Log | ✅ accepted (2026-07-17) |
+| `ADS.COR.adr.0030` | Intelligence Runtime — Motor de Captação e Funil | ✅ proposed (2026-07-17) |
+| `ADS.COR.adr.0031` | Admin Surface — Warp Family Dashboard (22 superfícies) | ✅ proposed (2026-07-17) |
+| `ADS.COR.adr.0032` | Warp Composer Runtime — Dual Engine BLUE/GREEN | ✅ accepted (2026-07-17) |
+| `ADS.COR.adr.0033` | Vec Intent Composition Pipeline Excellence | ✅ accepted (2026-07-17) |
+| `ADS.COR.adr.0034` | Adsentice Design Vivo — Sistema Fechado | ✅ accepted (2026-07-18) |
+| `ADS.COR.adr.0035` | Genealogia Excelência — rsxt/evo-api → Karina HTML | ✅ accepted (2026-07-18) |
+| `ADS.COR.adr.0036` | Kimera Gabarito — Plugin System + Antigravity | ✅ accepted (2026-07-18) |
+| `ADS.COR.adr.0037` | **Convergência Runtime Semântico — Unificação Market KG + Design KG + Marketing KG** | ✅ accepted (2026-07-18) |
 
 ### ADS.COR.llm — Inteligência de Linguagem
 
