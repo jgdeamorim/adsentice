@@ -889,6 +889,7 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     morph: slotMorph,
     // Composed layout (ADR-0037 Fase 5) — morphable slot composition
     composedLayout: composeLayout({
+      surface: 'S10',
       segment: seg,
       score: lead.score_compound || 50,
       schwartzLevel: lead.schwartz_label || 'Problem Aware',
@@ -900,6 +901,11 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
       primaryEmotion: ontology.psychology?.primaryEmotion || '',
       designAtmosphere: ontology.designSystem?.atmosphere || '',
       conversionTriggers: nicho.conversionTriggers || [],
+      personaOffer: ontology.persona?.offer || '',
+      personaWho: ontology.persona?.who || '',
+      nichePains: nicho.pains || [],
+      nicheAudience: nicho.audience || '',
+      ontology,
     }, slotMorph),
     // Marketing KG frameworks (ADR-0037 Fase 1 — raw Qdrant query)
     mktFrameworks,
@@ -1421,9 +1427,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       } : { source: 'mkt-offline' },
       // ── SLOT MORPH TRACE (ADR-0037 Fase 2) ──
       _composed: blue.composedLayout ? {
+        surface: blue.composedLayout.surface,
         strategy: blue.composedLayout.strategy,
-        slotOrder: blue.composedLayout.slots.map((s: any) => s.slotName + ':' + s.variant),
-        reasoning: blue.composedLayout.reasoning?.slice(0, 3),
+        slotOrder: blue.composedLayout.slots.map((s: any) => s.slotName + ':' + s.variant + (s.abVariant ? '(' + s.abVariant + ')' : '')),
+        abTest: blue.composedLayout.abTest,
+        reasoning: blue.composedLayout.reasoning?.slice(0, 4),
       } : { source: 'compose-offline' },
       _morph: blue.morph ? {
         hero: { gradientAngle: blue.morph.hero.gradientAngle, reasoning: blue.morph.hero.reasoning },

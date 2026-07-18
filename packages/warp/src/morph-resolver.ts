@@ -278,67 +278,82 @@ export function resolveMorph(input: MorphInput): PerSlotMutations {
 // ═══════════════════════════════════════════════════════════════
 
 export interface LayoutIntent {
-  segment: string           // 'saude' | 'beleza' | 'servicos'...
-  score: number             // 0-100
-  schwartzLevel: string     // 'Unaware' | 'Problem Aware' | 'Solution Aware'...
-  gapCount: number          // how many gaps detected
-  topGapSeverity: string    // 'Crítico' | 'Médio' | 'Oportunidade'
-  isClaimed: boolean        // GMB verified?
-  hasWebsite: boolean       // has URL?
-  competitorCount: number   // market density
-  primaryEmotion: string    // from ontology
-  designAtmosphere: string  // from ontology
-  conversionTriggers: string[] // from niche
+  surface: string            // 'S10' | 'S11' | 'S3' | 'S5'...
+  segment: string            // 'saude' | 'beleza' | 'servicos'...
+  score: number              // 0-100
+  schwartzLevel: string      // 'Unaware' | 'Problem Aware' | 'Solution Aware'...
+  gapCount: number
+  topGapSeverity: string     // 'Crítico' | 'Médio' | 'Oportunidade'
+  isClaimed: boolean
+  hasWebsite: boolean
+  competitorCount: number
+  primaryEmotion: string
+  designAtmosphere: string
+  conversionTriggers: string[]  // from niche
+  personaOffer: string         // ontology.persona.offer
+  personaWho: string           // ontology.persona.who
+  nichePains: string[]         // audience pains
+  nicheAudience: string        // target audience description
+  ontology: any                // full MarketOntology for deep decisions
 }
 
 export interface ComposedSlot {
-  slotName: string          // 'hero' | 'score' | 'info_grid' | 'gaps' | 'cta' | 'footer'
-  variant: string           // 'urgency' | 'trust' | 'compact' | 'spacious' | 'default'
-  priority: number          // 1-10, determines order
-  morphData: any            // PerSlotMutations[slotName]
-  renderHint: string        // 'animate' | 'static' | 'highlight'
+  slotName: string         // 'hero' | 'score' | 'info_grid' | 'gaps' | 'cta' | 'footer'
+  variant: string          // 'urgency' | 'trust' | 'compact' | 'spacious' | 'default'
+  abVariant?: string       // 'A' | 'B' — for A/B testing
+  priority: number         // 1-10, determines order
+  morphData: any           // PerSlotMutations[slotName]
+  renderHint: string       // 'animate' | 'static' | 'highlight'
+  copyHint?: string        // tone suggestion for copywriter
+  triggerHint?: string     // conversion trigger to emphasize
 }
 
 export interface ComposedLayout {
-  slots: ComposedSlot[]     // ORDERED list
-  strategy: string          // 'urgency-first' | 'trust-first' | 'balanced' | 'data-first'
+  surface: string
+  slots: ComposedSlot[]
+  strategy: string
+  abTest: {
+    active: boolean
+    variant: 'A' | 'B'
+    hypothesis: string
+    slotsVaried: string[]
+  }
   reasoning: string[]
 }
 
+// ═══ SURFACE GRAMMARS (slot definitions per surface) ═══
+const SURFACE_GRAMMARS: Record<string, string[]> = {
+  S10: ['hero', 'score', 'info_grid', 'gaps', 'cta', 'footer'],
+  S11: ['hero', 'trust', 'how', 'capabilities', 'stats', 'voice', 'pricing', 'faq', 'cta'],
+  S3: ['sidebar', 'header', 'kpi-cards', 'charts', 'tables', 'activity'],
+  S5: ['header', 'score-radar', 'gap-matrix', 'action-queue'],
+}
+
+// ═══ CONVERSION TRIGGER → SLOT VARIANT mapping ═══
+const TRIGGER_VARIANTS: Record<string, { heroStyle: string; ctaStyle: string; emphasis: string[] }> = {
+  'urgência': { heroStyle: 'urgency', ctaStyle: 'urgency', emphasis: ['hero', 'cta'] },
+  'escassez': { heroStyle: 'urgency', ctaStyle: 'urgency', emphasis: ['cta'] },
+  'prova': { heroStyle: 'trust', ctaStyle: 'trust', emphasis: ['hero', 'info_grid'] },
+  'confiança': { heroStyle: 'trust', ctaStyle: 'trust', emphasis: ['score', 'gaps'] },
+  'garantia': { heroStyle: 'trust', ctaStyle: 'default', emphasis: ['cta'] },
+  'autoridade': { heroStyle: 'trust', ctaStyle: 'trust', emphasis: ['score', 'info_grid'] },
+  'reciprocidade': { heroStyle: 'default', ctaStyle: 'default', emphasis: ['cta'] },
+  'compromisso': { heroStyle: 'default', ctaStyle: 'default', emphasis: ['cta'] },
+}
+
 /**
- * Compose layout slots dynamically based on intent + morph.
+ * Multi-surface morphable slot composer with A/B testing.
  *
- * DECISION TREE (corpus-driven, $0, deterministic):
+ * Per-surface decision trees:
+ *   S10 Raio-X: hero→score→info_grid→gaps→cta→footer
+ *   S11 Landing: hero→trust→how→capabilities→stats→voice→pricing→faq→cta
+ *   S3 Dashboard: sidebar→header→kpi-cards→charts→tables→activity
  *
- * Hero variant:
- *   score < 40  → 'urgency'  (problema grave → agitar)
- *   score ≥ 40  → 'trust'    (reputação → provar)
- *   emotion inclui "Confiança" → 'trust'
+ * A/B testing: randomly assigns 'A' (control) or 'B' (variant) to each render.
+ *   Variant B applies different hero/cta strategy for conversion testing.
  *
- * Info grid priority:
- *   hasWebsite → top (website data available)
- *   !hasWebsite → push down
- *   competitorCount > 10 → highlight competition card
- *
- * Gap list variant:
- *   gapCount ≥ 5 → 'spacious' (precisa de mais espaço)
- *   topGapSeverity === 'Crítico' → 'urgency' (alert bar accent)
- *   gapCount ≤ 2 → 'compact'
- *
- * CTA variant:
- *   schwartzLevel low (Unaware/Problem) → 'urgency'  (educar + agir)
- *   schwartzLevel high (Solution/Most) → 'trust'     (diferenciar)
- *   emotion inclui "Urgência" → 'urgency'
- *
- * Footer strategy:
- *   score < 30 → include 'trust-banner' (prova social extra)
- *   default → simple footer
- *
- * Global strategy:
- *   urgency slots > trust slots → 'urgency-first'
- *   trust slots > urgency slots → 'trust-first'
- *   competitor-heavy → 'data-first' (charts, stats primeiro)
- *   default → 'balanced'
+ * Persona-driven: schwartz level + conversion triggers + audience pains
+ *   determine which slots get emphasis and what copy angle to use.
  */
 export function composeLayout(
   intent: LayoutIntent,
@@ -346,96 +361,144 @@ export function composeLayout(
 ): ComposedLayout {
   const reasoning: string[] = []
   const slots: ComposedSlot[] = []
+  const surface = intent.surface || 'S10'
+  const grammar = SURFACE_GRAMMARS[surface] || SURFACE_GRAMMARS.S10
 
-  // ═══ HERO — urgency vs trust ═══
-  const heroVariant = intent.score < 40 || intent.primaryEmotion.includes('urgência')
-    ? 'urgency' : 'trust'
-  reasoning.push(`Hero variant: ${heroVariant} (score=${intent.score}, emotion=${intent.primaryEmotion})`)
-  slots.push({
-    slotName: 'hero',
-    variant: heroVariant,
-    priority: 10, // always first
-    morphData: morph.hero,
-    renderHint: 'animate',
-  })
+  // ═══ A/B TESTING (deterministic: seed from score parity) ═══
+  const abVariant = intent.score % 2 === 0 ? 'A' : 'B'
+  const abActive = surface === 'S10' || surface === 'S11'  // surfaces with enough traffic
+  const slotsVaried: string[] = abActive ? ['hero', 'cta'] : []
+  reasoning.push(`A/B test: variant=${abVariant} active=${abActive} (varied: ${slotsVaried.join(',')})`)
 
-  // ═══ SCORE — always present, variant by schwartz level ═══
-  const scoreVariant = intent.schwartzLevel === 'Unaware' ? 'compact'
-    : intent.schwartzLevel === 'Most Aware' ? 'spacious' : 'default'
-  reasoning.push(`Score variant: ${scoreVariant} (schwartz=${intent.schwartzLevel})`)
-  slots.push({
-    slotName: 'score',
-    variant: scoreVariant,
-    priority: 9,
-    morphData: morph.score,
-    renderHint: 'animate',
-  })
-
-  // ═══ INFO GRID — dynamic priority ═══
-  const infoVariant = intent.competitorCount > 10 ? 'spacious'
-    : morph.infoCards.columns === 2 ? 'wide' : 'default'
-  const infoPriority = intent.hasWebsite ? 8 : 6
-  reasoning.push(`Info grid: priority=${infoPriority} variant=${infoVariant} (web=${intent.hasWebsite}, competitors=${intent.competitorCount})`)
-
-  const infoCards: Record<string, unknown> = morph.infoCards
-  if (intent.competitorCount > 10) {
-    (infoCards as any).highlight = 'competition'
-    reasoning.push(`  → highlighting competition card (${intent.competitorCount} competitors)`)
+  // ═══ TRIGGER ANALYSIS: which conversion triggers match this intent? ═══
+  const activeTriggers: string[] = []
+  for (const t of (intent.conversionTriggers || [])) {
+    const key = t.toLowerCase()
+    for (const [triggerKey, variant] of Object.entries(TRIGGER_VARIANTS)) {
+      if (key.includes(triggerKey) || triggerKey.includes(key)) {
+        activeTriggers.push(triggerKey)
+        reasoning.push(`Trigger match: "${t}" → ${triggerKey} (hero=${variant.heroStyle}, cta=${variant.ctaStyle})`)
+      }
+    }
   }
-  slots.push({
-    slotName: 'info_grid',
-    variant: infoVariant,
-    priority: infoPriority,
-    morphData: infoCards,
-    renderHint: intent.hasWebsite ? 'animate' : 'static',
-  })
 
-  // ═══ GAPS — variant by count + severity ═══
-  const gapVariant = intent.gapCount >= 5 ? 'spacious'
-    : intent.gapCount <= 2 ? 'compact'
-    : intent.topGapSeverity.includes('Crítico') ? 'urgency'
-    : 'default'
-  reasoning.push(`Gaps variant: ${gapVariant} (count=${intent.gapCount}, topSeverity=${intent.topGapSeverity})`)
-  slots.push({
-    slotName: 'gaps',
-    variant: gapVariant,
-    priority: 7,
-    morphData: morph.gaps,
-    renderHint: intent.topGapSeverity.includes('Crítico') ? 'highlight' : 'animate',
-  })
+  // ═══ HERO — surface + triggers + schwartz + A/B ═══
+  if (grammar.includes('hero')) {
+    const triggerStyle = activeTriggers.length > 0
+      ? TRIGGER_VARIANTS[activeTriggers[0]]?.heroStyle || 'default'
+      : 'default'
+    const baseVariant = intent.score < 40 ? 'urgency'
+      : intent.primaryEmotion.includes('Confiança') ? 'trust'
+      : triggerStyle !== 'default' ? triggerStyle
+      : 'default'
+    // A/B: variant B inverts urgency↔trust
+    const abAdjusted = abActive && abVariant === 'B' && slotsVaried.includes('hero')
+      ? (baseVariant === 'urgency' ? 'trust' : baseVariant === 'trust' ? 'urgency' : baseVariant)
+      : baseVariant
+    reasoning.push(`Hero: ${abAdjusted} (base=${baseVariant}, AB=${abVariant}, triggers=${activeTriggers.slice(0,2)})`)
+    slots.push({
+      slotName: 'hero', variant: abAdjusted, abVariant: abActive ? abVariant : undefined,
+      priority: 10, morphData: morph.hero, renderHint: 'animate',
+      copyHint: abAdjusted === 'urgency' ? 'Agitar a dor' : 'Prova social primeiro',
+      triggerHint: activeTriggers[0],
+    })
+  }
 
-  // ═══ CTA — variant by schwartz level + emotion ═══
-  const ctaVariant = intent.primaryEmotion.includes('Urgência') || intent.schwartzLevel === 'Unaware'
-    ? 'urgency'
-    : intent.schwartzLevel === 'Most Aware' || intent.schwartzLevel === 'Solution Aware'
-      ? 'trust' : 'default'
-  reasoning.push(`CTA variant: ${ctaVariant} (schwartz=${intent.schwartzLevel}, emotion=${intent.primaryEmotion})`)
-  slots.push({
-    slotName: 'cta',
-    variant: ctaVariant,
-    priority: 5,
-    morphData: morph.cta,
-    renderHint: 'animate',
-  })
+  // ═══ SCORE — schwartz level ═══
+  if (grammar.includes('score')) {
+    const scoreV = intent.schwartzLevel === 'Unaware' ? 'compact'
+      : intent.schwartzLevel === 'Most Aware' ? 'spacious' : 'default'
+    reasoning.push(`Score: ${scoreV} (schwartz=${intent.schwartzLevel})`)
+    slots.push({ slotName: 'score', variant: scoreV, priority: 9, morphData: morph.score, renderHint: 'animate' })
+  }
 
-  // ═══ FOOTER — trust banner for low-score leads ═══
-  const footerVariant = intent.score < 30 ? 'trust' : 'default'
-  slots.push({
-    slotName: 'footer',
-    variant: footerVariant,
-    priority: 1,
-    morphData: morph.footer,
-    renderHint: 'static',
-  })
-  reasoning.push(`Footer variant: ${footerVariant} (score=${intent.score})`)
+  // ═══ INFO GRID / TRUST / HOW / CAPABILITIES — surface-dependent ═══
+  for (const slotName of ['info_grid', 'trust', 'how', 'capabilities', 'stats', 'voice']) {
+    if (!grammar.includes(slotName)) continue
+    const variant = intent.competitorCount > 10 ? 'spacious' : 'default'
+    const priority = intent.hasWebsite ? 8 : 6
+    reasoning.push(`${slotName}: variant=${variant} priority=${priority}`)
+    const data: Record<string, unknown> = (morph as any)[slotName] || morph.infoCards || {}
+    if (intent.competitorCount > 10) data.highlight = slotName === 'info_grid' ? 'competition' : 'stats'
+    slots.push({ slotName, variant, priority, morphData: data, renderHint: intent.hasWebsite ? 'animate' : 'static' })
+  }
+
+  // ═══ GAPS ═══
+  if (grammar.includes('gaps')) {
+    const gapV = intent.gapCount >= 5 ? 'spacious'
+      : intent.gapCount <= 2 ? 'compact'
+      : intent.topGapSeverity.includes('Crítico') ? 'urgency' : 'default'
+    reasoning.push(`Gaps: ${gapV} (count=${intent.gapCount})`)
+    slots.push({
+      slotName: 'gaps', variant: gapV, priority: 7, morphData: morph.gaps,
+      renderHint: intent.topGapSeverity.includes('Crítico') ? 'highlight' : 'animate',
+      copyHint: gapV === 'urgency' ? 'Cada gap = uma oportunidade de melhoria imediata' : 'Análise detalhada',
+    })
+  }
+
+  // ═══ CTA — triggers + schwartz + A/B ═══
+  if (grammar.includes('cta')) {
+    const triggerStyle = activeTriggers.length > 0
+      ? TRIGGER_VARIANTS[activeTriggers[0]]?.ctaStyle || 'default'
+      : 'default'
+    const baseCta = intent.primaryEmotion.includes('Urgência') || intent.schwartzLevel === 'Unaware'
+      ? 'urgency' : intent.schwartzLevel === 'Most Aware' ? 'trust'
+      : triggerStyle !== 'default' ? triggerStyle : 'default'
+    const abCta = abActive && abVariant === 'B' && slotsVaried.includes('cta')
+      ? (baseCta === 'urgency' ? 'trust' : baseCta === 'trust' ? 'urgency' : baseCta)
+      : baseCta
+    reasoning.push(`CTA: ${abCta} (base=${baseCta}, AB=${abVariant})`)
+    slots.push({
+      slotName: 'cta', variant: abCta, abVariant: abActive ? abVariant : undefined,
+      priority: 5, morphData: morph.cta, renderHint: 'animate',
+      copyHint: abCta === 'urgency' ? 'Ação imediata' : 'Confie nos resultados',
+      triggerHint: activeTriggers[0],
+    })
+  }
+
+  // ═══ PRICING / FAQ (S11 landing) ═══
+  for (const sn of ['pricing', 'faq']) {
+    if (!grammar.includes(sn)) continue
+    const v = intent.schwartzLevel === 'Most Aware' ? 'spacious' : 'default'
+    slots.push({ slotName: sn, variant: v, priority: 3, morphData: (morph as any)[sn] || {}, renderHint: 'static' })
+    reasoning.push(`${sn}: ${v}`)
+  }
+
+  // ═══ SIDEBAR / HEADER / KPI (S3/S5 dashboard) ═══
+  for (const sn of ['sidebar', 'header', 'kpi-cards', 'charts', 'tables', 'activity', 'score-radar', 'gap-matrix', 'action-queue']) {
+    if (!grammar.includes(sn)) continue
+    slots.push({ slotName: sn, variant: 'default', priority: 4, morphData: (morph as any)[sn] || {}, renderHint: 'static' })
+    reasoning.push(`${sn}: dashboard default`)
+  }
+
+  // ═══ FOOTER ═══
+  if (grammar.includes('footer')) {
+    const footerV = intent.score < 30 ? 'trust' : 'default'
+    slots.push({ slotName: 'footer', variant: footerV, priority: 1, morphData: morph.footer, renderHint: 'static' })
+    reasoning.push(`Footer: ${footerV} (score=${intent.score})`)
+  }
 
   // ═══ GLOBAL STRATEGY ═══
   const urgencyCount = slots.filter(s => s.variant === 'urgency').length
   const trustCount = slots.filter(s => s.variant === 'trust').length
   const strategy = urgencyCount > trustCount ? 'urgency-first'
     : intent.competitorCount > 10 ? 'data-first'
+    : trustCount > urgencyCount ? 'trust-first'
     : 'balanced'
   reasoning.push(`Strategy: ${strategy} (urgency=${urgencyCount}, trust=${trustCount})`)
 
-  return { slots, strategy, reasoning }
+  return {
+    surface,
+    slots,
+    strategy,
+    abTest: {
+      active: abActive,
+      variant: abVariant,
+      hypothesis: abActive
+        ? `Testando ${abVariant === 'A' ? 'controle' : 'variante'} em ${slotsVaried.join('+')} (score=${intent.score})`
+        : 'A/B testing not active for this surface',
+      slotsVaried,
+    },
+    reasoning,
+  }
 }
