@@ -882,11 +882,12 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 <div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.ints}%;background:${output.s}"></div></div><span class="score-bar-val">${output.ints}%</span></div>
 </div></div></div>`
 
-  const stars = output.rating >= 5 ? "★★★★★" : "★".repeat(Math.max(1,Math.round(output.rating))) + "☆".repeat(Math.max(0,5-Math.round(output.rating)))
+  const stars = (r: number) => r >= 5 ? "★★★★★" : "★".repeat(Math.max(1, Math.round(r))) + "☆".repeat(Math.max(0, 5 - Math.round(r)))
+  const displayStars = stars(output.rating)
 
   const infoGrid = `
 <div class="info-grid">
-<div class="info-card" ${a11y(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${stars}</div><div class="meta">${output.rating.toFixed(1)}★ · ${output.reviews} avaliações</div><div class="status ok">${output.photos} fotos · ${output.claimed}</div></div>
+<div class="info-card" ${a11y(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${displayStars}</div><div class="meta">${output.rating.toFixed(1)}★ · ${output.reviews} avaliações</div><div class="status ok">${output.photos} fotos · ${output.claimed}</div></div>
 <div class="info-card" ${a11y(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(output.website).slice(0,35)}</div><div class="meta">${output.local}</div><div class="status ok">✅ Online</div></div>
 <div class="info-card" ${a11y(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${output.competitors > 1 ? output.competitors - 1 : "—"}</div><div class="meta">${output.nichoName.toLowerCase()}s na região</div><div class="status ok">${I.chart} Score ${output.score}/100</div></div>
 </div>`
