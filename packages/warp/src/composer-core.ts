@@ -577,248 +577,136 @@ function computeCritique(graph: Map<string, GraphNode>, segment: string, surface
 }
 
 
-export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
-  try {
-    // ── PLUGIN SYSTEM (ADR-0036 Fase 1) ──
-    await pluginRegistry.activateAll()
 
-    // 1. Fetch lead
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-    const url = `${supabaseUrl}/rest/v1/discovery_listings?select=place_id,title,category,rating_value,rating_votes,is_claimed,website,latitude,longitude,score_compound,score_fit,score_engagement,score_intent,schwartz_level,schwartz_label,signals_detected,total_photos,city,district,enrichment_level,l2_onpage_score,l2_word_count,l2_internal_links_count,l2_external_links_count,l2_images_count,l2_seo_checks,l2_has_analytics,l2_cms,l2_meta_title,l2_meta_description,l2_domain_rank,l2_lighthouse_performance,l2_content_maturity,l2_content_gaps&place_id=eq.${encodeURIComponent(placeId)}&limit=1`
-    const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
-    if (!res.ok) return null
-    const leads = await res.json() as S10Lead[]
-    if (!leads.length) return null
-    const lead = leads[0]
+// ═══════════════════════════════════════════════════════════════
+// BLUE/GREEN SPLIT (RSXT doctrine v2 · ADR-0036 Fase 3)
+// BLUE = intelligence (async, Qdrant, LLM) → S10BlueOutput
+// GREEN = execution (sync, pure, NO LLM) → HTML string
+// g0 rule: "specialist emite gramática, renderer aplica materials"
+// ═══════════════════════════════════════════════════════════════
 
-    // 2. Classify — normaliza display name DataForSEO ("Barber shop" → barber_shop)
-    const cat = normalizeCategory(lead.category)
-    const seg = CAT_TO_SEGMENT[cat] || 'servicos'
-    const nicho = NICHO_MAP[cat] || { ...GENERIC_NICHO, name: lead.category || GENERIC_NICHO.name }
-    const level = lead.schwartz_label || "Problem Aware"
-    const district = lead.district || ""
-    const city = lead.city || ""
-    const local = district ? `${district}, ${city}` : city
+interface S10BlueOutput {
+  // ── LEAD DATA ──
+  name: string; category: string; seg: string; score: number
+  fit: number; eng: number; ints: number
+  rating: number; reviews: number; photos: number
+  website: string; claimed: string; city: string; district: string
+  level: string; nichoName: string; offer: string; competitors: number
+  local: string
+  // ── COPY ──
+  headline: string; subtitle: string; cta: string; copyModel: string
+  // ── PALETTE ──
+  p: string; s: string; a: string; p15: string; p12: string
+  // ── TOKENS (unified) ──
+  T: ReturnType<typeof unifyTokens>
+  // ── GAPS ──
+  gaps: S10Gap[]
+  // ── COMPONENTS + GRAPH ──
+  graphComps: WarpComp[]
+  cardComp: WarpComp | null; btnComp: WarpComp | null
+  ringComp: WarpComp | null; chipComp: WarpComp | null
+  usedComponents: string[]
+  graph: Map<string, GraphNode>
+  // ── CRITIQUE ──
+  critique: { composite: number; passed: boolean; feedback: string[]; devloopIter: number }
+  tracedLayout: any
+  // ── META ──
+  designSystem: string; mediaAnim: any
+}
 
-    // 2b. Concorrência real — count mesma categoria na cidade (medido=verdade, nunca "47" fixo)
-    let competitors = 0
-    try {
-      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
-      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
-    } catch (e: unknown) { void e }
+/** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
+ *  Returns S10BlueOutput ready for GREEN render. $0.01 DeepSeek, rest $0. */
+async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: NichoProfile,
+  level: string, local: string, city: string, district: string, competitors: number,
+  morph: MorphResult, p: string, s: string, a: string, p15: string, p12: string,
+  designIntel: any, inspoUrls: string[], odSystem: any, materio: any, mediaAnim: any,
+  T: ReturnType<typeof unifyTokens>
+): Promise<S10BlueOutput> {
+  const name = lead.title
+  const score = lead.score_compound || 50
+  const fit = lead.score_fit || 50; const eng = lead.score_engagement || 50; const ints = lead.score_intent || 50
+  const rating = lead.rating_value || 0; const reviews = lead.rating_votes || 0
+  const photos = lead.total_photos || 0
+  const website = lead.website || "sem site"
+  const claimed = lead.is_claimed ? "✅ Sim" : "❌ Não"
 
-    // 3. Tokens
-    const morph = await morphTokens({ surface:"S10", segment: seg, plan:"r0", mode:"internal" })
-    const p = morph.tokens["color-primary"] || "#2563EB"
-    const s = morph.tokens["color-secondary"] || "#1E40AF"
-    const a = morph.tokens["color-accent"] || "#3B82F6"
-    const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
+  // 4. Gaps
+  const gaps = computeGaps(lead, nicho)
 
-    // 4. Gaps
-    const gaps = computeGaps(lead, nicho)
+  // 5. Copy (S10RaioXPipeline + DeepSeek refine)
+  const s10pipeline = new S10RaioXPipeline()
+  const s10base = s10pipeline.compute({
+    category: cat, businessName: lead.title,
+    score: lead.score_compound || 50,
+    schwartzLevel: (lead.schwartz_label || "Problem Aware") as any,
+    signals: lead.signals_detected || [],
+    city, district,
+    rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+    photos: lead.total_photos || 0,
+    isClaimed: lead.is_claimed || false,
+    website: lead.website || undefined,
+    competitorCount: competitors,
+  })
+  const baseHeadline = s10base.headline
+  const baseCta = s10base.cta
+  const offer = s10base.offer
 
-    // ── PLUGIN HOOK 1: onEnrich (ADR-0036 Fase 1) ──
-    const designCtx = {
-      segment: seg as string, plan: "r0" as string, businessName: lead.title,
-      palette: { primary: p, secondary: s, accent: a },
-      typography: { heading: "Inter", body: "Inter" },
-      designInspiration: inspoUrls, suggestedComponents: components.map(c => c.name),
-      landingPattern: "S10-raio-x", previewHtml: "",
+  let copyModel = "deepseek-refine"
+  let copy = await generateCopy({
+    title: lead.title, category: lead.category, city, district,
+    score: lead.score_compound, rating: lead.rating_value || 0,
+    is_claimed: lead.is_claimed || false, gaps: gaps,
+  })
+  if (copy) {
+    await trackLLMCost(0.001)
+    if (!copy.headline || copy.headline.length < 10) {
+      copy.headline = baseHeadline
+      copyModel = "deepseek-refine-fallback-base"
     }
-    for (const plugin of pluginRegistry.listActive()) {
-      if (plugin.onEnrich) {
-        const enriched = await plugin.onEnrich(designCtx as any).catch(() => null)
-        if (enriched?.palette) { Object.assign(designCtx, enriched) }
+  } else {
+    copyModel = "s10-pipeline"
+    copy = { headline: baseHeadline, subtitle: s10base.subtitle || "Analise baseada em dados reais do Google Meu Negocio e do seu site.", cta: baseCta }
+  }
+
+  // 6. Components from vec() (sensor — narrows candidates)
+  const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
+  type WarpComp = (typeof components)[number]
+  type GraphNode = { comp: WarpComp; depth: number; dependencies: string[]; dependents: string[]; relevanceScore: number }
+
+  // 6d. Graph BFS (rsxt k0 — resolve dependencies)
+  const graph = new Map<string, GraphNode>()
+  for (const c of components) graph.set(c.id, { comp: c, depth: 0, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 })
+  for (let depth = 1; depth <= 2 && graph.size < 12; depth++) {
+    const missing = [...new Set([...graph.values()].flatMap(n => n.dependencies))].filter(id => !graph.has(id))
+    if (!missing.length) break
+    const fetched = await fetchComponentsByIds(missing.slice(0, 12 - graph.size)).catch(() => [])
+    if (!fetched.length) break
+    for (const c of fetched) if (!graph.has(c.id) && graph.size < 12) graph.set(c.id, { comp: c, depth, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 - depth * 0.2 })
+  }
+  for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
+  const getGraphComps = () => [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
+  
+  const pickComp = (...keys: string[]): WarpComp | null => {
+    const found = getGraphComps().find(c => keys.some(k => c.id.includes(k) || c.name.toLowerCase().includes(k)))
+    return found || null
+  }
+  let cardComp = pickComp("card", "cartao")
+  let btnComp = pickComp("button", "botao")
+  let ringComp = pickComp("progress", "ring", "circular", "gauge")
+  let chipComp = pickComp("badge", "chip", "status")
+
+  // 7. Critique 6D + Devloop
+  let critique = computeCritique(graph, seg, "S10")
+  let devloopIter = 0
+  while (!critique.passed && devloopIter < 2) {
+    devloopIter++
+    const boostIntent = critique.functionality < 6 ? `acessivel keyboard-nav ${seg}` : critique.marketFit < 6 ? `${seg} landing conversion motion` : `${seg} badge progress`
+    const boosted = await queryComponentsByIntent(boostIntent, "S10", seg).catch(() => [])
+    if (boosted.length) {
+      for (const c of boosted) if (!graph.has(c.id) && graph.size < 12) {
+        graph.set(c.id, { comp: c, depth: 1 + devloopIter, dependencies: [...c.edges], dependents: [], relevanceScore: 0.7 - devloopIter * 0.15 })
       }
-    }
-
-    // 5. Copy (ADR-0036 Fase 3 — S10RaioXPipeline especialista + DeepSeek refina)
-    const s10pipeline = new S10RaioXPipeline()
-    const s10base = s10pipeline.compute({
-      category: cat, businessName: lead.title,
-      score: lead.score_compound || 50,
-      schwartzLevel: (lead.schwartz_label || "Problem Aware") as any,
-      signals: lead.signals_detected || [],
-      city, district,
-      rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
-      photos: lead.total_photos || 0,
-      isClaimed: lead.is_claimed || false,
-      website: lead.website || undefined,
-      competitorCount: competitors,
-    })
-    const baseHeadline = s10base.headline
-    const baseCta = s10base.cta
-    const offer = s10base.offer
-
-    let copyModel = "deepseek-refine"
-    let copy = await generateCopy({
-      title: lead.title, category: lead.category, city, district,
-      score: lead.score_compound, rating: lead.rating_value || 0,
-      is_claimed: lead.is_claimed || false, gaps: gaps,
-    })
-    if (copy) {
-      await trackLLMCost(0.001)
-      if (!copy.headline || copy.headline.length < 10) {
-        copy.headline = baseHeadline
-        copyModel = "deepseek-refine-fallback-base"
-      }
-    } else {
-      copyModel = "s10-pipeline"
-      copy = {
-        headline: baseHeadline,
-        subtitle: s10base.subtitle || "${mediaAnim?.keyframeRecommendations?.length ? 'Design intelligence ativo. ' : ''}Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
-        cta: baseCta,
-      }
-    }
-    const name = lead.title
-    const score = lead.score_compound || 50
-    const fit = lead.score_fit || 50; const eng = lead.score_engagement || 50; const ints = lead.score_intent || 50
-    const rating = lead.rating_value || 0; const reviews = lead.rating_votes || 0
-    const photos = lead.total_photos || 0
-    const website = lead.website || "sem site"
-    const claimed = lead.is_claimed ? "✅ Sim" : "❌ Não"
-
-    // 6. Design Intelligence (Qdrant live · adsentice vivo)
-    const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
-    const inspoUrls = designIntel?.inspirationUrls || []
-
-    // 6a. Query OD v0.9.0 design system specs (layout grid, card radius, hero height...)
-    // 150 estilos open-design embedados como kind=design-system — ADR-0034 orgao 5
-    const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
-
-    // 6a-bis. Materio tokens vivos (ADR-0036 Fase 2) — 36 tokens: spacing, shadows, motion, radius, typography, palette
-    const materio = await queryMaterioTokens().catch(() => null)
-    // 6a-ter. Media animation knowledge (Framer Motion, Lucide, SVG) — já ingerido, agora wireado
-    const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
-
-    // TOKENS UNIFICADOS (ADR-0036 Arquitetura Vencedora)
-    // 3 fontes -> 1 saida canonica. O SurfaceSpecialist decide qual fonte.
-    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
-
-    // 6b. Query Warp components from Qdrant (ADR-0033 Level 1)
-    const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
-    const hasComponents = components.length > 0
-
-    // ── PLUGIN HOOK 1: onEnrich (ADR-0036 Fase 1) ──
-    // Cada plugin ativo enriquece o contexto de design (Kimera PATTERNS, dark mode, etc.)
-    const designCtx = {
-      segment: seg as string, plan: "r0" as string, businessName: lead.title,
-      palette: { primary: p, secondary: s, accent: a },
-      typography: { heading: "Inter", body: "Inter" },
-      designInspiration: inspoUrls, suggestedComponents: components.map(c => c.name),
-      landingPattern: "S10-raio-x", previewHtml: "",
-    }
-    for (const plugin of pluginRegistry.listActive()) {
-      if (plugin.onEnrich) {
-        const enriched = await plugin.onEnrich(designCtx as any).catch(() => null)
-        if (enriched?.palette) { Object.assign(designCtx, enriched) }
-      }
-    }
-
-    // 6c. N1.3 (ADR-0033) — render por componentes: cada seção herda a11y do
-    // componente REAL do Qdrant (payload FLAT: a11y_role/a11y_keyboard/tokens/edges)
-    type WarpComp = (typeof components)[number]
-
-    // 6d. N2 (ADR-0033/0034 órgão 2) — grafo REAL via edges do payload FLAT.
-    // Espelha 4-composer.ts:181 resolveDependencies (BFS depth≤2, cap 12,
-    // relevanceScore=1-depth*0.2, dependents reversos). Unificação por import
-    // direto de packages/warp fica para a migração ADR-0017.
-    type GraphNode = { comp: WarpComp; depth: number; dependencies: string[]; dependents: string[]; relevanceScore: number }
-    const graph = new Map<string, GraphNode>()
-    for (const c of components) graph.set(c.id, { comp: c, depth: 0, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 })
-    for (let depth = 1; depth <= 2 && graph.size < 12; depth++) {
-      const missing = [...new Set([...graph.values()].flatMap(n => n.dependencies))].filter(id => !graph.has(id))
-      if (!missing.length) break
-      const fetched = await fetchComponentsByIds(missing.slice(0, 12 - graph.size)).catch(() => [])
-      if (!fetched.length) break
-      for (const c of fetched) if (!graph.has(c.id) && graph.size < 12) graph.set(c.id, { comp: c, depth, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 - depth * 0.2 })
-    }
-    for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
-    const getGraphComps = () => [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
-
-    const usedComponents: string[] = []
-    const pickComp = (...keys: string[]): WarpComp | null => {
-      const found = getGraphComps().find(c => keys.some(k =>
-        c.id.toLowerCase().includes(k) || c.name.toLowerCase().includes(k) || c.intent.toLowerCase().includes(k)))
-      if (found && !usedComponents.includes(found.id)) usedComponents.push(found.id)
-      return found || null
-    }
-    const esc = (t: string) => t.replace(/"/g, "&quot;")
-    // ADR-0036 — render por intent de corpus.
-    // Cada componente do vec() contribui a11y + tokens + category para o CSS.
-    const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
-      `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
-    
-    // Deriva estilo CSS do componente REAL do Qdrant (tokens, category, intent)
-    const compCSS = (c: WarpComp | null): string => {
-      if (!c) return ""
-      const t = new Set(c.tokens || [])
-      let css = ""
-      // Cada token que o componente declara como dependência gera uma custom property
-      if (t.has("color")) css += `--comp-accent:${T.primary};`
-      if (t.has("animation")) css += `--comp-motion:var(--motion);`
-      if (t.has("spacing")) css += `--comp-padding:${T.cardPadding};`
-      if (t.has("radius")) css += `--comp-radius:${T.radius};`
-      if (t.has("shadow")) css += `--comp-shadow:${T.cardShadow};`
-      if (t.has("typography")) css += `--comp-font:${T.font};`
-      if (t.has("z-index")) css += `--comp-z:10;`
-      if (c.category) css += `--comp-category:${c.category};`
-      return css
-    }
-
-    // Mapeia componente → recomendação de estilo para o slot
-    const slotStyle = (c: WarpComp | null, defaultStyles: string): string => {
-      if (!c) return defaultStyles
-      const t = c.tokens || []
-      let s = defaultStyles
-      // Componentes que consomem "shadow" ganham elevação
-      if (t.includes("shadow") && !s.includes("box-shadow")) s += `box-shadow:var(--shadow-sm);`
-      // Componentes que consomem "animation" ganham transition
-      if (t.includes("animation") && !s.includes("transition")) s += `transition:all var(--motion);`
-      // Componentes "feedback" ganham backdrop-filter
-      if (c.category === "feedback" && !s.includes("backdrop")) s += `backdrop-filter:blur(8px);`
-      // Componentes "action" ganham cursor pointer
-      if (c.category === "action" && !s.includes("cursor")) s += `cursor:pointer;`
-      return s
-    }
-    let cardComp = pickComp("card", "cartao")
-    let btnComp = pickComp("button", "botao")
-    let ringComp = pickComp("progress", "ring", "circular", "gauge")
-    let chipComp = pickComp("badge", "chip", "status")
-
-    // LayoutTree S10 (landing-shell) — slots ligados aos componentes resolvidos
-    let layoutTree = {
-      id: "layout.s10", type: "landing-shell",
-      slots: {
-        hero: { component: chipComp?.id || "hero-badge" },
-        score: { component: ringComp?.id || "score-ring", card: cardComp?.id || "score-card" },
-        info: { type: "grid", columns: 3, component: cardComp?.id || "info-card" },
-        gaps: { component: cardComp?.id || "gap-card", count: gaps.length },
-        cta: { component: btnComp?.id || "cta-button" },
-      },
-      graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })),
-    }
-
-    // 7. Critique 6D + Devloop (ADR-0033 N3.2 + ADR-0034 orgao 3)
-    // Avalia graph real. Se composite < 7.0, ajusta intent e re-query (<3x).
-    let critique = computeCritique(graph, seg, "S10")
-    let devloopIter = 0
-    while (!critique.passed && devloopIter < 2) {
-      devloopIter++
-      const boostIntent = critique.functionality < 6 ? `acessivel keyboard-nav ${seg}` :
-        critique.marketFit < 6 ? `${seg} landing conversion motion` : `${seg} badge progress`
-      const boosted = await queryComponentsByIntent(boostIntent, "S10", seg).catch(() => [])
-      if (boosted.length) {
-        for (const c of boosted) if (!graph.has(c.id) && graph.size < 12) {
-          graph.set(c.id, { comp: c, depth: 1 + devloopIter, dependencies: [...c.edges], dependents: [], relevanceScore: 0.7 - devloopIter * 0.15 })
-        }
-        for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep && !dep.dependents.includes(gid)) dep.dependents.push(gid) }
-        // Re-pick components after Devloop adjustments
-        usedComponents.length = 0;
-        [cardComp, btnComp, ringComp, chipComp].forEach(() => {})
-      }
-      // Re-pick após graph expandido
+      for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
       usedComponents.length = 0
       const fresh = getGraphComps()
       const c2 = fresh.find((c: any) => ["card","cartao","bento"].some((k: string) => c.id.includes(k) || c.name.toLowerCase().includes(k)))
@@ -829,27 +717,77 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       if (b2) { usedComponents.push(b2.id); btnComp = b2 as any }
       if (r2) { usedComponents.push(r2.id); ringComp = r2 as any }
       if (ch2) { usedComponents.push(ch2.id); chipComp = ch2 as any }
-      critique = computeCritique(graph, seg, "S10")
     }
-    let tracedLayout: any = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
+    critique = computeCritique(graph, seg, "S10")
+  }
+  let layoutTree = {
+    id: "layout.s10", type: "landing-shell",
+    slots: {
+      hero: { component: chipComp?.id || "hero-badge" },
+      score: { component: ringComp?.id || "score-ring", card: cardComp?.id || "score-card" },
+      info: { type: "grid", columns: 3, component: cardComp?.id || "info-card" },
+      gaps: { component: cardComp?.id || "gap-card", count: gaps.length },
+      cta: { component: btnComp?.id || "cta-button" },
+    },
+  }
+  let tracedLayout: any = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
 
-    // ── PLUGIN HOOK 2: onCritique (ADR-0036 Fase 1) ──
-    designCtx.previewHtml = ""; designCtx.critiqueScore = critique as any
-    for (const plugin of pluginRegistry.listActive()) {
-      if (plugin.onCritique) {
-        const enforced = await plugin.onCritique(critique as any, designCtx as any).catch(() => null)
-        if (enforced?.enforced) {
-          critique = { ...critique, ...enforced.score }
-          tracedLayout.critique = { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter, enforced: true }
-        }
+  // PLUGIN HOOK 2: onCritique
+  const designCtx = { segment: seg, plan: "r0", businessName: lead.title, palette: { primary: p, secondary: s, accent: a }, typography: { heading: "Inter", body: "Inter" }, designInspiration: inspoUrls, suggestedComponents: getGraphComps().map(c => c.name), landingPattern: "S10-raio-x", previewHtml: "", critiqueScore: critique }
+  for (const plugin of pluginRegistry.listActive()) {
+    if (plugin.onCritique) {
+      const enforced = await plugin.onCritique(critique as any, designCtx as any).catch(() => null)
+      if (enforced?.enforced) {
+        critique = { ...critique, ...enforced.score }
+        tracedLayout.critique = { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter, enforced: true }
       }
     }
+  }
 
-    // 7. Build HTML (FULL Python template port + Qdrant design intelligence)
-    const html = `<!DOCTYPE html><html lang="pt-BR">
+  const usedComponents: string[] = []
+  for (const c of [cardComp, btnComp, ringComp, chipComp]) {
+    if (c && !usedComponents.includes(c.id)) usedComponents.push(c.id)
+  }
+
+  return {
+    name, category: cat, seg, score, fit, eng, ints,
+    rating, reviews, photos, website, claimed, city, district,
+    level: "Solution Aware", nichoName: nicho.name, offer, competitors, local,
+    headline: copy.headline, subtitle: copy.subtitle, cta: copy.cta, copyModel,
+    p, s, a, p15, p12,
+    T,
+    gaps,
+    graphComps: getGraphComps(),
+    cardComp, btnComp, ringComp, chipComp,
+    usedComponents,
+    graph,
+    critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter },
+    tracedLayout,
+    designSystem: odSystem?.designSystem || "warp-default",
+    mediaAnim,
+  }
+}
+
+/** GREEN PHASE: pure sync render. g0 rule: specialist emite gramatica (BLUE),
+ *  renderer aplica materials (GREEN). ZERO Qdrant, ZERO LLM, ZERO async.
+ *  Mesma entrada → mesmo HTML. Função pura. */
+function renderS10_BLUE(output: S10BlueOutput): string {
+  const { name, seg, score, fit, eng, ints, rating, reviews, photos,
+    website, claimed, city, district, level, nichoName, offer, competitors, local,
+    headline, subtitle, cta, copyModel,
+    p, s, a, p15, p12, T, gaps, cardComp, btnComp, ringComp, chipComp,
+  } = output
+
+  const esc = (t: string) => t.replace(/"/g, "&quot;")
+
+  // Helper: compAttrs — a11y do vec() (BLUE decision, GREEN aplica)
+  const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
+    `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
+
+  return `<!DOCTYPE html><html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="${copy.headline}">
-<title>Raio-X · ${name} | adsentice</title>
+<meta name="description" content="${esc(headline)}">
+<title>Raio-X · ${esc(name)} | adsentice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -866,7 +804,6 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
   --radius:${T.radius};--radius-sm:${T.radiusSm};--radius-pill:${T.radiusPill};
   --motion-fast:${T.motionFast};--motion:${T.motion};--motion-smooth:${T.motionSmooth};
 }
-/* ── ANIMATIONS (Materio motion + Framer knowledge) ── */
 @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
@@ -876,8 +813,8 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
 .hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}
 .hero-badge{animation:fadeIn var(--motion) .2s both}
 .score-card{animation:scaleIn var(--motion-smooth) .15s both}
-.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i, 0) * .08s)}
-.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i, 0) * .1s)}
+.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}
+.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}
 .cta{animation:fadeInUp var(--motion-smooth) .2s both}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -885,19 +822,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .hero{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;min-height:${T.heroMinHeight};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
 .hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
-.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);${slotStyle(chipComp, "backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem")}}
+.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
 .hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
 .hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
 .container{max-width:${T.containerMaxWidth};margin:0 auto;padding:0 ${T.containerGutter}}
 .section{padding:${T.sectionSpacing} 0}@media(max-width:768px){.section{padding:${T.sectionSpacingTablet} 0}}@media(max-width:480px){.section{padding:${T.sectionSpacingPhone} 0}}
-.score-card{background:var(--card);border:${odSystem?.components?.cardBorder || "1px solid var(--border)"};border-radius:var(--radius);padding:${odSystem?.components?.cardPadding || "20px"};box-shadow:${odSystem?.components?.cardShadow || "var(--shadow)"};display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
+.score-card{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};box-shadow:${T.cardShadow === "none" ? "none" : "var(--shadow-sm)"};display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
 .score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(${p} 0% ${Math.min(fit,100)}%,${a} ${Math.min(fit,100)}% ${Math.min(fit+eng,100)}%,${s} ${Math.min(fit+eng,100)}% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
 .score-value{font-size:2.25rem;font-weight:800;line-height:1;color:${p}}
 .score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
 .score-info{flex:1;min-width:240px}
 .score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
-.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;${slotStyle(chipComp, "")};background:${p15};color:${p};margin-bottom:1rem}
+.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:${p15};color:${p};margin-bottom:1rem}
 .score-bars{display:flex;flex-direction:column;gap:.625rem}
 .score-bar{display:flex;align-items:center;gap:.75rem}
 .score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
@@ -905,14 +842,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .score-bar-fill{height:100%;border-radius:99px}
 .score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}
 .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}
-.info-card{background:var(--card);border:${odSystem?.components?.cardBorder || "1px solid var(--border)"};border-radius:var(--radius);padding:${odSystem?.components?.cardPadding || "20px"};box-shadow:${odSystem?.components?.cardShadow === "none" ? "none" : "var(--shadow)"}}
+.info-card{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};box-shadow:${T.cardShadow === "none" ? "none" : "var(--shadow-sm)"}}
 .info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}
 .info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:${p}}
 .info-card .value.stars{color:#f59e0b}
 .info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
-.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600;margin-top:.5rem}
+.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}
 .info-card .status.ok{background:${p12};color:${p}}
-.gap{background:var(--card);border:${odSystem?.components?.cardBorder || "1px solid var(--border)"};border-radius:var(--radius);padding:${odSystem?.components?.cardPadding || "20px"};margin-bottom:1rem;box-shadow:${odSystem?.components?.cardShadow || "0 1px 2px rgba(0,0,0,0.05)"};transition:all var(--motion);position:relative}
+.gap{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};margin-bottom:1rem;box-shadow:${T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)"};transition:all var(--motion);position:relative}
 .gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
 .gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .gap.critico::before{background:var(--destructive)}
@@ -928,33 +865,29 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .gap .fix{background:var(--muted);padding:.875rem 1rem;border-radius:var(--radius-sm);font-size:.875rem}
 .gap .fix strong{color:var(--fg)}
 .gap .meta-row{display:flex;gap:1.25rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}
-.cta{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+.cta{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
 .cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
 .cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
-.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;${slotStyle(btnComp, "transition:all var(--motion);box-shadow:0 4px 14px rgba(0,0,0,0.12)")}}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:${T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)"}}
 .cta-btn:hover{transform:${T.cardShadow === "none" ? "none" : "translateY(-2px)"};box-shadow:0 8px 25px rgba(0,0,0,0.18)}
 footer{text-align:center;padding:${T.sectionSpacing} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
 footer span{color:${T.primary};font-weight:600}
 @media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0f172a;--fg:#e2e8f0;--card:#1e293b;--muted:#1e293b;--muted-fg:#94a3b8;--border:#334155; }
+}
 </style>
 <script type="application/ld+json">
-{
-  "@context":"https://schema.org",
-  "@type":"LocalBusiness",
-  "name":"${name.replace(/"/g,'\\"')}",
-  "image":"${lead.website && /^https?:\/\//.test(lead.website) ? lead.website.replace(/"/g,"&quot;") : ""}",
-  "address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},
-  "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
-}
+{"@context":"https://schema.org","@type":"LocalBusiness","name":"${esc(name)}","image":"${website && /^https?:\/\//.test(website) ? website.replace(/"/g,"&quot;") : ""}","address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}}
 </script></head><body>
-<header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
+<header class="hero" ${compAttrs(chipComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
 <div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Relatório Raio-X · Diagnóstico Gratuito</div>
-<h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
+<h1>${headline}</h1><p class="subtitle">${subtitle}</p>
 </div></div>
 <main class="container" role="main" aria-label="Resultado do diagnóstico">
-<div class="score-card" ${compAttrs(cardComp, "region", `Diagnóstico de ${name}: score ${score} de 100`)}>
-<div class="score-ring" ${compAttrs(ringComp, "img", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
-<div class="score-info"><h2>${name}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nicho.name}</div>
+<div class="score-card" ${compAttrs(cardComp, "region", esc(`Diagnóstico de ${name}: score ${score} de 100`))}>
+<div class="score-ring" ${compAttrs(ringComp, "progressbar", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
+<div class="score-info"><h2>${esc(name)}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nichoName}</div>
 <div class="score-bars">
 <div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
 <div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
@@ -963,48 +896,104 @@ footer span{color:${T.primary};font-weight:600}
 <div class="info-grid">
 <div class="info-card" ${compAttrs(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
 <div class="info-card" ${compAttrs(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nichoName.toLowerCase()}s na região</div><div class="status ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score ${score}/100</div></div>
 </div>
 <div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
 <p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
 ${gaps.map((g, idx) => {
-  const sevClass = g.severity.includes("Crítico") ? "critico" : g.severity.includes("Médio") ? "medio" : g.severity.includes("Força") ? "forca" : "oportunidade"
-  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "article", g.title)} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
+  const sev = g.severity
+  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
+  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "region", esc(g.title))} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${esc(g.title)}</h4></div><p>${esc(g.desc)}</p><div class="fix"><strong>✅ Como resolver:</strong> ${esc(g.fix)}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
 }).join("")}
 </div>
-<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${copy.cta} no WhatsApp</a></div></div>
-
+<div class="cta"><h2>${esc(offer)}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" ${compAttrs(btnComp, "button", `${cta} no WhatsApp`)} target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${cta} no WhatsApp</a></div></div>
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
+}
 
-    // Meta sidecar (padrão tools/adsentice_s10_generator.py — ADR-0033 N4.4)
-    // HTML = cliente (limpo). meta = trace interno (route serve separado).
-    const traceId = `s10_${Math.random().toString(36).slice(2, 14)}`
-    const meta = {
-      traceId, lead: name, category: cat, segment: seg, score,
-      designSystem: odSystem?.designSystem || "warp-default",
-      nicho: { name: nicho.name, specialties: nicho.specialties.slice(0, 5), audience: nicho.audience, tone: nicho.tone, keywords: nicho.keywords.slice(0, 3) },
-      tokens: { primary: p, secondary: s, accent: a, heading: "Inter", body: "Inter", spacing: morph.tokens["spacing"] || "1.5rem" },
-      gaps: gaps.map(g => ({ title: g.title, severity: g.severity, signal: g.signal })),
-      copy_model: copyModel,
-      headline: copy.headline, subtitle: copy.subtitle, cta: copy.cta,
-      competitors,
-      layoutTree: tracedLayout,
-      critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter },
-      componentsUsed: usedComponents,
-      computedAt: new Date().toISOString(),
-      city, district,
-    }
-    // ── PLUGIN HOOK 3: onGenerate (ADR-0036 Fase 1) ──
-    let finalHtml = html
+export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
+  try {
+    // ── PLUGIN SYSTEM (ADR-0036 Fase 1) ──
+    await pluginRegistry.activateAll()
+
+    // ═══ BLUE PHASE (L0-L6 intelligence) ═══
+    // 1. Fetch lead (L0 — structural)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const url = `${supabaseUrl}/rest/v1/discovery_listings?select=place_id,title,category,rating_value,rating_votes,is_claimed,website,latitude,longitude,score_compound,score_fit,score_engagement,score_intent,schwartz_level,schwartz_label,signals_detected,total_photos,city,district,enrichment_level,l2_onpage_score,l2_word_count,l2_internal_links_count,l2_external_links_count,l2_images_count,l2_seo_checks,l2_has_analytics,l2_cms,l2_meta_title,l2_meta_description,l2_domain_rank,l2_lighthouse_performance,l2_content_maturity,l2_content_gaps&place_id=eq.${encodeURIComponent(placeId)}&limit=1`
+    const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+    if (!res.ok) return null
+    const leads = await res.json() as S10Lead[]
+    if (!leads.length) return null
+    const lead = leads[0]
+
+    // 2. Classify (L1 — deterministic)
+    const cat = normalizeCategory(lead.category)
+    const seg = CAT_TO_SEGMENT[cat] || 'servicos'
+    const nicho = NICHO_MAP[cat] || { ...GENERIC_NICHO, name: lead.category || GENERIC_NICHO.name }
+    const level = lead.schwartz_label || "Problem Aware"
+    const district = lead.district || ""
+    const city = lead.city || ""
+    const local = district ? `${district}, ${city}` : city
+
+    // 2b. Concorrência real (L2 — deterministic)
+    let competitors = 0
+    try {
+      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
+      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+    } catch (e: unknown) { void e }
+
+    // 3. Tokens (L3 — sensor: Materio + OD + segment palette)
+    const morph = await morphTokens({ surface:"S10", segment: seg as SegmentId, plan:"r0", mode:"internal" })
+    const p = morph.tokens["color-primary"] || "#2563EB"
+    const s = morph.tokens["color-secondary"] || "#1E40AF"
+    const a = morph.tokens["color-accent"] || "#3B82F6"
+    const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
+
+    // ── QDRANT QUERIES (L3 — sensor: vec() narrows candidates) ──
+    const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
+    const inspoUrls = designIntel?.inspirationUrls || []
+    const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
+    const materio = await queryMaterioTokens().catch(() => null)
+    const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
+    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
+
+    // ═══ BLUE → GREEN: composição de decisões → render puro ═══
+    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T)
+    
+    // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
+    // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials
+    let html = renderS10_BLUE(blue)
+
+    // ── PLUGIN HOOK 3: onGenerate (post-render) ──
     for (const plugin of pluginRegistry.listActive()) {
       if (plugin.onGenerate) {
-        const transformed = await plugin.onGenerate(designCtx as any, finalHtml).catch(() => null)
-        if (transformed) finalHtml = transformed
+        const transformed = await plugin.onGenerate({} as any, html).catch(() => null)
+        if (transformed) html = transformed
       }
     }
 
-    return { html: finalHtml, meta }
+    // ── META SIDECAR (ADR-0033 N4.4) ──
+    const meta = {
+      traceId: `s10_${Math.random().toString(36).slice(2, 14)}`,
+      lead: blue.name, category: blue.category, segment: blue.seg, score: blue.score,
+      nicho: { name: blue.nichoName, specialties: nicho.specialties.slice(0, 5), audience: nicho.audience, tone: nicho.tone, keywords: nicho.keywords.slice(0, 3) },
+      tokens: { primary: p, secondary: s, accent: a, heading: "Inter", body: "Inter", spacing: morph.tokens["spacing"] || "1.5rem" },
+      gaps: blue.gaps.map(g => ({ title: g.title, severity: g.severity, signal: g.signal })),
+      copy_model: blue.copyModel,
+      headline: blue.headline, subtitle: blue.subtitle, cta: blue.cta,
+      competitors: blue.competitors,
+      layoutTree: blue.tracedLayout,
+      critique: { composite: blue.critique.composite, passed: blue.critique.passed, feedback: blue.critique.feedback, devloopIter: blue.critique.devloopIter },
+      componentsUsed: blue.usedComponents,
+      computedAt: new Date().toISOString(),
+      city, district,
+      designSystem: blue.designSystem,
+      // BLUE/GREEN marker (RSXT doctrine compliance)
+      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_BLUE", doctrine: "g0: specialist emites grammar, GREEN applies materials" },
+    }
+
+    return { html, meta }
   } catch (e: any) { console.error("[composeS10]", e.message); return null }
 }
