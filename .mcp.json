@@ -2,11 +2,20 @@
   "mcpServers": {
     "adsentice-redis": {
       "command": "npx",
-      "args": ["-y", "@gongrzhe/server-redis-mcp@latest", "redis://127.0.0.1:6396"]
+      "args": [
+        "-y",
+        "@gongrzhe/server-redis-mcp@latest",
+        "redis://127.0.0.1:6396"
+      ]
     },
     "adsentice-qdrant": {
       "command": "uv",
-      "args": ["run", "--quiet", "--script", "tools/adsentice_qdrant_server.py"],
+      "args": [
+        "run",
+        "--quiet",
+        "--script",
+        "tools/adsentice_qdrant_server.py"
+      ],
       "env": {
         "QDRANT_URL": "http://127.0.0.1:6352",
         "QDRANT_COLLECTION": "adsentice-self",
@@ -15,14 +24,24 @@
     },
     "adsentice-kg": {
       "command": "uv",
-      "args": ["run", "--quiet", "--script", "tools/adsentice_kg_server.py"],
+      "args": [
+        "run",
+        "--quiet",
+        "--script",
+        "tools/adsentice_kg_server.py"
+      ],
       "env": {
         "TAG": "adsentice"
       }
     },
     "adsentice-conversation": {
       "command": "uv",
-      "args": ["run", "--quiet", "--script", "tools/adsentice_conversation.py"],
+      "args": [
+        "run",
+        "--quiet",
+        "--script",
+        "tools/adsentice_conversation.py"
+      ],
       "env": {
         "CLAUDE_KG_EMBED_URL": "http://127.0.0.1:8081/embed",
         "CLAUDE_KG_QDRANT_URL": "http://127.0.0.1:6352",
@@ -34,21 +53,37 @@
     },
     "dataforseo": {
       "command": "npx",
-      "args": ["-y", "dataforseo-mcp-server@2.8.10"],
+      "args": [
+        "-y",
+        "dataforseo-mcp-server@2.8.10"
+      ],
       "disabled": true,
       "description": "SUBSTITUIDO por provider-core v2.0 (packages/provider-core/). DataForSEO chamado direto via HTTP, 1 hop, sem MCP intermediario."
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"],
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
       "env": {
         "CONTEXT7_API_KEY": "ctx7sk-a08917b8-0ad9-4912-845a-c83b72912fac"
       }
     },
     "21st-magic": {
       "command": "npx",
-      "args": ["-y", "@magicuidesign/mcp@latest"],
+      "args": [
+        "-y",
+        "@magicuidesign/mcp@latest"
+      ],
       "disabled": true
+    },
+    "open-design": {
+      "url": "http://127.0.0.1:7456/sse",
+      "headers": {
+        "Authorization": "Bearer adsentice-local-dev"
+      },
+      "description": "OD v0.9.0-sovereign — 6 projetos"
     }
   }
 }
