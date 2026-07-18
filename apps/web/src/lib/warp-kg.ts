@@ -716,4 +716,79 @@ export async function fetchComponentsByIds(ids: string[]): Promise<{
   } catch {
     return []
   }
+}/** ADR-0036 Fase 5 — query SVG icons do corpus, filtered by intent vocab facets.
+ *  Vocab facets (resolveIntentVocab) narrow icon selection via client-side scoring.
+ *  KG: vocab.facets.* → media.icon_set.lucide → 20 Lucide SVG icons with facets.
+ *  Se Qdrant offline ou sem hits, retorna {} — GREEN usa texto puro. */
+export async function queryMediaIcons(iconFacets?: string[]): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: { must: [
+          { key: "kind", match: { value: "component" } },
+          { key: "category", match: { value: "icon" } },
+        ] },
+        limit: 30, with_payload: true,
+      }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return {}
+    const data = await res.json()
+    const points: QdrantPoint[] = data.result?.points || []
+
+    // Map icon payload id → renderer facet name (what slot renderers call via icon('...'))
+    const idToFacet: Record<string, string> = {
+      search: 'search', 'icon-search': 'search',
+      chart: 'chart', 'icon-chart': 'chart',
+      trend: 'trend', 'icon-trend': 'trend',
+      message: 'message', 'icon-message': 'message',
+      star: 'star', 'icon-star': 'star',
+      shield: 'shield', 'icon-shield': 'shield',
+      spark: 'spark', 'icon-spark': 'spark',
+      arrow: 'arrow', 'icon-arrow': 'arrow', 'icon-chevron-right': 'arrow',
+      'icon-alert-triangle': 'alert',
+      'icon-tooth': 'tooth', 'icon-eye': 'view',
+      'icon-plus': 'create', 'icon-map-pin': 'location',
+      'icon-heart': 'like', 'icon-building': 'building',
+      'icon-briefcase': 'business', 'icon-graduation-cap': 'education',
+      'icon-shopping-bag': 'shopping', 'icon-utensils': 'food',
+      'icon-phone': 'phone', 'icon-x': 'dismiss',
+      'icon-external-link': 'external',
+      'icon-chevron-up': 'expand', 'icon-chevron-down': 'collapse',
+    }
+
+    // ── VOCAB-DRIVEN SCORING: facet-matched icons ranked higher ──
+    const vocabFilters = new Set(iconFacets?.slice(0, 8) || [])
+    const scored: { facet: string; markup: string; score: number }[] = []
+
+    for (const p of points) {
+      const pl = p.payload || {}
+      const id = (pl.id as string) || ""
+      const markup = (pl.text as string) || (pl.description as string) || ""
+      if (!markup.includes("<svg")) continue
+
+      const facetFromId = idToFacet[id]
+      const payloadFacets: string[] = (pl.facets as string[]) || []
+
+      // Score: 3 = exact vocab match, 2 = facet overlap, 1 = no match
+      let score = 1
+      if (facetFromId && vocabFilters.has(facetFromId)) score = 3
+      else if (payloadFacets.some(f => vocabFilters.has(f))) score = 2
+
+      const finalFacet = facetFromId || payloadFacets.find(f => f !== 'icon' && f !== 'data-display') || id.replace('icon-', '')
+      scored.push({ facet: finalFacet, markup, score })
+    }
+
+    // Sort: vocab-matched first, then dedup by facet
+    scored.sort((a, b) => b.score - a.score)
+    const icons: Record<string, string> = {}
+    for (const s of scored) {
+      if (!icons[s.facet]) icons[s.facet] = s.markup
+    }
+    return icons
+  } catch { return {} }
 }
+
+
