@@ -19,12 +19,13 @@ async function embedQuery(text: string): Promise<number[]> {
   const res = await fetch(`${EMBED}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ texts: [text] }),
     signal: AbortSignal.timeout(5000),
   })
   if (!res.ok) return []
   const data = await res.json()
-  return data.embedding || data.vector || []
+  // Contrato real embed-server-rs (medido): {texts:[...]} → {vectors:[[768d]]}
+  return data.vectors?.[0] || data.embedding || data.vector || []
 }
 
 async function qdrantSearch(vector: number[], filter: Record<string, unknown>, limit = 100): Promise<QdrantPoint[]> {
@@ -246,7 +247,7 @@ export async function queryDesignBestPractices(segment: string, surface: string)
  *  Returns components with a11y data for HTML generation. */
 export async function queryComponentsByIntent(intent: string, surface?: string, segment?: string): Promise<{
   name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
-  tokens: string[]; category: string
+  tokens: string[]; category: string; intent: string; edges: string[]
 }[]> {
   try {
     const vec = await embedQuery(`${intent} ${surface || ''} ${segment || ''} design system component`)
@@ -259,7 +260,8 @@ export async function queryComponentsByIntent(intent: string, surface?: string, 
       ],
     }
     
-    const results = await qdrantSearch(vec, filter, 8)
+    const results = await qdrantSearch(vec, filter, 16)
+    const seen = new Set<string>()
     return results.map(p => {
       const pl = p.payload || {}
       return {
@@ -273,8 +275,10 @@ export async function queryComponentsByIntent(intent: string, surface?: string, 
         },
         tokens: (pl.tokens as string[]) || [],
         category: (pl.category as string) || "layout",
+        intent: (pl.intent as string) || "",
+        edges: (pl.edges as string[]) || [],
       }
-    })
+    }).filter(c => !seen.has(c.id) && seen.add(c.id) !== undefined).slice(0, 8)
   } catch {
     return []
   }

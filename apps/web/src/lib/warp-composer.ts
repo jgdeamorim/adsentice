@@ -620,6 +620,24 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
     const hasComponents = components.length > 0
 
+    // 6c. N1.3 (ADR-0033) — render por componentes: cada seção herda a11y do
+    // componente REAL do Qdrant (payload FLAT: a11y_role/a11y_keyboard/tokens/edges)
+    type WarpComp = (typeof components)[number]
+    const usedComponents: string[] = []
+    const pickComp = (...keys: string[]): WarpComp | null => {
+      const found = components.find(c => keys.some(k =>
+        c.id.toLowerCase().includes(k) || c.name.toLowerCase().includes(k) || c.intent.toLowerCase().includes(k)))
+      if (found && !usedComponents.includes(found.id)) usedComponents.push(found.id)
+      return found || null
+    }
+    const esc = (t: string) => t.replace(/"/g, "&quot;")
+    const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
+      `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
+    const cardComp = pickComp("card", "cartao")
+    const btnComp = pickComp("button", "botao")
+    const ringComp = pickComp("progress", "ring", "circular", "gauge")
+    const chipComp = pickComp("badge", "chip", "status")
+
     // Auto-critique via design knowledge
     const critiqueNotes: string[] = []
     if (designIntel) {
@@ -715,32 +733,32 @@ footer span{color:${p};font-weight:600}
 }
 </script></head><body>
 <header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
-<div class="hero-badge">🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
+<div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
 </div></div>
 <main class="container" role="main" aria-label="Resultado do diagnóstico">
-<div class="score-card">
-<div class="score-ring"><div class="score-inner"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
-<div class="score-info"><h2>${name}</h2><div class="score-level">${level} · ${nicho.name}</div>
+<div class="score-card" ${compAttrs(cardComp, "region", `Diagnóstico de ${name}: score ${score} de 100`)}>
+<div class="score-ring" ${compAttrs(ringComp, "img", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
+<div class="score-info"><h2>${name}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nicho.name}</div>
 <div class="score-bars">
 <div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
 <div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
 <div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
 </div></div></div>
 <div class="info-grid">
-<div class="info-card"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
-<div class="info-card"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Google Meu Negócio")}><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Website")}><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")}><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
 </div>
 <div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
 <p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
 ${gaps.map(g => {
   const sevClass = g.severity.includes("Crítico") ? "critico" : g.severity.includes("Médio") ? "medio" : g.severity.includes("Força") ? "forca" : "oportunidade"
-  return `<div class="gap ${sevClass}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span>📈 Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
+  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "article", g.title)}><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span>📈 Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
 }).join("")}
 </div>
-<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" target="_blank">💬 ${copy.cta} no WhatsApp</a></div></div>
-${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${components.map(c => `${c.name} (${c.a11y.role} · ${c.tokens.slice(0,2).join(',')})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
+<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener">💬 ${copy.cta} no WhatsApp</a></div></div>
+${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${components.map(c => `${usedComponents.includes(c.id) ? "🔗 " : ""}${c.name} (${c.a11y.role} · ${c.tokens.slice(0,2).join(",")}${c.edges.length ? ` → ${c.edges.join(",")}` : ""})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
