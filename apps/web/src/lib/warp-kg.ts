@@ -525,20 +525,20 @@ export async function queryMaterioTokens(): Promise<{
 
 /** ADR-0036 Fase 2 — query animation/media knowledge para enriquecer CSS.
  *  Retorna keyframes CSS + recomendações de motion do corpus (Framer Motion, etc.) */
-export async function queryMediaAnimation(segment: string): Promise<{
+export async function queryMediaAnimation(segment: string, animationFacets?: string[]): Promise<{
   keyframeRecommendations: string[]
   motionPresets: string[]
   iconLibrary: string
 } | null> {
   try {
-    const query = `${segment} animation motion keyframes transition landing page`
+    const query = `${segment} animation motion keyframes transition landing page${animationFacets?.length ? ' ' + animationFacets.join(' ') : ''}`
     const vec = await embedQuery(query)
     if (vec.length === 0) return null
 
     const results = await qdrantSearch(vec, {
       must: [{ key: "kind", match: { value: "media-knowledge" } }],
     }, 5)
-    
+
     const sources = results.map(p => (p.payload?.source as string) || "").filter(Boolean)
     const texts = results.map(p => (p.payload?.text as string) || (p.payload?.name as string) || "").filter(Boolean)
 
@@ -550,117 +550,7 @@ export async function queryMediaAnimation(segment: string): Promise<{
   } catch { return null }
 }
 
-
-/** ADR-0036 Fase 4 — query CSS patterns + design knowledge do corpus.
- *  Enriquecimento semântico: embeda o segmento, busca design-knowledge + media-knowledge
- *  e retorna micro-interações, keyframes e padrões de layout aplicáveis. */
-export async function queryCSSPatterns(segment: string, surface: string): Promise<{
-  microInteractions: string[]    // hover, focus, active patterns
-  keyframeVariants: string[]    // segment-specific animation variants
-  layoutRecommendations: string[] // spacing, grid, composition hints
-  sources: string[]             // Qdrant sources for traceability
-} | null> {
-  try {
-    const query = `${segment} ${surface} CSS design patterns micro-interactions keyframes layout landing page`
-    const vec = await embedQuery(query)
-    if (vec.length === 0) return null
-
-    // Query media-knowledge for CSS patterns
-    const mediaResults = await qdrantSearch(vec, {
-      must: [{ key: "kind", match: { value: "media-knowledge" } }],
-    }, 8)
-
-    // Query design-knowledge for layout/typography patterns
-    const designResults = await qdrantSearch(vec, {
-      must: [{ key: "kind", match: { value: "design-knowledge" } }],
-    }, 8)
-
-    const all = [...mediaResults, ...designResults]
-    const good = all.filter(p => (p.score || 0) >= SCORE_THRESHOLD)
-
-    const microInteractions: string[] = []
-    const keyframeVariants: string[] = []
-    const layoutRecommendations: string[] = []
-    const sources: string[] = []
-
-    for (const r of good) {
-      const pl = r.payload || {}
-      const text = (pl.text as string) || (pl.name as string) || ""
-      const source = (pl.source as string) || ""
-      const name = (pl.name as string) || ""
-
-      if (source && !sources.includes(source)) sources.push(source)
-
-      if (text) {
-        const lower = text.toLowerCase()
-        if (lower.includes("micro-interaction") || lower.includes("hover") || lower.includes("transition") || lower.includes("active")) {
-          microInteractions.push(text.slice(0, 200))
-        }
-        if (lower.includes("keyframe") || lower.includes("animation") || lower.includes("scroll-driven") || lower.includes("fade")) {
-          keyframeVariants.push(text.slice(0, 300))
-        }
-        if (lower.includes("layout") || lower.includes("grid") || lower.includes("spacing") || lower.includes("typography") || lower.includes("composition")) {
-          layoutRecommendations.push(text.slice(0, 200))
-        }
-      }
-    }
-
-    return {
-      microInteractions: microInteractions.slice(0, 3),
-      keyframeVariants: keyframeVariants.slice(0, 3),
-      layoutRecommendations: layoutRecommendations.slice(0, 3),
-      sources: sources.slice(0, 5),
-    }
-  } catch { return null }
-}
-
-/** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
- *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
- *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */
-export async function fetchComponentsByIds(ids: string[]): Promise<{
-  name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
-  tokens: string[]; category: string; intent: string; edges: string[]; description: string
-}[]> {
-  if (!ids.length) return []
-  try {
-    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filter: { must: [
-          { key: "kind", match: { value: "component" } },
-          { key: "id", match: { any: ids } },
-        ] },
-        limit: ids.length * 2, with_payload: true,
-      }),
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!res.ok) return []
-    const data = await res.json()
-    const points: QdrantPoint[] = data.result?.points || []
-    const seen = new Set<string>()
-    return points.map(p => {
-      const pl = p.payload || {}
-      return {
-        name: (pl.name as string) || (pl.id as string) || "unknown",
-        id: (pl.id as string) || "unknown",
-        a11y: {
-          role: (pl.a11y_role as string) || "region",
-          ariaLabel: (pl.a11y_role as string) ? `${pl.name} component` : "Content section",
-          keyboardNav: (pl.a11y_keyboard as boolean) || false,
-          contrastRatio: (pl.a11y_contrast as number) || 3.0,
-        },
-        tokens: (pl.tokens as string[]) || [],
-        category: (pl.category as string) || "layout",
-        intent: (pl.intent as string) || "",
-        edges: (pl.edges as string[]) || [],
-        description: (pl.description as string) || (pl.text as string) || "",
-      }
-    }).filter(c => !seen.has(c.id) && seen.add(c.id) !== undefined)
-  } catch {
-    return []
-  }
-}/** ADR-0036 Fase 5 — query SVG icons do corpus, filtered by intent vocab facets.
+/** ADR-0036 Fase 5 — query SVG icons do corpus, filtered by intent vocab facets.
  *  Vocab facets (resolveIntentVocab) narrow icon selection via client-side scoring.
  *  KG: vocab.facets.* → media.icon_set.lucide → 20 Lucide SVG icons with facets.
  *  Se Qdrant offline ou sem hits, retorna {} — GREEN usa texto puro. */

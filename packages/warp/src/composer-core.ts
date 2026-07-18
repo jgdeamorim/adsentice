@@ -308,6 +308,7 @@ import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
 import { TokenComposer } from "./tokens-composer"
 import { resolveIntentVocab } from "./vocab-resolver"
+import { resolveIntentVocab } from "./vocab-resolver"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -1224,13 +1225,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const a = m9Result?.tokens.palette.accent || palette.accent
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
-    // ── QDRANT QUERIES (L3 — sensor: vec() narrows candidates) ──
-    const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
-    const inspoUrls = designIntel?.inspirationUrls || []
-    const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
-    const materio = await queryMaterioTokens().catch(() => null)
-    const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
-// ═══ INTENT VOCAB (pre-L3: resolve facets before Qdrant queries) ═══
+    // ═══ INTENT VOCAB (pre-L3: resolve facets BEFORE Qdrant queries) ═══
     const preVocab = resolveIntentVocab(seg, {
       persona: { who: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: '', urgency: '' },
       psychology: { primaryEmotion: seg === 'saude' ? 'Confiança + Profissionalismo' : seg === 'beleza' ? 'Autoestima + Transformação' : 'Resultado + Crescimento', colorPsychology: '', urgencyLevel: 'medium', toneOfVoice: '', copyRules: [], triggers: [] },
@@ -1240,6 +1235,13 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       skills: [],
       computedAt: new Date().toISOString(),
     })
+
+    // ── QDRANT QUERIES (L3 — sensor: vec() + vocab facets) ──
+    const designIntel = await queryDesignBestPractices(seg, "S10").catch(() => null)
+    const inspoUrls = designIntel?.inspirationUrls || []
+    const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
+    const materio = await queryMaterioTokens().catch(() => null)
+    const mediaAnim = await queryMediaAnimation(seg, preVocab.animationFacets).catch(() => null)
     const icons = await queryMediaIcons(preVocab.iconFacets).catch(() => ({} as Record<string, string>))
     const cssPatterns = await queryCSSPatterns(seg, 'S10').catch(() => null)
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')

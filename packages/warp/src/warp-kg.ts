@@ -521,20 +521,20 @@ export async function queryMaterioTokens(): Promise<{
 
 /** ADR-0036 Fase 2 — query animation/media knowledge para enriquecer CSS.
  *  Retorna keyframes CSS + recomendações de motion do corpus (Framer Motion, etc.) */
-export async function queryMediaAnimation(segment: string): Promise<{
+export async function queryMediaAnimation(segment: string, animationFacets?: string[]): Promise<{
   keyframeRecommendations: string[]
   motionPresets: string[]
   iconLibrary: string
 } | null> {
   try {
-    const query = `${segment} animation motion keyframes transition landing page`
+    const query = `${segment} animation motion keyframes transition landing page${animationFacets?.length ? ' ' + animationFacets.join(' ') : ''}`
     const vec = await embedQuery(query)
     if (vec.length === 0) return null
 
     const results = await qdrantSearch(vec, {
       must: [{ key: "kind", match: { value: "media-knowledge" } }],
     }, 5)
-    
+
     const sources = results.map(p => (p.payload?.source as string) || "").filter(Boolean)
     const texts = results.map(p => (p.payload?.text as string) || (p.payload?.name as string) || "").filter(Boolean)
 
