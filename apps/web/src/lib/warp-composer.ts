@@ -592,7 +592,7 @@ function computeCritique(graph: Map<string, GraphNode>, segment: string, surface
 // g0 rule: "specialist emite gramática, renderer aplica materials"
 // ═══════════════════════════════════════════════════════════════
 
-interface S10BlueOutput {
+export interface S10BlueOutput {
   // ── LEAD DATA ──
   name: string; category: string; seg: string; score: number
   fit: number; eng: number; ints: number
@@ -1284,9 +1284,9 @@ footerHTML + '\n' +
 
 
 // ═══ S10 CACHE (L1 memory LRU + L2 Redis :6396) ═══
-const s10Cache = new WarpCache<{ html: string; meta: Record<string, unknown> }>()
+const s10Cache = new WarpCache<{ html: string; meta: Record<string, unknown>; blue?: S10BlueOutput }>()
 
-export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
+export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown>; blue?: S10BlueOutput } | null> {
   try {
     // ── PLUGIN SYSTEM (ADR-0036 Fase 1) ──
     await pluginRegistry.activateAll()
@@ -1319,7 +1319,8 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     } catch (e: unknown) { void e }
 
     // ── CACHE CHECK (L1 memory LRU + L2 Redis :6396) ──
-    const cacheKey = `s10:${placeId}:${seg}:${lead.score_compound || 0}`
+    // v2: inclui blue (S10BlueOutput) no payload — JSX route consome dados reais
+    const cacheKey = `s10v2:${placeId}:${seg}:${lead.score_compound || 0}`
     const cached = await s10Cache.get(cacheKey)
     if (cached) { return cached }
 
@@ -1442,7 +1443,8 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     }
 
     // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
-    const result = { html, meta }
+    // blue incluído para a rota JSX (nota: blue.graph é Map — vira {} no round-trip L2 Redis; JSX não usa graph)
+    const result = { html, meta, blue }
     await s10Cache.set(cacheKey, result, 300_000) // 5min TTL
     return result
   } catch (e: any) { console.error("[composeS10]", e.message); return null }

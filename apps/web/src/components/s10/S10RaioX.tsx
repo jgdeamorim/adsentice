@@ -17,7 +17,7 @@ import InfoGridSlot from './slots/InfoGridSlot'
 import GapListSlot from './slots/GapListSlot'
 import CtaSlot from './slots/CtaSlot'
 import FooterSlot from './slots/FooterSlot'
-import type { PerSlotMutations } from '../../../../packages/warp/src/morph-resolver'
+import type { PerSlotMutations } from '../../../../../packages/warp/src/morph-resolver'
 
 // ═══ SLOT RENDERER MAP ═══
 type SlotRenderProps = {
@@ -168,7 +168,7 @@ export default async function S10RaioXPage(props: { output: any }) {
   const hasHero = slotOrder.includes('hero')
   const hasFooter = slotOrder.includes('footer')
 
-  const renderCtx: SlotRenderProps = { output, T: Tfinal, O, icon: iconFn, morph }
+  const renderCtx: Omit<SlotRenderProps, 'slot'> = { output, T: Tfinal, O, icon: iconFn, morph }
 
   const vocabTrace = output.vocab?.iconFacets?.length
     ? '/* Intent vocab: ' + output.vocab.iconFacets.slice(0, 6).join(' ') + ' */'
