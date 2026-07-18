@@ -387,21 +387,50 @@ const DiscoveryPage = () => {
   const preflightL0Cost = preflightTotalPages * l0PageCost
   const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
+  const preflightMissing = selectedLayers.l0 && !hasPreflight && !baseLoading  // v092: sem pre-flight = bloqueia
 
-  // ── VERDADE DA BASE: preflight $0 quando o popup abre no modo re-enrich (v090) ──
+  // ── CARREGAR PRE-FLIGHT (v092): ao abrir popup, consulta histórico para NÃO estimar ──
   useEffect(() => {
-    if (!confirmOpen || selectedLayers.l0 || !selected.length) { setBasePreflight(null); setBaseLoading(false); return }
+    if (!confirmOpen || !selected.length) { setBasePreflight(null); setBaseLoading(false); return }
     const cityName = cityLabel.split('(')[0].trim()
     setBasePreflight(null); setBaseLoading(true)
     const abort = new AbortController()
+
     const run = async () => {
       try {
-        const res = await fetch('/api/discovery-search', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categories: selected, city: cityName, preflight: true, layers: selectedLayers }),
-          signal: abort.signal,
-        })
-        if (res.ok) setBasePreflight(await res.json())
+        if (!selectedLayers.l0) {
+          // Modo re-enrich: conta base ($0 no Supabase)
+          const res = await fetch('/api/discovery-search', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categories: selected, city: cityName, preflight: true, layers: selectedLayers }),
+            signal: abort.signal,
+          })
+          if (res.ok) setBasePreflight(await res.json())
+        } else {
+          // Modo L0: busca pre-flights JÁ EXECUTADOS (histórico)
+          const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${selected.join(',')}`, { signal: abort.signal })
+          if (res.ok) {
+            const d = await res.json()
+            // Preenche preflightData com total_count, websitePct, claimedPct reais
+            if (d.preflights?.length) {
+              const pfMap: Record<string, any> = {}
+              for (const pf of d.preflights) {
+                const c = pf.city || pf.search_metadata?.city
+                if (c && pf.total_count) {
+                  pfMap[c] = { totalCount: pf.total_count, cost: pf.cost_usd || 0,
+                    websitePct: pf.websitePct ?? null, claimedPct: pf.claimedPct ?? null,
+                    avgRating: pf.avgRating ?? null }
+                }
+              }
+              if (Object.keys(pfMap).length) setPreflightData(pfMap)
+              setBasePreflight({ base: 0, withWebsite: 0, jaL2: 0, jaL3: 0, l2Candidates: 0, l3Candidates: 0, l2ExactCost: 0, l3ExactCost: 0 })
+            } else {
+              // NENHUM pre-flight — popup mostra ⚠️ + botão desabilita
+              setPreflightData({})
+              setBasePreflight(null)
+            }
+          }
+        }
       } catch (e: unknown) { if (!(e instanceof DOMException && e.name === 'AbortError')) void e }
       finally { setBaseLoading(false) }
     }
@@ -1358,7 +1387,7 @@ return colors[level ?? 0] || colors[0]
                 </Button>
               )}
               <Button variant='contained' color='primary'
-                disabled={selected.length === 0 || loading || preflightRunning}
+                disabled={selected.length === 0 || loading || preflightRunning || preflightMissing}
                 onClick={() => setConfirmOpen(true)}>
                 {loading ? 'Buscando...'
                   : preflightRunning ? 'Aguardando pre-flight...'
@@ -1548,7 +1577,7 @@ return (
           )}
           </Box>
 
-          {/* ⚠️ AVISO (honesto — v090) */}
+          {/* ⚠️ AVISO (honesto — v092) */}
           {basePreflight ? (
             <Alert severity='success' sx={{ mt: 2 }}>
               <Typography variant='caption'>
@@ -1560,17 +1589,23 @@ return (
           ) : hasPreflight ? (
             <Alert severity='success' sx={{ mt: 2 }}>
               <Typography variant='caption'>
-                ✅ Custo <strong>REAL</strong> calculado via pre-flight limit=1 ({batchEffective} municípios).
-                {batchEffective > 1 && <> Cada município teve seu <strong>total_count</strong> real da API.</>}
+                ✅ Custo <strong>REAL</strong> — {Object.keys(preflightData).length} municípios analisados via pre-flight.
+                Cada município teve seu <strong>total_count</strong> medido pela API (limit=5).
                 Pre-flight custou <strong>${preflightCost.toFixed(4)}</strong> ({(preflightCost / preflightTotalCost * 100).toFixed(1)}% do batch).
               </Typography>
             </Alert>
-          ) : (
+          ) : selectedLayers.l0 ? (
           <Alert severity='warning' sx={{ mt: 2 }}>
             <Typography variant='caption'>
-              ⚠️ Este é o custo <strong>mínimo</strong> (1ª página por município). O custo real depende
-              do total de resultados — a auto-paginação busca <strong>todas</strong> as páginas disponíveis.
-              Ex: Vitória 3 categorias 5km = <strong>3038 leads · 31 páginas · $1.49</strong>.
+              ⚠️ <strong>Nenhum pre-flight encontrado</strong> para estes municípios.
+              Execute o <strong>pre-flight primeiro</strong> (botão "Pre-flight" acima) para saber o custo exato.
+              O custo real depende do total de GMB listings — estimativas podem variar 10×.
+            </Typography>
+          </Alert>
+          ) : (
+          <Alert severity='info' sx={{ mt: 2 }}>
+            <Typography variant='caption'>
+              ♻️ Modo re-enrich — operando sobre leads já capturados. Custo de search: $0.
             </Typography>
           </Alert>
           )}

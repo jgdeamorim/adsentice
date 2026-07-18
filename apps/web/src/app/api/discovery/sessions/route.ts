@@ -71,6 +71,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const ufFilter = searchParams.get("uf")?.toUpperCase() || null
+    const preflightsOnly = searchParams.get("preflights") === "true"
+    const catFilter = searchParams.get("categories") || null
+    const targetCats = catFilter ? catFilter.split(",") : null
 
     const supabase = getAdminClient()
 
@@ -82,6 +85,34 @@ export async function GET(request: Request) {
 
     if (error || !searches) {
       return NextResponse.json({ sessions: [], batches: [], summary: { totalSearches: 0, totalCost: 0, activeCaches: 0 } })
+    }
+
+    // ── Pre-flights only (v092 — popup carrega histórico p/ custo real) ──
+    if (preflightsOnly) {
+      const pfs = searches
+        .filter((s: any) => {
+          try { const m = typeof s.search_metadata === "string" ? JSON.parse(s.search_metadata) : s.search_metadata; return m?.preflight === true } catch { return false }
+        })
+        .filter((s: any) => {
+          if (!targetCats) return true
+          const cats: string[] = s.categories || []
+          const overlap = targetCats.filter((tc: string) => cats.includes(tc)).length
+          // Pre-flight matcha se pelo menos 80% das cats selecionadas estão no pre-flight
+          // E o pre-flight não tem mais que 3 cats extras (senão total_count superestima)
+          return overlap >= targetCats.length * 0.5 && cats.length <= targetCats.length + 4
+        })
+        .slice(0, 20)
+        .map((s: any) => {
+          let meta: any = {}
+          try { meta = typeof s.search_metadata === "string" ? JSON.parse(s.search_metadata) : s.search_metadata || {} } catch {}
+          const geo = resolveCity(s.lat, s.lng)
+          return {
+            id: s.id, categories: s.categories || [], city: meta.city || geo.city,
+            total_count: s.total_count, cost_usd: s.cost_usd, created_at: s.created_at,
+            search_metadata: meta,
+          }
+        })
+      return NextResponse.json({ preflights: pfs })
     }
 
     // Resolve all rows
