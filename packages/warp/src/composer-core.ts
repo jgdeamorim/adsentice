@@ -783,7 +783,7 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   return {
     name, category: cat, seg, score, fit, eng, ints,
     rating, reviews, photos, website, claimed, city, district,
-    level: "Solution Aware", nichoName: nicho.name, offer, competitors, local,
+    level: lead.schwartz_label || "Problem Aware", nichoName: nicho.name, offer, competitors, local,
     headline: copy.headline, subtitle: copy.subtitle, cta: copy.cta, copyModel,
     p, s, a, p15, p12,
     T,
@@ -841,7 +841,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 
   const hero = `
 <header class="hero" ${a11y(badgeComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
-<div class="hero-badge" ${a11y(badgeComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>${I.search} Relatório Raio-X · Diagnóstico Gratuito</div>
+<div class="hero-badge" ${a11y(badgeComp, "status", O?.persona?.offer || "Diagnóstico Gratuito")}>${I.search} ${O?.psychology?.primaryEmotion ? 'Inteligência de Mercado' : 'Raio-X'} · ${O?.persona?.offer || 'Diagnóstico Gratuito'}</div>
 <h1>${output.headline}</h1><p class="subtitle">${output.subtitle}</p>
 </div></div>`
 
@@ -874,7 +874,7 @@ ${output.gaps.map((g, idx) => {
 }).join("")}</div>`
 
   const cta = `
-<div class="cta"><h2>${esc(output.offer)}</h2><p>${O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.'}</p><a href="https://wa.me/5521999999999" class="cta-btn" ${a11y(btnComp, "button", output.cta + " no WhatsApp")} target="_blank" rel="noopener">${I.message} ${output.cta} no WhatsApp</a></div>`
+<div class="cta"><h2>${esc(output.offer)}</h2><p>${O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.'}</p><a href="https://wa.me/${process.env.WHATSAPP_NUMBER || '5521999999999'}" class="cta-btn" ${a11y(btnComp, "button", output.cta + " no WhatsApp")} target="_blank" rel="noopener">${I.message} ${output.cta} no WhatsApp</a></div>`
 
   const footer = `
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>`
@@ -1021,9 +1021,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
 
     // 3. Tokens (L3 — sensor: Materio + OD + segment palette)
     const morph = await morphTokens({ surface:"S10", segment: seg as SegmentId, plan:"r0", mode:"internal" })
-    const p = morph.tokens["color-primary"] || "#2563EB"
-    const s = morph.tokens["color-secondary"] || "#1E40AF"
-    const a = morph.tokens["color-accent"] || "#3B82F6"
+    // Fallback via segment palette oklch (NUNCA hex fixo)
+    const palette = segmentPalette(seg as SegmentId)
+    const p = morph.tokens["color-primary"] || palette.primary
+    const s = morph.tokens["color-secondary"] || palette.secondary
+    const a = morph.tokens["color-accent"] || palette.accent
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // ── QDRANT QUERIES (L3 — sensor: vec() narrows candidates) ──

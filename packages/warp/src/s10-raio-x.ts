@@ -208,14 +208,43 @@ interface TokenProfile {
   readonly motionStyle: string
 }
 
+// ADR-0036 — TOKEN_MAP usa oklch() dinâmico via segmentPalette (zero hex fixo)
+// A paleta é computada em runtime, não hardcoded.
+function segmentPaletteTokens(seg: SegmentId): TokenProfile {
+  const hue: Record<string, number> = { saude:220, beleza:340, servicos:260, alimentacao:25, comercio:250, educacao:160, hospitalidade:30 }
+  const h = hue[seg] || 260
+  const fonts: Record<string, { heading: string; body: string }> = {
+    saude: { heading: 'Inter', body: 'Inter' },
+    beleza: { heading: 'Playfair Display', body: 'Inter' },
+    servicos: { heading: 'Inter', body: 'Inter' },
+    alimentacao: { heading: 'Poppins', body: 'Open Sans' },
+    comercio: { heading: 'Inter', body: 'Inter' },
+    educacao: { heading: 'Inter', body: 'Inter' },
+    hospitalidade: { heading: 'Playfair Display', body: 'Inter' },
+  }
+  const f = fonts[seg] || fonts.servicos
+  const emotions: Record<string, string> = {
+    saude: 'Confiança, higiene, profissionalismo', beleza: 'Feminino, luxo, elegância',
+    servicos: 'Autoridade, tradição, confiança', alimentacao: 'Apetite, calor, acolhimento',
+    comercio: 'Confiança, praticidade', educacao: 'Crescimento, confiança, aprendizado',
+    hospitalidade: 'Acolhimento, experiência, conforto',
+  }
+  const spacingMap: Record<string, string> = { saude:'1.5rem', beleza:'2rem', servicos:'1.5rem', alimentacao:'1rem', comercio:'1rem', educacao:'1.5rem', hospitalidade:'2rem' }
+  const radiusMap: Record<string, string> = { saude:'0.5rem', beleza:'0.75rem', servicos:'0.25rem', alimentacao:'0.5rem', comercio:'0.25rem', educacao:'0.5rem', hospitalidade:'0.5rem' }
+  const motionMap: Record<string, string> = { saude:'zero', beleza:'subtle', servicos:'zero', alimentacao:'moderate', comercio:'zero', educacao:'subtle', hospitalidade:'subtle' }
+  return {
+    primaryColor: `oklch(55% 35% ${h})`, secondaryColor: `oklch(40% 35% ${h})`, accentColor: `oklch(65% 28% ${h})`,
+    hue: h, headingFont: f.heading, bodyFont: f.body,
+    emotion: emotions[seg] || 'Confiança, profissionalismo',
+    spacing: spacingMap[seg] || '1.5rem', radius: radiusMap[seg] || '0.5rem',
+    motionStyle: motionMap[seg] || 'zero',
+  }
+}
 const TOKEN_MAP: Record<SegmentId, TokenProfile> = {
-  saude:        { primaryColor: '#2563EB', secondaryColor: '#1E40AF', accentColor: '#3B82F6', hue: 220, headingFont: 'Inter', bodyFont: 'Inter', emotion: 'Confiança, higiene, profissionalismo', spacing: '1.5rem', radius: '0.5rem', motionStyle: 'zero' },
-  beleza:       { primaryColor: '#E8B4B8', secondaryColor: '#D4AF37', accentColor: '#C084FC', hue: 340, headingFont: 'Playfair Display', bodyFont: 'Inter', emotion: 'Feminino, luxo, elegância', spacing: '2rem', radius: '0.75rem', motionStyle: 'subtle' },
-  servicos:     { primaryColor: '#1E3A5F', secondaryColor: '#334155', accentColor: '#475569', hue: 260, headingFont: 'Inter', bodyFont: 'Inter', emotion: 'Autoridade, tradição, confiança', spacing: '1.5rem', radius: '0.25rem', motionStyle: 'zero' },
-  alimentacao:  { primaryColor: '#EA580C', secondaryColor: '#DC2626', accentColor: '#F97316', hue: 25, headingFont: 'Poppins', bodyFont: 'Open Sans', emotion: 'Apetite, calor, acolhimento', spacing: '1rem', radius: '0.5rem', motionStyle: 'moderate' },
-  comercio:     { primaryColor: '#2563EB', secondaryColor: '#7C3AED', accentColor: '#059669', hue: 250, headingFont: 'Inter', bodyFont: 'Inter', emotion: 'Confiança, praticidade', spacing: '1rem', radius: '0.25rem', motionStyle: 'zero' },
-  educacao:     { primaryColor: '#059669', secondaryColor: '#0284C7', accentColor: '#6366F1', hue: 160, headingFont: 'Inter', bodyFont: 'Inter', emotion: 'Crescimento, confiança, aprendizado', spacing: '1.5rem', radius: '0.5rem', motionStyle: 'subtle' },
-  hospitalidade:{ primaryColor: '#D4AF37', secondaryColor: '#CA8A04', accentColor: '#A16207', hue: 30, headingFont: 'Playfair Display', bodyFont: 'Inter', emotion: 'Acolhimento, experiência, conforto', spacing: '2rem', radius: '0.5rem', motionStyle: 'subtle' },
+  saude: segmentPaletteTokens('saude'), beleza: segmentPaletteTokens('beleza'),
+  servicos: segmentPaletteTokens('servicos'), alimentacao: segmentPaletteTokens('alimentacao'),
+  comercio: segmentPaletteTokens('comercio'), educacao: segmentPaletteTokens('educacao'),
+  hospitalidade: segmentPaletteTokens('hospitalidade'),
 }
 
 // ═══════════════════════════════════════════════════════════════
