@@ -232,7 +232,7 @@ export async function compose(intend: Intend, ibgeContext?: { densidade?: number
 <meta name="description" content="Warp ${intend.surface} · ${branding} · ${r.intentLabel}">
 <title>${intend.surface} · ${branding} | adsentice Warp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=${T.font.replace(/ /g, "+")}:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @font-face{font-family:Inter;font-display:swap}
 ${morph.css}
@@ -914,9 +914,9 @@ ${output.gaps.map((g, idx) => {
 '<meta name="description" content="' + esc(output.headline) + '">\n' +
 '<title>Raio-X · ' + esc(output.name) + ' | adsentice</title>\n' +
 '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
-'<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
+'<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
 '<style>\n' +
-'@font-face{font-family:Inter;font-display:swap}\n' +
+'@font-face{font-family:' + T.font + ';font-display:swap}\n' +
 ':root{\n' +
 '  --primary:' + T.primary + ';--primary-fg:' + T.primaryFg + ';--secondary:' + T.secondary + ';--secondary-fg:' + T.secondaryFg + ';--accent:' + T.accent + ';\n' +
 '  --bg:' + T.bg + ';--fg:' + T.fg + ';\n' +
