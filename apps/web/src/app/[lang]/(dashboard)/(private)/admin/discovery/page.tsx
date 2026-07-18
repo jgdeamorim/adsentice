@@ -296,6 +296,8 @@ const DiscoveryPage = () => {
   const [costToday, setCostToday] = useState(0)
   const [costTotal, setCostTotal] = useState(0)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  // ── VERDADE DA BASE (modo re-enrich · preflight $0 no Supabase — v089) ──
+  const [basePreflight, setBasePreflight] = useState<{ base: number; withWebsite: number; jaL2: number; jaL3: number; l2Candidates: number; l3Candidates: number; l2ExactCost: number; l3ExactCost: number } | null>(null)
   const [selectedLead, setSelectedLead] = useState<Listing | null>(null)
   const [selectedScore, setSelectedScore] = useState<ScoreData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitiveData | null>(null)
@@ -385,6 +387,22 @@ const DiscoveryPage = () => {
   const preflightL0Cost = preflightTotalPages * 0.048
   const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
+
+  // ── VERDADE DA BASE: preflight $0 quando o popup abre no modo re-enrich (v089) ──
+  useEffect(() => {
+    if (!confirmOpen || selectedLayers.l0 || !selected.length) { setBasePreflight(null); return }
+    const run = async () => {
+      try {
+        const cityName = cityLabel.split('(')[0].trim()
+        const res = await fetch('/api/discovery-search', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories: selected, city: cityName, preflight: true, layers: selectedLayers }),
+        })
+        if (res.ok) setBasePreflight(await res.json())
+      } catch {}
+    }
+    run()
+  }, [confirmOpen, selectedLayers.l0])
 
   // ── Build municipality batch list ──
   function buildBatchList(): { nome: string; lat: number; lng: number }[] {
@@ -1471,8 +1489,8 @@ return (
                       : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
                 always: true, free: !selectedLayers.l0 },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },
-              { label: 'L2 · Website + SEO', cost: l2CostUi, detail: `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },
-              { label: 'L3 · Social & Contatos', cost: l3CostUi, detail: selectedLayers.l2 ? 'crawl contatos $0.0005/lead (tech via cache L2 — 20× mais barato)' : '⚠ sem L2: tech $0.01 + crawl $0.0005 = $0.0105/lead', optional: true, selected: selectedLayers.l3 },
+              { label: 'L2 · Website + SEO', cost: basePreflight ? basePreflight.l2ExactCost : l2CostUi, detail: basePreflight ? `${basePreflight.l2Candidates} leads novos (${basePreflight.jaL2} já enriquecidos · não re-paga) · onpage $0.000125 + tech $0.01` : `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },
+              { label: 'L3 · Social & Contatos', cost: basePreflight ? basePreflight.l3ExactCost : l3CostUi, detail: basePreflight ? `${basePreflight.l3Candidates} leads novos · $0.0005/lead (cache L2 ativo — 20× mais barato)` : selectedLayers.l2 ? 'crawl contatos $0.0005/lead (tech via cache L2 — 20× mais barato)' : '⚠ sem L2: tech $0.01 + crawl $0.0005 = $0.0105/lead', optional: true, selected: selectedLayers.l3 },
               { label: '🔬 Pre-flight', cost: selectedLayers.l0 ? preflightCost : 0, detail: `limit=5 × ${batchEffective} municípios · $0.01380/mun (qualidade + tamanho)`, always: selectedLayers.l0, isPreflight: true },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', optional: true, selected: selectedLayers.l4, free: true },
             ].filter(s => s.always || s.selected).map((s: any, i, arr) => (
@@ -1489,21 +1507,31 @@ return (
             {/* Total */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, mt: 0.5 }}>
               <Typography variant='subtitle2'>
-                💰 {hasPreflight ? 'TOTAL REAL (pré-flight)' : selected.length > 1 ? 'Estimado' : 'A partir de'}
+                💰 {basePreflight ? 'TOTAL EXATO (base)' : hasPreflight ? 'TOTAL REAL (pré-flight)' : selected.length > 1 ? 'Estimado' : 'A partir de'}
               </Typography>
               <Box sx={{ textAlign: 'right' }}>
-                <Typography variant='h6' color={hasPreflight ? 'success.main' : 'warning.main'} fontWeight={800}>
-                  ${hasPreflight ? preflightTotalCost.toFixed(2) : selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
+                <Typography variant='h6' color={basePreflight ? 'success.main' : hasPreflight ? 'success.main' : 'warning.main'} fontWeight={800}>
+                  ${basePreflight ? (basePreflight.l2ExactCost + basePreflight.l3ExactCost).toFixed(4) : hasPreflight ? preflightTotalCost.toFixed(2) : selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>
-                  R${((hasPreflight ? preflightTotalCost : totalEstCost) * 5.5).toFixed(2)} · {batchEffective} municípios · {selected.length} categorias{hasPreflight ? ` · ${preflightTotalPages} págs reais` : selected.length > 1 ? ` · ~${estPagesPerMun} págs/mun` : ''}
+                  {basePreflight
+                    ? `R$${((basePreflight.l2ExactCost + basePreflight.l3ExactCost) * 5.5).toFixed(2)} · ${basePreflight.base} leads na base · ${basePreflight.l2Candidates}/${basePreflight.withWebsite} novos L2 · ${basePreflight.l3Candidates} novos L3`
+                    : `R${((hasPreflight ? preflightTotalCost : totalEstCost) * 5.5).toFixed(2)} · ${batchEffective} municípios · ${selected.length} categorias${hasPreflight ? ` · ${preflightTotalPages} págs reais` : selected.length > 1 ? ` · ~${estPagesPerMun} págs/mun` : ''}`}
                 </Typography>
               </Box>
             </Box>
           </Box>
 
-          {/* ⚠️ Pre-flight status or heuristic warning */}
-          {hasPreflight ? (
+          {/* ⚠️ AVISO (honesto — v089) */}
+          {basePreflight ? (
+            <Alert severity='success' sx={{ mt: 2 }}>
+              <Typography variant='caption'>
+                ✅ Custo <strong>EXATO</strong> calculado da base ({basePreflight.base} leads, {basePreflight.withWebsite} c/ website).
+                Você <strong>não re-paga</strong> os {basePreflight.jaL2} L2 já enriquecidos.
+                {basePreflight.l2Candidates === 0 && <> Nenhum lead novo para L2 — aumente o limite ou mude a categoria.</>}
+              </Typography>
+            </Alert>
+          ) : hasPreflight ? (
             <Alert severity='success' sx={{ mt: 2 }}>
               <Typography variant='caption'>
                 ✅ Custo <strong>REAL</strong> calculado via pre-flight limit=1 ({batchEffective} municípios).

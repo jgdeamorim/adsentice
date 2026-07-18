@@ -113,7 +113,7 @@ async function enrichTopLeadsL2(
 
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
-    .filter(({ listing }) => !!listing.website)
+    .filter(({ listing }) => !!listing.website && (listing.enrichment_level || 0) < 2)  // não re-pagar já-L2 (fix v089)
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
@@ -142,7 +142,8 @@ async function enrichTopLeadsL2(
         }
       } catch {}
 
-      if (cachedAudit && cachedTech) {
+      if (cachedAudit) {
+        // tech null é resultado LEGÍTIMO (domínio sem dados) — exigir ambos re-pagava o audit p/ sempre (fix v089)
         return { audit: cachedAudit, tech: cachedTech, listing, index, domain, fromCache: true }
       }
 
@@ -173,7 +174,8 @@ async function enrichTopLeadsL2(
 
       if (!audit) continue
 
-      const costPerLead = 0.000125 + (tech ? 0.01 : 0)
+      // fromCache = $0 (já pago em rodada anterior — fix v089: custo contava cache como novo)
+      const costPerLead = r.value.fromCache ? 0 : 0.000125 + (tech ? 0.01 : 0)
 
       l2Cost += costPerLead
 
@@ -260,7 +262,7 @@ async function enrichTopLeadsL3(
 
   const toEnrich = listings
     .map((l, i) => ({ listing: l, score: scores[i], index: i }))
-    .filter(({ listing }) => !!listing.website)
+    .filter(({ listing }) => !!listing.website && (listing.enrichment_level || 0) < 3)  // não re-pagar já-L3 (fix v089)
     .sort((a, b) => b.score.compound - a.score.compound)
     .slice(0, maxEnrich)
 
@@ -337,7 +339,8 @@ return { tech: tech.status === "fulfilled" ? tech.value : null, contacts: contac
       mergedEmails = [...new Set(mergedEmails)].slice(0, 5)
       mergedSocials = mergedSocials.slice(0, 10)
 
-      const costPerLead = (tech ? 0.01 : 0) + (contacts ? 0.0005 : 0)
+      // tech do cache L2 = $0 (a promessa "20× mais barato" — fix v089)
+      const costPerLead = (tech && !r.value.fromCache ? 0.01 : 0) + (contacts ? 0.0005 : 0)
 
       l3Cost += costPerLead
 
@@ -461,6 +464,25 @@ export async function POST(request: NextRequest) {
       for (const r of rows) if (r.place_id && !byPid.has(r.place_id)) byPid.set(r.place_id, r)
       let listings = [...byPid.values()]
       if (!listings.length) return NextResponse.json({ error: "nenhum lead existente p/ categoria+cidade", mode: "re-enrich" }, { status: 404 })
+
+      // ── BASE PREFLIGHT ($0): a VERDADE da base antes de pagar — popup mostra números exatos ──
+      if (preflight) {
+        const withWebsite = listings.filter((l: any) => !!l.website).length
+        const jaL2 = listings.filter((l: any) => (l.enrichment_level || 0) >= 2).length
+        const jaL3 = listings.filter((l: any) => (l.enrichment_level || 0) >= 3).length
+        const maxN0 = enrich || 50
+        const l2Candidates = Math.min(maxN0, listings.filter((l: any) => !!l.website && (l.enrichment_level || 0) < 2).length)
+        const l3Candidates = Math.min(maxN0, listings.filter((l: any) => !!l.website && (l.enrichment_level || 0) < 3).length)
+        return NextResponse.json({
+          mode: "re-enrich", preflight: true, city: bodyCity,
+          base: listings.length, withWebsite, jaL2, jaL3,
+          l2Candidates, l3Candidates,
+          // custo exato: candidatos novos × preço (cache de rodadas anteriores pode reduzir ainda mais)
+          l2ExactCost: Math.round(l2Candidates * 0.010125 * 10000) / 10000,
+          l3ExactCost: Math.round(l3Candidates * 0.0005 * 10000) / 10000,
+        })
+      }
+
       let scores: ScoreData[] = scoreLeads(listings)
 
       let l2Cost = 0, l3Cost = 0
