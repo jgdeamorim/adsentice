@@ -985,9 +985,8 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 
   const stars = (r: number) => r >= 5 ? "★★★★★" : "★".repeat(Math.max(1, Math.round(r))) + "☆".repeat(Math.max(0, 5 - Math.round(r)))
 
-  // CSS class scoping: prefix from layout tree ID (BLUE specialist grammar)
-  const layoutPrefix = (output.tracedLayout?.id || 'layout.s10').replace(/^layout\./, '')
-  const cls = (name: string): string => layoutPrefix + '-' + name
+  // CSS classes = gramatica estrutural (sem prefixo). OD reference pattern.
+  const cls = (name: string): string => name
 
   const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars, cls }
 
