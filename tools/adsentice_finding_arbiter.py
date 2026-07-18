@@ -176,6 +176,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--all", action="store_true", help="Analisa todos os eventos")
     ap.add_argument("--watch", action="store_true", help="Modo watch (executa a cada 5min)")
+    ap.add_argument("--cron", action="store_true", help="Modo cron: so chama DeepSeek se houver erros/alertas OU verdict expirado (cost-capped)")
     args = ap.parse_args()
 
     print("🧠 ADSENTICE FINDING ARBITER · DeepSeek V4 Flash")
@@ -201,6 +202,17 @@ def main():
             pct = round(s['errors'] / max(s['total'], 1) * 100, 1)
             print(f"   {route}: {s['errors']}/{s['total']} erros ({pct}%) · {s['avg_latency_ms']}ms avg")
         print()
+
+    # Cost-cap (doutrina #3): em modo cron, DeepSeek so arbitra se ha sinal novo
+    # (erros/alertas) OU se o verdict anterior expirou (TTL 2h) → max ~12 calls/dia
+    if args.cron and not errors and not alerts:
+        fresh = subprocess.run(
+            ["redis-cli", "-p", REDIS_PORT, "--no-auth-warning", "EXISTS", "adsentice:telemetry:arbiter_verdict"],
+            capture_output=True, text=True, timeout=3,
+        ).stdout.strip() == "1"
+        if fresh:
+            print("⏭️  cron: 0 erros · 0 alertas · verdict fresco (TTL 2h) — skip DeepSeek ($0)")
+            return
 
     print("🤖 DeepSeek Arbitrando...")
     verdict = arbitrate(events, alerts, stats)

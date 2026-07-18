@@ -22,8 +22,10 @@ REDIS_PORT = 6396
 
 def safe_redis(r, key, default="—"):
     try:
+        # decode_responses=True → r.get() já retorna str (NUNCA .decode() aqui —
+        # bug histórico: str.decode() → AttributeError → todas as chaves viravam "—")
         v = r.get(key)
-        return v.decode("utf-8") if v else default
+        return v if v else default
     except Exception:
         return default
 
