@@ -891,16 +891,31 @@ return null
     }
     } // end if (!preflight)
     else {
-      // Pre-flight: salva APENAS metadata no Supabase (sem listings/cache/R2).
-      // Session Log precisa desta row para mostrar o pre-flight no historico.
+      // Pre-flight: salva APENAS metadata (sem listings). Dedup por proximidade
+      // geográfica (0.01° ≈ 1km) + 24h — cliques repetidos = UPDATE, não duplica.
       const supabasePf = getAdminClient()
-      supabasePf.from("discovery_searches" as any).insert({
-        categories, lat: lat || -23.55, lng: lng || -46.63,
-        radius_km: radiusKm || 10, total_count: result.total_count,
-        cost_usd: searchCost, search_metadata: searchMetadata,
-      }).select("id").single().then((r: any) => {
-        if (r.data) console.log(`[preflight] Saved metadata · total_count=${result.total_count} · cost=$${searchCost.toFixed(6)}`)
-      }).catch(() => {})
+      const oneDayAgo = new Date(Date.now() - 86400000).toISOString()
+      const cityKey = bodyCity || `${(lat||0).toFixed(1)},${(lng||0).toFixed(1)}`
+      // Range filter no lat/lng para tolerância float (0.02° ≈ 2km — mesma cidade)
+      const la = lat || -23.55; const lo = lng || -46.63
+      const { data: existing } = await supabasePf.from("discovery_searches" as any)
+        .select("id").gt("lat", la - 0.02).lt("lat", la + 0.02)
+        .gt("lng", lo - 0.02).lt("lng", lo + 0.02)
+        .gte("created_at", oneDayAgo).limit(1)
+      if (existing?.length) {
+        await supabasePf.from("discovery_searches" as any).update({
+          total_count: result.total_count, cost_usd: searchCost, search_metadata: searchMetadata,
+        }).eq("id", existing[0].id)
+        console.log(`[preflight] Updated · id=${existing[0].id} · city=${cityKey} · total=${result.total_count}`)
+      } else {
+        supabasePf.from("discovery_searches" as any).insert({
+          categories, lat: la, lng: lo,
+          radius_km: radiusKm || 10, total_count: result.total_count,
+          cost_usd: searchCost, search_metadata: searchMetadata,
+        }).select("id").single().then((r: any) => {
+          if (r.data) console.log(`[preflight] New · id=${r.data.id} · city=${cityKey} · total=${result.total_count} · cost=$${searchCost.toFixed(6)}`)
+        }).catch(() => {})
+      }
       // Track cost
       trackCost({ categories: [...categories, "preflight"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: searchCost, totalCount: result.total_count })
     }
