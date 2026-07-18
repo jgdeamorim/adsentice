@@ -1077,14 +1077,14 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '.' + cls('score-bar-fill') + '{height:100%;border-radius:99px}\n' +
 '.' + cls('score-bar-val') + '{width:36px;text-align:right;font-size:.8rem;font-weight:600}\n' +
 '.' + cls('info-grid') + '{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(240px,1fr));gap:' + (T.spacing[2] || '1rem') + ';margin:' + (T.spacing[3] || '1.5rem') + ' 0}\n' +
-'.' + cls('info-card') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius-sm);padding:1.25rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + '}\n' +
+'.' + cls('info-card') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + '}\n' +
 '.' + cls('info-card') + ' h4{font-size:.9rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.' + cls('info-card') + ' .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:' + output.p + '}\n' +
 '.' + cls('info-card') + ' .value.stars{color:#f59e0b}\n' +
 '.' + cls('info-card') + ' .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:' + (T.spacing[0] || '.25rem') + '}\n' +
 '.' + cls('info-card') + ' .status{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.25rem') + ';padding:' + (T.spacing[0] || '.125rem') + ' ' + (T.spacing[1] || '.5rem') + ';border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}\n' +
 '.' + cls('info-card') + ' .status.ok{background:' + output.p12 + ';color:' + output.p + '}\n' +
-'.' + cls('gap') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius-sm);padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all var(--motion);position:relative}\n' +
+'.' + cls('gap') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';margin-bottom:1rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + ';transition:all var(--motion);position:relative}\n' +
 '.' + cls('gap') + ':hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}\n' +
 '.' + cls('gap') + '::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
 '.' + cls('gap') + '.critico::before{background:var(--destructive)}\n' +
@@ -1100,12 +1100,12 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '.' + cls('gap') + ' .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
 '.' + cls('gap') + ' .fix strong{color:var(--fg)}\n' +
 '.' + cls('gap') + ' .meta-row{display:flex;gap:' + (T.spacing[3] || '1.25rem') + ';margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
-'.' + cls('cta') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
+'.' + cls('cta') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem') + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
 '.' + cls('cta') + ' h2{font-size:1.5rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.' + cls('cta') + ' p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
 '.' + cls('cta-btn') + '{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +
 '.' + cls('cta-btn') + ':hover{transform:' + (T.cardShadow === "none" ? "none" : "translateY(-2px)") + ';box-shadow:0 8px 25px rgba(0,0,0,0.18)}\n' +
-'.' + cls('footer') + '{text-align:center;padding:2rem 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}\n' +
+'.' + cls('footer') + '{text-align:center;padding:' + T.sectionSpacing + ' 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:' + (T.spacing[4] || '2rem') + '}\n' +
 '.' + cls('footer') + ' span{color:' + T.primary + ';font-weight:600}\n' +
 '@media(max-width:600px){.' + cls('score-card') + '{flex-direction:column;text-align:center}.' + cls('info-grid') + '{grid-template-columns:1fr}}\n' +
 '</style>\n' +
