@@ -335,7 +335,7 @@ const DiscoveryPage = () => {
   // ── Cost Estimates (based on REAL API DataForSEO costs · medido 2026-07-18) ──
   // L0: custo por página varia com o limit (API cobra por listing retornada, não fixo):
   //     limit=10=$0.0156 · limit=20=$0.0192 · limit=50=~$0.028 · limit=100=$0.048
-  const L0_COST_MAP: Record<number, number> = { 10: 0.0156, 20: 0.0192, 50: 0.028, 100: 0.048 }
+  const L0_COST_MAP: Record<number, number> = { 1: 0.0127, 10: 0.0156, 20: 0.0192, 50: 0.028, 100: 0.048 }
   const l0PageCost = L0_COST_MAP[viewLimit] || 0.048
   // Páginas estimadas = total_count ÷ limit (arredondado p/ cima)
 
@@ -1191,22 +1191,21 @@ return colors[level ?? 0] || colors[0]
                 onClick={() => setSelectedLayers(prev => ({ ...prev, l4: !prev.l4 }))}
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
-              {/* Limit selector — custo escala com o tamanho da página (v091) */}
+              {/* v095: chips 1|10|20|50|100 + toggle Todas páginas com indicador visual */}
               <Box sx={{ display: 'flex', gap: 0.3, alignItems: 'center' }}>
                 <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>pág:</Typography>
-                {[10,20,50,100].map(n => (
+                {[1,10,20,50,100].map(n => (
                   <Chip key={n} label={String(n)} clickable size='small'
                     color={viewLimit === n ? 'primary' : 'default'}
                     variant={viewLimit === n ? 'filled' : 'outlined'}
                     onClick={() => setViewLimit(n)}
-                    sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: 28 }} />
+                    sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: n < 10 ? 20 : 28 }} />
                 ))}
               </Box>
-              {/* Pagination toggle */}
               <Chip
-                label={paginatePartial ? `🛑 1 pág` : `🔄 Todas páginas`}
+                label={paginatePartial ? `🛑 1 pág` : `🔄 Todas`}
                 clickable size='small'
-                color={paginatePartial ? 'warning' : 'default'}
+                color={paginatePartial ? 'warning' : 'success'}
                 variant={paginatePartial ? 'filled' : 'outlined'}
                 onClick={() => setPaginatePartial(!paginatePartial)}
                 sx={{ fontSize: '0.6rem', fontFamily: 'monospace' }}
@@ -1493,7 +1492,14 @@ return (
 
           {/* ── Pipeline Breakdown (checkout) ── */}
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
-            {!selectedLayers.l0 && baseLoading && !basePreflight ? (
+            {baseLoading && !hasPreflight && selectedLayers.l0 ? (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <LinearProgress sx={{ mb: 1 }} />
+                <Typography variant='caption' color='text.secondary'>
+                  🔍 Carregando pre-flights do histórico...
+                </Typography>
+              </Box>
+            ) : !selectedLayers.l0 && baseLoading && !basePreflight ? (
               <Box sx={{ textAlign: 'center', py: 3 }}>
                 <LinearProgress sx={{ mb: 1 }} />
                 <Typography variant='caption' color='text.secondary'>
@@ -1537,10 +1543,8 @@ return (
                 detail: !selectedLayers.l0
                   ? 'busca leads JÁ no Supabase (categoria+cidade, dedup place_id) — $0 de search'
                   : hasPreflight
-                    ? `${preflightTotalPages} páginas reais × $${l0PageCost} (limit=${viewLimit} via pre-criteria)`
-                    : selected.length > 1
-                      ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $${l0PageCost} (limit=${viewLimit})`
-                      : `$${l0PageCost}/página × ${batchEffective} municípios (limit=${viewLimit}) · 🔄 auto-paginação`,
+                    ? `${preflightTotalPages} págs reais × $${l0PageCost} (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads`
+                    : `$${l0PageCost}/pág × ${batchEffective} municípios (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads · 🔄 auto-paginação`,
                 always: true, free: !selectedLayers.l0 },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },
               { label: 'L2 · Website + SEO', cost: basePreflight ? basePreflight.l2ExactCost : l2CostUi, detail: basePreflight ? `${basePreflight.l2Candidates} leads novos (${basePreflight.jaL2} já enriquecidos · não re-paga) · onpage $0.000125 + tech $0.01` : `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },

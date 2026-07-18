@@ -73,7 +73,7 @@ export default function DiscoverySessionLog({
   const [preflights, setPreflights] = useState<BatchInfo[]>([])
   const [orphans, setOrphans] = useState<MunEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [showHistory, setShowHistory] = useState(false)
+  const [showHistory, setShowHistory] = useState(true)  // v095: sempre visível ao carregar
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
