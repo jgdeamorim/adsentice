@@ -2,16 +2,19 @@
  * packages/warp/src/marketing-kg.ts
  * Marketing Knowledge Graph — ADR-0037 Fase 1
  *
- * Consulta 40+ frameworks de marketing (Corey Haines + Kim Barrett)
- * do Qdrant adsentice-self (kind=marketing-skill) via vec() semantico.
- * Aplica ao contexto do lead para enriquecer gaps, copy e pitch.
+ * Camada de QUERY ao Qdrant para frameworks de marketing.
+ * NÃO gera diagnósticos, copy angles ou objection handlers —
+ * isso é responsabilidade dos módulos existentes:
+ *   recommend.ts (ActionPlan) · battle-card.ts (Pitch/Objections) ·
+ *   product-context.ts (Diagnosis) · marketing-plan.ts (13-section plan)
  *
  * Pipeline:
  *   intent + segment + nicho
  *     → queryMarketingSkill(skillName) → framework text from Qdrant
- *     → applyFramework(framework, leadContext) → ActionPlan
- *     → composeS10_BLUE consome gaps + copy enriquecidos
+ *     → queryRelevantSkills(leadCtx) → batch ranked frameworks
+ *     → módulos existentes consomem o texto bruto
  *
+ * 40+ frameworks: Corey Haines (marketingskills/) + Kim Barrett (advertising-skills/)
  * Cost: $0 (Qdrant local :6352 + embed :8081)
  * medido=verdade · 2026-07-18 · adsentice
  */
@@ -25,14 +28,6 @@ export interface MarketingFramework {
   source: string
   content: string
   score: number
-}
-
-export interface ActionPlan {
-  diagnosis: string       // Diagnóstico específico por nicho
-  recommendation: string  // Recomendação acionável
-  copyAngle: string       // Ângulo de copy (headline direction)
-  objectionHandler: string // Como lidar com objeção típica
-  confidence: number      // 0-1, score do vec()
 }
 
 export interface LeadContext {
@@ -88,12 +83,13 @@ async function qdrantSearch(vector: number[], filter: Record<string, unknown>, l
 }
 
 // ═══════════════════════════════════════════════════════════════
-// QUERY
+// QUERY LAYER (única responsabilidade deste módulo)
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Query Qdrant for a marketing skill framework.
- * Uses semantic vec() search — returns best matching framework text.
+ * Query Qdrant for a single marketing skill framework.
+ * Returns raw framework text — no derivation, no heuristics.
+ * Existing modules (recommend.ts, battle-card.ts, product-context.ts) consume this.
  */
 export async function queryMarketingSkill(
   skillName: string,
@@ -112,7 +108,6 @@ export async function queryMarketingSkill(
     }, 1)
 
     if (!results.length) {
-      // Fallback: search without source filter
       const fallback = await qdrantSearch(vec, {
         must: [{ key: "kind", match: { value: "marketing-skill" } }],
       }, 1)
@@ -138,42 +133,41 @@ export async function queryMarketingSkill(
 
 /**
  * Batch query multiple marketing skills relevant to a lead context.
- * Returns ranked frameworks by semantic match score.
+ * Returns raw frameworks ranked by semantic match score.
+ * The skill selection logic is deterministic ($0) — no LLM.
+ *
+ * Integrates with:
+ *   - recommend.ts: ActionPlan generation consumes framework content
+ *   - battle-card.ts: ObjectionResponse + Pitch consume framework content
+ *   - product-context.ts: Section enrichment consumes framework content
+ *   - composeS10_BLUE: gap enrichment via framework knowledge
  */
 export async function queryRelevantSkills(
   leadContext: LeadContext,
 ): Promise<MarketingFramework[]> {
   const relevantSkills: string[] = []
 
-  // ── COPYWRITING (always relevant for S10 Raio-X) ──
   relevantSkills.push("copywriting")
 
-  // ── SEO AUDIT (if lead has website) ──
   if (leadContext.hasWebsite) {
     relevantSkills.push("seo-audit")
     relevantSkills.push("site-architecture")
     relevantSkills.push("schema")
   }
 
-  // ── PROSPECTING (market opportunity) ──
   if (leadContext.competitorCount > 5) {
     relevantSkills.push("competitors")
     relevantSkills.push("prospecting")
   }
 
-  // ── CRO (if score low — conversion opportunity) ──
   if (leadContext.score < 50) {
     relevantSkills.push("cro")
     relevantSkills.push("lead-magnets")
   }
 
-  // ── PRICING (always relevant for plan match) ──
   relevantSkills.push("pricing")
-
-  // ── MARKETING PSYCHOLOGY (Schwartz + persona) ──
   relevantSkills.push("marketing-psychology")
 
-  // ── UNIQUE: dedup, query all ──
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []
@@ -186,102 +180,4 @@ export async function queryRelevantSkills(
   }
 
   return results.sort((a, b) => b.score - a.score)
-}
-
-// ═══════════════════════════════════════════════════════════════
-// APPLY
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Apply a marketing framework to a lead context.
- * Derives diagnosis, recommendation, copy angle, and objection handler.
- */
-export function applyFramework(
-  framework: MarketingFramework,
-  leadContext: LeadContext,
-): ActionPlan {
-  const content = framework.content.toLowerCase()
-  const name = leadContext.businessName
-  const cat = leadContext.category
-  const city = leadContext.district || leadContext.city
-  const score = leadContext.score
-  const rating = leadContext.rating
-
-  // ── Derive action plan from framework text + lead context ──
-  const diagnosis = extractDiagnosis(content, leadContext)
-  const recommendation = extractRecommendation(content, leadContext)
-  const copyAngle = deriveCopyAngle(framework.skillName, leadContext)
-  const objectionHandler = deriveObjectionHandler(framework.skillName, leadContext)
-
-  return {
-    diagnosis,
-    recommendation,
-    copyAngle,
-    objectionHandler,
-    confidence: framework.score,
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HEURISTIC DERIVATION (L0 regex — no LLM, EVO-API pattern)
-// ═══════════════════════════════════════════════════════════════
-
-function extractDiagnosis(content: string, ctx: LeadContext): string {
-  const name = ctx.businessName
-  const city = ctx.district || ctx.city
-  const score = ctx.score
-
-  if (content.includes("seo") && ctx.hasWebsite) {
-    return `O site de ${name} em ${city} precisa de auditoria SEO — score atual ${score}/100. Otimização on-page pode aumentar visibilidade em 3-6 meses.`
-  }
-  if (content.includes("cro") || content.includes("conversion")) {
-    return `${name} tem ${ctx.rating}★ mas score digital ${score}/100 — os pacientes confiam no atendimento mas não encontram a clínica online. Gap de conversão digital.`
-  }
-  if (content.includes("competitor")) {
-    const comp = ctx.competitorCount
-    return `${name} compete com ${comp} negócios similares em ${city}. A maioria ignora marketing digital — quem aparecer primeiro no Google leva o paciente.`
-  }
-  if (content.includes("psychology") || content.includes("schwartz")) {
-    const level = ctx.schwartzLevel
-    return `${name} está no nível "${level}" de consciência de mercado. ${level === 'Unaware' ? 'Eduque sobre o problema antes de oferecer solução.' : level === 'Problem Aware' ? 'Mostre o caminho — o problema já é reconhecido.' : 'Diferencie pela qualidade — o lead já conhece as soluções.'}`
-  }
-  return `${name} tem potencial de crescimento digital em ${city}. Score atual: ${score}/100.`
-}
-
-function extractRecommendation(content: string, ctx: LeadContext): string {
-  if (content.includes("seo")) return "Auditoria SEO completa (gratuita na primeira análise). Revela schema, meta tags, velocidade e backlinks."
-  if (content.includes("schema")) return "Adicionar JSON-LD LocalBusiness com avaliações, endereço e telefone para rich results no Google."
-  if (content.includes("site-architecture")) return "Revisar arquitetura do site: sitemap, robots.txt, estrutura de URLs, mobile-first."
-  if (content.includes("lead-magnet")) return "Oferecer diagnóstico gratuito (Raio-X) como lead magnet — o lead recebe valor antes de decidir."
-  if (content.includes("pricing")) return "Alinhar ticket ao perfil do lead: score e maturidade digital definem o plano ideal (Raio-X R$0, Sentinela R$197, Domínio R$497)."
-  if (content.includes("cro")) return "Otimizar call-to-action: botão de WhatsApp visível, formulário curto, prova social (avaliações) acima da dobra."
-  return `Agendar diagnóstico gratuito para ${ctx.businessName} e descobrir oportunidades específicas.`
-}
-
-function deriveCopyAngle(skillName: string, ctx: LeadContext): string {
-  const name = ctx.businessName
-  const city = ctx.district || ctx.city
-  const score = ctx.score
-
-  const angles: Record<string, string> = {
-    copywriting: `${name}: ${score < 50 ? `${ctx.rating}★ no Google, mas invisível online — descubra por quê` : `Potencial de crescimento digital em ${city} — diagnóstico em 30 segundos`}`,
-    "seo-audit": `Seu site está escondido no Google? 90% dos clientes pesquisam online antes de comprar. Diagnóstico gratuito.`,
-    competitors: `${ctx.competitorCount} concorrentes em ${city}. Apenas 3 têm site otimizado. Seja o primeiro.`,
-    pricing: `Diagnóstico gratuito. Planos a partir de R$197/mês — menos que 1 paciente por mês.`,
-    "lead-magnets": `Raio-X gratuito: descubra em 30 segundos por que seus clientes não te encontram no Google.`,
-    "marketing-psychology": `Você sabia que ${score < 40 ? 'a maioria dos seus clientes nem sabe que precisa de você?' : 'seus clientes já te procuram — mas não te encontram?'}`,
-  }
-  return angles[skillName] || angles.copywriting || `${name} — diagnóstico gratuito em ${city}`
-}
-
-function deriveObjectionHandler(skillName: string, ctx: LeadContext): string {
-  const name = ctx.businessName
-
-  const handlers: Record<string, string> = {
-    pricing: `"É caro?" — O plano Sentinela custa R$197/mês. Isso é menos que 1 paciente. Se trouxer 1 paciente por mês, já se pagou 10x.`,
-    copywriting: `"Já tenho site" — Mas seu score é ${ctx.score}/100. Ter site não é suficiente — precisa ser encontrado.`,
-    "seo-audit": `"SEO demora" — Os primeiros resultados (schema, GMB, meta tags) aparecem em dias. O diagnóstico é gratuito.`,
-    competitors: `"Meus concorrentes não fazem isso" — Exatamente. Quem fizer primeiro, leva o mercado.`,
-  }
-  return handlers[skillName] || `"Não tenho tempo" — O diagnóstico leva 30 segundos. Os gaps são priorizados — você resolve um por vez.`
 }
