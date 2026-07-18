@@ -305,6 +305,7 @@ import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
+import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
 import { TokenComposer } from "../../../../packages/warp/src/tokens-composer"
@@ -624,6 +625,8 @@ interface S10BlueOutput {
   icons: Record<string, string>
   // ── CSS PATTERNS (vec() design-knowledge + media-knowledge) ──
   cssPatterns: { microInteractions: string[]; keyframeVariants: string[]; layoutRecommendations: string[]; sources: string[] } | null
+  // ── INTENT VOCAB (resolveIntentVocab — facets from market ontology) ──
+  vocab: any
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -837,6 +840,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     icons,
     // CSS patterns do corpus (design-knowledge + media-knowledge)
     cssPatterns,
+    // Intent vocab (resolveIntentVocab → facets driven by market ontology)
+    vocab: resolveIntentVocab(seg, ontology),
   }
 }
 
@@ -1053,6 +1058,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
 '<style>\n' +
 '/* CSS: tokens unificados (M9+OD+Materio) + design-knowledge Qdrant + layoutHints specialist */\n' +
+(output.vocab?.iconFacets?.length ? '/* Intent vocab: ' + output.vocab.iconFacets.slice(0, 6).join(' ') + ' */\n' : '') +
 (output.cssPatterns?.sources?.length ? '/* Corpus sources: ' + output.cssPatterns.sources.slice(0, 3).join(', ') + ' */\n' : '') +
 '@font-face{font-family:' + T.font + ';font-display:swap}\n' +
 ':root{\n' +
@@ -1310,6 +1316,14 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
         shadow: { style: m9Result.tokens.shadow.style, card: m9Result.tokens.shadow.cardShadow },
         spacing: { scale: m9Result.tokens.spacing.scale, gap: m9Result.tokens.spacing.sectionGap },
       } : { source: 'segmentPalette-fallback', reason: 'M9 offline' },
+      // ── INTENT VOCAB TRACE ──
+      _vocab: blue.vocab ? {
+        iconFacets: blue.vocab.iconFacets,
+        animationFacets: blue.vocab.animationFacets,
+        designFacets: blue.vocab.designFacets,
+        designSystems: blue.vocab.recommendedDesignSystems,
+        reasoning: blue.vocab.reasoning?.slice(0, 3),
+      } : { source: 'vocab-offline' },
     }
 
     // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
