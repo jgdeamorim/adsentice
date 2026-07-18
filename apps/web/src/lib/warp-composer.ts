@@ -858,6 +858,20 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
   --radius:${T.radius};--radius-sm:${T.radiusSm};--radius-pill:${T.radiusPill};
   --motion-fast:${T.motionFast};--motion:${T.motion};--motion-smooth:${T.motionSmooth};
 }
+/* ── ANIMATIONS (Materio motion + Framer knowledge) ── */
+@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.hero h1{animation:fadeInUp var(--motion-smooth) both}
+.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}
+.hero-badge{animation:fadeIn var(--motion) .2s both}
+.score-card{animation:scaleIn var(--motion-smooth) .15s both}
+.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i, 0) * .08s)}
+.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i, 0) * .1s)}
+.cta{animation:fadeInUp var(--motion-smooth) .2s both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
 .hero{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;min-height:${T.heroMinHeight};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
@@ -926,7 +940,7 @@ footer span{color:${T.primary};font-weight:600}
 }
 </script></head><body>
 <header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
-<div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
+<div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
 </div></div>
 <main class="container" role="main" aria-label="Resultado do diagnóstico">
@@ -939,18 +953,18 @@ footer span{color:${T.primary};font-weight:600}
 <div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
 </div></div></div>
 <div class="info-grid">
-<div class="info-card" ${compAttrs(cardComp, "region", "Google Meu Negócio")}><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
-<div class="info-card" ${compAttrs(cardComp, "region", "Website")}><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")}><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
+<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score</div></div>
 </div>
 <div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
 <p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
-${gaps.map(g => {
+${gaps.map((g, idx) => {
   const sevClass = g.severity.includes("Crítico") ? "critico" : g.severity.includes("Médio") ? "medio" : g.severity.includes("Força") ? "forca" : "oportunidade"
-  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "article", g.title)}><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span>📈 Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
+  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "article", g.title)} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${g.title}</h4></div><p>${g.desc}</p><div class="fix"><strong>✅ Como resolver:</strong> ${g.fix}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
 }).join("")}
 </div>
-<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener">💬 ${copy.cta} no WhatsApp</a></div></div>
+<div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${copy.cta} no WhatsApp</a></div></div>
 
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
