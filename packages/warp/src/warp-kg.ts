@@ -303,36 +303,79 @@ export async function queryDesignSystem(segment: string, surface: string): Promi
   elevation: { raisedY: string; raisedBlur: string; raisedOpacity: string }
 } | null> {
   try {
-    // Mapeia segmento → estilo OD mais próximo (heurística de mercado)
-    const styleHints: Record<string, string> = {
-      saude: "clean minimal professional",
-      beleza: "elegant luxury warm",
-      servicos: "corporate professional",
-      alimentacao: "warm editorial cafe",
-      comercio: "clean functional",
-      educacao: "editorial clean",
-      hospitalidade: "spacious warm",
+    // ADR-0036 — vec() semantic search (não lookup table fixa)
+    // Embeda o SEGMENTO real, não uma string de hint pré-definida
+    // Personalidade do segmento para busca semântica de design system
+    const segmentMood: Record<string, string> = {
+      saude: "clean professional trustworthy calm clinical",
+      beleza: "vibrant bold energetic luxury premium striking",
+      servicos: "corporate serious navy authority formal",
+      alimentacao: "warm cozy appetizing terracota rustic",
+      comercio: "practical functional straightforward",
+      educacao: "editorial academic structured growth-focused",
+      hospitalidade: "spacious welcoming warm golden",
     }
-    const hint = styleHints[segment] || "neutral modern clean"
-    const query = `${hint} ${surface} design system layout`
+    const mood = segmentMood[segment] || "neutral modern clean"
+    const query = `${segment} ${surface} ${mood} design system layout visual`
     const vec = await embedQuery(query)
     if (vec.length === 0) return null
 
-    // Scroll todos os chunks de design-system com filtro de relevância
-    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filter: { must: [{ key: "kind", match: { value: "design-system" } }] },
-        limit: 120, with_payload: true,
-      }),
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const points: QdrantPoint[] = data.result?.points || []
+    // ADR-0036 — search FIRST (vec), depois scroll POR design_system específico
+    // Assim não perdemos o sistema com maior score por limite de scroll
+    const bestDs = await (async () => {
+      try {
+        const sr = await fetch(`${QDRANT}/collections/${COLLECTION}/points/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vector: vec, filter: { must: [{ key: "kind", match: { value: "design-system" } }] }, limit: 1, with_payload: ["design_system"] }),
+          signal: AbortSignal.timeout(5000),
+        })
+        if (!sr.ok) return null
+        const data = await sr.json()
+        return (data.result || [])[0]?.payload?.design_system as string || null
+      } catch { return null }
+    })()
+    const targetDs = bestDs || "default"
 
-    // Agrupa por design_system, ordena chunks
+    // Scroll SÓ o design_system específico (eficiente, sem limite de 120)
+    let points: QdrantPoint[] = []
+    let offset: string | null = null
+    while (true) {
+      const scrollBody: Record<string, unknown> = {
+        filter: { must: [
+          { key: "kind", match: { value: "design-system" } },
+          { key: "design_system", match: { value: targetDs } },
+        ] },
+        limit: 20, with_payload: true,
+      }
+      if (offset) scrollBody["offset"] = offset
+      const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(scrollBody),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) break
+      const data = await res.json()
+      const batch = data.result?.points || []
+      points = points.concat(batch)
+      offset = data.result?.next_page_offset || null
+      if (!offset || batch.length === 0) break
+    }
+    
+    if (!points.length) {
+      // Fallback: scroll genérico (sem filtro design_system)
+      const fr = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filter: { must: [{ key: "kind", match: { value: "design-system" } }] }, limit: 120, with_payload: true }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!fr.ok) return null
+      points = (await fr.json()).result?.points || []
+    }
+
+    // Agrupa por design_system
     const systems: Record<string, Record<string, string>> = {}
     for (const p of points) {
       const pl = p.payload || {}
@@ -341,15 +384,7 @@ export async function queryDesignSystem(segment: string, surface: string): Promi
       if (!systems[ds]) systems[ds] = {}
       systems[ds][chunk] = (pl.text as string) || ""
     }
-
-    // Seleciona o sistema cujo nome melhor matcha com o hint
-    const dsNames = Object.keys(systems)
-    if (!dsNames.length) return null
-    const best = dsNames.reduce((a, b) => {
-      const scoreA = hint.split(" ").filter(w => a.includes(w)).length
-      const scoreB = hint.split(" ").filter(w => b.includes(w)).length
-      return scoreA >= scoreB ? a : b
-    })
+    const best = targetDs && systems[targetDs] ? targetDs : Object.keys(systems)[0]
 
     const ds = systems[best]
     const full = Object.values(ds).join("\n")

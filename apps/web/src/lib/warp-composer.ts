@@ -735,8 +735,43 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       return found || null
     }
     const esc = (t: string) => t.replace(/"/g, "&quot;")
+    // ADR-0036 — render por intent de corpus.
+    // Cada componente do vec() contribui a11y + tokens + category para o CSS.
     const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
       `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
+    
+    // Deriva estilo CSS do componente REAL do Qdrant (tokens, category, intent)
+    const compCSS = (c: WarpComp | null): string => {
+      if (!c) return ""
+      const t = new Set(c.tokens || [])
+      let css = ""
+      // Cada token que o componente declara como dependência gera uma custom property
+      if (t.has("color")) css += `--comp-accent:${T.primary};`
+      if (t.has("animation")) css += `--comp-motion:var(--motion);`
+      if (t.has("spacing")) css += `--comp-padding:${T.cardPadding};`
+      if (t.has("radius")) css += `--comp-radius:${T.radius};`
+      if (t.has("shadow")) css += `--comp-shadow:${T.cardShadow};`
+      if (t.has("typography")) css += `--comp-font:${T.font};`
+      if (t.has("z-index")) css += `--comp-z:10;`
+      if (c.category) css += `--comp-category:${c.category};`
+      return css
+    }
+
+    // Mapeia componente → recomendação de estilo para o slot
+    const slotStyle = (c: WarpComp | null, defaultStyles: string): string => {
+      if (!c) return defaultStyles
+      const t = c.tokens || []
+      let s = defaultStyles
+      // Componentes que consomem "shadow" ganham elevação
+      if (t.includes("shadow") && !s.includes("box-shadow")) s += `box-shadow:var(--shadow-sm);`
+      // Componentes que consomem "animation" ganham transition
+      if (t.includes("animation") && !s.includes("transition")) s += `transition:all var(--motion);`
+      // Componentes "feedback" ganham backdrop-filter
+      if (c.category === "feedback" && !s.includes("backdrop")) s += `backdrop-filter:blur(8px);`
+      // Componentes "action" ganham cursor pointer
+      if (c.category === "action" && !s.includes("cursor")) s += `cursor:pointer;`
+      return s
+    }
     let cardComp = pickComp("card", "cartao")
     let btnComp = pickComp("button", "botao")
     let ringComp = pickComp("progress", "ring", "circular", "gauge")
@@ -828,7 +863,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .hero{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;min-height:${T.heroMinHeight};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
 .hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
-.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
+.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);${slotStyle(chipComp, "backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem")}}
 .hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
 .hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
 .container{max-width:${T.containerMaxWidth};margin:0 auto;padding:0 ${T.containerGutter}}
@@ -840,7 +875,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
 .score-info{flex:1;min-width:240px}
 .score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
-.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:99px;font-size:.8125rem;font-weight:600;background:${p15};color:${p};margin-bottom:1rem}
+.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;${slotStyle(chipComp, "")};background:${p15};color:${p};margin-bottom:1rem}
 .score-bars{display:flex;flex-direction:column;gap:.625rem}
 .score-bar{display:flex;align-items:center;gap:.75rem}
 .score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
@@ -874,7 +909,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .cta{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
 .cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
 .cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
-.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:${T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)"}}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;${slotStyle(btnComp, "transition:all var(--motion);box-shadow:0 4px 14px rgba(0,0,0,0.12)")}}
 .cta-btn:hover{transform:${T.cardShadow === "none" ? "none" : "translateY(-2px)"};box-shadow:0 8px 25px rgba(0,0,0,0.18)}
 footer{text-align:center;padding:${T.sectionSpacing} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
 footer span{color:${T.primary};font-weight:600}
