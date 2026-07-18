@@ -44,13 +44,16 @@ interface SurfaceInfo {
   isLive: boolean; skillsTotal: number; skillsWired: number; skillsWiredPct: number
 }
 
-async function fetchSurfaces(): Promise<{ surfaces: SurfaceInfo[]; summary: any }> {
+async function fetchSurfaces(): Promise<{ surfaces: SurfaceInfo[]; summary: any; specialists: any[]; artifacts: any[]; conversion: any[] }> {
   try {
     const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const res = await fetch(`${base}/api/surface/status`, { cache: 'no-store' })
-    if (res.ok) return res.json()
+    if (res.ok) {
+      const d = await res.json()
+      return { surfaces: d.surfaces || [], summary: d.summary, specialists: d.specialists || [], artifacts: d.artifacts || [], conversion: d.conversion || [] }
+    }
   } catch {}
-  return { surfaces: [], summary: null }
+  return { surfaces: [], summary: null, specialists: [], artifacts: [], conversion: [] }
 }
 
 export default async function SurfacePage(props: { params: Promise<{ lang: string }> }) {
@@ -78,7 +81,7 @@ export default async function SurfacePage(props: { params: Promise<{ lang: strin
 }
 
 async function SurfaceContent({ lang }: { lang: string }) {
-  const { surfaces, summary } = await fetchSurfaces()
+  const { surfaces, summary, specialists, artifacts, conversion } = await fetchSurfaces()
 
   if (!summary || !surfaces.length) {
     return (
@@ -123,6 +126,127 @@ async function SurfaceContent({ lang }: { lang: string }) {
       <Grid size={{ xs: 12 }}>
         <WarpComposeDemo />
       </Grid>
+
+      {/* ═══ ESPECIALISTAS DE SURFACE (g0: gramática por surface) ═══ */}
+      {specialists.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant='h6' fontWeight={700}>🧭 Especialistas de Surface</Typography>
+            <Chip label={`${specialists.length} registrados no Router`} size='small' color='secondary' variant='tonal' />
+            <Typography variant='caption' color='text.secondary'>g0: specialist emite gramática, renderer aplica materials</Typography>
+          </Box>
+          <Grid container spacing={2}>
+            {specialists.map((sp: any) => (
+              <Grid key={sp.surfaceId} size={{ xs: 12, md: 6 }}>
+                <Card sx={{ height: '100%', borderTop: '3px solid', borderColor: 'secondary.main' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant='subtitle1' fontWeight={700}>
+                        <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>{sp.surfaceId}</span> · {sp.name}
+                      </Typography>
+                      <Chip label={`${sp.slots.length} slots`} size='small' variant='tonal' color='secondary' />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', mb: 1.5, alignItems: 'center' }}>
+                      {sp.slots.map((sl: any, i: number) => (
+                        <Box key={sl.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                          <Tooltip title={sl.objective || sl.type}>
+                            <Chip label={sl.name} size='small' variant='outlined'
+                              sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace' }} />
+                          </Tooltip>
+                          {i < sp.slots.length - 1 && <Typography variant='caption' color='text.disabled'>→</Typography>}
+                        </Box>
+                      ))}
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap' }}>
+                      {sp.skills.map((sk: string) => (
+                        <Chip key={sk} label={sk} size='small' sx={{ height: 18, fontSize: '0.55rem', bgcolor: 'grey.100' }} />
+                      ))}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ═══ CONVERSÃO A/B POR ESTRATÉGIA (loop f0 · s11_events) ═══ */}
+      {conversion.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant='h6' fontWeight={700}>🎯 Conversão A/B por Estratégia</Typography>
+            <Chip label='vocab.conversion KG · variante congelada por visitante' size='small' color='success' variant='tonal' />
+          </Box>
+          <Grid container spacing={2}>
+            {conversion.map((c: any) => {
+              const best = Math.max(...conversion.filter((x: any) => x.surface === c.surface).map((x: any) => x.rate))
+              const isWinner = c.rate > 0 && c.rate === best
+              return (
+                <Grid key={`${c.surface}-${c.variant}`} size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Card sx={{
+                    height: '100%', borderLeft: '4px solid',
+                    borderColor: isWinner ? 'success.main' : 'divider',
+                    bgcolor: isWinner ? 'success.50' : 'background.paper',
+                  }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant='subtitle2' fontWeight={700} sx={{ fontFamily: 'monospace' }}>
+                          {c.surface} · variante {c.variant}
+                        </Typography>
+                        {isWinner && <Chip label='🏆 liderando' size='small' color='success' variant='tonal' sx={{ height: 20 }} />}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mb: 1 }}>
+                        <Typography variant='h4' fontWeight={800} color={isWinner ? 'success.main' : 'text.primary'}>
+                          {c.rate}%
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {c.clicks} cliques / {c.views} views
+                        </Typography>
+                      </Box>
+                      {c.hypothesis && (
+                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 0.5, fontStyle: 'italic' }}>
+                          {c.hypothesis}
+                        </Typography>
+                      )}
+                      {c.headline && (
+                        <Typography variant='caption' sx={{ display: 'block', fontWeight: 600 }}>
+                          "{c.headline}"
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            })}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ═══ ARTEFATOS PUBLICADOS (ADR-0038 série) ═══ */}
+      {artifacts.length > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent sx={{ py: 1.5 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Chip label='📦 Artefatos publicados' size='small' color='info' />
+                {artifacts.slice(0, 6).map((a: any) => (
+                  <Tooltip key={`${a.place_id}-${a.surface}-${a.version}-${a.ab_variant}`}
+                    title={`${a.headline || ''} · expira ${a.expires_at?.slice(0, 10) || '?'}`}>
+                    <Chip
+                      label={`${a.surface} v${a.version}${a.ab_variant || ''} · ${a.copy_model || '?'}`}
+                      size='small' variant='outlined'
+                      color={a.status === 'published' ? 'success' : 'default'}
+                      sx={{ fontFamily: 'monospace', fontSize: '0.6rem' }} />
+                  </Tooltip>
+                ))}
+                <Typography variant='caption' color='text.secondary'>
+                  TTL 30d · R2 + Supabase (ADR-0038)
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
 
       {/* ═══ KPI CARDS ═══ */}
       <Grid size={{ xs: 12 }} container spacing={2}>

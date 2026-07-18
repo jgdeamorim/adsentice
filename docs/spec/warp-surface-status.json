@@ -2,28 +2,486 @@
   "version": "1.0.0",
   "updated": "2026-07-17",
   "surfaces": [
-    {"id":"S1","name":"Landing Page adsentice","group":"client","plan":"r0","segment":"todos","skills":["copywriting","psychology","cro","offers","customer-research","launch"],"tokens":["paleta","tipo","scroll","shadow"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S2","name":"Blog / Conteúdo","group":"client","plan":"r0","segment":"todos","skills":["content-strategy","seo-audit","programmatic-seo","copy-editing","schema","image","ai-seo"],"tokens":["tipo","spacing","paleta","progress"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S3","name":"Dashboard Admin","group":"internal","plan":"internal","segment":"todos","skills":["analytics","revops","product-marketing"],"tokens":["data","semantic","denso","zero-motion"],"status":"live","route":"/admin","warpModule":null,"previews":0},
-    {"id":"S4","name":"Checkout / Pricing","group":"commercial","plan":"r197","segment":"todos","skills":["pricing","offers","paywalls","cro","psychology"],"tokens":["tiers","glow","mobile"],"status":"partial","route":"/admin/solutions","warpModule":null,"previews":0},
-    {"id":"S5","name":"Landing Page de Segmento","group":"client","plan":"r0","segment":"por-segmento","skills":["copywriting","psychology","cro","customer-research","product-marketing","launch"],"tokens":["paleta","tipo","scroll","responsive"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S6","name":"Lead Capture","group":"commercial","plan":"r0","segment":"todos","skills":["lead-magnets","popups","signup","cro","psychology"],"tokens":["form","spacing","modal"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S7","name":"Social / Ads Creative","group":"acquisition","plan":"internal","segment":"todos","skills":["ads","ad-creative","copywriting","image","video","scroll-stopping-creative"],"tokens":["brand","responsive","motion"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S8","name":"Competitive Battle Card","group":"client","plan":"r197","segment":"por-segmento","skills":["competitor-profiling","competitors","sales-enablement","product-marketing"],"tokens":["data","semantic","comparison"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S9","name":"Portal do Cliente","group":"client","plan":"r197","segment":"todos","skills":["analytics","product-marketing","churn-prevention"],"tokens":["semantic","mono","zero-motion"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S10","name":"Relatório Raio-X","group":"client","plan":"r0","segment":"por-segmento","skills":["seo-audit","schema","site-architecture","copywriting"],"tokens":["semantic","data-colors","brand"],"status":"live","route":null,"warpModule":"s10-raio-x.ts","previews":30},
-    {"id":"S11","name":"Landing Page do Cliente","group":"client","plan":"r197","segment":"por-segmento","skills":["copywriting","psychology","cro","local-seo","free-tools"],"tokens":["paleta","tipo","scroll","responsive"],"status":"partial","route":null,"warpModule":null,"previews":0},
-    {"id":"S12","name":"WhatsApp Delivery","group":"client","plan":"r0","segment":"todos","skills":["sms","sales-enablement","prospecting","cold-email"],"tokens":["brand","mobile","zero-animation"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S13","name":"Widget / Selo","group":"client","plan":"r197","segment":"por-segmento","skills":["referrals","social-proof"],"tokens":["brand","shadow","responsive"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S14","name":"Onboarding Wizard","group":"client","plan":"r0","segment":"todos","skills":["onboarding","signup","product-marketing"],"tokens":["clean","form","progress"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S15","name":"Cockpit TOP-K","group":"internal","plan":"internal","segment":"todos","skills":["analytics","revops","marketing-ideas"],"tokens":["data","chart","zero-motion"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S16","name":"Pipeline Monitor","group":"internal","plan":"internal","segment":"todos","skills":["analytics","marketing-loops"],"tokens":["status-colors","real-time"],"status":"planned","route":"/admin/pipeline","warpModule":null,"previews":0},
-    {"id":"S17","name":"Cost / Usage Dashboard","group":"internal","plan":"internal","segment":"todos","skills":["analytics","revops","pricing"],"tokens":["custo","alertas"],"status":"planned","route":"/admin/costs","warpModule":null,"previews":0},
-    {"id":"S18","name":"Template Marketplace","group":"internal","plan":"internal","segment":"todos","skills":["offers","pricing","image"],"tokens":["visual","grid","preview"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S19","name":"Quality Jury","group":"internal","plan":"internal","segment":"todos","skills":["marketing-council","ab-testing"],"tokens":["comparison","voting"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S20","name":"API Docs","group":"technical","plan":"internal","segment":"todos","skills":["product-marketing"],"tokens":["mono","code","clean"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S21","name":"Status Page","group":"technical","plan":"internal","segment":"todos","skills":["analytics","churn-prevention"],"tokens":["status-colors","real-time","clean"],"status":"planned","route":null,"warpModule":null,"previews":0},
-    {"id":"S22","name":"Help Center","group":"technical","plan":"internal","segment":"todos","skills":["onboarding","product-marketing","customer-research"],"tokens":["clean","tipo","readable"],"status":"planned","route":null,"warpModule":null,"previews":0}
+    {
+      "id": "S1",
+      "name": "Landing Page adsentice",
+      "group": "client",
+      "plan": "r0",
+      "segment": "todos",
+      "skills": [
+        "copywriting",
+        "psychology",
+        "cro",
+        "offers",
+        "customer-research",
+        "launch"
+      ],
+      "tokens": [
+        "paleta",
+        "tipo",
+        "scroll",
+        "shadow"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S2",
+      "name": "Blog / Conteúdo",
+      "group": "client",
+      "plan": "r0",
+      "segment": "todos",
+      "skills": [
+        "content-strategy",
+        "seo-audit",
+        "programmatic-seo",
+        "copy-editing",
+        "schema",
+        "image",
+        "ai-seo"
+      ],
+      "tokens": [
+        "tipo",
+        "spacing",
+        "paleta",
+        "progress"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S3",
+      "name": "Dashboard Admin",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "revops",
+        "product-marketing"
+      ],
+      "tokens": [
+        "data",
+        "semantic",
+        "denso",
+        "zero-motion"
+      ],
+      "status": "live",
+      "route": "/admin",
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S4",
+      "name": "Checkout / Pricing",
+      "group": "commercial",
+      "plan": "r197",
+      "segment": "todos",
+      "skills": [
+        "pricing",
+        "offers",
+        "paywalls",
+        "cro",
+        "psychology"
+      ],
+      "tokens": [
+        "tiers",
+        "glow",
+        "mobile"
+      ],
+      "status": "partial",
+      "route": "/admin/solutions",
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S5",
+      "name": "Landing Page de Segmento",
+      "group": "client",
+      "plan": "r0",
+      "segment": "por-segmento",
+      "skills": [
+        "copywriting",
+        "psychology",
+        "cro",
+        "customer-research",
+        "product-marketing",
+        "launch"
+      ],
+      "tokens": [
+        "paleta",
+        "tipo",
+        "scroll",
+        "responsive"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S6",
+      "name": "Lead Capture",
+      "group": "commercial",
+      "plan": "r0",
+      "segment": "todos",
+      "skills": [
+        "lead-magnets",
+        "popups",
+        "signup",
+        "cro",
+        "psychology"
+      ],
+      "tokens": [
+        "form",
+        "spacing",
+        "modal"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S7",
+      "name": "Social / Ads Creative",
+      "group": "acquisition",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "ads",
+        "ad-creative",
+        "copywriting",
+        "image",
+        "video",
+        "scroll-stopping-creative"
+      ],
+      "tokens": [
+        "brand",
+        "responsive",
+        "motion"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S8",
+      "name": "Competitive Battle Card",
+      "group": "client",
+      "plan": "r197",
+      "segment": "por-segmento",
+      "skills": [
+        "competitor-profiling",
+        "competitors",
+        "sales-enablement",
+        "product-marketing"
+      ],
+      "tokens": [
+        "data",
+        "semantic",
+        "comparison"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S9",
+      "name": "Portal do Cliente",
+      "group": "client",
+      "plan": "r197",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "product-marketing",
+        "churn-prevention"
+      ],
+      "tokens": [
+        "semantic",
+        "mono",
+        "zero-motion"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S10",
+      "name": "Relatório Raio-X",
+      "group": "client",
+      "plan": "r0",
+      "segment": "por-segmento",
+      "skills": [
+        "seo-audit",
+        "schema",
+        "site-architecture",
+        "copywriting"
+      ],
+      "tokens": [
+        "semantic",
+        "data-colors",
+        "brand"
+      ],
+      "status": "live",
+      "route": "/s10-raio-x/[place_id]",
+      "warpModule": "s10-raio-x.ts",
+      "previews": 30
+    },
+    {
+      "id": "S11",
+      "name": "Landing Page do Cliente",
+      "group": "client",
+      "plan": "r197",
+      "segment": "por-segmento",
+      "skills": [
+        "copywriting",
+        "psychology",
+        "cro",
+        "local-seo",
+        "free-tools"
+      ],
+      "tokens": [
+        "paleta",
+        "tipo",
+        "scroll",
+        "responsive"
+      ],
+      "status": "live",
+      "route": "/s11-landing/[place_id]",
+      "warpModule": "strategy-resolver.ts",
+      "previews": 0
+    },
+    {
+      "id": "S12",
+      "name": "WhatsApp Delivery",
+      "group": "client",
+      "plan": "r0",
+      "segment": "todos",
+      "skills": [
+        "sms",
+        "sales-enablement",
+        "prospecting",
+        "cold-email"
+      ],
+      "tokens": [
+        "brand",
+        "mobile",
+        "zero-animation"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S13",
+      "name": "Widget / Selo",
+      "group": "client",
+      "plan": "r197",
+      "segment": "por-segmento",
+      "skills": [
+        "referrals",
+        "social-proof"
+      ],
+      "tokens": [
+        "brand",
+        "shadow",
+        "responsive"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S14",
+      "name": "Onboarding Wizard",
+      "group": "client",
+      "plan": "r0",
+      "segment": "todos",
+      "skills": [
+        "onboarding",
+        "signup",
+        "product-marketing"
+      ],
+      "tokens": [
+        "clean",
+        "form",
+        "progress"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S15",
+      "name": "Cockpit TOP-K",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "revops",
+        "marketing-ideas"
+      ],
+      "tokens": [
+        "data",
+        "chart",
+        "zero-motion"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S16",
+      "name": "Pipeline Monitor",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "marketing-loops"
+      ],
+      "tokens": [
+        "status-colors",
+        "real-time"
+      ],
+      "status": "planned",
+      "route": "/admin/pipeline",
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S17",
+      "name": "Cost / Usage Dashboard",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "revops",
+        "pricing"
+      ],
+      "tokens": [
+        "custo",
+        "alertas"
+      ],
+      "status": "planned",
+      "route": "/admin/costs",
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S18",
+      "name": "Template Marketplace",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "offers",
+        "pricing",
+        "image"
+      ],
+      "tokens": [
+        "visual",
+        "grid",
+        "preview"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S19",
+      "name": "Quality Jury",
+      "group": "internal",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "marketing-council",
+        "ab-testing"
+      ],
+      "tokens": [
+        "comparison",
+        "voting"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S20",
+      "name": "API Docs",
+      "group": "technical",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "product-marketing"
+      ],
+      "tokens": [
+        "mono",
+        "code",
+        "clean"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S21",
+      "name": "Status Page",
+      "group": "technical",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "analytics",
+        "churn-prevention"
+      ],
+      "tokens": [
+        "status-colors",
+        "real-time",
+        "clean"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    },
+    {
+      "id": "S22",
+      "name": "Help Center",
+      "group": "technical",
+      "plan": "internal",
+      "segment": "todos",
+      "skills": [
+        "onboarding",
+        "product-marketing",
+        "customer-research"
+      ],
+      "tokens": [
+        "clean",
+        "tipo",
+        "readable"
+      ],
+      "status": "planned",
+      "route": null,
+      "warpModule": null,
+      "previews": 0
+    }
   ],
   "summary": {
     "total": 22,
@@ -31,11 +489,36 @@
     "partial": 2,
     "planned": 18,
     "groups": {
-      "client": {"total":10,"live":2,"partial":1,"planned":7},
-      "internal": {"total":7,"live":1,"partial":0,"planned":6},
-      "commercial": {"total":2,"live":0,"partial":1,"planned":1},
-      "acquisition": {"total":1,"live":0,"partial":0,"planned":1},
-      "technical": {"total":3,"live":0,"partial":0,"planned":3}
+      "client": {
+        "total": 10,
+        "live": 2,
+        "partial": 1,
+        "planned": 7
+      },
+      "internal": {
+        "total": 7,
+        "live": 1,
+        "partial": 0,
+        "planned": 6
+      },
+      "commercial": {
+        "total": 2,
+        "live": 0,
+        "partial": 1,
+        "planned": 1
+      },
+      "acquisition": {
+        "total": 1,
+        "live": 0,
+        "partial": 0,
+        "planned": 1
+      },
+      "technical": {
+        "total": 3,
+        "live": 0,
+        "partial": 0,
+        "planned": 3
+      }
     }
   }
 }

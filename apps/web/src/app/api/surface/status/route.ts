@@ -9,6 +9,7 @@ import { NextResponse } from "next/server"
 import { readFileSync } from "fs"
 import { join } from "path"
 import { getWarpKgStats } from "@/lib/warp-kg"
+import { getSurfaceSpecialist } from "../../../../../../../packages/warp/src/4-composer"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -37,7 +38,13 @@ export async function GET() {
 
       if (s.route) {
         try {
-          readFileSync(join(process.cwd(), "src", "app", "[lang]", "(dashboard)", "(private)", "admin", s.route.replace("/admin/", ""), "page.tsx"))
+          if (s.route.startsWith("/admin/")) {
+            // rotas admin (page.tsx dentro do grupo MUI)
+            readFileSync(join(process.cwd(), "src", "app", "[lang]", "(dashboard)", "(private)", "admin", s.route.replace("/admin/", ""), "page.tsx"))
+          } else {
+            // rotas públicas standalone (route.ts — S10/S11 outbound, ADR-0038)
+            readFileSync(join(process.cwd(), "src", "app", ...s.route.split("/").filter(Boolean), "route.ts"))
+          }
           routeLive = true
         } catch {}
       }
@@ -69,6 +76,57 @@ export async function GET() {
         skillsWiredPct: s.skills.length > 0 ? Math.round((skillsWired / s.skills.length) * 100) : 0,
       }
     })
+
+    // Source 4: Surface Router — specialists registrados (g0: gramática por surface)
+    const specialists = ["S10", "S11"].map(id => {
+      const sp = getSurfaceSpecialist(id)
+      if (!sp) return null
+      let slots: { name: string; type: string; objective: string | null }[] = []
+      try {
+        const tree = sp.inferLayout({} as any, [] as any) as any
+        slots = Object.entries(tree?.slots || {}).map(([name, def]: [string, any]) => ({
+          name, type: def?.type || "", objective: def?.objective || null,
+        }))
+      } catch (e: unknown) { void e }
+      return { surfaceId: sp.surfaceId, name: sp.name, skills: sp.skills, slots }
+    }).filter(Boolean)
+
+    // Source 5: Série de artefatos (ADR-0038 — o que está PUBLICADO por surface)
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const supaHeaders = { apikey: supaKey, Authorization: `Bearer ${supaKey}` }
+    let artifacts: any[] = []
+    try {
+      const ar = await fetch(`${supaUrl}/rest/v1/s10_artifacts?select=place_id,surface,version,ab_variant,status,copy_model,headline,subtitle,expires_at,generated_at&order=generated_at.desc&limit=24`, { headers: supaHeaders, cache: "no-store" })
+      if (ar.ok) artifacts = await ar.json()
+    } catch (e: unknown) { void e }
+
+    // Source 6: Conversão A/B por estratégia (s11_events — loop f0)
+    let conversion: any = null
+    try {
+      const ev = await fetch(`${supaUrl}/rest/v1/s11_events?select=surface,ab_variant,event&limit=2000`, { headers: supaHeaders, cache: "no-store" })
+      if (ev.ok) {
+        const rows = await ev.json() as { surface: string; ab_variant: string | null; event: string }[]
+        const agg: Record<string, { views: number; clicks: number }> = {}
+        for (const r of rows) {
+          const k = `${r.surface}:${r.ab_variant || "-"}`
+          agg[k] = agg[k] || { views: 0, clicks: 0 }
+          if (r.event === "view") agg[k].views++
+          if (r.event === "cta_click") agg[k].clicks++
+        }
+        conversion = Object.entries(agg).map(([k, v]) => {
+          const [surface, variant] = k.split(":")
+          // estratégia da variante vem da série (subtitle = hypothesis, headline = copy)
+          const art = artifacts.find(a => a.surface === surface && a.ab_variant === variant)
+          return {
+            surface, variant, views: v.views, clicks: v.clicks,
+            rate: v.views > 0 ? Math.round((v.clicks / v.views) * 1000) / 10 : 0,
+            hypothesis: art?.subtitle || null,
+            headline: art?.headline || null,
+          }
+        }).sort((x, y) => x.surface.localeCompare(y.surface) || x.variant.localeCompare(y.variant))
+      }
+    } catch (e: unknown) { void e }
 
     // Summary
     const byGroup = (group: string) => enriched.filter(s => s.group === group)
@@ -104,7 +162,7 @@ export async function GET() {
       } : null,
     }
 
-    return NextResponse.json({ surfaces: enriched, summary })
+    return NextResponse.json({ surfaces: enriched, summary, specialists, artifacts, conversion })
   } catch (e: any) {
     return NextResponse.json({ surfaces: [], summary: null, error: e.message }, { status: 500 })
   }
