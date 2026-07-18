@@ -300,7 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation } from "./warp-kg"
 import { pluginRegistry } from "./plugins"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
@@ -667,6 +667,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     // 150 estilos open-design embedados como kind=design-system — ADR-0034 orgao 5
     const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
 
+    // 6a-bis. Materio tokens vivos (ADR-0036 Fase 2) — 36 tokens: spacing, shadows, motion, radius, typography, palette
+    const materio = await queryMaterioTokens().catch(() => null)
+    // 6a-ter. Media animation knowledge (Framer Motion, Lucide, SVG) — já ingerido, agora wireado
+    const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
+
     // 6b. Query Warp components from Qdrant (ADR-0033 Level 1)
     const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
     const hasComponents = components.length > 0
@@ -795,10 +800,12 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
   --bg:${odSystem?.colors?.bg ? '#'+odSystem.colors.bg : '#f8fafc'};--fg:${odSystem?.colors?.fg ? '#'+odSystem.colors.fg : '#0f172a'};
   --card:${odSystem?.colors?.surface ? '#'+odSystem.colors.surface : '#fff'};--muted:${odSystem?.colors?.muted ? '#'+odSystem.colors.muted : '#f1f5f9'};--muted-fg:${odSystem?.colors?.muted ? '#'+odSystem.colors.muted : '#64748b'};
   --border:${odSystem?.colors?.border ? '#'+odSystem.colors.border : '#e2e8f0'};--destructive:${odSystem?.colors?.danger ? '#'+odSystem.colors.danger : '#ef4444'};--success:${odSystem?.colors?.success ? '#'+odSystem.colors.success : '#10b981'};--warning:${odSystem?.colors?.warning ? '#'+odSystem.colors.warning : '#f59e0b'};
-  --font:'Inter',system-ui,sans-serif;
-  --shadow:${odSystem?.components?.cardShadow === 'none' ? '0 0 0 0 rgba(0,0,0,0)' : '0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05)'};
-  --shadow-lg:${odSystem?.elevation?.raisedBlur ? '0 '+(parseInt(odSystem.elevation.raisedY)+2)+'px '+odSystem.elevation.raisedBlur+'px rgba(0,0,0,0.'+odSystem.elevation.raisedOpacity+')' : '0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05)'};
-  --radius:${odSystem?.components?.cardRadius || '0.75rem'};--radius-sm:0.5rem;--motion:200ms cubic-bezier(0.4,0,0.2,1);
+  --font:${materio?.typography?.body ? "'"+materio.typography.body+"',system-ui,sans-serif" : "'Inter',system-ui,sans-serif"};
+  --font-display:${materio?.typography?.display ? "'"+materio.typography.display+"',Georgia,serif" : "'Inter',Georgia,serif"};
+  --spacing-xs:${materio?.spacing?.[0] || '0.25rem'};--spacing-sm:${materio?.spacing?.[1] || '0.5rem'};--spacing-md:${materio?.spacing?.[2] || '1rem'};--spacing-lg:${materio?.spacing?.[3] || '1.5rem'};--spacing-xl:${materio?.spacing?.[4] || '2rem'};
+  --shadow-sm:${materio?.shadows?.[0] || '0 1px 2px rgba(0,0,0,0.05)'};--shadow-md:${materio?.shadows?.[1] || '0 4px 6px -1px rgba(0,0,0,0.07)'};--shadow-lg:${materio?.shadows?.[2] || '0 10px 15px -3px rgba(0,0,0,0.08)'};
+  --radius:${odSystem?.components?.cardRadius || '0.75rem'};--radius-sm:${materio?.radius?.[0] || '0.25rem'};--radius-pill:${materio?.radius?.find((r: string) => r === '9999px') || '9999px'};
+  --motion-fast:${materio?.motion?.[0] || '150ms ease'};--motion:${materio?.motion?.[1] || '300ms ease'};--motion-smooth:${materio?.motion?.[2] || '500ms ease'};
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}

@@ -417,6 +417,103 @@ export async function queryDesignSystem(segment: string, surface: string): Promi
   } catch { return null }
 }
 
+
+
+/** ADR-0036 Fase 2 — busca tokens Materio (spacing, shadows, motion, radius, typography, palette).
+ *  36 tokens embedados em adsentice-materio (768d). Retorna agrupados por categoria. */
+export async function queryMaterioTokens(): Promise<{
+  spacing: string[]; shadows: string[]; motion: string[]; radius: string[]
+  typography: { body: string; display: string; mono: string }
+  palette: Record<string, string>
+} | null> {
+  try {
+    const res = await fetch(`${QDRANT}/collections/adsentice-materio/points/scroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 50, with_payload: true }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const points: QdrantPoint[] = data.result?.points || []
+
+    const byCat: Record<string, string[]> = {}
+    for (const p of points) {
+      const pl = p.payload || {}
+      const cat = (pl.category as string) || "other"
+      const name = (pl.name as string) || ""
+      if (!byCat[cat]) byCat[cat] = []
+      byCat[cat].push(name)
+    }
+
+    // Materio token→CSS value map (medido: nomes canônicos Materio)
+    const CSS_MAP: Record<string, string> = {
+      "sp-1":"0.25rem","sp-2":"0.5rem","sp-3":"0.75rem","sp-4":"1rem",
+      "sp-5":"1.25rem","sp-6":"1.5rem","sp-7":"1.75rem","sp-8":"2rem",
+      "sh-sm":"0 1px 2px rgba(0,0,0,0.05)","sh-md":"0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05)",
+      "sh-lg":"0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05)",
+      "sh-coral":"0 4px 14px rgba(249,96,63,0.25)",
+      "r-sm":"0.25rem","r-md":"0.5rem","r-lg":"0.75rem","r-pill":"9999px",
+      "duration-fast":"150ms ease","duration-smooth":"300ms ease",
+      "duration-reveal":"500ms ease","ease-default":"cubic-bezier(0.4,0,0.2,1)",
+      "font-body":"Inter","font-display":"Plus Jakarta Sans","font-mono":"JetBrains Mono",
+      "ink":"#1a1a2e","surface":"#f8fafc","surface-alt":"#f1f5f9",
+      "border":"#e2e8f0","muted":"#64748b","coral-warm":"#f9603f",
+      "coral-hover":"#e5533a","coral-soft":"rgba(249,96,63,0.12)",
+      "pastel-amber":"#fef3c7","pastel-mint":"#d1fae5","pastel-sky":"#e0f2fe",
+      "pastel-coral":"#fee2e2","stone-dark":"#292524",
+    }
+    // Palette: mapeia nomes→valores CSS reais
+    const paletteVals: Record<string, string> = {}
+    for (const n of byCat["palette"] || []) {
+      paletteVals[n] = CSS_MAP[n] || n
+    }
+
+    // Traduz nomes de token → valores CSS reais, ordenados (spacing: menor→maior, motion: rápido→lento)
+    const cssValues = (names: string[]) => names.map(n => CSS_MAP[n] || n).filter(v => v && !v.startsWith("var("))
+    const byRem = (a: string, b: string) => { const pa = parseFloat(a); const pb = parseFloat(b); return isNaN(pa) || isNaN(pb) ? 0 : pa - pb }
+    return {
+      spacing: cssValues(byCat["spacing"] || []).sort(byRem),
+      shadows: cssValues(byCat["shadows"] || []),
+      motion: cssValues(byCat["motion"] || []).sort(byRem),
+      radius: cssValues(byCat["radius"] || []).sort(byRem),
+      typography: {
+        body: CSS_MAP["font-body"] || "Inter",
+        display: CSS_MAP["font-display"] || "Inter",
+        mono: CSS_MAP["font-mono"] || "monospace",
+      },
+      palette: paletteVals,
+    }
+  } catch { return null }
+}
+
+/** ADR-0036 Fase 2 — query animation/media knowledge para enriquecer CSS.
+ *  Retorna keyframes CSS + recomendações de motion do corpus (Framer Motion, etc.) */
+export async function queryMediaAnimation(segment: string): Promise<{
+  keyframeRecommendations: string[]
+  motionPresets: string[]
+  iconLibrary: string
+} | null> {
+  try {
+    const query = `${segment} animation motion keyframes transition landing page`
+    const vec = await embedQuery(query)
+    if (vec.length === 0) return null
+
+    const results = await qdrantSearch(vec, {
+      must: [{ key: "kind", match: { value: "media-knowledge" } }],
+    }, 5)
+    
+    const sources = results.map(p => (p.payload?.source as string) || "").filter(Boolean)
+    const texts = results.map(p => (p.payload?.text as string) || (p.payload?.name as string) || "").filter(Boolean)
+
+    return {
+      keyframeRecommendations: sources.filter(s => s.toLowerCase().includes("framer") || s.toLowerCase().includes("animation") || s.toLowerCase().includes("scroll")).slice(0, 3),
+      motionPresets: texts.filter(t => t.toLowerCase().includes("spring") || t.toLowerCase().includes("tween") || t.toLowerCase().includes("duration")).slice(0, 3),
+      iconLibrary: sources.find(s => s.toLowerCase().includes("lucide")) || "Lucide",
+    }
+  } catch { return null }
+}
+
 /** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
  *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
  *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */
