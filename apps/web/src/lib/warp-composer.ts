@@ -984,9 +984,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 footer{text-align:center;padding:${T.sectionSpacing} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
 footer span{color:${T.primary};font-weight:600}
 @media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#0f172a;--fg:#e2e8f0;--card:#1e293b;--muted:#1e293b;--muted-fg:#94a3b8;--border:#334155; }
-}
 </style>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"LocalBusiness","name":"${esc(name)}","image":"${website && /^https?:\/\//.test(website) ? website.replace(/"/g,"&quot;") : ""}","address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}}

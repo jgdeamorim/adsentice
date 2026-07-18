@@ -160,11 +160,7 @@ export const aestheticEnforcementPlugin: Plugin = {
         violations.push(`${hardcodedColors.length} hardcoded colors vs ${tokenColors} token references`)
       }
 
-      // Check 2: Dark mode tokens
-      if (!ctx.previewHtml.includes('prefers-color-scheme: dark') && !ctx.previewHtml.includes('.dark')) {
-        penalty += 2
-        violations.push('Dark mode not configured')
-      }
+      // Check 2: (removed — adsentice é light-first, não impõe dark mode)
 
       // Check 3: Animation/transition
       if (!ctx.previewHtml.includes('transition') && !ctx.previewHtml.includes('animation')) {
@@ -198,21 +194,7 @@ export const aestheticEnforcementPlugin: Plugin = {
   },
 
   async onGenerate(ctx: DesignContext, html: string): Promise<string> {
-    // Inject dark mode support if missing
-    if (!html.includes('prefers-color-scheme: dark') && !html.includes('.dark')) {
-      const darkModeCSS = `
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --fg: #e2e8f0;
-    --card: #1e293b;
-    --muted: #1e293b;
-    --muted-fg: #94a3b8;
-    --border: #334155;
-  }
-}`
-      html = html.replace('</style>', `${darkModeCSS}\n</style>`)
-    }
+    // adsentice é light-first (coral #f9603f). NÃO dark mode.
     return html
   },
 }
