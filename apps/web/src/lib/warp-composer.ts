@@ -984,7 +984,7 @@ const SLOT_RENDERERS: Record<string, (slot: any, ctx: SlotRenderCtx) => string> 
  *   - Função pura: mesma entrada → mesma saída
  */
 function renderS10_GREEN(output: S10BlueOutput): string {
-  const T = output.T
+  let T = output.T
   const O = output.ontology
   const L = output.tracedLayout?.slots || {}
 
@@ -1003,13 +1003,12 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 
   // ═══ SPECIALIST LAYOUT HINTS: override OD values com gramatica S10 ═══
   const hints = output.tracedLayout?.layoutHints || {}
-  const Tlocal = { ...T }
-  if (hints.container) Tlocal.containerMaxWidth = hints.container
-  if (hints.sectionSpacing) Tlocal.sectionSpacing = hints.sectionSpacing
-  if (hints.sectionSpacingTablet) Tlocal.sectionSpacingTablet = hints.sectionSpacingTablet
-  if (hints.sectionSpacingPhone) Tlocal.sectionSpacingPhone = hints.sectionSpacingPhone
+  if (hints.container) T.containerMaxWidth = hints.container
+  if (hints.sectionSpacing) T.sectionSpacing = hints.sectionSpacing
+  if (hints.sectionSpacingTablet) T.sectionSpacingTablet = hints.sectionSpacingTablet
+  if (hints.sectionSpacingPhone) T.sectionSpacingPhone = hints.sectionSpacingPhone
 
-  const ctx: SlotRenderCtx = { output, T: Tlocal, O, esc, a11y, icon, stars, cls }
+  const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars, cls }
 
   // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
   // Se o specialist adicionar slot novo (ex: testimonials), aparece automaticamente
