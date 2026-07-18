@@ -11,8 +11,13 @@ const COLLECTION = "adsentice-self"
 
 interface QdrantPoint {
   id: string | number
+  score?: number
   payload?: Record<string, unknown>
 }
+
+/** ADR-0034 regra 2 — threshold mínimo de relevância para queries de design.
+ *  Abaixo disso, hits são ruído (ex: "Barbearia" num lead dentista). */
+const SCORE_THRESHOLD = 0.30  // calibrado 2026-07-18: Cosine 768d scores max 0.39 em queries reais
 
 // ── Embed query → Qdrant search ──
 async function embedQuery(text: string): Promise<number[]> {
@@ -212,13 +217,16 @@ export async function queryDesignBestPractices(segment: string, surface: string)
     
     const results = await qdrantSearch(vec, {
       must: [{ key: "tag", match: { value: "adsentice-warp" } }],
-    }, 5)
+    }, 10)  // fetch mais (10) pois threshold filtra
     
-    const sources = results.map(p => (p.payload?.source as string) || "").filter(Boolean)
+    const good = results.filter(p => (p.score || 0) >= SCORE_THRESHOLD)
+    const sources = good.map(p => (p.payload?.source as string) || "").filter(Boolean)
+    if (!sources.length && !results.length) return {/* fallbacks below */}
     
-    // Derive recommendations from design knowledge
+    // Derive recommendations from design knowledge (filtered by threshold)
+    // If none passed threshold → fallback honesto — NÃO usa hint de outro nicho
     const recs: Record<string, string> = {}
-    for (const r of results) {
+    for (const r of good) {
       const payload = r.payload || {}
       const name = (payload.name as string) || ""
       const kind = (payload.kind as string) || ""
@@ -261,6 +269,8 @@ export async function queryComponentsByIntent(intent: string, surface?: string, 
     }
     
     const results = await qdrantSearch(vec, filter, 16)
+    // Scores em 768d Cosine: 0.27-0.39 (threshold 0.45 mata tudo — medido 2026-07-18)
+    // Filtro: só kind=component + tag=adsentice-warp + dedup por id (dual embed duplica)
     const seen = new Set<string>()
     return results.map(p => {
       const pl = p.payload || {}

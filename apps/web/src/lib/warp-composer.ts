@@ -529,21 +529,47 @@ interface CritiqueScore {
   composite: number; passed: boolean; feedback: string[]
 }
 const CRITIQUE_WEIGHTS = { visualHierarchy: 0.20, detailExecution: 0.15, functionality: 0.25, innovation: 0.10, philosophyConsistency: 0.15, marketFit: 0.15 }
-function computeCritique(html: string, segment: string, surface: string): CritiqueScore {
-  let visualHierarchy = 7; let detailExecution = 6; let functionality = 7
-  let innovation = 6; let philosophyConsistency = 8; let marketFit = 7
-  // Heuristic scoring based on HTML features present
-  if (html.includes('hero-badge')) detailExecution += 1
-  if (html.includes('score-ring')) visualHierarchy += 1
-  if (html.includes('gap-severity')) functionality += 1
-  if (html.includes('Design Intelligence')) innovation += 1
-  if (html.includes('cta-btn')) marketFit += 1
-  if (html.includes('Como resolver')) detailExecution += 1
-  if (html.includes('info-grid')) visualHierarchy += 1
-  if (html.includes('@media')) philosophyConsistency += 1
+/** Critique 6D component-based (port 4-composer.ts:346 evaluateCritique — ADR-0034 órgão 3).
+ *  Avalia componentes RESOLVIDOS (não HTML heurístico). */
+function computeCritique(graph: Map<string, GraphNode>, segment: string, surface: string): CritiqueScore {
+  const nodes = [...graph.values()]
+  const n = nodes.length
+  const comps = nodes.map(n => n.comp)
+
+  // Visual Hierarchy: tem estrutura? grid presente? hero+cta+badge?
+  const hasCard = comps.some(c => c.id.includes("card"))
+  const hasRing = comps.some(c => c.id.includes("progress") || c.id.includes("circular"))
+  const hasChip = comps.some(c => c.id.includes("badge") || c.id.includes("chip"))
+  const visualHierarchy = Math.min(10, 5 + (hasCard ? 2 : 0) + (hasRing ? 2 : 0) + (hasChip ? 1 : 0))
+
+  // Detail Execution: componentes com keyboard nav? dependências resolvidas?
+  const a11yCount = comps.filter(c => c.a11y.keyboardNav).length
+  const detailExecution = 5 + Math.round((a11yCount / Math.max(n, 1)) * 4)
+
+  // Functionality: todos têm aria-label?
+  const hasRole = comps.filter(c => c.a11y.role && c.a11y.role !== "region").length
+  const functionality = 5 + Math.round((hasRole / Math.max(n, 1)) * 4)
+
+  // Innovation: diversidade de categorias
+  const sources = new Set(comps.map(c => c.category))
+  const innovation = Math.min(9, 4 + sources.size)
+
+  // Philosophy Consistency: componentes usam tokens?
+  const tokenUsers = comps.filter(c => c.tokens && c.tokens.length).length
+  const philosophyConsistency = 5 + Math.round((tokenUsers / Math.max(n, 1)) * 4)
+
+  // Market Fit (Warp): segmento tem componentes motion/ring?
+  const hasMotion = comps.some(c => c.name.toLowerCase().includes("animated") || c.name.toLowerCase().includes("motion"))
+  const marketFit = 5 + (hasRing ? 1 : 0) + (hasMotion ? 2 : 0) + (hasCard ? 1 : 0) + (a11yCount > 0 ? 1 : 0)
+
   const composite = visualHierarchy * CRITIQUE_WEIGHTS.visualHierarchy + detailExecution * CRITIQUE_WEIGHTS.detailExecution + functionality * CRITIQUE_WEIGHTS.functionality + innovation * CRITIQUE_WEIGHTS.innovation + philosophyConsistency * CRITIQUE_WEIGHTS.philosophyConsistency + marketFit * CRITIQUE_WEIGHTS.marketFit
   const passed = composite >= 7.0
-  const feedback: string[] = []; if (visualHierarchy < 7) feedback.push('Visual hierarchy needs improvement'); if (detailExecution < 7) feedback.push('Detail execution could be polished')
+  const feedback: string[] = []
+  if (visualHierarchy < 6) feedback.push('Hierarquia visual fraca — re-query com segmento mais específico')
+  if (functionality < 6) feedback.push('Acessibilidade baixa — re-query com keyboard-nav')
+  if (marketFit < 6) feedback.push('Fit de mercado baixo — ajuste o intent da query')
+  if (detailExecution < 6) feedback.push('Keyboard-nav ausente nos componentes')
+
   return { visualHierarchy, detailExecution, functionality, innovation, philosophyConsistency, marketFit, composite: Math.round(composite * 10) / 10, passed, feedback }
 }
 
@@ -639,11 +665,11 @@ export async function composeS10(placeId: string): Promise<string | null> {
       for (const c of fetched) if (!graph.has(c.id) && graph.size < 12) graph.set(c.id, { comp: c, depth, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 - depth * 0.2 })
     }
     for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
-    const graphComps = [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
+    const getGraphComps = () => [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
 
     const usedComponents: string[] = []
     const pickComp = (...keys: string[]): WarpComp | null => {
-      const found = graphComps.find(c => keys.some(k =>
+      const found = getGraphComps().find(c => keys.some(k =>
         c.id.toLowerCase().includes(k) || c.name.toLowerCase().includes(k) || c.intent.toLowerCase().includes(k)))
       if (found && !usedComponents.includes(found.id)) usedComponents.push(found.id)
       return found || null
@@ -651,13 +677,13 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const esc = (t: string) => t.replace(/"/g, "&quot;")
     const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
       `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
-    const cardComp = pickComp("card", "cartao")
-    const btnComp = pickComp("button", "botao")
-    const ringComp = pickComp("progress", "ring", "circular", "gauge")
-    const chipComp = pickComp("badge", "chip", "status")
+    let cardComp = pickComp("card", "cartao")
+    let btnComp = pickComp("button", "botao")
+    let ringComp = pickComp("progress", "ring", "circular", "gauge")
+    let chipComp = pickComp("badge", "chip", "status")
 
     // LayoutTree S10 (landing-shell) — slots ligados aos componentes resolvidos
-    const layoutTree = {
+    let layoutTree = {
       id: "layout.s10", type: "landing-shell",
       slots: {
         hero: { component: chipComp?.id || "hero-badge" },
@@ -669,14 +695,38 @@ export async function composeS10(placeId: string): Promise<string | null> {
       graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })),
     }
 
-    // Auto-critique via design knowledge
-    const critiqueNotes: string[] = []
-    if (designIntel) {
-      if (designIntel.colorRecommendation) critiqueNotes.push(`🎨 ${designIntel.colorRecommendation}`)
-      if (designIntel.typographyRecommendation) critiqueNotes.push(`🔤 ${designIntel.typographyRecommendation}`)
-      if (designIntel.motionRecommendation) critiqueNotes.push(`🎯 ${designIntel.motionRecommendation}`)
+    // 7. Critique 6D + Devloop (ADR-0033 N3.2 + ADR-0034 orgao 3)
+    // Avalia graph real. Se composite < 7.0, ajusta intent e re-query (<3x).
+    let critique = computeCritique(graph, seg, "S10")
+    let devloopIter = 0
+    while (!critique.passed && devloopIter < 2) {
+      devloopIter++
+      const boostIntent = critique.functionality < 6 ? `acessivel keyboard-nav ${seg}` :
+        critique.marketFit < 6 ? `${seg} landing conversion motion` : `${seg} badge progress`
+      const boosted = await queryComponentsByIntent(boostIntent, "S10", seg).catch(() => [])
+      if (boosted.length) {
+        for (const c of boosted) if (!graph.has(c.id) && graph.size < 12) {
+          graph.set(c.id, { comp: c, depth: 1 + devloopIter, dependencies: [...c.edges], dependents: [], relevanceScore: 0.7 - devloopIter * 0.15 })
+        }
+        for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep && !dep.dependents.includes(gid)) dep.dependents.push(gid) }
+        // Re-pick components after Devloop adjustments
+        usedComponents.length = 0;
+        [cardComp, btnComp, ringComp, chipComp].forEach(() => {})
+      }
+      // Re-pick após graph expandido
+      usedComponents.length = 0
+      const fresh = getGraphComps()
+      const c2 = fresh.find((c: any) => ["card","cartao","bento"].some((k: string) => c.id.includes(k) || c.name.toLowerCase().includes(k)))
+      const b2 = fresh.find((c: any) => ["button","botao","cta"].some((k: string) => c.id.includes(k) || c.name.toLowerCase().includes(k)))
+      const r2 = fresh.find((c: any) => ["progress","ring","circular","gauge"].some((k: string) => c.id.includes(k)))
+      const ch2 = fresh.find((c: any) => ["badge","chip","status"].some((k: string) => c.id.includes(k)))
+      if (c2) { usedComponents.push(c2.id); cardComp = c2 as any }
+      if (b2) { usedComponents.push(b2.id); btnComp = b2 as any }
+      if (r2) { usedComponents.push(r2.id); ringComp = r2 as any }
+      if (ch2) { usedComponents.push(ch2.id); chipComp = ch2 as any }
+      critique = computeCritique(graph, seg, "S10")
     }
-    const hasCritique = critiqueNotes.length > 0
+    const tracedLayout = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
 
     // 7. Build HTML (FULL Python template port + Qdrant design intelligence)
     const html = `<!DOCTYPE html><html lang="pt-BR">
@@ -763,7 +813,7 @@ footer span{color:${p};font-weight:600}
   "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
 }
 </script>
-<script type="application/json" id="warp-layout">${JSON.stringify(layoutTree)}</script></head><body>
+<script type="application/json" id="warp-layout">${JSON.stringify(tracedLayout)}</script></head><body>
 <header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
 <div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
@@ -790,7 +840,20 @@ ${gaps.map(g => {
 }).join("")}
 </div>
 <div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener">💬 ${copy.cta} no WhatsApp</a></div></div>
-${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${[...graph.values()].map(n => `${"└ ".repeat(n.depth)}${usedComponents.includes(n.comp.id) ? "🔗 " : ""}${n.comp.name} (${n.comp.a11y.role} · d${n.depth} · r${Math.round(n.relevanceScore * 100) / 100}${n.dependencies.length ? ` → ${n.dependencies.join(",")}` : ""})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
+${(() => {
+  let block = `<div class="section" style="padding-top:0"><div class="info-grid">`
+  block += `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Jury 6D · ${critique.passed ? "✅" : "🔄"} ${critique.composite.toFixed(1)}/10${devloopIter > 0 ? ` (${devloopIter} re-iterações)` : ""}</h4><div class="meta" style="line-height:1.8">`
+  block += `VH:${critique.visualHierarchy} DE:${critique.detailExecution} FN:${critique.functionality} IN:${critique.innovation} PC:${critique.philosophyConsistency} MF:${critique.marketFit}<br>`
+  if (critique.feedback.length) block += critique.feedback.join('<br>') + '<br>'
+  else block += 'Todas as dimensões dentro do esperado.<br>'
+  if (designIntel?.inspirationUrls?.length) block += `📚 ${designIntel.inspirationUrls.slice(0,2).map(u => u.split('/').pop()?.slice(0,20)).join(', ')}`
+  block += `</div></div>`
+  block += `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Components · ${usedComponents.length} wireados</h4><div class="meta" style="line-height:1.8">`
+  const lines = [...graph.values()].map(n => `${"└ ".repeat(n.depth)}${usedComponents.includes(n.comp.id) ? "🔗 " : ""}${n.comp.name} (${n.comp.a11y.role} · d${n.depth}${n.dependencies.length ? ` → ${n.dependencies.join(",")}` : ""})`)
+  block += lines.join('<br>')
+  block += `</div></div></div></div>`
+  return block
+})()}
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
