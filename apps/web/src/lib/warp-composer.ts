@@ -306,6 +306,7 @@ import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
+import { resolveMorph } from "../../../../packages/warp/src/morph-resolver"
 import { queryRelevantSkills } from "../../../../packages/warp/src/marketing-kg"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
@@ -630,6 +631,8 @@ interface S10BlueOutput {
   vocab: any
   // ── MARKETING KG (ADR-0037 Fase 1 — raw frameworks from Qdrant) ──
   mktFrameworks: any[]
+  // ── SLOT MORPH (ADR-0037 Fase 2 — corpus-driven CSS mutations) ──
+  morph: any
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -863,6 +866,19 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     cssPatterns,
     // Intent vocab (resolveIntentVocab → facets driven by market ontology)
     vocab: resolveIntentVocab(seg, ontology),
+    // Slot morph (ADR-0037 Fase 2) — corpus-driven CSS mutations per slot
+    morph: resolveMorph({
+      segment: seg,
+      designFacets: ontology.designSystem?.atmosphere ? [ontology.designSystem.atmosphere] : [],
+      animationFacets: mediaAnim?.keyframeRecommendations || [],
+      designSystemAtmosphere: ontology.designSystem?.atmosphere || '',
+      spacingStyle: ontology.designSystem?.spacingStyle || 'default',
+      motionStyle: ontology.designSystem?.motionStyle || 'subtle',
+      primaryEmotion: ontology.psychology?.primaryEmotion || '',
+      schwartzLevel: lead.schwartz_label || 'Problem Aware',
+      cssPatterns: designIntel ? { microInteractions: designIntel.inspirationUrls || [], layoutRecommendations: [designIntel.spacingRecommendation || ''], keyframeVariants: designIntel.inspirationUrls || [] } : null,
+      T: T as any,
+    }),
     // Marketing KG frameworks (ADR-0037 Fase 1 — raw Qdrant query)
     mktFrameworks,
   }
