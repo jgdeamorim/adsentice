@@ -312,7 +312,8 @@ const DiscoveryPage = () => {
   const [selectedLayers, setSelectedLayers] = useState<{ l0: boolean; l1: boolean; l2: boolean; l3: boolean; l4: boolean }>({
     l0: true, l1: true, l2: false, l3: false, l4: true,
   })
-  const [paginatePartial, setPaginatePartial] = useState(false)  // batch parcial: só 1 página (top 100)
+  const [paginatePartial, setPaginatePartial] = useState(false)  // batch parcial: só 1 página (top N)
+  const [viewLimit, setViewLimit] = useState(100)                 // quantos leads por página (10|20|50|100) — controle de custo
 
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
   const [selectedMunicipios, setSelectedMunicipios] = useState<string[]>([]) // RM multi-select
@@ -331,21 +332,19 @@ const DiscoveryPage = () => {
 
   const batchEffective = realMunicipioCount || 1
 
-  // ── Cost Estimates (based on REAL API DataForSEO costs · 2026-07-17) ──
-  // L0: $0.048/página (limit=100). Custo REAL depende do total_count.
-  //     Ex: Vitória 3 cats 5km = 3038 leads = 31 páginas = $1.49
-  //     Ex: Vitória 1 cat 5km = 896 leads = 9 páginas = $0.43
-  // L1: $0.0054/POST batch (flat rate, 1 POST com até 100 keywords)
-  //
-  // Pré-L0: estimamos páginas pelo número de categorias (dados históricos).
-  // 1 cat → ~5-10 páginas. 3+ cats → ~20-40 páginas. Multiplicador ~3-5×.
-  // Pós-L0: custo real baseado no total_count da API (batchEstTotalCost).
+  // ── Cost Estimates (based on REAL API DataForSEO costs · medido 2026-07-18) ──
+  // L0: custo por página varia com o limit (API cobra por listing retornada, não fixo):
+  //     limit=10=$0.0156 · limit=20=$0.0192 · limit=50=~$0.028 · limit=100=$0.048
+  const L0_COST_MAP: Record<number, number> = { 10: 0.0156, 20: 0.0192, 50: 0.028, 100: 0.048 }
+  const l0PageCost = L0_COST_MAP[viewLimit] || 0.048
+  // Páginas estimadas = total_count ÷ limit (arredondado p/ cima)
 
   // Category scale factor (empirical: 3 cats ≈ 3-5× mais results que 1 cat)
   const catCount = selected.length || 1
-  const estPagesPerMun = catCount <= 1 ? 5 : catCount === 2 ? 12 : catCount >= 4 ? 25 : 20
-  const l0MinCost = 0.048 * batchEffective                    // mínimo: 1 página por município
-  const l0EstCost = 0.048 * estPagesPerMun * batchEffective   // estimativa pré-L0
+  const estLeadsPerMun = catCount <= 1 ? 500 : catCount === 2 ? 1200 : catCount >= 4 ? 2500 : 2000
+  const estPagesPerMun = Math.ceil(estLeadsPerMun / viewLimit)
+  const l0MinCost = l0PageCost * batchEffective                    // mínimo: 1 página por município
+  const l0EstCost = l0PageCost * estPagesPerMun * batchEffective   // estimativa pré-L0
   // L1 exige L0 (refresh de GMB em existentes: não suportado no re-enrich v1)
   const l1Cost = (selectedLayers.l0 && selectedLayers.l1 ? 0.0054 : 0) * batchEffective
   // L2/L3: top 50 enriquecidos × % com website (preflight real || 60% histórico)
@@ -384,8 +383,8 @@ const DiscoveryPage = () => {
   const preflightReady = batchMode !== 'single' && selected.length > 0 && rmMunicipios.length > 0
 
   // Real cost from preflight data (if available) vs heuristic estimate
-  const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / 100), 0)
-  const preflightL0Cost = preflightTotalPages * 0.048
+  const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / viewLimit), 0)
+  const preflightL0Cost = preflightTotalPages * l0PageCost
   const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
 
@@ -461,12 +460,12 @@ const DiscoveryPage = () => {
               categories: selected,
               lat: m.lat, lng: m.lng,
               radiusKm: radius,
-              limit: 100, force: force,
+              limit: viewLimit, force: force,  // v091: controle de custo pelo limite
               enrich: isContinue ? 0 : (selectedLayers.l1 && selectedLayers.l0 ? 50 : 0),
-              paginate: !paginatePartial && !isContinue,  // batch parcial: 1 página por mun
+              paginate: !paginatePartial && !isContinue,  // false = só 1 página da onda
               batchId,
               layers: selectedLayers,       // v088: seleção livre L0-L4
-              city: m.nome,                 // modo re-enrich usa (L0 off)
+              city: m.nome,                 // modo re-enrich usa (L0 off) + metadata do log
               ...(isContinue ? { offset: offsetOverride } : {}),
             }),
           })
@@ -1162,9 +1161,20 @@ return colors[level ?? 0] || colors[0]
                 onClick={() => setSelectedLayers(prev => ({ ...prev, l4: !prev.l4 }))}
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
-              {/* Batch partial toggle */}
+              {/* Limit selector — custo escala com o tamanho da página (v091) */}
+              <Box sx={{ display: 'flex', gap: 0.3, alignItems: 'center' }}>
+                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>pág:</Typography>
+                {[10,20,50,100].map(n => (
+                  <Chip key={n} label={String(n)} clickable size='small'
+                    color={viewLimit === n ? 'primary' : 'default'}
+                    variant={viewLimit === n ? 'filled' : 'outlined'}
+                    onClick={() => setViewLimit(n)}
+                    sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: 28 }} />
+                ))}
+              </Box>
+              {/* Pagination toggle */}
               <Chip
-                label={paginatePartial ? '🛑 1 pág (top 100)' : '🔄 Todas páginas'}
+                label={paginatePartial ? `🛑 1 pág` : `🔄 Todas páginas`}
                 clickable size='small'
                 color={paginatePartial ? 'warning' : 'default'}
                 variant={paginatePartial ? 'filled' : 'outlined'}
@@ -1493,15 +1503,14 @@ return (
             )}
 
             {[
-              { label: selectedLayers.l0 ? 'L0 · Google Maps Search' : '♻️ L0 off — Re-enrich de leads existentes',
-                cost: selectedLayers.l0 ? (hasPreflight ? preflightL0Cost : l0MinCost) : 0,
+              { label: 'L0 · Google Maps Search', cost: selectedLayers.l0 ? (hasPreflight ? preflightL0Cost : l0MinCost) : 0,
                 detail: !selectedLayers.l0
                   ? 'busca leads JÁ no Supabase (categoria+cidade, dedup place_id) — $0 de search'
                   : hasPreflight
-                    ? `${preflightTotalPages} páginas reais × $0.048 (total_count via pre-criteria limit=5)`
+                    ? `${preflightTotalPages} páginas reais × $${l0PageCost} (limit=${viewLimit} via pre-criteria)`
                     : selected.length > 1
-                      ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $0.048 — baseado em ${catCount} categorias`
-                      : `$0.048/página × ${batchEffective} municípios (1ª página) · auto-paginação busca TODAS as páginas`,
+                      ? `est. ${estPagesPerMun} págs/mun × ${batchEffective} municípios × $${l0PageCost} (limit=${viewLimit})`
+                      : `$${l0PageCost}/página × ${batchEffective} municípios (limit=${viewLimit}) · 🔄 auto-paginação`,
                 always: true, free: !selectedLayers.l0 },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },
               { label: 'L2 · Website + SEO', cost: basePreflight ? basePreflight.l2ExactCost : l2CostUi, detail: basePreflight ? `${basePreflight.l2Candidates} leads novos (${basePreflight.jaL2} já enriquecidos · não re-paga) · onpage $0.000125 + tech $0.01` : `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },

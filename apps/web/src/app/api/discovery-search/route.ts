@@ -594,7 +594,7 @@ export async function POST(request: NextRequest) {
 
     // ═══ PAGINATION: fetch remaining pages (offset 100,200...) ═══
     // DataForSEO max 100 per call. RJ 5km = 538 dentists = 5 pages.
-    // Tracker: search_metadata records what pages were fetched and how many remain.
+    // Tracker: search_metadata — histórico de execução (v091: +city/uf p/ SessionLog)
     const searchMetadata = {
       tracker_id: `discovery_${Date.now().toString(36)}`,
       batch_id: batchId || null,
@@ -604,6 +604,10 @@ export async function POST(request: NextRequest) {
       pages_fetched: 1,
       remaining: Math.max(0, totalCount - items.length),
       offsets_used: [startOffset],
+      city: bodyCity || null,
+      uf: null as string | null,   // preenchido pelo L4 IBGE após enriquecimento
+      viewLimit: limit || 100,
+      categories,
     }
 
     let pagOffset = (limit || 100)
@@ -719,6 +723,9 @@ export async function POST(request: NextRequest) {
 
       listings = l4Result.l4EnrichedListings
       scores = l4Result.l4EnrichedScores
+      // UF para o SessionLog (v091 — metadata enriquecida c/ cidade/UF)
+      const firstL4 = listings.find((l: any) => (l as any).l4_ibge_uf)
+      if (firstL4) (searchMetadata as any).uf = (firstL4 as any).l4_ibge_uf
     }
 
     // ═══ FINAL SCORING + DISTRIBUTION ═══
