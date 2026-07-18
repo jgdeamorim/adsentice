@@ -550,62 +550,6 @@ export async function queryMediaAnimation(segment: string): Promise<{
   } catch { return null }
 }
 
-/** ADR-0036 Fase 5 — query SVG icons do corpus, filtered by intent vocab facets.
- *  Retorna map facet→SVG markup. Vocab facets (resolveIntentVocab) narrow search.
- *  KG: vocab.facets.* → media.icon_set.lucide → has_facet.
- *  Se Qdrant offline ou sem hits, retorna {} — GREEN usa texto puro. */
-export async function queryMediaIcons(iconFacets?: string[]): Promise<Record<string, string>> {
-  try {
-    const filter: Record<string, unknown> = { must: [
-      { key: "kind", match: { value: "component" } },
-      { key: "category", match: { value: "icon" } },
-    ] }
-    if (iconFacets?.length) {
-      filter["should"] = [
-        { key: "facets", match: { any: iconFacets } },
-        { key: "id", match: { any: iconFacets.map(f => 'icon-' + f) } },
-      ]
-    }
-    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filter, limit: 30, with_payload: true }),
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!res.ok) return {}
-    const data = await res.json()
-    const points: QdrantPoint[] = data.result?.points || []
-
-    // Map icon payload id → renderer facet name (what slot renderers call via icon('...'))
-    const idToFacet: Record<string, string> = {
-      search: 'search', 'icon-search': 'search',
-      chart: 'chart', 'icon-chart': 'chart',
-      trend: 'trend', 'icon-trend': 'trend',
-      message: 'message', 'icon-message': 'message',
-      star: 'star', 'icon-star': 'star',
-      shield: 'shield', 'icon-shield': 'shield',
-      spark: 'spark', 'icon-spark': 'spark',
-      arrow: 'arrow', 'icon-arrow': 'arrow', 'icon-chevron-right': 'arrow',
-      'icon-alert-triangle': 'alert',
-      'icon-tooth': 'tooth',
-    }
-
-    const icons: Record<string, string> = {}
-    for (const p of points) {
-      const pl = p.payload || {}
-      const id = (pl.id as string) || ""
-      // SVG markup no campo `text` (payload FLAT — medido Qdrant scroll)
-      const markup = (pl.text as string) || (pl.description as string) || ""
-      if (!markup.includes("<svg")) continue
-      // Priority: explicit facet match, then id mapping, then facets array
-      const facetFromId = idToFacet[id]
-      if (facetFromId) { icons[facetFromId] = markup; continue }
-      const facets = (pl.facets as string[]) || []
-      for (const f of facets) { if (f !== 'icon' && !icons[f]) { icons[f] = markup; break } }
-    }
-    return icons
-  } catch { return {} }
-}
 
 /** ADR-0036 Fase 4 — query CSS patterns + design knowledge do corpus.
  *  Enriquecimento semântico: embeda o segmento, busca design-knowledge + media-knowledge
