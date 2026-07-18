@@ -578,6 +578,69 @@ export async function queryMediaIcons(): Promise<Record<string, string>> {
   } catch { return {} }
 }
 
+/** ADR-0036 Fase 4 — query CSS patterns + design knowledge do corpus.
+ *  Enriquecimento semântico: embeda o segmento, busca design-knowledge + media-knowledge
+ *  e retorna micro-interações, keyframes e padrões de layout aplicáveis. */
+export async function queryCSSPatterns(segment: string, surface: string): Promise<{
+  microInteractions: string[]    // hover, focus, active patterns
+  keyframeVariants: string[]    // segment-specific animation variants
+  layoutRecommendations: string[] // spacing, grid, composition hints
+  sources: string[]             // Qdrant sources for traceability
+} | null> {
+  try {
+    const query = `${segment} ${surface} CSS design patterns micro-interactions keyframes layout landing page`
+    const vec = await embedQuery(query)
+    if (vec.length === 0) return null
+
+    // Query media-knowledge for CSS patterns
+    const mediaResults = await qdrantSearch(vec, {
+      must: [{ key: "kind", match: { value: "media-knowledge" } }],
+    }, 8)
+
+    // Query design-knowledge for layout/typography patterns
+    const designResults = await qdrantSearch(vec, {
+      must: [{ key: "kind", match: { value: "design-knowledge" } }],
+    }, 8)
+
+    const all = [...mediaResults, ...designResults]
+    const good = all.filter(p => (p.score || 0) >= SCORE_THRESHOLD)
+
+    const microInteractions: string[] = []
+    const keyframeVariants: string[] = []
+    const layoutRecommendations: string[] = []
+    const sources: string[] = []
+
+    for (const r of good) {
+      const pl = r.payload || {}
+      const text = (pl.text as string) || (pl.name as string) || ""
+      const source = (pl.source as string) || ""
+      const name = (pl.name as string) || ""
+
+      if (source && !sources.includes(source)) sources.push(source)
+
+      if (text) {
+        const lower = text.toLowerCase()
+        if (lower.includes("micro-interaction") || lower.includes("hover") || lower.includes("transition") || lower.includes("active")) {
+          microInteractions.push(text.slice(0, 200))
+        }
+        if (lower.includes("keyframe") || lower.includes("animation") || lower.includes("scroll-driven") || lower.includes("fade")) {
+          keyframeVariants.push(text.slice(0, 300))
+        }
+        if (lower.includes("layout") || lower.includes("grid") || lower.includes("spacing") || lower.includes("typography") || lower.includes("composition")) {
+          layoutRecommendations.push(text.slice(0, 200))
+        }
+      }
+    }
+
+    return {
+      microInteractions: microInteractions.slice(0, 3),
+      keyframeVariants: keyframeVariants.slice(0, 3),
+      layoutRecommendations: layoutRecommendations.slice(0, 3),
+      sources: sources.slice(0, 5),
+    }
+  } catch { return null }
+}
+
 /** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
  *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
  *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */

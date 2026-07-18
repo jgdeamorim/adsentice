@@ -300,7 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
@@ -622,6 +622,8 @@ interface S10BlueOutput {
   ontology: any
   // ── ICONS (vec() query Qdrant — embedding sensor doctrine) ──
   icons: Record<string, string>
+  // ── CSS PATTERNS (vec() design-knowledge + media-knowledge) ──
+  cssPatterns: { microInteractions: string[]; keyframeVariants: string[]; layoutRecommendations: string[]; sources: string[] } | null
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -631,7 +633,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   morph: MorphResult, p: string, s: string, a: string, p15: string, p12: string,
   designIntel: any, inspoUrls: string[], odSystem: any, materio: any, mediaAnim: any,
   T: ReturnType<typeof unifyTokens>,
-  icons: Record<string, string>
+  icons: Record<string, string>,
+  cssPatterns: any
 ): Promise<S10BlueOutput> {
   const name = lead.title
   const score = lead.score_compound || 50
@@ -832,6 +835,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     ontology,
     // Ícones do Qdrant (vec() query — embedding sensor doctrine)
     icons,
+    // CSS patterns do corpus (design-knowledge + media-knowledge)
+    cssPatterns,
   }
 }
 
@@ -1047,6 +1052,8 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
 '<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
 '<style>\n' +
+'/* CSS: tokens unificados (M9+OD+Materio) + design-knowledge Qdrant + layoutHints specialist */\n' +
+(output.cssPatterns?.sources?.length ? '/* Corpus sources: ' + output.cssPatterns.sources.slice(0, 3).join(', ') + ' */\n' : '') +
 '@font-face{font-family:' + T.font + ';font-display:swap}\n' +
 ':root{\n' +
 '  --primary:' + T.primary + ';--primary-fg:' + T.primaryFg + ';--secondary:' + T.secondary + ';--secondary-fg:' + T.secondaryFg + ';--accent:' + T.accent + ';\n' +
@@ -1060,10 +1067,22 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '  --radius:' + T.radius + ';--radius-sm:' + T.radiusSm + ';--radius-pill:' + T.radiusPill + ';\n' +
 '  --motion-fast:' + T.motionFast + ';--motion:' + T.motion + ';--motion-smooth:' + T.motionSmooth + ';\n' +
 '}\n' +
-'@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }\n' +
-'@keyframes fadeIn { from{opacity:0} to{opacity:1} }\n' +
-'@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }\n' +
-'@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }\n' +
+(function() {
+  let kf = '@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }\n' +
+    '@keyframes fadeIn { from{opacity:0} to{opacity:1} }\n' +
+    '@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }\n' +
+    '@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }\n'
+  // ── CSS PATTERNS: keyframe variants do corpus (design-knowledge vec()) ──
+  const cp = output.cssPatterns
+  if (cp?.keyframeVariants?.length) {
+    for (const kfText of cp.keyframeVariants) {
+      // Extract @keyframes rules from corpus text
+      const matches = kfText.match(/@keyframes\s+\w+\s*\{[^}]+\}/g)
+      if (matches) for (const m of matches) { if (!kf.includes(m)) kf += m + '\n' }
+    }
+  }
+  return kf
+})() +
 '.' + cls('hero') + ' h1{animation:fadeInUp var(--motion-smooth) both}\n' +
 '.' + cls('hero') + ' .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}\n' +
 '.' + cls('hero-badge') + '{animation:fadeIn var(--motion) .2s both}\n' +
@@ -1210,10 +1229,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const materio = await queryMaterioTokens().catch(() => null)
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
     const icons = await queryMediaIcons().catch(() => ({} as Record<string, string>))
+    const cssPatterns = await queryCSSPatterns(seg, 'S10').catch(() => null)
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
-    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, null as any, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)
+    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, null as any, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons, cssPatterns)
     
     // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
     // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials
