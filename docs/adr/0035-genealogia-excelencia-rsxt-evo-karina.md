@@ -181,3 +181,28 @@ Se amanhã ingerirmos mais 50 estilos OD, ou 200 componentes 21st, ou 10 skills 
 - `docs/preview/warp-s10-dra-karina-santos-oliveira---periodonti-s10_7310.html` — o resultado
 - `/media/jeffer/BKP/PROJETOS/CODE-OSS/docs-antigravity/mapping/02-dag.md` — DAG implícita
 - claude-memory: `2fc8fa7d` (esta genealogia) · `d291d67b` (vec até o osso) · `00b75498` (genealogia s10_7310)
+
+
+## 6. Prova — Pipeline L0→L6 aplicado à ingestão (2026-07-18)
+
+**Teste:** O sistema aprende com sua própria melhor geração (warp-s10-excellence-bbc.html → kind=design-system).
+
+**Resultado medido:**
+
+| Layer | Ação | Resultado |
+|-------|------|-----------|
+| L0 | Extrair tokens do excellence HTML | 947 chars (cores, tipografia, layout, componentes) |
+| L1 | Validar + classificar | design_system=warp-excellence, quality=P0, segments=[beleza, barbearia] |
+| L2 | Dedup (blake2b hash) | ✅ novo (hash=b73d2539) |
+| L3 | Sensor — embed + search similares | airtable 0.576, x-ai 0.575, wired 0.574 |
+| L4 | Graph — montar payload FLAT | 884 chars text, 13 campos de metadata |
+| L5 | Quality Gate — 5 checks | ✅ 5/5 (a11y, schema, responsive, semantic, performance) |
+| L6 | Árbitro LLM | ⏭️ L0-L5 bastaram — LLM NÃO chamado |
+
+**Custo total: $0 (zero LLM).**
+
+**Verificação:** `queryDesignSystem('beleza', 'S10')` retorna `warp-excellence` com score 0.595 entre 150 estilos OD.
+
+**Fonte:** Qdrant `adsentice-self`, point `3d3b0bd8-5b0c-4a13-a9ac-26d5ee4bdd47`, kind=design-system, qualidade P0.
+
+**Generalização:** Qualquer corpus (novo design system, fonte tipográfica, componente SVG, paleta de cores) pode ser ingerido pelo mesmo pipeline L0→L6. O composeS10 consome automaticamente via `queryDesignSystem()` sem alteração de código.
