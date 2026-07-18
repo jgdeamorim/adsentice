@@ -95,6 +95,45 @@ ADSENTICE_EDGES: list[dict] = [
     {"source": "adsentice.diagnostic", "relation": "could_use", "target": "rsxt.L4", "source_doc": "rsxt-bridge-adsentice.md"},
     {"source": "adsentice.diagnostic", "relation": "could_use", "target": "rsxt.L5", "source_doc": "rsxt-bridge-adsentice.md"},
     {"source": "adsentice.lead_scoring", "relation": "uses", "target": "rsxt.doctrine.founder_signal", "source_doc": "rsxt-bridge-adsentice.md"},
+    # ═══ MEDIA & SVG VOCABULARY (ADR-0036 · ingest 2026-07-18) ═══
+    # Icon vocabulary — 8 Lucide SVG icons with facets
+    {"source": "vocab.icon", "relation": "provided_by", "target": "media.icon_set.lucide", "source_doc": "context7 + Lucide docs · 8 SVG icons com facets"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.icon", "source_doc": "Lucide icons: search, chart, trend, message, star, shield, spark, arrow-right"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.search", "source_doc": "icon-search (magnifying glass)"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.chart", "source_doc": "icon-chart (bar graph), icon-trend (arrow growth)"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.action", "source_doc": "icon-message (chat), icon-arrow-right (CTA)"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.rating", "source_doc": "icon-star (star rating)"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.trust", "source_doc": "icon-shield (security)"},
+    {"source": "media.icon_set.lucide", "relation": "has_facet", "target": "vocab.facets.premium", "source_doc": "icon-spark (AI highlight)"},
+    # Animation vocabulary — 4 patterns with facets
+    {"source": "vocab.animation", "relation": "provided_by", "target": "media.motion.css_scroll", "source_doc": "CSS Scroll-Driven Animations Spec · 2026"},
+    {"source": "vocab.animation", "relation": "provided_by", "target": "media.motion.css_keyframes", "source_doc": "adsentice-original: fadeInUp, fadeIn, scaleIn, slideUp, pulse"},
+    {"source": "vocab.animation", "relation": "provided_by", "target": "media.motion.gsap", "source_doc": "GSAP v3 ScrollTrigger · context7"},
+    {"source": "vocab.animation", "relation": "provided_by", "target": "media.motion.framer", "source_doc": "Framer Motion · context7"},
+    {"source": "media.motion.css_scroll", "relation": "has_facet", "target": "vocab.facets.animation", "source_doc": "CSS scroll-driven: view-timeline, animation-timeline, animation-range"},
+    {"source": "media.motion.css_keyframes", "relation": "has_facet", "target": "vocab.facets.keyframe", "source_doc": "@keyframes catalog: fadeInUp, fadeIn, scaleIn, slideUp"},
+    {"source": "media.motion.gsap", "relation": "has_facet", "target": "vocab.facets.scroll", "source_doc": "GSAP: pin, scrub, snap, stagger timeline"},
+    {"source": "media.motion.framer", "relation": "has_facet", "target": "vocab.facets.motion", "source_doc": "Framer Motion: variants, spring, SVG path, gesture"},
+    # Big Tech design patterns ingested (2026-07-18)
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.tailwind_v4", "source_doc": "Tailwind CSS v4 @theme oklch design tokens · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.material3", "source_doc": "Material Design 3: dynamic color, typography scale, shapes · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.carbon_ibm", "source_doc": "Carbon (IBM): component tokens, spacing scale · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.primer_github", "source_doc": "Primer (GitHub): CSS-first buttons, state management · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.atlassian", "source_doc": "Atlassian: elevation tokens, interaction states · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.open_props", "source_doc": "Open Props: 450+ CSS custom properties · context7"},
+    {"source": "vocab.design_knowledge", "relation": "provided_by", "target": "media.design.polaris_shopify", "source_doc": "Polaris (Shopify): token-first enforcement · context7"},
+    # A11y & Performance patterns
+    {"source": "vocab.a11y", "relation": "provided_by", "target": "media.a11y.wcag22", "source_doc": "WCAG 2.2 AA: 15 checks, focus indicators, contrast ratios · context7"},
+    {"source": "vocab.performance", "relation": "provided_by", "target": "media.perf.web_vitals", "source_doc": "Web Vitals: LCP≤2500ms, CLS≤0.1, INP≤200ms · context7"},
+    # Corpus SVG → Qdrant
+    {"source": "corpus.svg", "relation": "depends_on", "target": "adsentice.qdrant", "source_doc": "8 SVG icon paths com facets no Qdrant adsentice-self"},
+    {"source": "corpus.svg", "relation": "has_facet", "target": "vocab.facets.icon", "source_doc": "kind=component, category=icon, 8 Lucide SVGs"},
+    {"source": "corpus.animation", "relation": "depends_on", "target": "adsentice.qdrant", "source_doc": "4 animation patterns com facets no Qdrant"},
+    # render_media capability (EVO-API pattern)
+    {"source": "cap.render_media", "relation": "depends_on", "target": "adsentice.qdrant", "source_doc": "EVO-API compose.rs: render_media() → query_vocab(facet=icon/chart/motion) → SVG real ou placeholder honesto"},
+    {"source": "cap.render_media", "relation": "uses", "target": "vocab.icon", "source_doc": "query_vocab('icone busca', facet=icon) → SVG path"},
+    {"source": "cap.render_media", "relation": "uses", "target": "vocab.animation", "source_doc": "query_vocab('fade stagger', facet=animation) → @keyframes CSS"},
+    {"source": "cap.render_media", "relation": "governs", "target": "rsxt.doctrine.embedding_sensor", "source_doc": "EVO-API: score≥0.80→SVG real, score≥0.60→placeholder, score<0.60→text only"},
 ]
 
 
