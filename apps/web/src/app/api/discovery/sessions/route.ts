@@ -110,6 +110,10 @@ export async function GET(request: Request) {
             id: s.id, categories: s.categories || [], city: meta.city || geo.city,
             total_count: s.total_count, cost_usd: s.cost_usd, created_at: s.created_at,
             search_metadata: meta,
+            // v093: qualidade do mercado persistida no search_metadata
+            avgRating: meta.avg_rating ?? null,
+            claimedPct: meta.claimed_pct ?? null,
+            websitePct: meta.website_pct ?? null,
           }
         })
       return NextResponse.json({ preflights: pfs })

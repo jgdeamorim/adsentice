@@ -423,7 +423,7 @@ const DiscoveryPage = () => {
                 }
               }
               if (Object.keys(pfMap).length) setPreflightData(pfMap)
-              setBasePreflight({ base: 0, withWebsite: 0, jaL2: 0, jaL3: 0, l2Candidates: 0, l3Candidates: 0, l2ExactCost: 0, l3ExactCost: 0 })
+              setBasePreflight(null)  // L0 mode: basePreflight é só p/ re-enrich
             } else {
               // NENHUM pre-flight — popup mostra ⚠️ + botão desabilita
               setPreflightData({})
