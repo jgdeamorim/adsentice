@@ -574,7 +574,7 @@ function computeCritique(graph: Map<string, GraphNode>, segment: string, surface
 }
 
 
-export async function composeS10(placeId: string): Promise<string | null> {
+export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
   try {
     // 1. Fetch lead
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
@@ -613,12 +613,14 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const gaps = computeGaps(lead, nicho)
 
     // 5. Copy
+    let copyModel = "deepseek-v4-flash"
     let copy = await generateCopy({
       title: lead.title, category: lead.category, city, district,
       score: lead.score_compound, rating: lead.rating_value || 0,
       is_claimed: lead.is_claimed || false, gaps: gaps,
     })
     if (copy) await trackLLMCost(0.001)
+    else copyModel = "template-fallback"
     if (!copy) {
       const fb = PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]
       const N = competitors > 1 ? String(competitors - 1) : "Dezenas de"; const SERVICO = nicho.name.toLowerCase()
@@ -812,8 +814,7 @@ footer span{color:${p};font-weight:600}
   "address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},
   "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
 }
-</script>
-<script type="application/json" id="warp-layout">${JSON.stringify(tracedLayout)}</script></head><body>
+</script></head><body>
 <header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
 <div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
@@ -840,24 +841,28 @@ ${gaps.map(g => {
 }).join("")}
 </div>
 <div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener">💬 ${copy.cta} no WhatsApp</a></div></div>
-${(() => {
-  let block = `<div class="section" style="padding-top:0"><div class="info-grid">`
-  block += `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Jury 6D · ${critique.passed ? "✅" : "🔄"} ${critique.composite.toFixed(1)}/10${devloopIter > 0 ? ` (${devloopIter} re-iterações)` : ""}</h4><div class="meta" style="line-height:1.8">`
-  block += `VH:${critique.visualHierarchy} DE:${critique.detailExecution} FN:${critique.functionality} IN:${critique.innovation} PC:${critique.philosophyConsistency} MF:${critique.marketFit}<br>`
-  if (critique.feedback.length) block += critique.feedback.join('<br>') + '<br>'
-  else block += 'Todas as dimensões dentro do esperado.<br>'
-  if (designIntel?.inspirationUrls?.length) block += `📚 ${designIntel.inspirationUrls.slice(0,2).map(u => u.split('/').pop()?.slice(0,20)).join(', ')}`
-  block += `</div></div>`
-  block += `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Components · ${usedComponents.length} wireados</h4><div class="meta" style="line-height:1.8">`
-  const lines = [...graph.values()].map(n => `${"└ ".repeat(n.depth)}${usedComponents.includes(n.comp.id) ? "🔗 " : ""}${n.comp.name} (${n.comp.a11y.role} · d${n.depth}${n.dependencies.length ? ` → ${n.dependencies.join(",")}` : ""})`)
-  block += lines.join('<br>')
-  block += `</div></div></div></div>`
-  return block
-})()}
+
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
 
-    return html
+    // Meta sidecar (padrão tools/adsentice_s10_generator.py — ADR-0033 N4.4)
+    // HTML = cliente (limpo). meta = trace interno (route serve separado).
+    const traceId = `s10_${Math.random().toString(36).slice(2, 14)}`
+    const meta = {
+      traceId, lead: name, category: cat, segment: seg, score,
+      nicho: { name: nicho.name, specialties: nicho.specialties.slice(0, 5), audience: nicho.audience, tone: nicho.tone, keywords: nicho.keywords.slice(0, 3) },
+      tokens: { primary: p, secondary: s, accent: a, heading: "Inter", body: "Inter", spacing: morph.tokens["spacing"] || "1.5rem" },
+      gaps: gaps.map(g => ({ title: g.title, severity: g.severity, signal: g.signal })),
+      copy_model: copyModel,
+      headline: copy.headline, subtitle: copy.subtitle, cta: copy.cta,
+      competitors,
+      layoutTree: tracedLayout,
+      critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter },
+      componentsUsed: usedComponents,
+      computedAt: new Date().toISOString(),
+      city, district,
+    }
+    return { html, meta }
   } catch (e: any) { console.error("[composeS10]", e.message); return null }
 }

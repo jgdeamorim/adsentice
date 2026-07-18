@@ -14,9 +14,10 @@ export async function POST(request: Request) {
 
     // REAL PIPELINE: composeS10 with place_id
     if (body.place_id) {
-      const html = await composeS10(body.place_id)
-      if (!html) return NextResponse.json({ error: "Lead not found or S10 generation failed" }, { status: 404 })
-      return NextResponse.json({ html, _meta: { pipeline: "composeS10", source: "Supabase + DeepSeek V4" } })
+      const result = await composeS10(body.place_id)
+      if (!result) return NextResponse.json({ error: "Lead not found or S10 generation failed" }, { status: 404 })
+      // HTML limpo (cliente) + meta sidecar (trace interno — ADR-0033 N4.4, padrão s10_generator.py)
+      return NextResponse.json({ html: result.html, meta: result.meta, _meta: { pipeline: "composeS10", source: "Supabase + DeepSeek V4" } })
     }
 
     // GENERIC COMPOSER: compose with Intend (no real data)
