@@ -298,6 +298,7 @@ const DiscoveryPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false)
   // ── VERDADE DA BASE (modo re-enrich · preflight $0 no Supabase — v089) ──
   const [basePreflight, setBasePreflight] = useState<{ base: number; withWebsite: number; jaL2: number; jaL3: number; l2Candidates: number; l3Candidates: number; l2ExactCost: number; l3ExactCost: number } | null>(null)
+  const [baseLoading, setBaseLoading] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Listing | null>(null)
   const [selectedScore, setSelectedScore] = useState<ScoreData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitiveData | null>(null)
@@ -388,21 +389,26 @@ const DiscoveryPage = () => {
   const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
 
-  // ── VERDADE DA BASE: preflight $0 quando o popup abre no modo re-enrich (v089) ──
+  // ── VERDADE DA BASE: preflight $0 quando o popup abre no modo re-enrich (v090) ──
   useEffect(() => {
-    if (!confirmOpen || selectedLayers.l0 || !selected.length) { setBasePreflight(null); return }
+    if (!confirmOpen || selectedLayers.l0 || !selected.length) { setBasePreflight(null); setBaseLoading(false); return }
+    const cityName = cityLabel.split('(')[0].trim()
+    setBasePreflight(null); setBaseLoading(true)
+    const abort = new AbortController()
     const run = async () => {
       try {
-        const cityName = cityLabel.split('(')[0].trim()
         const res = await fetch('/api/discovery-search', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ categories: selected, city: cityName, preflight: true, layers: selectedLayers }),
+          signal: abort.signal,
         })
         if (res.ok) setBasePreflight(await res.json())
-      } catch {}
+      } catch (e: unknown) { if (!(e instanceof DOMException && e.name === 'AbortError')) void e }
+      finally { setBaseLoading(false) }
     }
     run()
-  }, [confirmOpen, selectedLayers.l0])
+    return () => abort.abort()
+  }, [confirmOpen, selectedLayers.l0, cityLabel, selected.length])
 
   // ── Build municipality batch list ──
   function buildBatchList(): { nome: string; lat: number; lng: number }[] {
@@ -1447,8 +1453,17 @@ return (
 
           {/* ── Pipeline Breakdown (checkout) ── */}
           <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, p: 2 }}>
+            {!selectedLayers.l0 && baseLoading && !basePreflight ? (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <LinearProgress sx={{ mb: 1 }} />
+                <Typography variant='caption' color='text.secondary'>
+                  🔍 Contando base real no Supabase ($0) — leads, websites, já-enriquecidos...
+                </Typography>
+              </Box>
+            ) : (
+            <Box>
             <Typography variant='subtitle2' gutterBottom>
-              {hasPreflight ? '📊 Pipeline (REAL — via pre-criteria limit=5)' : '📊 Pipeline selecionado'}
+              {basePreflight ? '📊 Pipeline (EXATO — contado da base)' : hasPreflight ? '📊 Pipeline (REAL — via pre-criteria limit=5)' : '📊 Pipeline selecionado'}
             </Typography>
 
             {/* Pre-flight: per-municipality real costs */}
@@ -1521,8 +1536,10 @@ return (
               </Box>
             </Box>
           </Box>
+          )}
+          </Box>
 
-          {/* ⚠️ AVISO (honesto — v089) */}
+          {/* ⚠️ AVISO (honesto — v090) */}
           {basePreflight ? (
             <Alert severity='success' sx={{ mt: 2 }}>
               <Typography variant='caption'>
