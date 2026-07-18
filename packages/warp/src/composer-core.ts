@@ -306,6 +306,7 @@ import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByInt
 import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
+import { TokenComposer } from "./tokens-composer"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -1126,13 +1127,20 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const cached = await s10Cache.get(cacheKey)
     if (cached) { return cached }
 
-    // 3. Tokens (L3 — sensor: Materio + OD + segment palette)
-    const morph = await morphTokens({ surface:"S10", segment: seg as SegmentId, plan:"r0", mode:"internal" })
-    // Fallback via segment palette oklch (NUNCA hex fixo)
+    // 3. Tokens (L3 — sensor: M9 TokenComposer 6 pipelines + OD + Materio)
+    const m9 = new TokenComposer()
+    const m9Result = await m9.compose({
+      intent: `diagnostico raio-x ${seg}`,
+      segment: seg as SegmentId,
+      plan: 'raio-x',
+      surface: 'S10',
+      market: { category: lead.category || cat, region: city || 'BR' },
+    }).catch(() => null)
+    // M9 palette → fallback segmentPalette oklch (NUNCA hex fixo)
     const palette = segmentPalette(seg as SegmentId)
-    const p = morph.tokens["color-primary"] || palette.primary
-    const s = morph.tokens["color-secondary"] || palette.secondary
-    const a = morph.tokens["color-accent"] || palette.accent
+    const p = m9Result?.tokens.palette.primary || palette.primary
+    const s = m9Result?.tokens.palette.secondary || palette.secondary
+    const a = m9Result?.tokens.palette.accent || palette.accent
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // ── QDRANT QUERIES (L3 — sensor: vec() narrows candidates) ──
@@ -1164,7 +1172,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       traceId: `s10_${Math.random().toString(36).slice(2, 14)}`,
       lead: blue.name, category: blue.category, segment: blue.seg, score: blue.score,
       nicho: { name: blue.nichoName, specialties: nicho.specialties.slice(0, 5), audience: nicho.audience, tone: nicho.tone, keywords: nicho.keywords.slice(0, 3) },
-      tokens: { primary: p, secondary: s, accent: a, heading: "Inter", body: "Inter", spacing: morph.tokens["spacing"] || "1.5rem" },
+      tokens: { primary: p, secondary: s, accent: a, heading: "Inter", body: "Inter", spacing: m9Result?.tokens.spacing.sectionGap || T.spacing?.[3] || "1.5rem" },
       gaps: blue.gaps.map(g => ({ title: g.title, severity: g.severity, signal: g.signal })),
       copy_model: blue.copyModel,
       headline: blue.headline, subtitle: blue.subtitle, cta: blue.cta,
@@ -1177,6 +1185,17 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       designSystem: blue.designSystem,
       // BLUE/GREEN marker (RSXT doctrine compliance)
       _pipeline: { phase: "BLUE->GREEN", blueDecisions: 14, greenFunction: "renderS10_GREEN", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
+      // ── M9 TOKENS TELEMETRY (6 pipelines inference) ──
+      _m9: m9Result ? {
+        pipelines: ['palette', 'typography', 'spacing', 'shadow', 'motion', 'responsive'],
+        confidence: m9Result.telemetry.confidence,
+        inferenceMs: Math.round(m9Result.telemetry.inferenceTimeMs),
+        tokenId: m9Result.tokens.id,
+        palette: { hue: m9Result.tokens.palette.primary, reasoning: m9Result.tokens.palette.reasoning },
+        motion: { style: m9Result.tokens.motion.style, duration: m9Result.tokens.motion.duration, easing: m9Result.tokens.motion.easing },
+        shadow: { style: m9Result.tokens.shadow.style, card: m9Result.tokens.shadow.cardShadow },
+        spacing: { scale: m9Result.tokens.spacing.scale, gap: m9Result.tokens.spacing.sectionGap },
+      } : { source: 'segmentPalette-fallback', reason: 'M9 offline' },
     }
 
     // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
