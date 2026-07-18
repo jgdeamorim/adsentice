@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Dra. Karina: 4.7★ e sem agendamento online — está perdendo pacientes">
+<meta property="og:image" content="https://dra-karina-periodontia.com.br">
+<title>Raio-X · Dra. Karina Santos Oliveira | adsentice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:Inter;font-display:swap}
+:root{
+  --primary:oklch(55% 35% 220);--primary-fg:#fff;--secondary:oklch(40% 35% 220);--secondary-fg:#fff;--accent:oklch(65% 28% 220);
+  --bg:#f8fafc;--fg:#0f172a;
+  --card:#fff;--muted:#f1f5f9;--muted-fg:#64748b;
+  --border:#e2e8f0;--destructive:#ef4444;--success:#10b981;--warning:#f59e0b;
+  --font:Inter,system-ui,sans-serif;
+  --font-display:Inter,Georgia,serif;
+  --spacing-xs:.25rem;--spacing-sm:.5rem;--spacing-md:1rem;--spacing-lg:2rem;--spacing-xl:3rem;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,0.07);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.08);
+  --radius:0.75rem;--radius-sm:0.5rem;--radius-pill:99px;
+  --motion-fast:150ms ease;--motion:200ms cubic-bezier(0.4,0,0.2,1);--motion-smooth:300ms cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.hero h1{animation:fadeInUp var(--motion-smooth) both}
+.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}
+.hero-badge{animation:fadeIn var(--motion) .2s both}
+.score-card{animation:scaleIn var(--motion-smooth) .15s both}
+.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}
+.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}
+.cta{animation:fadeInUp var(--motion-smooth) .2s both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6}
+.hero{background:linear-gradient(135deg,oklch(55% 35% 220) 0%,oklch(40% 35% 220) 100%);color:#fff;min-height:50vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
+.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
+.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
+.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
+.container{max-width:1280px;margin:0 auto;padding:0 1.5rem}
+.section{padding:2.5rem 0}@media(max-width:768px){.section{padding:1.5rem 0}}@media(max-width:480px){.section{padding:1rem 0}}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;box-shadow:none;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
+.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(oklch(55% 35% 220) 0% 72%,oklch(65% 28% 220) 72% 100%,oklch(40% 35% 220) 100% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:oklch(55% 35% 220)}
+.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
+.score-info{flex:1;min-width:240px}
+.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
+.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:oklch(55% 35% 220 / 6%);color:oklch(55% 35% 220);margin-bottom:1rem}
+.score-bars{display:flex;flex-direction:column;gap:.625rem}
+.score-bar{display:flex;align-items:center;gap:.75rem}
+.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
+.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:99px}
+.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;box-shadow:none}
+.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}
+.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:oklch(55% 35% 220)}
+.info-card .value.stars{color:#f59e0b}
+.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
+.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}
+.info-card .status.ok{background:oklch(55% 35% 220 / 5%);color:oklch(55% 35% 220)}
+.gap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all var(--motion);position:relative}
+.gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.gap.critico::before{background:var(--destructive)}
+.gap.medio::before{background:var(--warning)}
+.gap.oportunidade::before,.gap.forca::before{background:var(--success)}
+.gap-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
+.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}
+.gap-severity.critico{color:var(--destructive)}
+.gap-severity.medio{color:var(--warning)}
+.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}
+.gap h4{font-size:1.05rem;font-weight:700}
+.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:.75rem}
+.gap .fix{background:var(--muted);padding:.875rem 1rem;border-radius:var(--radius-sm);font-size:.875rem}
+.gap .fix strong{color:var(--fg)}
+.gap .meta-row{display:flex;gap:1.25rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}
+.cta{background:linear-gradient(135deg,oklch(55% 35% 220) 0%,oklch(40% 35% 220) 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
+.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:oklch(55% 35% 220);padding:0.75rem 1.5rem;border-radius:99px;font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:0 4px 14px rgba(0,0,0,0.12)}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.18)}
+footer{text-align:center;padding:2.5rem 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
+footer span{color:oklch(55% 35% 220);font-weight:600}
+@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"LocalBusiness","name":"Dra. Karina Santos Oliveira","image":"https://dra-karina-periodontia.com.br","address":{"@type":"PostalAddress","addressLocality":"Vitória"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"4.7","reviewCount":"134"}}
+</script></head><body>
+<header class="hero" role="banner" aria-label="Dra. Karina: 4.7★ e sem agendamento online — está perdendo pacientes"><div class="hero-content"><div class="hero-badge" role="status" aria-label="Diagnóstico gratuito em 30 segundos"> Confiança · Diagnóstico gratuito em 30 segundos</div><h1>Dra. Karina: 4.7★ e sem agendamento online — está perdendo pacientes</h1><p class="subtitle">Análise de presença digital baseada em Google Meu Negócio, website e mercado local de Vitória.</p></div></header>
+<main class="container" role="main" aria-label="Resultado do diagnóstico">
+<div class="score-card" role="region" aria-label="Score 73"><div class="score-ring"><div class="score-inner" aria-hidden="true"><div class="score-value">73</div><div class="score-label">de 100</div></div></div><div class="score-info"><h2>Dra. Karina Santos Oliveira</h2><div class="score-level">Problem Aware · Periodontia</div><div class="score-bars"><div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:72%;background:oklch(55% 35% 220)"></div></div><span class="score-bar-val">72%</span></div><div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:68%;background:oklch(65% 28% 220)"></div></div><span class="score-bar-val">68%</span></div><div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:79%;background:oklch(40% 35% 220)"></div></div><span class="score-bar-val">79%</span></div></div></div></div>
+<div class="info-grid"><div class="info-card" style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">★★★★★</div><div class="meta">4.7★ · 134 avaliações</div><div class="status ok">28 fotos · ✅ Sim</div></div><div class="info-card" style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">https://dra-karina-periodontia.com.</div><div class="meta">Praia do Canto, Vitória</div><div class="status ok"> Online</div></div><div class="info-card" style="--i:2"><h4>Concorrência</h4><div class="value">11</div><div class="meta">periodontias na região</div><div class="status ok"> Score 73/100</div></div></div>
+<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">5 Confiança · Oportunidades</h2><p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do mercado local de Vitória.</p><div class="gap critico" style="--i:0"><div class="gap-header"><span class="gap-severity critico">🔴 Crítico</span><h4>Sem agendamento online</h4></div><p>90% dos pacientes pesquisam online antes de agendar. Seu site não tem booking — você perde o paciente no clique final.</p><div class="fix"><strong> Como resolver:</strong> Adicionar botão de agendamento (Doctoralia) na home e no GMB.</div><div class="meta-row"><span> Impacto: Alto</span><span>⏱️ Esforço: Baixo</span></div></div><div class="gap medio" style="--i:1"><div class="gap-header"><span class="gap-severity medio">🟡 Médio</span><h4>Schema.org ausente</h4></div><p>Google não entende sua clínica como LocalBusiness. Rich results (estrelas, endereço) não aparecem nas buscas.</p><div class="fix"><strong> Como resolver:</strong> Adicionar JSON-LD LocalBusiness com avaliações e endereço.</div><div class="meta-row"><span> Impacto: Médio</span><span>⏱️ Esforço: Baixo</span></div></div><div class="gap medio" style="--i:2"><div class="gap-header"><span class="gap-severity medio">🟡 Médio</span><h4>Blog desatualizado</h4></div><p>Último post de 2024. Google penaliza conteúdo estagnado. Clínicas com blog ativo têm 55% mais visitas.</p><div class="fix"><strong> Como resolver:</strong> Publicar 2 posts/mês sobre dúvidas frequentes (implante, gengiva, clareamento).</div><div class="meta-row"><span> Impacto: Alto</span><span>⏱️ Esforço: Médio</span></div></div><div class="gap forca" style="--i:3"><div class="gap-header"><span class="gap-severity forca">✅ Força</span><h4>Reputação forte (4.7★)</h4></div><p>Com 4.7★ e 134 avaliações, sua reputação é um ativo de marketing. Use isso no site e redes sociais.</p><div class="fix"><strong> Como resolver:</strong> Embedar widget de reviews no site e criar stories no Instagram.</div><div class="meta-row"><span> Impacto: Alto</span><span>⏱️ Esforço: Baixo</span></div></div><div class="gap oportunidade" style="--i:4"><div class="gap-header"><span class="gap-severity oportunidade">🔵 Oportunidade</span><h4>Concorrência digital</h4></div><p>12 clínicas na região — só 3 têm agendamento online. Seu site + booking = vantagem imediata.</p><div class="fix"><strong> Como resolver:</strong> Landing page com SEO local + agendamento integrado. Custo: ~R$500/mês.</div><div class="meta-row"><span> Impacto: Alto</span><span>⏱️ Esforço: Médio</span></div></div></div>
+<div class="cta"><h2>Diagnóstico Gratuito</h2><p>Diagnóstico gratuito em 30 segundos</p><a href="https://wa.me/5527999999999" class="cta-btn" target="_blank" rel="noopener"> Quero meu diagnóstico gratuito no WhatsApp</a></div>
+</main>
+<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — Pacientes buscam confiança e resultados visíveis</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · 18/07/2026</p></div></footer>
+</body></html>
