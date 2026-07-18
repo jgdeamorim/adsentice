@@ -300,7 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
@@ -618,6 +618,8 @@ interface S10BlueOutput {
   specialistActive: boolean; grammarType: string
   // ── MARKET ONTOLOGY (persona + psicologia + design + mercado) ──
   ontology: any
+  // ── ICONS (vec() query Qdrant — embedding sensor doctrine) ──
+  icons: Record<string, string>
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -626,7 +628,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   level: string, local: string, city: string, district: string, competitors: number,
   morph: MorphResult, p: string, s: string, a: string, p15: string, p12: string,
   designIntel: any, inspoUrls: string[], odSystem: any, materio: any, mediaAnim: any,
-  T: ReturnType<typeof unifyTokens>
+  T: ReturnType<typeof unifyTokens>,
+  icons: Record<string, string>
 ): Promise<S10BlueOutput> {
   const name = lead.title
   const score = lead.score_compound || 50
@@ -825,9 +828,121 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     specialistActive: !!specialist, grammarType: layoutTree.type,
     // MarketOntology (persona + psicologia de cor + dados de mercado)
     ontology,
+    // Ícones do Qdrant (vec() query — embedding sensor doctrine)
+    icons,
   }
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// GREEN MORPH — Slot Renderers (funções puras, zero hardcoded)
+// Cada slot type do LayoutTree tem um renderer. O loop principal
+// itera output.tracedLayout.slots e despacha para o renderer correto.
+// g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials.
+// ═══════════════════════════════════════════════════════════════
+
+type SlotRenderCtx = {
+  output: S10BlueOutput
+  T: ReturnType<typeof unifyTokens>
+  O: any  // MarketOntology
+  esc: (t: string) => string
+  a11y: (comp: any, fallbackRole: string, label: string) => string
+  icon: (name: string) => string
+  stars: (r: number) => string
+}
+
+function renderHeroSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, a11y, icon, O } = ctx
+  const badgeComp = output.chipComp
+  const badgeLabel = O?.persona?.offer || output.nichoName
+  const emotionLabel = O?.psychology?.primaryEmotion
+    ? O.psychology.primaryEmotion.split(' + ')[0]
+    : output.seg
+  return '<header class="hero" ' + a11y(badgeComp, "banner", output.headline) + '><div class="hero-content">' +
+    '<div class="hero-badge" ' + a11y(badgeComp, "status", badgeLabel) + '>' + icon('search') + ' ' + emotionLabel + ' · ' + badgeLabel + '</div>' +
+    '<h1>' + ctx.esc(output.headline) + '</h1><p class="subtitle">' + ctx.esc(output.subtitle) + '</p>' +
+    '</div></header>'
+}
+
+function renderScoreSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, T, esc, a11y } = ctx
+  const cardComp = output.cardComp; const ringComp = output.ringComp; const badgeComp = output.chipComp
+  return '<div class="score-card" ' + a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100")) + '>' +
+    '<div class="score-ring" ' + a11y(ringComp, "progressbar", "Score " + output.score + " de 100") + '><div class="score-inner" aria-hidden="true"><div class="score-value">' + output.score + '</div><div class="score-label">de 100</div></div></div>' +
+    '<div class="score-info"><h2>' + esc(output.name) + '</h2><div class="score-level" ' + a11y(badgeComp, "status", "Nível de consciência: " + output.level) + '>' + output.level + ' · ' + output.nichoName + '</div>' +
+    '<div class="score-bars">' +
+    '<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.fit + '%;background:' + output.p + '"></div></div><span class="score-bar-val">' + output.fit + '%</span></div>' +
+    '<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.eng + '%;background:' + output.a + '"></div></div><span class="score-bar-val">' + output.eng + '%</span></div>' +
+    '<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.ints + '%;background:' + output.s + '"></div></div><span class="score-bar-val">' + output.ints + '%</span></div>' +
+    '</div></div></div>'
+}
+
+function renderInfoGridSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, T, esc, a11y, icon, stars, O } = ctx
+  const cardComp = output.cardComp
+  const displayStars = stars(output.rating)
+  // Info cards definidas pelo slot do specialist — se tem cards[] usa, senão fallback GMB/Website/Concorrência
+  const cards = slot?.cards || [
+    { slot: 'gmb', component: cardComp?.id || 'info-card' },
+    { slot: 'website', component: cardComp?.id || 'info-card' },
+    { slot: 'competition', component: cardComp?.id || 'info-card' },
+  ]
+  const renderInfoCard = (c: any, idx: number): string => {
+    switch (c.slot) {
+      case 'gmb':
+        return '<div class="info-card" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
+      case 'website':
+        return '<div class="info-card" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
+      case 'competition':
+        return '<div class="info-card" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
+      default:
+        return '<div class="info-card" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
+    }
+  }
+  const cols = slot?.columns || cards.length || 3
+  return '<div class="info-grid" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
+}
+
+function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, T, esc, a11y, icon, O } = ctx
+  const cardComp = output.cardComp
+  const heading = output.gaps.length + ' ' + (O?.psychology?.primaryEmotion
+    ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades'
+    : 'Gaps e Oportunidades')
+  const approach = O?.persona?.approach || 'Análise baseada em dados reais.'
+  return '<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
+    '<p style="color:var(--muted-fg);margin-bottom:1.5rem">' + approach + '</p>' +
+    output.gaps.map((g, idx) => {
+      const sev = g.severity
+      const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
+      const sevIcon = sevClass === 'critico' ? icon('shield') : sevClass === 'forca' ? icon('star') : icon('trend')
+      return '<div class="gap ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="gap-header"><span class="gap-severity ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>' + sevIcon + ' Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + icon('trend') + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
+    }).join("") + '</div>'
+}
+
+function renderCtaSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, T, esc, a11y, icon, O } = ctx
+  const btnComp = output.btnComp
+  return '<div class="cta"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="cta-btn" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
+}
+
+function renderFooterSlot(slot: any, ctx: SlotRenderCtx): string {
+  const { output, T, O } = ctx
+  return '<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
+}
+
+// ═══ SLOT RENDERER REGISTRY (slot type → render function) ═══
+// Adicionar novo slot = adicionar entry aqui. O loop principal itera L dinamicamente.
+
+const SLOT_RENDERERS: Record<string, (slot: any, ctx: SlotRenderCtx) => string> = {
+  hero: renderHeroSlot,
+  score: renderScoreSlot,
+  info_grid: renderInfoGridSlot,
+  info: renderInfoGridSlot,  // alias: fallback usa "info" em vez de "info_grid"
+  gaps: renderGapListSlot,
+  cta: renderCtaSlot,
+  footer: renderFooterSlot,
+}
 
 /**
  * GREEN MORPH: render puro por intent (ADR-0036 · RSXT doctrine v2 + g0).
@@ -835,10 +950,11 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
  * REGRAS:
  *   - ZERO texto hardcoded (headline, cta, gap text → vêm do BLUE via S10BlueOutput)
  *   - ZERO copy fixa (tudo do copywriter especialista + MarketOntology)
- *   - ZERO emoji (SVGs do corpus Lucide)
- *   - SÓ estrutura (slots do LayoutTree) + materials (unified tokens T)
+ *   - ZERO emoji (ícones → BLUE.popula icons via Qdrant vec(); fallback → texto puro)
+ *   - SÓ estrutura (itera slots do LayoutTree) + materials (unified tokens T)
  *   - SÓ a11y (componentes do vec() → a11y_role + aria-label)
  *   - g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials
+ *   - SLOT-DRIVEN: itera output.tracedLayout.slots, despacha para renderer por slot name
  *   - Função pura: mesma entrada → mesma saída
  */
 function renderS10_GREEN(output: S10BlueOutput): string {
@@ -851,61 +967,35 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   const a11y = (comp: any, fallbackRole: string, label: string) =>
     `role="${comp?.a11y?.role || fallbackRole}" aria-label="${esc(label)}"${comp?.a11y?.keyboardNav ? ' tabindex="0"' : ""}`
 
-  // SVG icons (Lucide-style, stroke-based — do corpus)
-  const I = {
-    search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-    chart: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-    trend: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
-    message: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
-  }
-
-  const badgeComp = output.chipComp
-  const cardComp = output.cardComp
-  const ringComp = output.ringComp
-  const btnComp = output.btnComp
-
-  // ═══ SLOTS (morph puro: estrutura + tokens do vec() — texto do BLUE) ═══
-
-  const hero = `
-<header class="hero" ${a11y(badgeComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
-<div class="hero-badge" ${a11y(badgeComp, "status", O?.persona?.offer || "Diagnóstico Gratuito")}>${I.search} ${O?.psychology?.primaryEmotion ? 'Inteligência de Mercado' : 'Raio-X'} · ${O?.persona?.offer || 'Diagnóstico Gratuito'}</div>
-<h1>${output.headline}</h1><p class="subtitle">${output.subtitle}</p>
-</div></div>`
-
-  const scoreSection = `
-<div class="score-card" ${a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100"))}>
-<div class="score-ring" ${a11y(ringComp, "progressbar", "Score " + output.score + " de 100")}><div class="score-inner" aria-hidden="true"><div class="score-value">${output.score}</div><div class="score-label">de 100</div></div></div>
-<div class="score-info"><h2>${esc(output.name)}</h2><div class="score-level" ${a11y(badgeComp, "status", "Nível de consciência: " + output.level)}>${output.level} · ${output.nichoName}</div>
-<div class="score-bars">
-<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.fit}%;background:${output.p}"></div></div><span class="score-bar-val">${output.fit}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.eng}%;background:${output.a}"></div></div><span class="score-bar-val">${output.eng}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.ints}%;background:${output.s}"></div></div><span class="score-bar-val">${output.ints}%</span></div>
-</div></div></div>`
+  // Ícones do Qdrant (populados pelo BLUE). Se vazio → texto puro (embedding sensor doctrine).
+  const icon = (name: string): string => output.icons?.[name] || ''
 
   const stars = (r: number) => r >= 5 ? "★★★★★" : "★".repeat(Math.max(1, Math.round(r))) + "☆".repeat(Math.max(0, 5 - Math.round(r)))
-  const displayStars = stars(output.rating)
 
-  const infoGrid = `
-<div class="info-grid">
-<div class="info-card" ${a11y(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${displayStars}</div><div class="meta">${output.rating.toFixed(1)}★ · ${output.reviews} avaliações</div><div class="status ok">${output.photos} fotos · ${output.claimed}</div></div>
-<div class="info-card" ${a11y(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(output.website).slice(0,35)}</div><div class="meta">${output.local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card" ${a11y(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${output.competitors > 1 ? output.competitors - 1 : "—"}</div><div class="meta">${output.nichoName.toLowerCase()}s na região</div><div class="status ok">${I.chart} Score ${output.score}/100</div></div>
-</div>`
+  const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars }
 
-  const gapsSection = `
-<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">${output.gaps.length} ${O?.psychology?.primaryEmotion ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades' : 'Gaps e Oportunidades'}</h2>
-<p style="color:var(--muted-fg);margin-bottom:1.5rem">${O?.persona?.approach || 'Análise baseada em dados reais.'}</p>
-${output.gaps.map((g, idx) => {
-  const sev = g.severity
-  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
-  return '<div class="gap ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="gap-header"><span class="gap-severity ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>✅ Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + I.trend + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
-}).join("")}</div>`
+  // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
+  // Se o specialist adicionar slot novo (ex: testimonials), aparece automaticamente
+  // se existir renderer registrado. Senão, emite comentário HTML (não quebra).
+  const slotOrder = Object.keys(L)
+  const renderedSlots = slotOrder.map(slotName => {
+    const slotConfig = L[slotName]
+    const renderer = SLOT_RENDERERS[slotName]
+    if (renderer) return renderer(slotConfig, ctx)
+    return '<!-- slot ' + slotName + ': no renderer registered -->'
+  }).join('\n')
 
-  const cta = `
-<div class="cta"><h2>${esc(output.offer)}</h2><p>${O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.'}</p><a href="https://wa.me/${process.env.WHATSAPP_NUMBER || '5521999999999'}" class="cta-btn" ${a11y(btnComp, "button", output.cta + " no WhatsApp")} target="_blank" rel="noopener">${I.message} ${output.cta} no WhatsApp</a></div>`
+  const bodySlots = slotOrder.filter(k => k !== 'hero' && k !== 'footer')
+  const hasHero = slotOrder.includes('hero')
+  const hasFooter = slotOrder.includes('footer')
 
-  const footer = `
-<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — ${O?.persona?.who || 'inteligência de mercado para negócios locais.'}</p><p style="margin-top:${T.spacing[0] || '.25rem'}">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>`
+  const heroHTML = hasHero ? SLOT_RENDERERS.hero(L.hero, ctx) : ''
+  const footerHTML = hasFooter ? SLOT_RENDERERS.footer(L.footer, ctx) : ''
+  // Slots entre hero e footer (score, info_grid, gaps, cta, etc.)
+  const mainSlots = bodySlots.map(slotName => {
+    const renderer = SLOT_RENDERERS[slotName]
+    return renderer ? renderer(L[slotName], ctx) : '<!-- slot ' + slotName + ': no renderer -->'
+  }).join('\n')
 
   // ═══ CSS (morph puro: tokens unificados + keyframes + reduced-motion) ═══
   // Zero texto hardcoded. Só custom properties e @keyframes do Materio motion.
@@ -944,7 +1034,7 @@ ${output.gaps.map((g, idx) => {
 '@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}\n' +
 '*{box-sizing:border-box;margin:0;padding:0}\n' +
 'body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}\n' +
-'.hero{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
+'.hero{background:linear-gradient(' + gradientAngle + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
 '.hero::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
 '.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
 '.hero-badge{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:' + (T.spacing[0] || '.375rem') + ' ' + (T.spacing[1] || '.875rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
@@ -966,7 +1056,7 @@ ${output.gaps.map((g, idx) => {
 '.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}\n' +
 '.score-bar-fill{height:100%;border-radius:99px}\n' +
 '.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}\n' +
-'.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:' + (T.spacing[2] || '1rem') + ';margin:' + (T.spacing[3] || '1.5rem') + ' 0}\n' +
+'.info-grid{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(240px,1fr));gap:' + (T.spacing[2] || '1rem') + ';margin:' + (T.spacing[3] || '1.5rem') + ' 0}\n' +
 '.info-card{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + '}\n' +
 '.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:' + output.p + '}\n' +
@@ -1002,14 +1092,11 @@ ${output.gaps.map((g, idx) => {
 '<script type="application/ld+json">\n' +
 '{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '","image":"' + (output.website && /^https?:\/\//.test(output.website) ? output.website.replace(/"/g,"&quot;") : "") + '","address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + '","reviewCount":"' + output.reviews + '"}}\n' +
 '</script></head><body>\n' +
-hero + '\n' +
+heroHTML + '\n' +
 '<main class="container" role="main" aria-label="Resultado do diagnóstico">\n' +
-scoreSection + '\n' +
-infoGrid + '\n' +
-gapsSection + '\n' +
-cta + '\n' +
+mainSlots + '\n' +
 '</main>\n' +
-footer + '\n' +
+footerHTML + '\n' +
 '</body></html>'
 }
 
@@ -1062,10 +1149,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
     const materio = await queryMaterioTokens().catch(() => null)
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
+    const icons = await queryMediaIcons().catch(() => ({} as Record<string, string>))
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
-    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T)
+    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)
     
     // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
     // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials

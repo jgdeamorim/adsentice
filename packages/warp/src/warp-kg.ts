@@ -546,6 +546,38 @@ export async function queryMediaAnimation(segment: string): Promise<{
   } catch { return null }
 }
 
+/** ADR-0036 Fase 4 — query SVG icons do corpus (kind=component, category=icon).
+ *  Retorna map facet→SVG markup do Qdrant. Sem fallback hardcoded —
+ *  se Qdrant offline ou sem hits, retorna {} e o GREEN usa texto puro (embedding sensor doctrine). */
+export async function queryMediaIcons(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: { must: [
+          { key: "kind", match: { value: "component" } },
+          { key: "category", match: { value: "icon" } },
+        ] },
+        limit: 20, with_payload: true,
+      }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return {}
+    const data = await res.json()
+    const points: QdrantPoint[] = data.result?.points || []
+
+    const icons: Record<string, string> = {}
+    for (const p of points) {
+      const pl = p.payload || {}
+      const facet = (pl.facet as string) || (pl.name as string) || ""
+      const markup = (pl.description as string) || (pl.text as string) || ""
+      if (facet && markup.includes("<svg")) icons[facet] = markup
+    }
+    return icons
+  } catch { return {} }
+}
+
 /** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
  *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
  *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */
