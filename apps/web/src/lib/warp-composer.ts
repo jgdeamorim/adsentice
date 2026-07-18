@@ -249,22 +249,22 @@ ${morph.css}
 </style>
 </head>
 <body>
-  <div class="' + cls('hero') + '">
-    <div class="' + cls('hero-content') + '">
-      <div class="' + cls('hero-badge') + '">${intend.surface} · ${intend.mode === 'internal' ? 'adsentice' : 'white-label'}</div>
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">${intend.surface} · ${intend.mode === 'internal' ? 'adsentice' : 'white-label'}</div>
       <h1>${intend.leadData?.title || branding}</h1>
-      <p class="' + cls('hero') + '-subtitle">${r.segment} · ${intend.plan} · skills: ${r.skills.slice(0, 3).join(', ')}</p>
+      <p class="subtitle">${r.segment} · ${intend.plan} · skills: ${r.skills.slice(0, 3).join(', ')}</p>
     </div>
   </div>
-  <main class="' + cls('container') + '" role="main" aria-label="Resultado do diagnóstico">
-    <div class="' + cls('section') + '"><div class="card">
+  <main class="container" role="main" aria-label="Resultado do diagnóstico">
+    <div class="section"><div class="card">
       <h2>Tokens Gerados via ts_morph</h2>
       <p style="color: var(--muted-fg); margin-bottom: 1rem;">
         Mutation: <strong>#${r.mutationId}</strong> · Segmento: <strong>${r.segment}</strong>
         · Plano: <strong>${intend.plan}</strong> · Skills: <strong>${r.skills.slice(0, 3).join(', ')}</strong>
       </p>
     </div></div>
-    <div class="' + cls('section') + '"><div class="card">
+    <div class="section"><div class="card">
       <h3>Pipeline Trace</h3>
       <p style="color: var(--muted-fg); font-family: monospace; font-size: 0.75rem; line-height: 1.8;">
         ${trace.join('<br/>')}
@@ -1045,7 +1045,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}\n' +
 '*{box-sizing:border-box;margin:0;padding:0}\n' +
 'body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}\n' +
-'.' + cls('hero') + '{background:linear-gradient(' + gradientAngle + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
+'.' + cls('hero') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
 '.' + cls('hero') + '::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
 '.' + cls('hero-content') + '{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
 '.' + cls('hero-badge') + '{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:' + (T.spacing[0] || '.375rem') + ' ' + (T.spacing[1] || '.875rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
@@ -1184,7 +1184,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
-    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)
+    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, null as any, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)
     
     // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
     // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials
