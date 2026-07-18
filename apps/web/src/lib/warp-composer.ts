@@ -657,7 +657,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       copyModel = "s10-pipeline"
       copy = {
         headline: baseHeadline,
-        subtitle: s10base.subtitle || "Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
+        subtitle: s10base.subtitle || "${mediaAnim?.keyframeRecommendations?.length ? 'Design intelligence ativo. ' : ''}Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
         cta: baseCta,
       }
     }
@@ -899,7 +899,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}
 .info-card{background:var(--card);border:${odSystem?.components?.cardBorder || "1px solid var(--border)"};border-radius:var(--radius);padding:${odSystem?.components?.cardPadding || "20px"};box-shadow:${odSystem?.components?.cardShadow === "none" ? "none" : "var(--shadow)"}}
 .info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}
-.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2}
+.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:${p}}
 .info-card .value.stars{color:#f59e0b}
 .info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
 .info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600;margin-top:.5rem}
@@ -934,7 +934,7 @@ footer span{color:${T.primary};font-weight:600}
   "@context":"https://schema.org",
   "@type":"LocalBusiness",
   "name":"${name.replace(/"/g,'\\"')}",
-  "image":"${lead.website || ''}",
+  "image":"${lead.website && /^https?:\/\//.test(lead.website) ? lead.website.replace(/"/g,"&quot;") : ""}",
   "address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},
   "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
 }
