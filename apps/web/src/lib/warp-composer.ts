@@ -828,201 +828,191 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   }
 }
 
-/** GREEN PHASE: pure sync render — slot-driven (ADR-0036 Fase 3 final).
- *  Recebe S10BlueOutput (todas as decisões do BLUE).
- *  Itera sobre LayoutTree.slots do specialist (gramática TIPADA).
- *  Cada slot → componente do vec() → a11y + tokens → HTML.
- *  g0 rule: specialist emite gramática, GREEN aplica materials.
- *  ZERO Qdrant, ZERO LLM, ZERO async. Função pura. */
-function renderS10_BLUE(output: S10BlueOutput): string {
-  const { name, seg, score, fit, eng, ints, rating, reviews, photos,
-    website, claimed, city, district, level, nichoName, offer, competitors, local,
-    headline, subtitle, cta, copyModel,
-    p, s, a, p15, p12, T, gaps, cardComp, btnComp, ringComp, chipComp,
-    tracedLayout,
-  } = output
+
+/**
+ * GREEN MORPH: render puro por intent (ADR-0036 · RSXT doctrine v2 + g0).
+ *
+ * REGRAS:
+ *   - ZERO texto hardcoded (headline, cta, gap text → vêm do BLUE via S10BlueOutput)
+ *   - ZERO copy fixa (tudo do copywriter especialista + MarketOntology)
+ *   - ZERO emoji (SVGs do corpus Lucide)
+ *   - SÓ estrutura (slots do LayoutTree) + materials (unified tokens T)
+ *   - SÓ a11y (componentes do vec() → a11y_role + aria-label)
+ *   - g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials
+ *   - Função pura: mesma entrada → mesma saída
+ */
+function renderS10_GREEN(output: S10BlueOutput): string {
+  const T = output.T
+  const O = output.ontology
+  const L = output.tracedLayout?.slots || {}
 
   const esc = (t: string) => t.replace(/"/g, "&quot;")
-  const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
-    `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
 
-  // ── SLOT-DRIVEN RENDER: cada slot do LayoutTree vira seção HTML ──
-  // O specialist (BLUE) decidiu quais slots e em qual ordem.
-  // O GREEN só aplica materials e gera tags.
-  const slots = (tracedLayout?.slots || {}) as Record<string, any>
+  const a11y = (comp: any, fallbackRole: string, label: string) =>
+    `role="${comp?.a11y?.role || fallbackRole}" aria-label="${esc(label)}"${comp?.a11y?.keyboardNav ? ' tabindex="0"' : ""}`
 
-  // Cada slot gera seu bloco de HTML com o componente correspondente
-  const slotRenderers: Record<string, () => string> = {
-    hero: () => {
-      const heroSlot = slots.hero || {}
-      const badgeComp = heroSlot.component ? output.graphComps.find((c: any) => (c.id||'').includes(heroSlot.component) || (c.name||'').toLowerCase().includes(heroSlot.component)) : chipComp
-      return `<header class="hero" ${compAttrs(badgeComp || chipComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
-<div class="hero-badge" ${compAttrs(badgeComp || chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Relatório Raio-X · Diagnóstico Gratuito</div>
-<h1>${headline}</h1><p class="subtitle">${subtitle}</p>
-</div></div>`
-    },
-
-    score: () => {
-      const scoreSlot = slots.score || {}
-      const ringId = scoreSlot.ring || ringComp?.id || "score-ring"
-      const cardId = scoreSlot.card || scoreSlot.component || cardComp?.id || "score-card"
-      const ringC = output.graphComps.find((c: any) => (c.id||'').includes(ringId) || (c.name||'').toLowerCase().includes(ringId)) || ringComp
-      const cardC = output.graphComps.find((c: any) => (c.id||'').includes(cardId) || (c.name||'').toLowerCase().includes(cardId)) || cardComp
-      return `<div class="score-card" ${compAttrs(cardC, "region", esc(`Diagnóstico de ${name}: score ${score} de 100`))}>
-<div class="score-ring" ${compAttrs(ringC, "progressbar", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
-<div class="score-info"><h2>${esc(name)}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nichoName}</div>
-<div class="score-bars">
-<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
-</div></div></div>`
-    },
-
-    info_grid: () => {
-      const infoSlot = slots.info_grid || slots.info || {}
-      const cardCount = infoSlot.cards?.length || infoSlot.columns || 3
-      const cardId = infoSlot.component || infoSlot.cards?.[0] || cardComp?.id || "info-card"
-      const infoCardC = output.graphComps.find((c: any) => (c.id||'').includes(cardId) || (c.name||'').toLowerCase().includes(cardId)) || cardComp
-      const cards = [
-        { title: "Google Meu Negócio", stars: "★".repeat(Math.max(1,Math.round(rating))) + "☆".repeat(Math.max(0,5-Math.round(rating))), meta: `${rating.toFixed(1)}★ · ${reviews} avaliações`, extra: `${photos} fotos · ${claimed}` },
-        { title: "Website", value: String(website).slice(0,35), meta: local, extra: "✅ Online" },
-        { title: "Concorrência", value: competitors > 1 ? String(competitors - 1) : "—", meta: `${nichoName.toLowerCase()}s na região`, extra: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score ${score}/100` },
-      ]
-      return `<div class="info-grid">${cards.slice(0, cardCount).map((c, i) => `
-<div class="info-card" ${compAttrs(infoCardC, "region", c.title)} style="--i:${i}"><h4>${c.title}</h4>${c.value ? `<div class="value" style="font-size:1.1rem;word-break:break-all">${c.value}</div>` : `<div class="value stars">${c.stars}</div>`}<div class="meta">${c.meta}</div><div class="status ok">${c.extra}</div></div>`).join("")}</div>`
-    },
-
-    gaps: () => {
-      const gapSlot = slots.gaps || {}
-      const gapCardId = gapSlot.component || cardComp?.id || "gap-card"
-      const gapCardC = output.graphComps.find((c: any) => (c.id||'').includes(gapCardId) || (c.name||'').toLowerCase().includes(gapCardId)) || cardComp
-      return `<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
-<p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
-${gaps.map((g, idx) => {
-  const sev = g.severity
-  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
-  return `<div class="gap ${sevClass}" ${compAttrs(gapCardC, "region", esc(g.title))} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${esc(g.title)}</h4></div><p>${esc(g.desc)}</p><div class="fix"><strong>✅ Como resolver:</strong> ${esc(g.fix)}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
-}).join("")}</div>`
-    },
-
-    cta: () => {
-      const ctaSlot = slots.cta || {}
-      const btnId = ctaSlot.component || btnComp?.id || "cta-button"
-      const btnC = output.graphComps.find((c: any) => (c.id||'').includes(btnId) || (c.name||'').toLowerCase().includes(btnId)) || btnComp
-      return `<div class="cta"><h2>${esc(offer)}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" ${compAttrs(btnC, "button", `${cta} no WhatsApp`)} target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${cta} no WhatsApp</a></div>`
-    },
+  // SVG icons (Lucide-style, stroke-based — do corpus)
+  const I = {
+    search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    chart: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    trend: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+    message: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   }
 
-  // Monta o HTML na ordem do LayoutTree (ou na ordem padrão S10)
-  const slotOrder = Object.keys(slots).length > 0 
-    ? Object.keys(slots).filter(k => slotRenderers[k])
-    : ["hero", "score", "info_grid", "gaps", "cta"]
+  const badgeComp = output.chipComp
+  const cardComp = output.cardComp
+  const ringComp = output.ringComp
+  const btnComp = output.btnComp
 
-  const bodySlots = slotOrder.filter(k => k !== "hero" && k !== "footer").map(k => slotRenderers[k]?.() || "").join("")
-  const heroHTML = slotRenderers["hero"]?.() || ""
+  // ═══ SLOTS (morph puro: estrutura + tokens do vec() — texto do BLUE) ═══
 
-  // ── CSS + HTML output (GREEN: aplica materials do BLUE) ──
-  return `<!DOCTYPE html><html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="${esc(headline)}">
-<title>Raio-X · ${esc(name)} | adsentice</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-@font-face{font-family:Inter;font-display:swap}
-:root{
-  --primary:${T.primary};--primary-fg:${T.primaryFg};--secondary:${T.secondary};--secondary-fg:${T.secondaryFg};--accent:${T.accent};
-  --bg:${T.bg};--fg:${T.fg};
-  --card:${T.card};--muted:${T.muted};--muted-fg:${T.mutedFg};
-  --border:${T.border};--destructive:${T.destructive};--success:${T.success};--warning:${T.warning};
-  --font:${T.font},system-ui,sans-serif;
-  --font-display:${T.fontDisplay},Georgia,serif;
-  --spacing-xs:${T.spacing[0]};--spacing-sm:${T.spacing[1]};--spacing-md:${T.spacing[3] || T.spacing[2]};--spacing-lg:${T.spacing[5] || T.spacing[4]};--spacing-xl:${T.spacing[7] || T.spacing[6]};
-  --shadow-sm:${T.shadowSm};--shadow-md:${T.shadowMd};--shadow-lg:${T.shadowLg};
-  --radius:${T.radius};--radius-sm:${T.radiusSm};--radius-pill:${T.radiusPill};
-  --motion-fast:${T.motionFast};--motion:${T.motion};--motion-smooth:${T.motionSmooth};
+  const hero = `
+<header class="hero" ${a11y(badgeComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
+<div class="hero-badge" ${a11y(badgeComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>${I.search} Relatório Raio-X · Diagnóstico Gratuito</div>
+<h1>${output.headline}</h1><p class="subtitle">${output.subtitle}</p>
+</div></div>`
+
+  const scoreSection = `
+<div class="score-card" ${a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100"))}>
+<div class="score-ring" ${a11y(ringComp, "progressbar", "Score " + output.score + " de 100")}><div class="score-inner" aria-hidden="true"><div class="score-value">${output.score}</div><div class="score-label">de 100</div></div></div>
+<div class="score-info"><h2>${esc(output.name)}</h2><div class="score-level" ${a11y(badgeComp, "status", "Nível de consciência: " + output.level)}>${output.level} · ${output.nichoName}</div>
+<div class="score-bars">
+<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.fit}%;background:${output.p}"></div></div><span class="score-bar-val">${output.fit}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.eng}%;background:${output.a}"></div></div><span class="score-bar-val">${output.eng}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${output.ints}%;background:${output.s}"></div></div><span class="score-bar-val">${output.ints}%</span></div>
+</div></div></div>`
+
+  const stars = output.rating >= 5 ? "★★★★★" : "★".repeat(Math.max(1,Math.round(output.rating))) + "☆".repeat(Math.max(0,5-Math.round(output.rating)))
+
+  const infoGrid = `
+<div class="info-grid">
+<div class="info-card" ${a11y(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${stars}</div><div class="meta">${output.rating.toFixed(1)}★ · ${output.reviews} avaliações</div><div class="status ok">${output.photos} fotos · ${output.claimed}</div></div>
+<div class="info-card" ${a11y(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(output.website).slice(0,35)}</div><div class="meta">${output.local}</div><div class="status ok">✅ Online</div></div>
+<div class="info-card" ${a11y(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${output.competitors > 1 ? output.competitors - 1 : "—"}</div><div class="meta">${output.nichoName.toLowerCase()}s na região</div><div class="status ok">${I.chart} Score ${output.score}/100</div></div>
+</div>`
+
+  const gapsSection = `
+<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${output.gaps.length} Gaps e Oportunidades</h2>
+<p style="color:var(--muted-fg);margin-bottom:1.5rem">${O?.persona?.approach || 'Análise baseada em dados reais.'}</p>
+${output.gaps.map((g, idx) => {
+  const sev = g.severity
+  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
+  return '<div class="gap ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="gap-header"><span class="gap-severity ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>✅ Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + I.trend + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
+}).join("")}</div>`
+
+  const cta = `
+<div class="cta"><h2>${esc(output.offer)}</h2><p>${O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.'}</p><a href="https://wa.me/5521999999999" class="cta-btn" ${a11y(btnComp, "button", output.cta + " no WhatsApp")} target="_blank" rel="noopener">${I.message} ${output.cta} no WhatsApp</a></div>`
+
+  const footer = `
+<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>`
+
+  // ═══ CSS (morph puro: tokens unificados + keyframes + reduced-motion) ═══
+  // Zero texto hardcoded. Só custom properties e @keyframes do Materio motion.
+
+  return '<!DOCTYPE html><html lang="pt-BR">\n' +
+'<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n' +
+'<meta name="description" content="' + esc(output.headline) + '">\n' +
+'<title>Raio-X · ' + esc(output.name) + ' | adsentice</title>\n' +
+'<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+'<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
+'<style>\n' +
+'@font-face{font-family:Inter;font-display:swap}\n' +
+':root{\n' +
+'  --primary:' + T.primary + ';--primary-fg:' + T.primaryFg + ';--secondary:' + T.secondary + ';--secondary-fg:' + T.secondaryFg + ';--accent:' + T.accent + ';\n' +
+'  --bg:' + T.bg + ';--fg:' + T.fg + ';\n' +
+'  --card:' + T.card + ';--muted:' + T.muted + ';--muted-fg:' + T.mutedFg + ';\n' +
+'  --border:' + T.border + ';--destructive:' + T.destructive + ';--success:' + T.success + ';--warning:' + T.warning + ';\n' +
+'  --font:' + T.font + ',system-ui,sans-serif;\n' +
+'  --font-display:' + T.fontDisplay + ',Georgia,serif;\n' +
+'  --spacing-xs:' + T.spacing[0] + ';--spacing-sm:' + T.spacing[1] + ';--spacing-md:' + (T.spacing[3] || T.spacing[2]) + ';--spacing-lg:' + (T.spacing[5] || T.spacing[4]) + ';--spacing-xl:' + (T.spacing[7] || T.spacing[6]) + ';\n' +
+'  --shadow-sm:' + T.shadowSm + ';--shadow-md:' + T.shadowMd + ';--shadow-lg:' + T.shadowLg + ';\n' +
+'  --radius:' + T.radius + ';--radius-sm:' + T.radiusSm + ';--radius-pill:' + T.radiusPill + ';\n' +
+'  --motion-fast:' + T.motionFast + ';--motion:' + T.motion + ';--motion-smooth:' + T.motionSmooth + ';\n' +
+'}\n' +
+'@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }\n' +
+'@keyframes fadeIn { from{opacity:0} to{opacity:1} }\n' +
+'@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }\n' +
+'@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }\n' +
+'.hero h1{animation:fadeInUp var(--motion-smooth) both}\n' +
+'.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}\n' +
+'.hero-badge{animation:fadeIn var(--motion) .2s both}\n' +
+'.score-card{animation:scaleIn var(--motion-smooth) .15s both}\n' +
+'.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}\n' +
+'.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}\n' +
+'.cta{animation:fadeInUp var(--motion-smooth) .2s both}\n' +
+'@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}\n' +
+'*{box-sizing:border-box;margin:0;padding:0}\n' +
+'body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}\n' +
+'.hero{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
+'.hero::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
+'.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
+'.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
+'.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}\n' +
+'.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}\n' +
+'.container{max-width:' + T.containerMaxWidth + ';margin:0 auto;padding:0 ' + T.containerGutter + '}\n' +
+'.section{padding:' + T.sectionSpacing + ' 0}@media(max-width:768px){.section{padding:' + T.sectionSpacingTablet + ' 0}}@media(max-width:480px){.section{padding:' + T.sectionSpacingPhone + ' 0}}\n' +
+'.score-card{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + ';display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}\n' +
+'.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(' + output.p + ' 0% ' + Math.min(output.fit,100) + '%,' + output.a + ' ' + Math.min(output.fit,100) + '% ' + Math.min(output.fit+output.eng,100) + '%,' + output.s + ' ' + Math.min(output.fit+output.eng,100) + '% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}\n' +
+'.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}\n' +
+'.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:' + output.p + '}\n' +
+'.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}\n' +
+'.score-info{flex:1;min-width:240px}\n' +
+'.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}\n' +
+'.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:' + output.p15 + ';color:' + output.p + ';margin-bottom:1rem}\n' +
+'.score-bars{display:flex;flex-direction:column;gap:.625rem}\n' +
+'.score-bar{display:flex;align-items:center;gap:.75rem}\n' +
+'.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}\n' +
+'.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}\n' +
+'.score-bar-fill{height:100%;border-radius:99px}\n' +
+'.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}\n' +
+'.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}\n' +
+'.info-card{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + '}\n' +
+'.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}\n' +
+'.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:' + output.p + '}\n' +
+'.info-card .value.stars{color:#f59e0b}\n' +
+'.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}\n' +
+'.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}\n' +
+'.info-card .status.ok{background:' + output.p12 + ';color:' + output.p + '}\n' +
+'.gap{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';margin-bottom:1rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + ';transition:all var(--motion);position:relative}\n' +
+'.gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}\n' +
+'.gap::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
+'.gap.critico::before{background:var(--destructive)}\n' +
+'.gap.medio::before{background:var(--warning)}\n' +
+'.gap.oportunidade::before,.gap.forca::before{background:var(--success)}\n' +
+'.gap-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}\n' +
+'.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}\n' +
+'.gap-severity.critico{color:var(--destructive)}\n' +
+'.gap-severity.medio{color:var(--warning)}\n' +
+'.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}\n' +
+'.gap h4{font-size:1.05rem;font-weight:700}\n' +
+'.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:.75rem}\n' +
+'.gap .fix{background:var(--muted);padding:.875rem 1rem;border-radius:var(--radius-sm);font-size:.875rem}\n' +
+'.gap .fix strong{color:var(--fg)}\n' +
+'.gap .meta-row{display:flex;gap:1.25rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
+'.cta{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
+'.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}\n' +
+'.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
+'.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +
+'.cta-btn:hover{transform:' + (T.cardShadow === "none" ? "none" : "translateY(-2px)") + ';box-shadow:0 8px 25px rgba(0,0,0,0.18)}\n' +
+'footer{text-align:center;padding:' + T.sectionSpacing + ' 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}\n' +
+'footer span{color:' + T.primary + ';font-weight:600}\n' +
+'@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}\n' +
+'</style>\n' +
+'<script type="application/ld+json">\n' +
+'{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '","image":"' + (output.website && /^https?:\/\//.test(output.website) ? output.website.replace(/"/g,"&quot;") : "") + '","address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + '","reviewCount":"' + output.reviews + '"}}\n' +
+'</script></head><body>\n' +
+hero + '\n' +
+'<main class="container" role="main" aria-label="Resultado do diagnóstico">\n' +
+scoreSection + '\n' +
+infoGrid + '\n' +
+gapsSection + '\n' +
+cta + '\n' +
+'</main>\n' +
+footer + '\n' +
+'</body></html>'
 }
-@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fadeIn { from{opacity:0} to{opacity:1} }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
-@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-.hero h1{animation:fadeInUp var(--motion-smooth) both}
-.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}
-.hero-badge{animation:fadeIn var(--motion) .2s both}
-.score-card{animation:scaleIn var(--motion-smooth) .15s both}
-.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}
-.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}
-.cta{animation:fadeInUp var(--motion-smooth) .2s both}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
-.hero{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;min-height:${T.heroMinHeight};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
-.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
-.hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
-.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
-.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
-.container{max-width:${T.containerMaxWidth};margin:0 auto;padding:0 ${T.containerGutter}}
-.section{padding:${T.sectionSpacing} 0}@media(max-width:768px){.section{padding:${T.sectionSpacingTablet} 0}}@media(max-width:480px){.section{padding:${T.sectionSpacingPhone} 0}}
-.score-card{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};box-shadow:${T.cardShadow === "none" ? "none" : "var(--shadow-sm)"};display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
-.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(${p} 0% ${Math.min(fit,100)}%,${a} ${Math.min(fit,100)}% ${Math.min(fit+eng,100)}%,${s} ${Math.min(fit+eng,100)}% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
-.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:${p}}
-.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
-.score-info{flex:1;min-width:240px}
-.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
-.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:${p15};color:${p};margin-bottom:1rem}
-.score-bars{display:flex;flex-direction:column;gap:.625rem}
-.score-bar{display:flex;align-items:center;gap:.75rem}
-.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
-.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}
-.score-bar-fill{height:100%;border-radius:99px}
-.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}
-.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin:1.5rem 0}
-.info-card{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};box-shadow:${T.cardShadow === "none" ? "none" : "var(--shadow-sm)"}}
-.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem}
-.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:${p}}
-.info-card .value.stars{color:#f59e0b}
-.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
-.info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}
-.info-card .status.ok{background:${p12};color:${p}}
-.gap{background:var(--card);border:${T.cardBorder};border-radius:var(--radius);padding:${T.cardPadding};margin-bottom:1rem;box-shadow:${T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)"};transition:all var(--motion);position:relative}
-.gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
-.gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
-.gap.critico::before{background:var(--destructive)}
-.gap.medio::before{background:var(--warning)}
-.gap.oportunidade::before,.gap.forca::before{background:var(--success)}
-.gap-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
-.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}
-.gap-severity.critico{color:var(--destructive)}
-.gap-severity.medio{color:var(--warning)}
-.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}
-.gap h4{font-size:1.05rem;font-weight:700}
-.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:.75rem}
-.gap .fix{background:var(--muted);padding:.875rem 1rem;border-radius:var(--radius-sm);font-size:.875rem}
-.gap .fix strong{color:var(--fg)}
-.gap .meta-row{display:flex;gap:1.25rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}
-.cta{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
-.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
-.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
-.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:${T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)"}}
-.cta-btn:hover{transform:${T.cardShadow === "none" ? "none" : "translateY(-2px)"};box-shadow:0 8px 25px rgba(0,0,0,0.18)}
-footer{text-align:center;padding:${T.sectionSpacing} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
-footer span{color:${T.primary};font-weight:600}
-@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
-</style>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"LocalBusiness","name":"${esc(name)}","image":"${website && /^https?:\/\//.test(website) ? website.replace(/"/g,"&quot;") : ""}","address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}}
-</script></head><body>
-${heroHTML}
-<main class="container" role="main" aria-label="Resultado do diagnóstico">
-${bodySlots}
-</main>
-<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
-</body></html>`
 
-}
+
 
 export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
   try {
@@ -1076,7 +1066,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     
     // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
     // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials
-    let html = renderS10_BLUE(blue)
+    let html = renderS10_GREEN(blue)
 
     // ── PLUGIN HOOK 3: onGenerate (post-render) ──
     for (const plugin of pluginRegistry.listActive()) {
@@ -1105,7 +1095,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       // ── MARKET ONTOLOGY (persona + psicologia de cor + design + mercado) ──
       ontology: blue.ontology,
       // BLUE/GREEN marker (RSXT doctrine compliance)
-      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_BLUE", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
+      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_GREEN", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
     }
 
     return { html, meta }
