@@ -249,22 +249,22 @@ ${morph.css}
 </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="hero-content">
-      <div class="hero-badge">${intend.surface} · ${intend.mode === 'internal' ? 'adsentice' : 'white-label'}</div>
+  <div class="' + cls('hero') + '">
+    <div class="' + cls('hero-content') + '">
+      <div class="' + cls('hero-badge') + '">${intend.surface} · ${intend.mode === 'internal' ? 'adsentice' : 'white-label'}</div>
       <h1>${intend.leadData?.title || branding}</h1>
-      <p class="subtitle">${r.segment} · ${intend.plan} · skills: ${r.skills.slice(0, 3).join(', ')}</p>
+      <p class="' + cls('hero') + '-subtitle">${r.segment} · ${intend.plan} · skills: ${r.skills.slice(0, 3).join(', ')}</p>
     </div>
   </div>
-  <main class="container" role="main" aria-label="Resultado do diagnóstico">
-    <div class="section"><div class="card">
+  <main class="' + cls('container') + '" role="main" aria-label="Resultado do diagnóstico">
+    <div class="' + cls('section') + '"><div class="card">
       <h2>Tokens Gerados via ts_morph</h2>
       <p style="color: var(--muted-fg); margin-bottom: 1rem;">
         Mutation: <strong>#${r.mutationId}</strong> · Segmento: <strong>${r.segment}</strong>
         · Plano: <strong>${intend.plan}</strong> · Skills: <strong>${r.skills.slice(0, 3).join(', ')}</strong>
       </p>
     </div></div>
-    <div class="section"><div class="card">
+    <div class="' + cls('section') + '"><div class="card">
       <h3>Pipeline Trace</h3>
       <p style="color: var(--muted-fg); font-family: monospace; font-size: 0.75rem; line-height: 1.8;">
         ${trace.join('<br/>')}
@@ -850,6 +850,7 @@ type SlotRenderCtx = {
   a11y: (comp: any, fallbackRole: string, label: string) => string
   icon: (name: string) => string
   stars: (r: number) => string
+  cls: (name: string) => string
 }
 
 function renderHeroSlot(slot: any, ctx: SlotRenderCtx): string {
@@ -859,22 +860,22 @@ function renderHeroSlot(slot: any, ctx: SlotRenderCtx): string {
   const emotionLabel = O?.psychology?.primaryEmotion
     ? O.psychology.primaryEmotion.split(' + ')[0]
     : output.seg
-  return '<header class="hero" ' + a11y(badgeComp, "banner", output.headline) + '><div class="hero-content">' +
-    '<div class="hero-badge" ' + a11y(badgeComp, "status", badgeLabel) + '>' + icon('search') + ' ' + emotionLabel + ' · ' + badgeLabel + '</div>' +
-    '<h1>' + ctx.esc(output.headline) + '</h1><p class="subtitle">' + ctx.esc(output.subtitle) + '</p>' +
+  return '<header class="' + cls('hero') + '" ' + a11y(badgeComp, "banner", output.headline) + '><div class="' + cls('hero-content') + '">' +
+    '<div class="' + cls('hero-badge') + '" ' + a11y(badgeComp, "status", badgeLabel) + '>' + icon('search') + ' ' + emotionLabel + ' · ' + badgeLabel + '</div>' +
+    '<h1>' + ctx.esc(output.headline) + '</h1><p class="' + cls('hero') + '-subtitle">' + ctx.esc(output.subtitle) + '</p>' +
     '</div></header>'
 }
 
 function renderScoreSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y } = ctx
   const cardComp = output.cardComp; const ringComp = output.ringComp; const badgeComp = output.chipComp
-  return '<div class="score-card" ' + a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100")) + '>' +
-    '<div class="score-ring" ' + a11y(ringComp, "progressbar", "Score " + output.score + " de 100") + '><div class="score-inner" aria-hidden="true"><div class="score-value">' + output.score + '</div><div class="score-label">de 100</div></div></div>' +
-    '<div class="score-info"><h2>' + esc(output.name) + '</h2><div class="score-level" ' + a11y(badgeComp, "status", "Nível de consciência: " + output.level) + '>' + output.level + ' · ' + output.nichoName + '</div>' +
-    '<div class="score-bars">' +
-    '<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.fit + '%;background:' + output.p + '"></div></div><span class="score-bar-val">' + output.fit + '%</span></div>' +
-    '<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.eng + '%;background:' + output.a + '"></div></div><span class="score-bar-val">' + output.eng + '%</span></div>' +
-    '<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:' + output.ints + '%;background:' + output.s + '"></div></div><span class="score-bar-val">' + output.ints + '%</span></div>' +
+  return '<div class="' + cls('score-card') + '" ' + a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100")) + '>' +
+    '<div class="' + cls('score-ring') + '" ' + a11y(ringComp, "progressbar", "Score " + output.score + " de 100") + '><div class="' + cls('score-inner') + '" aria-hidden="true"><div class="' + cls('score-value') + '">' + output.score + '</div><div class="' + cls('score-label') + '">de 100</div></div></div>' +
+    '<div class="' + cls('score-info') + '"><h2>' + esc(output.name) + '</h2><div class="' + cls('score-level') + '" ' + a11y(badgeComp, "status", "Nível de consciência: " + output.level) + '>' + output.level + ' · ' + output.nichoName + '</div>' +
+    '<div class="' + cls('score-bars') + '">' +
+    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Presença</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.fit + '%;background:' + output.p + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.fit + '%</span></div>' +
+    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Engajamento</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.eng + '%;background:' + output.a + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.eng + '%</span></div>' +
+    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Intenção</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.ints + '%;background:' + output.s + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.ints + '%</span></div>' +
     '</div></div></div>'
 }
 
@@ -891,17 +892,17 @@ function renderInfoGridSlot(slot: any, ctx: SlotRenderCtx): string {
   const renderInfoCard = (c: any, idx: number): string => {
     switch (c.slot) {
       case 'gmb':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
+        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
       case 'website':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
+        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
       case 'competition':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
+        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
       default:
-        return '<div class="info-card" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
+        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
     }
   }
   const cols = slot?.columns || cards.length || 3
-  return '<div class="info-grid" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
+  return '<div class="' + cls('info-grid') + '" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
 }
 
 function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
@@ -911,7 +912,7 @@ function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
     ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades'
     : 'Gaps e Oportunidades')
   const approach = O?.persona?.approach || 'Análise baseada em dados reais.'
-  return '<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
+  return '<div class="' + cls('section') + '"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
     '<p style="color:var(--muted-fg);margin-bottom:1.5rem">' + approach + '</p>' +
     output.gaps.map((g, idx) => {
       const sev = g.severity
@@ -924,12 +925,12 @@ function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
 function renderCtaSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y, icon, O } = ctx
   const btnComp = output.btnComp
-  return '<div class="cta"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="cta-btn" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
+  return '<div class="' + cls('cta') + '"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="' + cls('cta-btn') + '" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
 }
 
 function renderFooterSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, O } = ctx
-  return '<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
+  return '<footer><div class="' + cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
 }
 
 // ═══ SLOT RENDERER REGISTRY (slot type → render function) ═══
@@ -973,7 +974,11 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 
   const stars = (r: number) => r >= 5 ? "★★★★★" : "★".repeat(Math.max(1, Math.round(r))) + "☆".repeat(Math.max(0, 5 - Math.round(r)))
 
-  const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars }
+  // CSS class scoping: prefix from layout tree ID (BLUE specialist grammar)
+  const layoutPrefix = (output.tracedLayout?.id || 'layout.s10').replace(/^layout\./, '')
+  const cls = (name: string): string => layoutPrefix + '-' + name
+
+  const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars, cls }
 
   // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
   // Se o specialist adicionar slot novo (ex: testimonials), aparece automaticamente
@@ -1004,6 +1009,10 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   return '<!DOCTYPE html><html lang="pt-BR">\n' +
 '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n' +
 '<meta name="description" content="' + esc(output.headline) + '">\n' +
+(function() {
+  const hasWeb = output.website && /^https?:\/\//.test(output.website)
+  return hasWeb ? '<meta property="og:image" content="' + output.website.replace(/"/g,"&quot;") + '">\n' : ''
+})() +
 '<title>Raio-X · ' + esc(output.name) + ' | adsentice</title>\n' +
 '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
 '<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
@@ -1025,76 +1034,80 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '@keyframes fadeIn { from{opacity:0} to{opacity:1} }\n' +
 '@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }\n' +
 '@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }\n' +
-'.hero h1{animation:fadeInUp var(--motion-smooth) both}\n' +
-'.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}\n' +
-'.hero-badge{animation:fadeIn var(--motion) .2s both}\n' +
-'.score-card{animation:scaleIn var(--motion-smooth) .15s both}\n' +
-'.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}\n' +
-'.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}\n' +
-'.cta{animation:fadeInUp var(--motion-smooth) .2s both}\n' +
+'.' + cls('hero') + ' h1{animation:fadeInUp var(--motion-smooth) both}\n' +
+'.' + cls('hero') + ' .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}\n' +
+'.' + cls('hero-badge') + '{animation:fadeIn var(--motion) .2s both}\n' +
+'.' + cls('score-card') + '{animation:scaleIn var(--motion-smooth) .15s both}\n' +
+'.' + cls('info-card') + '{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}\n' +
+'.' + cls('gap') + '{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}\n' +
+'.' + cls('cta') + '{animation:fadeInUp var(--motion-smooth) .2s both}\n' +
 '@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}\n' +
 '*{box-sizing:border-box;margin:0;padding:0}\n' +
 'body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}\n' +
-'.hero{background:linear-gradient(' + gradientAngle + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
-'.hero::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
-'.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
-'.hero-badge{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:' + (T.spacing[0] || '.375rem') + ' ' + (T.spacing[1] || '.875rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
-'.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:' + (T.spacing[1] || '.75rem') + '}\n' +
-'.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}\n' +
-'.container{max-width:' + T.containerMaxWidth + ';margin:0 auto;padding:0 ' + T.containerGutter + '}\n' +
-'.section{padding:' + T.sectionSpacing + ' 0}@media(max-width:768px){.section{padding:' + T.sectionSpacingTablet + ' 0}}@media(max-width:480px){.section{padding:' + T.sectionSpacingPhone + ' 0}}\n' +
-'.score-card{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + ';display:flex;align-items:center;gap:' + (T.spacing[4] || '2rem') + ';flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}\n' +
-'.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(' + output.p + ' 0% ' + Math.min(output.fit,100) + '%,' + output.a + ' ' + Math.min(output.fit,100) + '% ' + Math.min(output.fit+output.eng,100) + '%,' + output.s + ' ' + Math.min(output.fit+output.eng,100) + '% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}\n' +
-'.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}\n' +
-'.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:' + output.p + '}\n' +
-'.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:' + (T.spacing[0] || '.25rem') + '}\n' +
-'.score-info{flex:1;min-width:240px}\n' +
-'.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}\n' +
-'.score-level{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';padding:' + (T.spacing[0] || '.25rem') + ' ' + (T.spacing[1] || '.75rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:' + output.p15 + ';color:' + output.p + ';margin-bottom:1rem}\n' +
-'.score-bars{display:flex;flex-direction:column;gap:' + (T.spacing[0] || '.625rem') + '}\n' +
-'.score-bar{display:flex;align-items:center;gap:' + (T.spacing[1] || '.75rem') + '}\n' +
-'.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}\n' +
-'.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}\n' +
-'.score-bar-fill{height:100%;border-radius:99px}\n' +
-'.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}\n' +
-'.info-grid{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(240px,1fr));gap:' + (T.spacing[2] || '1rem') + ';margin:' + (T.spacing[3] || '1.5rem') + ' 0}\n' +
-'.info-card{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + '}\n' +
-'.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
-'.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:' + output.p + '}\n' +
-'.info-card .value.stars{color:#f59e0b}\n' +
-'.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:' + (T.spacing[0] || '.25rem') + '}\n' +
-'.info-card .status{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.25rem') + ';padding:' + (T.spacing[0] || '.125rem') + ' ' + (T.spacing[1] || '.5rem') + ';border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}\n' +
-'.info-card .status.ok{background:' + output.p12 + ';color:' + output.p + '}\n' +
-'.gap{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';margin-bottom:1rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + ';transition:all var(--motion);position:relative}\n' +
-'.gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}\n' +
-'.gap::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
-'.gap.critico::before{background:var(--destructive)}\n' +
-'.gap.medio::before{background:var(--warning)}\n' +
-'.gap.oportunidade::before,.gap.forca::before{background:var(--success)}\n' +
-'.gap-header{display:flex;align-items:center;gap:' + (T.spacing[1] || '.75rem') + ';margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
-'.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}\n' +
-'.gap-severity.critico{color:var(--destructive)}\n' +
-'.gap-severity.medio{color:var(--warning)}\n' +
-'.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}\n' +
-'.gap h4{font-size:1.05rem;font-weight:700}\n' +
-'.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:' + (T.spacing[1] || '.75rem') + '}\n' +
-'.gap .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
-'.gap .fix strong{color:var(--fg)}\n' +
-'.gap .meta-row{display:flex;gap:' + (T.spacing[3] || '1.25rem') + ';margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
-'.cta{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem') + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
-'.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
-'.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
-'.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +
-'.cta-btn:hover{transform:' + (T.cardShadow === "none" ? "none" : "translateY(-2px)") + ';box-shadow:0 8px 25px rgba(0,0,0,0.18)}\n' +
-'footer{text-align:center;padding:' + T.sectionSpacing + ' 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:' + (T.spacing[4] || '2rem') + '}\n' +
-'footer span{color:' + T.primary + ';font-weight:600}\n' +
-'@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}\n' +
+'.' + cls('hero') + '{background:linear-gradient(' + gradientAngle + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
+'.' + cls('hero') + '::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
+'.' + cls('hero-content') + '{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
+'.' + cls('hero-badge') + '{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:' + (T.spacing[0] || '.375rem') + ' ' + (T.spacing[1] || '.875rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
+'.' + cls('hero') + ' h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:' + (T.spacing[1] || '.75rem') + '}\n' +
+'.' + cls('hero') + ' .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}\n' +
+'.' + cls('container') + '{max-width:' + T.containerMaxWidth + ';margin:0 auto;padding:0 ' + T.containerGutter + '}\n' +
+'.' + cls('section') + '{padding:' + T.sectionSpacing + ' 0}@media(max-width:768px){.' + cls('section') + '{padding:' + T.sectionSpacingTablet + ' 0}}@media(max-width:480px){.' + cls('section') + '{padding:' + T.sectionSpacingPhone + ' 0}}\n' +
+'.' + cls('score-card') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + ';display:flex;align-items:center;gap:' + (T.spacing[4] || '2rem') + ';flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}\n' +
+'.' + cls('score-ring') + '{width:130px;height:130px;border-radius:50%;background:conic-gradient(' + output.p + ' 0% ' + Math.min(output.fit,100) + '%,' + output.a + ' ' + Math.min(output.fit,100) + '% ' + Math.min(output.fit+output.eng,100) + '%,' + output.s + ' ' + Math.min(output.fit+output.eng,100) + '% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}\n' +
+'.' + cls('score-inner') + '{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}\n' +
+'.' + cls('score-value') + '{font-size:2.25rem;font-weight:800;line-height:1;color:' + output.p + '}\n' +
+'.' + cls('score-label') + '{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:' + (T.spacing[0] || '.25rem') + '}\n' +
+'.' + cls('score-info') + '{flex:1;min-width:240px}\n' +
+'.' + cls('score-info') + ' h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}\n' +
+'.' + cls('score-level') + '{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';padding:' + (T.spacing[0] || '.25rem') + ' ' + (T.spacing[1] || '.75rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:' + output.p15 + ';color:' + output.p + ';margin-bottom:1rem}\n' +
+'.' + cls('score-bars') + '{display:flex;flex-direction:column;gap:' + (T.spacing[0] || '.625rem') + '}\n' +
+'.' + cls('score-bar') + '{display:flex;align-items:center;gap:' + (T.spacing[1] || '.75rem') + '}\n' +
+'.' + cls('score-bar-label') + '{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}\n' +
+'.' + cls('score-bar-track') + '{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}\n' +
+'.' + cls('score-bar-fill') + '{height:100%;border-radius:99px}\n' +
+'.' + cls('score-bar-val') + '{width:36px;text-align:right;font-size:.8rem;font-weight:600}\n' +
+'.' + cls('info-grid') + '{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(240px,1fr));gap:' + (T.spacing[2] || '1rem') + ';margin:' + (T.spacing[3] || '1.5rem') + ' 0}\n' +
+'.' + cls('info-card') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';box-shadow:' + (T.cardShadow === "none" ? "none" : "var(--shadow-sm)") + '}\n' +
+'.' + cls('info-card') + ' h4{font-size:.9rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
+'.' + cls('info-card') + ' .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:' + output.p + '}\n' +
+'.' + cls('info-card') + ' .value.stars{color:#f59e0b}\n' +
+'.' + cls('info-card') + ' .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:' + (T.spacing[0] || '.25rem') + '}\n' +
+'.' + cls('info-card') + ' .status{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.25rem') + ';padding:' + (T.spacing[0] || '.125rem') + ' ' + (T.spacing[1] || '.5rem') + ';border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}\n' +
+'.' + cls('info-card') + ' .status.ok{background:' + output.p12 + ';color:' + output.p + '}\n' +
+'.' + cls('gap') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';margin-bottom:1rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + ';transition:all var(--motion);position:relative}\n' +
+'.' + cls('gap') + ':hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}\n' +
+'.' + cls('gap') + '::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
+'.' + cls('gap') + '.critico::before{background:var(--destructive)}\n' +
+'.' + cls('gap') + '.medio::before{background:var(--warning)}\n' +
+'.gap.oportunidade::before,.' + cls('gap') + '.forca::before{background:var(--success)}\n' +
+'.' + cls('gap-header') + '{display:flex;align-items:center;gap:' + (T.spacing[1] || '.75rem') + ';margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
+'.' + cls('gap-severity') + '{font-size:.75rem;font-weight:700;text-transform:uppercase}\n' +
+'.' + cls('gap-severity') + '.critico{color:var(--destructive)}\n' +
+'.' + cls('gap-severity') + '.medio{color:var(--warning)}\n' +
+'.gap-severity.oportunidade,.' + cls('gap-severity') + '.forca{color:var(--success)}\n' +
+'.' + cls('gap') + ' h4{font-size:1.05rem;font-weight:700}\n' +
+'.' + cls('gap') + ' p{color:var(--muted-fg);font-size:.9rem;margin-bottom:' + (T.spacing[1] || '.75rem') + '}\n' +
+'.' + cls('gap') + ' .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
+'.' + cls('gap') + ' .fix strong{color:var(--fg)}\n' +
+'.' + cls('gap') + ' .meta-row{display:flex;gap:' + (T.spacing[3] || '1.25rem') + ';margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
+'.' + cls('cta') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem') + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
+'.' + cls('cta') + ' h2{font-size:1.5rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
+'.' + cls('cta') + ' p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
+'.' + cls('cta-btn') + '{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +
+'.' + cls('cta-btn') + ':hover{transform:' + (T.cardShadow === "none" ? "none" : "translateY(-2px)") + ';box-shadow:0 8px 25px rgba(0,0,0,0.18)}\n' +
+'.' + cls('footer') + '{text-align:center;padding:' + T.sectionSpacing + ' 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:' + (T.spacing[4] || '2rem') + '}\n' +
+'.' + cls('footer') + ' span{color:' + T.primary + ';font-weight:600}\n' +
+'@media(max-width:600px){.' + cls('score-card') + '{flex-direction:column;text-align:center}.' + cls('info-grid') + '{grid-template-columns:1fr}}\n' +
 '</style>\n' +
 '<script type="application/ld+json">\n' +
-'{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '","image":"' + (output.website && /^https?:\/\//.test(output.website) ? output.website.replace(/"/g,"&quot;") : "") + '","address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + '","reviewCount":"' + output.reviews + '"}}\n' +
+(function() {
+  const hasWeb = output.website && /^https?:\/\//.test(output.website)
+  const img = hasWeb ? ',"image":"' + output.website.replace(/"/g,"&quot;") + '"' : ''
+  return '{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '"' + img + ',"address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + '","reviewCount":"' + output.reviews + '"}}'
+})() + '\n' +
 '</script></head><body>\n' +
 heroHTML + '\n' +
-'<main class="container" role="main" aria-label="Resultado do diagnóstico">\n' +
+'<main class="' + cls('container') + '" role="main" aria-label="Resultado do diagnóstico">\n' +
 mainSlots + '\n' +
 '</main>\n' +
 footerHTML + '\n' +

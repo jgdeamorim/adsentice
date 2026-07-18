@@ -978,6 +978,10 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   return '<!DOCTYPE html><html lang="pt-BR">\n' +
 '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n' +
 '<meta name="description" content="' + esc(output.headline) + '">\n' +
+(function() {
+  const hasWeb = output.website && /^https?:\/\//.test(output.website)
+  return hasWeb ? '<meta property="og:image" content="' + output.website.replace(/"/g,"&quot;") + '">\n' : ''
+})() +
 '<title>Raio-X · ' + esc(output.name) + ' | adsentice</title>\n' +
 '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
 '<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
@@ -1065,7 +1069,11 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}\n' +
 '</style>\n' +
 '<script type="application/ld+json">\n' +
-'{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '","image":"' + (output.website && /^https?:\/\//.test(output.website) ? output.website.replace(/"/g,"&quot;") : "") + '","address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + '","reviewCount":"' + output.reviews + '"}}\n' +
+'(function() {
+  const hasWeb = output.website && /^https?:\/\//.test(output.website)
+  const img = hasWeb ? ',"image":"' + output.website.replace(/"\/g,"&quot;") + '"' : ''
+  return '{"@context":"https://schema.org","@type":"LocalBusiness","name":"' + esc(output.name) + '"' + img + ',"address":{"@type":"PostalAddress","addressLocality":"' + (output.city || 'BR') + '"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"' + output.rating.toFixed(1) + ',"reviewCount":"' + output.reviews + '"}}'
+})()\n' +
 '</script></head><body>\n' +
 heroHTML + '\n' +
 '<main class="container" role="main" aria-label="Resultado do diagnóstico">\n' +
