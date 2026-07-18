@@ -25,6 +25,7 @@
     "./8-agents": "./src/8-agents.ts",
     "./composer-core": "./src/composer-core.ts",
     "./embed": "./src/embed.ts",
+    "./morph-resolver": "./src/morph-resolver.ts",
     "./market-ontology": "./src/market-ontology.ts",
     "./marketing-kg": "./src/marketing-kg.ts",
     "./tokens-composer": "./src/tokens-composer.ts",
