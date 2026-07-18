@@ -307,6 +307,7 @@ import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
 import { TokenComposer } from "./tokens-composer"
+import { queryRelevantSkills, applyFramework } from "./marketing-kg"
 import { resolveIntentVocab } from "./vocab-resolver"
 import { resolveIntentVocab } from "./vocab-resolver"
 
@@ -644,6 +645,23 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
 
   // 4. Gaps
   const gaps = computeGaps(lead, nicho)
+
+  // 4b. MARKETING KG (ADR-0037 Fase 1)
+  const leadCtx = {
+    businessName: lead.title, category: cat, segment: seg,
+    city, district, score: lead.score_compound || 50,
+    rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+    isClaimed: lead.is_claimed || false, hasWebsite: !!lead.website,
+    competitorCount: competitors, topGaps: gaps.slice(0, 3).map((g: any) => g.title),
+    schwartzLevel: lead.schwartz_label || "Problem Aware",
+  }
+  const mktFrameworks = await queryRelevantSkills(leadCtx).catch(() => [])
+  const mktActions = mktFrameworks.map((f: any) => applyFramework(f, leadCtx))
+  for (let i = 0; i < Math.min(gaps.length, mktActions.length); i++) {
+    if (!gaps[i].desc.includes(mktActions[i].diagnosis.slice(0, 30))) {
+      gaps[i].desc = gaps[i].desc + " " + mktActions[i].recommendation
+    }
+  }
 
   // 5. Copy (S10RaioXPipeline + DeepSeek refine)
   const s10pipeline = new S10RaioXPipeline()

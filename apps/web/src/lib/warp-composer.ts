@@ -306,6 +306,7 @@ import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
+import { queryRelevantSkills, applyFramework } from "../../../../packages/warp/src/marketing-kg"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
 import { TokenComposer } from "../../../../packages/warp/src/tokens-composer"
@@ -627,6 +628,8 @@ interface S10BlueOutput {
   cssPatterns: { microInteractions: string[]; keyframeVariants: string[]; layoutRecommendations: string[]; sources: string[] } | null
   // ── INTENT VOCAB (resolveIntentVocab — facets from market ontology) ──
   vocab: any
+  // ── MARKETING KG (ADR-0037 Fase 1 — frameworks do corpus) ──
+  mktActions: any[]
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -649,6 +652,24 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
 
   // 4. Gaps
   const gaps = computeGaps(lead, nicho)
+
+  // 4b. MARKETING KG (ADR-0037 Fase 1): enriquece gaps com frameworks de marketing
+  const leadCtx = {
+    businessName: lead.title, category: cat, segment: seg,
+    city, district, score: lead.score_compound || 50,
+    rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+    isClaimed: lead.is_claimed || false, hasWebsite: !!lead.website,
+    competitorCount: competitors, topGaps: gaps.slice(0, 3).map(g => g.title),
+    schwartzLevel: lead.schwartz_label || "Problem Aware",
+  }
+  const mktFrameworks = await queryRelevantSkills(leadCtx).catch(() => [])
+  const mktActions = mktFrameworks.map(f => applyFramework(f, leadCtx))
+  // Inject marketing insights into gaps: add framework-specific diagnosis to first 3 gaps
+  for (let i = 0; i < Math.min(gaps.length, mktActions.length); i++) {
+    if (!gaps[i].desc.includes(mktActions[i].diagnosis.slice(0, 30))) {
+      gaps[i].desc = gaps[i].desc + " " + mktActions[i].recommendation
+    }
+  }
 
   // 5. Copy (S10RaioXPipeline + DeepSeek refine)
   const s10pipeline = new S10RaioXPipeline()
@@ -842,6 +863,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     cssPatterns,
     // Intent vocab (resolveIntentVocab → facets driven by market ontology)
     vocab: resolveIntentVocab(seg, ontology),
+    // Marketing KG actions (ADR-0037 Fase 1)
+    mktActions,
   }
 }
 
@@ -1335,6 +1358,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
         designSystems: blue.vocab.recommendedDesignSystems,
         reasoning: blue.vocab.reasoning?.slice(0, 3),
       } : { source: 'vocab-offline' },
+      // ── MARKETING KG TRACE (ADR-0037 Fase 1) ──
+      _mkt: blue.mktActions?.length ? {
+        skillsUsed: blue.mktActions.length,
+        topFrameworks: blue.mktActions.slice(0, 3).map((a: any) => ({ diagnosis: a.diagnosis?.slice(0, 80) || '?' })),
+      } : { source: 'mkt-offline' },
     }
 
     // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
