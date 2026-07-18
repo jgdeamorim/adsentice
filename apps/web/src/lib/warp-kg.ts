@@ -255,7 +255,7 @@ export async function queryDesignBestPractices(segment: string, surface: string)
  *  Returns components with a11y data for HTML generation. */
 export async function queryComponentsByIntent(intent: string, surface?: string, segment?: string): Promise<{
   name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
-  tokens: string[]; category: string; intent: string; edges: string[]
+  tokens: string[]; category: string; intent: string; edges: string[]; description: string
 }[]> {
   try {
     const vec = await embedQuery(`${intent} ${surface || ''} ${segment || ''} design system component`)
@@ -287,6 +287,7 @@ export async function queryComponentsByIntent(intent: string, surface?: string, 
         category: (pl.category as string) || "layout",
         intent: (pl.intent as string) || "",
         edges: (pl.edges as string[]) || [],
+        description: (pl.description as string) || (pl.text as string) || "",
       }
     }).filter(c => !seen.has(c.id) && seen.add(c.id) !== undefined).slice(0, 8)
   } catch {
@@ -554,7 +555,7 @@ export async function queryMediaAnimation(segment: string): Promise<{
  *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */
 export async function fetchComponentsByIds(ids: string[]): Promise<{
   name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
-  tokens: string[]; category: string; intent: string; edges: string[]
+  tokens: string[]; category: string; intent: string; edges: string[]; description: string
 }[]> {
   if (!ids.length) return []
   try {
@@ -589,6 +590,7 @@ export async function fetchComponentsByIds(ids: string[]): Promise<{
         category: (pl.category as string) || "layout",
         intent: (pl.intent as string) || "",
         edges: (pl.edges as string[]) || [],
+        description: (pl.description as string) || (pl.text as string) || "",
       }
     }).filter(c => !seen.has(c.id) && seen.add(c.id) !== undefined)
   } catch {
