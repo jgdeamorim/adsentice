@@ -1391,6 +1391,10 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
         reasoning: blue.vocab.reasoning?.slice(0, 3),
       } : { source: 'vocab-offline' },
       // ── MARKETING KG TRACE (ADR-0037 Fase 1) ──
+      _k0: blue.k0Templates?.length ? {
+        templatesFound: blue.k0Templates.length,
+        top: blue.k0Templates.slice(0, 3).map((t: any) => ({ source: t.source, role: t.nextjsRole, score: Math.round((t.score || 0) * 100) / 100 })),
+      } : { source: 'k0-offline' },
       _mkt: blue.mktFrameworks?.length ? {
         skillsUsed: blue.mktFrameworks.length,
         topFrameworks: blue.mktFrameworks.slice(0, 3).map((f: any) => ({ skill: f.skillName || '?', source: f.source, score: Math.round((f.score || 0) * 100) / 100 })),
