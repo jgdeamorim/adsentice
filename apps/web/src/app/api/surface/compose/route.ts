@@ -8,6 +8,31 @@ import { compose, composeS10 } from "@/lib/warp-composer"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+
+// ADR-0033 N5 — Quality Gate inline. 5 checks heurísticos. $0.
+// Regex dentro de string evita erro de compilação SWC.
+function qualityGate(html: string) {
+  const roles = html.split('role="').length - 1
+  const labels = html.split('aria-label="').length - 1
+  const checks: Record<string,boolean> = {
+    a11y: roles >= 4 && labels >= 6,
+    performance: html.includes("font-display:swap") && html.includes("preconnect"),
+    schema: html.includes("application/ld+json") && html.includes('"name":"'),
+    semantic: html.includes("<header ") && html.includes("<main ") && html.includes("<footer"),
+    responsive: html.includes("viewport") && html.includes("@media"),
+  }
+  const score = Object.values(checks).filter(Boolean).length
+  return { passed: score >= 4, score, checks,
+    details: {
+      a11y: roles+" roles, "+labels+" labels",
+      performance: "font-display:"+html.includes("font-display:swap")+" preconnect:"+html.includes("preconnect"),
+      schema: "JSON-LD:"+html.includes("application/ld+json"),
+      semantic: "header:"+html.includes("<header ")+" main:"+html.includes("<main ")+" footer:"+html.includes("<footer"),
+      responsive: "viewport:"+html.includes("viewport")+" @media:"+html.includes("@media"),
+    }
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -17,7 +42,9 @@ export async function POST(request: Request) {
       const result = await composeS10(body.place_id)
       if (!result) return NextResponse.json({ error: "Lead not found or S10 generation failed" }, { status: 404 })
       // HTML limpo (cliente) + meta sidecar (trace interno — ADR-0033 N4.4, padrão s10_generator.py)
-      return NextResponse.json({ html: result.html, meta: result.meta, _meta: { pipeline: "composeS10", source: "Supabase + DeepSeek V4" } })
+      const qg = qualityGate(result.html)
+      const metaWithQG = { ...(result.meta as Record<string,unknown>), qualityGate: qg }
+      return NextResponse.json({ html: result.html, meta: metaWithQG, _meta: { pipeline: "composeS10", source: "Supabase + DeepSeek V4" } })
     }
 
     // GENERIC COMPOSER: compose with Intend (no real data)
