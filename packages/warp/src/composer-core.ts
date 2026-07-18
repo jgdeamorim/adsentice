@@ -1093,6 +1093,28 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 'footer{text-align:center;padding:' + T.sectionSpacing + ' 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:' + (T.spacing[4] || '2rem') + '}\n' +
 'footer span{color:' + T.primary + ';font-weight:600}\n' +
 '@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}\n' +
+(function() {
+  let css = ''
+  const cp = output.cssPatterns
+  if (!cp) return css
+  if (cp.microInteractions?.length) {
+    css += '/* CORPUS: micro-interactions */\n'
+    for (const text of cp.microInteractions) {
+      const rules = text.match(/\.[a-z][a-z-]+:[a-z]+\s*\{[^}]+\}/g)
+      if (rules) for (const r of rules) { if (!css.includes(r)) css += r + '\n' }
+      const dur = text.match(/duration[:\s]+(\d+ms)/g)
+      if (dur && !css.includes('transition-duration')) css += '.card,.info-card,.gap{transition-duration:' + dur[0].replace(/duration[:\s]+/, '') + '}\n'
+    }
+  }
+  if (cp.layoutRecommendations?.length) {
+    css += '/* CORPUS: layout hints */\n'
+    for (const text of cp.layoutRecommendations) {
+      const spacing = text.match(/(\d+(?:\.\d+)?(?:rem|px))\s*(?:grid|spacing|gap|rhythm)/i)
+      if (spacing) css += '.section{--corpus-gap:' + spacing[1] + '}\n'
+    }
+  }
+  return css
+})() +
 '</style>\n' +
 '<script type="application/ld+json">\n' +
 '(function() {
