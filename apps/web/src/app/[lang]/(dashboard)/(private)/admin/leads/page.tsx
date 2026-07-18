@@ -38,6 +38,7 @@ interface LeadRow {
   l2_has_analytics?: boolean | null; l2_domain_rank?: number | null
   l2_country_iso_code?: string | null; l2_enriched_at?: string | null
   l2_content_maturity?: number | null; l2_content_gaps?: Record<string, unknown> | null
+  l3_social_links?: { platform: string; url: string }[] | null; l3_whatsapp?: string | null; l3_emails?: string[] | null
   place_id?: string | null
   business_status?: string | null; categories_arr?: string[] | null
   price_level?: number | null; city?: string | null; district?: string | null
@@ -69,6 +70,8 @@ const LeadsPage = async ({ params, searchParams }: {
   let totalScore = 0
   let withWebsite = 0
   let withPhone = 0
+  let withSocial = 0
+  let withWhatsApp = 0
   let categories: { category: string; count: number }[] = []
   let schwartzDist: { level: number; label: string; count: number }[] = []
 
@@ -103,6 +106,8 @@ const LeadsPage = async ({ params, searchParams }: {
       totalScore = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
       withWebsite = list.filter((r: any) => r.website).length
       withPhone = list.filter((r: any) => r.phone).length
+      withSocial = list.filter((r: any) => r.l3_social_links && (Array.isArray(r.l3_social_links) ? r.l3_social_links.length > 0 : false)).length
+      withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
       const catCounts: Record<string, number> = {}
 
       for (const r of list) { if (r.category) { const k = r.category;
@@ -163,9 +168,9 @@ return { level: l, label: schwartzLabels[l], count: n } })
           trendNumber={String(withWebsite)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats="50" title='Places Únicos'
-          subtitle='Deduplicado' avatarColor='secondary' avatarIcon='ri-fingerprint-line'
-          trendNumber="50" trend='positive' />
+        <CardStatVertical stats={withSocial.toString()} title='Rede Social'
+          subtitle={`${withWhatsApp} c/ WhatsApp`} avatarColor='info' avatarIcon='ri-share-line'
+          trendNumber={String(withSocial)} trend='positive' />
       </Grid>
 
       {/* Filter Bar — Schwartz + Categories */}

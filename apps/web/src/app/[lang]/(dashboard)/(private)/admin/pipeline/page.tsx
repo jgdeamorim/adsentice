@@ -29,28 +29,33 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
 
   const _dashboard = await getAdminDashboardData()
 
-  // ═══ Dados REAIS do Supabase (agregado de TODAS as buscas) ═══
+  // ═══ Dados REAIS do Supabase — 1 query única (dedup place_id · v089 fix double-query + cap) ═══
   let categoryCounts: { category: string; count: number; label: string }[] = []
   let avgScoreAll = 0
-  let supabaseTotal = 0
+  const enrichmentCounts = { l0: 0, l1: 0, l2: 0, l3: 0, l5: 0 }
 
   try {
     const supabase = getAdminClient()
-    const { data, error } = await supabase.from("discovery_listings").select("place_id,score_compound,schwartz_level,schwartz_label,category,enrichment_level").limit(3000)
+    const { data, error } = await supabase.from("discovery_listings")
+      .select("place_id,score_compound,category,enrichment_level,phone,l3_social_links,l3_whatsapp,cnpj_enriched")
+      .order("enrichment_level", { ascending: false }).limit(2000)
 
     if (!error && data?.length) {
-      // Dedup by place_id (keep highest enrichment_level)
       const deduped = new Map<string, any>()
 
-      for (const r of data as any[]) { const e = deduped.get(r.place_id);
-
- if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) deduped.set(r.place_id, r) }
+      for (const r of data as any[]) {
+        const e = deduped.get(r.place_id)
+        if (!e || (r.enrichment_level || 0) > (e.enrichment_level || 0)) deduped.set(r.place_id, r)
+      }
 
       const list = Array.from(deduped.values())
+      enrichmentCounts.l0 = list.length
+      enrichmentCounts.l1 = list.filter((r: any) => (r.enrichment_level || 0) >= 1).length
+      enrichmentCounts.l2 = list.filter((r: any) => (r.enrichment_level || 0) >= 2).length
+      enrichmentCounts.l3 = list.filter((r: any) => (r.enrichment_level || 0) >= 3).length
+      enrichmentCounts.l5 = list.filter((r: any) => r.cnpj_enriched).length
 
-      supabaseTotal = list.length
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
-
       avgScoreAll = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
       const catCounts: Record<string, number> = {}
 
@@ -58,34 +63,6 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       categoryCounts = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n, label: CAT_SHORT[c] || c }))
     }
   } catch { /* Supabase offline */ }
-
-  // Fallback: use Redis data if Supabase is empty
-  // Build enrichment-level counts from Supabase data
-  const enrichmentCounts = { l0: supabaseTotal, l1: 0, l2: 0, l5: 0 }
-
-  try {
-    const supabase = getAdminClient()
-    const { data: l1Data } = await supabase.from("discovery_listings").select("place_id,enrichment_level").limit(3000)
-
-    if (l1Data) {
-      const deduped = new Map<string, number>()
-
-      for (const r of l1Data as any[]) {
-        const existing = deduped.get(r.place_id)
-
-        if (!existing || (r.enrichment_level || 0) > existing) deduped.set(r.place_id, r.enrichment_level || 0)
-      }
-
-      enrichmentCounts.l0 = deduped.size
-      enrichmentCounts.l1 = Array.from(deduped.values()).filter(v => v >= 1).length
-      enrichmentCounts.l2 = Array.from(deduped.values()).filter(v => v >= 2).length
-    }
-
-    // CNPJ enriched count (ADR-0028)
-    const { data: cnpjData } = await supabase.from("discovery_listings").select("place_id").eq("cnpj_enriched", true).limit(3000)
-
-    if (cnpjData) enrichmentCounts.l5 = cnpjData.length
-  } catch { /* keep defaults */ }
 
   // ═══ Funil Ativo de Captação adsentice ═══
   const funnelStages = [

@@ -501,7 +501,7 @@ export async function POST(request: NextRequest) {
       }
       // ── PERSISTÊNCIA (as funções L2/L3 só atualizam in-memory; no fluxo L0 o
       //    persistDiscovery grava — aqui gravamos PATCH por id da row carregada) ──
-      const L2L3_COLS = new Set(["enrichment_level","l2_onpage_score","l2_lighthouse_seo","l2_lighthouse_pwa","l2_enriched_at","l2_cost_usd","l2_content_maturity","l2_content_gaps","l2_social_links","l3_social_links","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_seo_checks","l2_has_analytics","l2_domain_rank","l2_lighthouse_performance","l2_lighthouse_accessibility","l2_lighthouse_best_practices","l2_meta_title","l2_meta_description","l3_whatsapp","l2_technology_categories","l3_emails","l2_country_iso_code","l2_emails","l2_cms"])
+      const L2L3_COLS = new Set(["phone","enrichment_level","l2_onpage_score","l2_lighthouse_seo","l2_lighthouse_pwa","l2_enriched_at","l2_cost_usd","l2_content_maturity","l2_content_gaps","l2_social_links","l3_social_links","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_seo_checks","l2_has_analytics","l2_domain_rank","l2_lighthouse_performance","l2_lighthouse_accessibility","l2_lighthouse_best_practices","l2_meta_title","l2_meta_description","l3_whatsapp","l2_technology_categories","l3_emails","l2_country_iso_code","l2_emails","l2_cms"])
       // colunas INTEGER no Postgres — a API manda decimais (onpage_score 98.9) → arredondar (fix 22P02, medido)
       const INT_COLS = new Set(["enrichment_level","l2_onpage_score","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_domain_rank","l2_content_maturity"])
       let persisted = 0
