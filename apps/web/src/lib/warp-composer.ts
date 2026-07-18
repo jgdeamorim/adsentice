@@ -843,8 +843,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
 // g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials.
 // ═══════════════════════════════════════════════════════════════
 
-// Passthrough: classes = gramatica estrutural. CSS custom properties provêm scoping.
-// DAG #19: NAO-APLICADO. Twin benchmark: prefixo s10- reduz similaridade com referencia.
+// No-op: classes sao gramatica estrutural do LayoutTree.
+// Scoping via CSS custom properties — DAG #19: NAO-APLICADO.
 const cls = (name: string): string => name
 
 type SlotRenderCtx = {
