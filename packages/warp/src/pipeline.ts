@@ -97,7 +97,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 220, emotion: 'Confiança, higiene, profissionalismo',
     headingFont: 'Inter', bodyFont: 'Inter',
     spacing: 'default', radius: 'moderate', motionStyle: 'zero',
-    colors: ['#2563EB', '#1E40AF', '#3B82F6'],
+    colors: ['oklch(55% 35% 220)', 'oklch(40% 35% 220)', 'oklch(65% 28% 220)'],
     landingPattern: 'Hero + Serviços + Confiança + CTA',
     cta: 'Agendar Consulta',
     businessKeywords: 'dentista médico clínica odontológica hospital saúde fisioterapia psicólogo veterinário',
@@ -106,7 +106,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 340, emotion: 'Feminino, luxo, elegância',
     headingFont: 'Playfair Display', bodyFont: 'Inter',
     spacing: 'airy', radius: 'round', motionStyle: 'subtle',
-    colors: ['#E8B4B8', '#D4AF37', '#C084FC'],
+    colors: ['oklch(55% 35% 340)', 'oklch(40% 35% 340)', 'oklch(65% 28% 340)'],
     landingPattern: 'Hero + Serviços + Depoimentos + Booking',
     cta: 'Agendar Horário',
     businessKeywords: 'beleza salão barbearia estética spa cosmético luxo feminino cuidados pessoais',
@@ -115,7 +115,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 260, emotion: 'Autoridade, tradição, confiança',
     headingFont: 'Inter', bodyFont: 'Inter',
     spacing: 'default', radius: 'sharp', motionStyle: 'zero',
-    colors: ['#1E3A5F', '#334155', '#475569'],
+    colors: ['oklch(55% 35% 260)', 'oklch(40% 35% 260)', 'oklch(65% 28% 260)'],
     landingPattern: 'Hero + Especialidades + Credenciais + CTA',
     cta: 'Solicitar Consultoria',
     businessKeywords: 'advocacia contabilidade arquitetura consultoria engenharia profissional corporativo',
@@ -124,7 +124,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 25, emotion: 'Apetite, calor, acolhimento',
     headingFont: 'Poppins', bodyFont: 'Open Sans',
     spacing: 'compact', radius: 'moderate', motionStyle: 'moderate',
-    colors: ['#EA580C', '#DC2626', '#F97316'],
+    colors: ['oklch(55% 35% 25)', 'oklch(40% 35% 25)', 'oklch(65% 28% 25)'],
     landingPattern: 'Hero + Cardápio + Fotos + Delivery + CTA',
     cta: 'Ver Cardápio',
     businessKeywords: 'restaurante pizzaria lanchonete comida delivery alimentação gastronomia café bar',
@@ -133,7 +133,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 250, emotion: 'Confiança, praticidade',
     headingFont: 'Inter', bodyFont: 'Inter',
     spacing: 'compact', radius: 'sharp', motionStyle: 'zero',
-    colors: ['#2563EB', '#7C3AED', '#059669'],
+    colors: ['oklch(55% 35% 250)', 'oklch(40% 35% 250)', 'oklch(65% 28% 250)'],
     landingPattern: 'Hero + Produtos + Localização + CTA',
     cta: 'Ver Produtos',
     businessKeywords: 'loja varejo pet shop farmácia drogaria supermercado material construção comércio',
@@ -142,7 +142,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 160, emotion: 'Crescimento, confiança, aprendizado',
     headingFont: 'Inter', bodyFont: 'Inter',
     spacing: 'default', radius: 'moderate', motionStyle: 'subtle',
-    colors: ['#059669', '#0284C7', '#6366F1'],
+    colors: ['oklch(55% 35% 160)', 'oklch(40% 35% 160)', 'oklch(65% 28% 160)'],
     landingPattern: 'Hero + Cursos + Metodologia + Depoimentos + CTA',
     cta: 'Agendar Aula',
     businessKeywords: 'escola colégio faculdade universidade curso treinamento infantil fundamental médio',
@@ -151,7 +151,7 @@ const SEGMENT_CLASSIFIER: Record<SegmentId, {
     hue: 30, emotion: 'Acolhimento, experiência, conforto',
     headingFont: 'Playfair Display', bodyFont: 'Inter',
     spacing: 'airy', radius: 'moderate', motionStyle: 'subtle',
-    colors: ['#D4AF37', '#CA8A04', '#A16207'],
+    colors: ['oklch(55% 35% 30)', 'oklch(40% 35% 30)', 'oklch(65% 28% 30)'],
     landingPattern: 'Hero + Acomodações + Fotos + Reservas + CTA',
     cta: 'Reservar Agora',
     businessKeywords: 'hotel pousada resort hostel turismo viagem hospedagem acolhimento experiência',
@@ -465,7 +465,7 @@ body { font-family: var(--font-body); background: var(--color-muted); color: var
   </div>
   <div class="card">
     <h3>⭐ Google Meu Negócio</h3>
-    <p style="color:#D4AF37;font-size:1.2rem">★★★★★</p>
+    <p style="color:var(--primary);font-size:1.2rem">★★★★★</p>
     <p>4.7 estrelas · 128 avaliações · Perfil verificado</p>
   </div>
   <div class="card">
