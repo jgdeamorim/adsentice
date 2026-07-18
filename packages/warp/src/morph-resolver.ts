@@ -277,6 +277,8 @@ export function resolveMorph(input: MorphInput): PerSlotMutations {
 // COMPOSE LAYOUT — Morphable Slot Composition
 // ═══════════════════════════════════════════════════════════════
 
+import type { ConversionStrategy } from './strategy-resolver'
+
 export interface LayoutIntent {
   surface: string            // 'S10' | 'S11' | 'S3' | 'S5'...
   segment: string            // 'saude' | 'beleza' | 'servicos'...
@@ -358,17 +360,22 @@ const TRIGGER_VARIANTS: Record<string, { heroStyle: string; ctaStyle: string; em
 export function composeLayout(
   intent: LayoutIntent,
   morph: PerSlotMutations,
+  strategy?: ConversionStrategy,
 ): ComposedLayout {
   const reasoning: string[] = []
   const slots: ComposedSlot[] = []
   const surface = intent.surface || 'S10'
   const grammar = SURFACE_GRAMMARS[surface] || SURFACE_GRAMMARS.S10
 
-  // ═══ A/B TESTING (deterministic: seed from score parity) ═══
-  const abVariant = intent.score % 2 === 0 ? 'A' : 'B'
+  // ═══ A/B TESTING ═══
+  // Com strategy (S11 · ADR-0037 F6): a variante É a estratégia (abLabel congelado pelo chamador).
+  // Sem strategy (S10 · caminho legado intacto): determinístico por paridade do score.
+  const abVariant = strategy?.abLabel ?? (intent.score % 2 === 0 ? 'A' : 'B')
   const abActive = surface === 'S10' || surface === 'S11'  // surfaces with enough traffic
-  const slotsVaried: string[] = abActive ? ['hero', 'cta'] : []
-  reasoning.push(`A/B test: variant=${abVariant} active=${abActive} (varied: ${slotsVaried.join(',')})`)
+  const slotsVaried: string[] = strategy ? [...strategy.emphasis] : (abActive ? ['hero', 'cta'] : [])
+  reasoning.push(strategy
+    ? `A/B ESTRATÉGIA: ${strategy.facet} (variant ${abVariant}, ${strategy.signalScore}pts) — ${strategy.hypothesis}`
+    : `A/B test: variant=${abVariant} active=${abActive} (varied: ${slotsVaried.join(',')})`)
 
   // ═══ TRIGGER ANALYSIS: which conversion triggers match this intent? ═══
   const activeTriggers: string[] = []
@@ -391,16 +398,18 @@ export function composeLayout(
       : intent.primaryEmotion.includes('Confiança') ? 'trust'
       : triggerStyle !== 'default' ? triggerStyle
       : 'default'
-    // A/B: variant B inverts urgency↔trust
-    const abAdjusted = abActive && abVariant === 'B' && slotsVaried.includes('hero')
-      ? (baseVariant === 'urgency' ? 'trust' : baseVariant === 'trust' ? 'urgency' : baseVariant)
-      : baseVariant
+    // Strategy define o hero diretamente; sem strategy, A/B legado inverte urgency↔trust
+    const abAdjusted = strategy
+      ? strategy.heroStyle
+      : (abActive && abVariant === 'B' && slotsVaried.includes('hero')
+        ? (baseVariant === 'urgency' ? 'trust' : baseVariant === 'trust' ? 'urgency' : baseVariant)
+        : baseVariant)
     reasoning.push(`Hero: ${abAdjusted} (base=${baseVariant}, AB=${abVariant}, triggers=${activeTriggers.slice(0,2)})`)
     slots.push({
       slotName: 'hero', variant: abAdjusted, abVariant: abActive ? abVariant : undefined,
       priority: 10, morphData: morph.hero, renderHint: 'animate',
-      copyHint: abAdjusted === 'urgency' ? 'Agitar a dor' : 'Prova social primeiro',
-      triggerHint: activeTriggers[0],
+      copyHint: strategy ? strategy.copyAngle : (abAdjusted === 'urgency' ? 'Agitar a dor' : 'Prova social primeiro'),
+      triggerHint: strategy ? strategy.facet : activeTriggers[0],
     })
   }
 
@@ -444,9 +453,11 @@ export function composeLayout(
     const baseCta = intent.primaryEmotion.includes('Urgência') || intent.schwartzLevel === 'Unaware'
       ? 'urgency' : intent.schwartzLevel === 'Most Aware' ? 'trust'
       : triggerStyle !== 'default' ? triggerStyle : 'default'
-    const abCta = abActive && abVariant === 'B' && slotsVaried.includes('cta')
-      ? (baseCta === 'urgency' ? 'trust' : baseCta === 'trust' ? 'urgency' : baseCta)
-      : baseCta
+    const abCta = strategy
+      ? strategy.ctaStyle
+      : (abActive && abVariant === 'B' && slotsVaried.includes('cta')
+        ? (baseCta === 'urgency' ? 'trust' : baseCta === 'trust' ? 'urgency' : baseCta)
+        : baseCta)
     reasoning.push(`CTA: ${abCta} (base=${baseCta}, AB=${abVariant})`)
     slots.push({
       slotName: 'cta', variant: abCta, abVariant: abActive ? abVariant : undefined,
@@ -478,25 +489,34 @@ export function composeLayout(
     reasoning.push(`Footer: ${footerV} (score=${intent.score})`)
   }
 
-  // ═══ GLOBAL STRATEGY ═══
+  // ═══ STRATEGY OVERLAY (S11 · ordem narrativa + ênfase da estratégia) ═══
+  if (strategy) {
+    const orderIdx = new Map(strategy.slotOrder.map((s, i) => [s, i]))
+    slots.sort((x, y) => (orderIdx.get(x.slotName) ?? 99) - (orderIdx.get(y.slotName) ?? 99))
+    slots.forEach((s, i) => { s.priority = Math.max(1, 10 - i) })
+    for (const s of slots) if (strategy.emphasis.includes(s.slotName)) s.renderHint = 'highlight'
+    reasoning.push(`Strategy overlay: ${strategy.slotOrder.join('→')} · ênfase: ${strategy.emphasis.join(',')} · pricing frame: ${strategy.pricingFrame}`)
+  }
+
+  // ═══ GLOBAL STRATEGY (narrativa — trace) ═══
   const urgencyCount = slots.filter(s => s.variant === 'urgency').length
   const trustCount = slots.filter(s => s.variant === 'trust').length
-  const strategy = urgencyCount > trustCount ? 'urgency-first'
+  const narrativeStrategy = urgencyCount > trustCount ? 'urgency-first'
     : intent.competitorCount > 10 ? 'data-first'
     : trustCount > urgencyCount ? 'trust-first'
     : 'balanced'
-  reasoning.push(`Strategy: ${strategy} (urgency=${urgencyCount}, trust=${trustCount})`)
+  reasoning.push(`Strategy: ${narrativeStrategy} (urgency=${urgencyCount}, trust=${trustCount})`)
 
   return {
     surface,
     slots,
-    strategy,
+    strategy: strategy ? strategy.facet : narrativeStrategy,
     abTest: {
       active: abActive,
       variant: abVariant,
-      hypothesis: abActive
+      hypothesis: strategy?.hypothesis ?? (abActive
         ? `Testando ${abVariant === 'A' ? 'controle' : 'variante'} em ${slotsVaried.join('+')} (score=${intent.score})`
-        : 'A/B testing not active for this surface',
+        : 'A/B testing not active for this surface'),
       slotsVaried,
     },
     reasoning,

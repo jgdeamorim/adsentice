@@ -28,6 +28,8 @@ export interface VocabFacets {
   animationFacets: string[]
   /** Facets para query de design-knowledge patterns */
   designFacets: string[]
+  /** Facets de conversão (vocab.conversion do KG · 8: urgency, scarcity, social_proof, guarantee, authority, liking, reciprocity, commitment) — ordenadas por prioridade do segmento */
+  conversionFacets: string[]
   /** Design systems recomendados para este intent */
   recommendedDesignSystems: string[]
   /** Facets de a11y requeridas */
@@ -47,6 +49,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['search', 'trust', 'star', 'data-display', 'health', 'chart', 'shield'],
     animationFacets: ['animation', 'keyframe', 'fade'],
     designFacets: ['clean', 'professional', 'clinical', 'spacious', 'typography'],
+    conversionFacets: ['social_proof', 'authority', 'guarantee'],
     recommendedDesignSystems: ['carbon_ibm', 'material3', 'primer_github'],
     a11yRequirements: ['wcag22', 'contrast', 'focus', 'keyboard'],
     performanceTargets: ['lcp', 'font-display', 'preconnect'],
@@ -56,6 +59,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['premium', 'star', 'spark', 'action', 'rating', 'cta'],
     animationFacets: ['motion', 'scroll', 'spring'],
     designFacets: ['vibrant', 'luxury', 'bold', 'round', 'premium'],
+    conversionFacets: ['liking', 'social_proof', 'urgency'],
     recommendedDesignSystems: ['polaris_shopify', 'open_props', 'material3'],
     a11yRequirements: ['wcag22', 'contrast', 'animation-reduced'],
     performanceTargets: ['lcp', 'font-display', 'webp'],
@@ -65,6 +69,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['trust', 'action', 'search', 'chart', 'cta', 'communication'],
     animationFacets: ['keyframe', 'animation', 'fade'],
     designFacets: ['professional', 'clean', 'structured', 'corporate'],
+    conversionFacets: ['authority', 'commitment', 'guarantee'],
     recommendedDesignSystems: ['atlassian', 'primer_github', 'tailwind_v4'],
     a11yRequirements: ['wcag22', 'contrast', 'keyboard', 'focus'],
     performanceTargets: ['lcp', 'font-display', 'preconnect'],
@@ -74,6 +79,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['action', 'star', 'rating', 'cta', 'food', 'search'],
     animationFacets: ['motion', 'scroll', 'spring', 'gesture'],
     designFacets: ['warm', 'appetizing', 'compact', 'round', 'vibrant'],
+    conversionFacets: ['social_proof', 'urgency', 'scarcity'],
     recommendedDesignSystems: ['open_props', 'material3', 'polaris_shopify'],
     a11yRequirements: ['wcag22', 'contrast', 'animation-reduced'],
     performanceTargets: ['lcp', 'font-display', 'webp', 'lazy-load'],
@@ -83,6 +89,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['action', 'cta', 'data-display', 'chart', 'search', 'trust'],
     animationFacets: ['animation', 'keyframe', 'fade'],
     designFacets: ['practical', 'functional', 'compact', 'clean'],
+    conversionFacets: ['scarcity', 'urgency', 'social_proof'],
     recommendedDesignSystems: ['tailwind_v4', 'atlassian', 'primer_github'],
     a11yRequirements: ['wcag22', 'keyboard', 'focus', 'contrast'],
     performanceTargets: ['lcp', 'cls', 'font-display'],
@@ -92,6 +99,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['search', 'action', 'star', 'trust', 'data-display', 'chart'],
     animationFacets: ['motion', 'animation', 'keyframe'],
     designFacets: ['editorial', 'academic', 'structured', 'spacious', 'typography'],
+    conversionFacets: ['authority', 'commitment', 'reciprocity'],
     recommendedDesignSystems: ['primer_github', 'atlassian', 'tailwind_v4'],
     a11yRequirements: ['wcag22', 'keyboard', 'contrast', 'focus', 'screen-reader'],
     performanceTargets: ['lcp', 'font-display', 'preconnect', 'lazy-load'],
@@ -101,6 +109,7 @@ const SEGMENT_FACET_MAP: Record<string, Partial<VocabFacets>> = {
     iconFacets: ['star', 'premium', 'rating', 'action', 'cta', 'search'],
     animationFacets: ['motion', 'scroll', 'spring', 'gesture'],
     designFacets: ['warm', 'welcoming', 'spacious', 'airy', 'premium'],
+    conversionFacets: ['social_proof', 'liking', 'guarantee'],
     recommendedDesignSystems: ['polaris_shopify', 'material3', 'open_props'],
     a11yRequirements: ['wcag22', 'contrast', 'animation-reduced'],
     performanceTargets: ['lcp', 'font-display', 'webp'],
@@ -175,6 +184,7 @@ export function resolveIntentVocab(
       iconFacets: ['search', 'action', 'star', 'chart'],
       animationFacets: ['keyframe', 'animation', 'fade'],
       designFacets: ['neutral', 'modern', 'clean'],
+      conversionFacets: ['social_proof', 'guarantee', 'reciprocity'],
       recommendedDesignSystems: ['tailwind_v4', 'material3'],
       a11yRequirements: ['wcag22', 'contrast', 'keyboard'],
       performanceTargets: ['lcp', 'font-display', 'preconnect'],
@@ -200,6 +210,7 @@ export function resolveIntentVocab(
   }
 
   // ── CONVERSION TRIGGERS ──
+  const conversionFacets = [...(base.conversionFacets || [])]
   const triggers = ontology.niche?.conversionTriggers || []
   for (const t of triggers) {
     const tLower = t.toLowerCase()
@@ -209,6 +220,10 @@ export function resolveIntentVocab(
         reasoning.push(`Trigger "${t}" → icons(${facets.join(',')})`)
       }
     }
+    // trigger → conversion facet (vocab.conversion do KG)
+    if ((tLower.includes('gratuit') || tLower.includes('grátis')) && !conversionFacets.includes('reciprocity')) conversionFacets.push('reciprocity')
+    if (tLower.includes('garantia') && !conversionFacets.includes('guarantee')) conversionFacets.push('guarantee')
+    if (tLower.includes('agend') && !conversionFacets.includes('commitment')) conversionFacets.push('commitment')
   }
 
   // ── PSYCHOLOGY EMOTION ──
@@ -248,6 +263,7 @@ export function resolveIntentVocab(
     iconFacets: [...iconFacets].slice(0, 8),
     animationFacets: [...animationFacets].slice(0, 5),
     designFacets: [...designFacets].slice(0, 6),
+    conversionFacets: conversionFacets.slice(0, 5),
     recommendedDesignSystems: [...recDs].slice(0, 3),
     a11yRequirements: [...a11y].slice(0, 6),
     performanceTargets: [...(base.performanceTargets || [])].slice(0, 4),

@@ -141,8 +141,100 @@ const S10_SPECIALIST: SurfaceSpecialist = {
   },
 }
 
+// ═══════════════════════════════════════════════════════════════
+// S11 SPECIALIST — Landing Page do Cliente (ADR-0037 Fase 6)
+// Gramática: hero→trust→how→capabilities→stats→voice→pricing→faq→cta
+// Ontologia por slot (referência OD :7456 projeto adsentice · gold):
+//   hero=convencer em 10s · trust=prova social · how=reduzir fricção
+//   capabilities=evidência não promessa · stats=números honestos
+//   voice=identificação (reviews reais) · pricing=remover risco
+//   faq=dissolver objeção · cta=último empurrão
+// LEI: honesto — zero métrica/depoimento/preço inventado.
+// ═══════════════════════════════════════════════════════════════
+
+const S11_SPECIALIST: SurfaceSpecialist = {
+  surfaceId: 'S11',
+  name: 'Landing Page do Cliente',
+  skills: ['copywriting', 'psychology', 'cro', 'local-seo', 'free-tools'],
+  inferLayout(context, components) {
+    const byRole = (role: string) => components.find(c =>
+      c.id.includes(role) || c.component.name.toLowerCase().includes(role))
+    const heroComp = byRole('badge') || byRole('chip')
+    const cardComp = byRole('card') || byRole('bento')
+    const btnComp = byRole('button') || byRole('cta')
+    const accordionComp = byRole('accordion') || byRole('collaps')
+    const statComp = byRole('stat') || byRole('progress') || cardComp
+
+    // ═══ S11 DESIGN GRAMMAR (landing · container largo · seções full-width) ═══
+    // Cada slot emite objetivo + tokens — o renderer aplica. g0 doctrine.
+    return {
+      id: 'layout.s11',
+      type: 's11-landing',
+      layoutHints: {
+        container: '1120px',
+        sectionSpacing: '80px',
+        sectionSpacingTablet: '48px',
+        sectionSpacingPhone: '32px',
+        cardPadding: '1.75rem',
+        buttonRadius: '99px',
+        buttonPaddingBlock: '.875rem',
+        buttonPaddingInline: '2rem',
+        footerPadding: '2.5rem',
+      },
+      slots: {
+        hero: {
+          type: 'hero-landing', objective: 'convencer — comunicar a proposta em 10s',
+          component: heroComp?.id || 'hero-badge', badge: heroComp?.id || 'badge',
+          tokens: { padding: '5rem 2rem', minHeight: '60vh' },
+        },
+        trust: {
+          type: 'trust-band', objective: 'prova social — rating real, verificação, presença',
+          component: cardComp?.id || 'trust-badge',
+          tokens: { padding: '1.5rem 2rem', gap: '2rem' },
+        },
+        how: {
+          type: 'steps', objective: 'explicar o caminho — reduzir fricção do primeiro passo',
+          component: cardComp?.id || 'step-card', steps: { count: 3 },
+          tokens: { padding: '1.75rem', gap: '1.5rem', radius: 'var(--radius)' },
+        },
+        capabilities: {
+          type: 'feature-grid', objective: 'evidência não promessa — especialidades reais',
+          component: cardComp?.id || 'feature-card', columns: 3,
+          tokens: { padding: '1.75rem', gap: '1.25rem', radius: 'var(--radius)' },
+        },
+        stats: {
+          type: 'stats-band', objective: 'ancorar valor com números honestos (lead + mercado)',
+          component: statComp?.id || 'stat-tile',
+          tokens: { padding: '3rem 2rem', gap: '2.5rem' },
+        },
+        voice: {
+          type: 'voice-band', objective: 'identificação — reputação real (zero depoimento inventado)',
+          component: cardComp?.id || 'voice-card',
+          tokens: { padding: '2rem', radius: 'var(--radius)' },
+        },
+        pricing: {
+          type: 'offer-card', objective: 'remover risco — frame da estratégia (free-first/guarantee/anchor/steps)',
+          component: cardComp?.id || 'offer-card', button: btnComp?.id || 'cta-button',
+          tokens: { padding: '2.5rem', radius: 'var(--radius)', border: '2px solid var(--primary)' },
+        },
+        faq: {
+          type: 'faq-accordion', objective: 'dissolver objeção — ângulo da estratégia',
+          component: accordionComp?.id || 'accordion', items: { count: 4 },
+          tokens: { padding: '1.25rem 1.5rem', radius: 'var(--radius-sm)', gap: '.75rem' },
+        },
+        cta: {
+          type: 'cta-final', objective: 'converter — último empurrão com o trigger dominante',
+          component: btnComp?.id || 'cta-button', style: 'pill',
+          tokens: { sectionPadding: '4rem 2rem', buttonRadius: '99px', buttonPadding: '.875rem 2rem' },
+        },
+      },
+    }
+  },
+}
+
 // Register built-in specialists
 registerSurfaceSpecialist(S10_SPECIALIST)
+registerSurfaceSpecialist(S11_SPECIALIST)
 
 
 // ═══════════════════════════════════════════════════════════════
