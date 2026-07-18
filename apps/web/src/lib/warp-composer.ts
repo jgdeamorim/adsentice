@@ -843,6 +843,10 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
 // g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials.
 // ═══════════════════════════════════════════════════════════════
 
+// No-op passthrough: CSS classes sao gramatica estrutural do LayoutTree.
+// Scoping via CSS custom properties (--primary, --spacing-xs, etc).
+const cls = (name: string): string => name
+
 type SlotRenderCtx = {
   output: S10BlueOutput
   T: ReturnType<typeof unifyTokens>
