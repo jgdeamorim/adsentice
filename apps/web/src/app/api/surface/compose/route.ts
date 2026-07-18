@@ -43,7 +43,15 @@ export async function GET() {
       `${supaUrl}/rest/v1/discovery_listings?select=place_id,title,category,city,district,score_compound,rating_value,rating_votes&order=score_compound.desc&limit=24`,
       { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, cache: "no-store" }
     )
-    const leads = res.ok ? await res.json() : []
+    const rows = res.ok ? await res.json() : []
+    // dedup por place_id — discovery_listings tem duplicatas (1.302 medidas em 2026-07-18;
+    // mesma razão do DISTINCT ON nas views v021). Mantém a 1ª (maior score, já ordenado).
+    const seen = new Set<string>()
+    const leads = (rows as { place_id: string }[]).filter(l => {
+      if (seen.has(l.place_id)) return false
+      seen.add(l.place_id)
+      return true
+    })
     return NextResponse.json({
       leads,
       info: "POST { place_id, surface: 'S10'|'S11' } → pipeline real (specialists+estratégias) · POST { surface, segment, plan } → compose() genérico",

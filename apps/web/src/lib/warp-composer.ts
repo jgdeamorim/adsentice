@@ -1315,8 +1315,19 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     // 2b. Concorrência real (L2 — deterministic)
     let competitors = 0
     try {
-      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
-      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+      // count DISTINCT place_id (RPC migration 016) — a série tem 1 row por place_id POR SEARCH;
+      // count=exact contava rows e inflava 2× (102 rows vs 51 dentistas reais, medido 2026-07-18)
+      const rpc = await fetch(`${supabaseUrl}/rest/v1/rpc/count_unique_places`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ cat: lead.category || "", city_name: city }),
+      })
+      if (rpc.ok) competitors = parseInt(await rpc.text(), 10) || 0
+      if (!competitors) {
+        // fallback: método legado (rows) se a RPC estiver indisponível
+        const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
+        competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+      }
     } catch (e: unknown) { void e }
 
     // ── CACHE CHECK (L1 memory LRU + L2 Redis :6396) ──
@@ -1738,8 +1749,19 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     // 2b. Concorrência (count=exact — reuso do padrão S10)
     let competitors = 0
     try {
-      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
-      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+      // count DISTINCT place_id (RPC migration 016) — a série tem 1 row por place_id POR SEARCH;
+      // count=exact contava rows e inflava 2× (102 rows vs 51 dentistas reais, medido 2026-07-18)
+      const rpc = await fetch(`${supabaseUrl}/rest/v1/rpc/count_unique_places`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ cat: lead.category || "", city_name: city }),
+      })
+      if (rpc.ok) competitors = parseInt(await rpc.text(), 10) || 0
+      if (!competitors) {
+        // fallback: método legado (rows) se a RPC estiver indisponível
+        const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
+        competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+      }
     } catch (e: unknown) { void e }
 
     // 3. Tokens (M9 + palette — reuso)
