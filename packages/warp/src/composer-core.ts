@@ -307,6 +307,7 @@ import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
 import { TokenComposer } from "./tokens-composer"
+import { resolveIntentVocab } from "./vocab-resolver"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -1229,9 +1230,21 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const odSystem = await queryDesignSystem(seg, "S10").catch(() => null)
     const materio = await queryMaterioTokens().catch(() => null)
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
-    const icons = await queryMediaIcons().catch(() => ({} as Record<string, string>))
+// ═══ INTENT VOCAB (pre-L3: resolve facets before Qdrant queries) ═══
+    const preVocab = resolveIntentVocab(seg, {
+      persona: { who: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: '', urgency: '' },
+      psychology: { primaryEmotion: seg === 'saude' ? 'Confiança + Profissionalismo' : seg === 'beleza' ? 'Autoestima + Transformação' : 'Resultado + Crescimento', colorPsychology: '', urgencyLevel: 'medium', toneOfVoice: '', copyRules: [], triggers: [] },
+      designSystem: { recommended: '', atmosphere: '', colorPalette: { primary: '', secondary: '', accent: '', hue: 0 }, typography: '', spacingStyle: '', motionStyle: '' },
+      marketData: { competitors: 5, category: lead.category || seg, categoryDisplay: lead.category || seg, city, district, avgScore: 32, claimed: lead.is_claimed || false, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 },
+      niche: { name: nicho.name, specialties: nicho.specialties, audience: nicho.audience, keywords: nicho.keywords, pains: nicho.pains, objections: nicho.objections || [], conversionTriggers: nicho.conversionTriggers },
+      skills: [],
+      computedAt: new Date().toISOString(),
+    })
+    const icons = await queryMediaIcons(preVocab.iconFacets).catch(() => ({} as Record<string, string>))
     const cssPatterns = await queryCSSPatterns(seg, 'S10').catch(() => null)
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')
+
+
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
     const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)

@@ -550,22 +550,26 @@ export async function queryMediaAnimation(segment: string): Promise<{
   } catch { return null }
 }
 
-/** ADR-0036 Fase 4 — query SVG icons do corpus (kind=component, category=icon).
- *  Retorna map facet→SVG markup. SVG no campo `text`, facets no array `facets`.
- *  KG: vocab.facets.* → media.icon_set.lucide → has_facet (search/chat/star/shield...).
+/** ADR-0036 Fase 5 — query SVG icons do corpus, filtered by intent vocab facets.
+ *  Retorna map facet→SVG markup. Vocab facets (resolveIntentVocab) narrow search.
+ *  KG: vocab.facets.* → media.icon_set.lucide → has_facet.
  *  Se Qdrant offline ou sem hits, retorna {} — GREEN usa texto puro. */
-export async function queryMediaIcons(): Promise<Record<string, string>> {
+export async function queryMediaIcons(iconFacets?: string[]): Promise<Record<string, string>> {
   try {
+    const filter: Record<string, unknown> = { must: [
+      { key: "kind", match: { value: "component" } },
+      { key: "category", match: { value: "icon" } },
+    ] }
+    if (iconFacets?.length) {
+      filter["should"] = [
+        { key: "facets", match: { any: iconFacets } },
+        { key: "id", match: { any: iconFacets.map(f => 'icon-' + f) } },
+      ]
+    }
     const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filter: { must: [
-          { key: "kind", match: { value: "component" } },
-          { key: "category", match: { value: "icon" } },
-        ] },
-        limit: 30, with_payload: true,
-      }),
+      body: JSON.stringify({ filter, limit: 30, with_payload: true }),
       signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return {}
