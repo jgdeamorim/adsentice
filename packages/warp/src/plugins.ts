@@ -203,12 +203,12 @@ export const aestheticEnforcementPlugin: Plugin = {
       const darkModeCSS = `
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1a1a2e;
-    --color-fg: #e2e8f0;
-    --color-card: #16213e;
-    --color-muted: #1a1a2e;
-    --color-muted-fg: #64748b;
-    --color-border: #334155;
+    --bg: #0f172a;
+    --fg: #e2e8f0;
+    --card: #1e293b;
+    --muted: #1e293b;
+    --muted-fg: #94a3b8;
+    --border: #334155;
   }
 }`
       html = html.replace('</style>', `${darkModeCSS}\n</style>`)

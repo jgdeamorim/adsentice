@@ -141,6 +141,51 @@
       ],
       "storage": "rsxt:v0 → código similar no corpus · rsxt:k0 → dependency graph",
       "doctrine": "L3 busca código similar (SENSOR). L6 LLM gera código (ÁRBITRO). Pattern accumulation: código gerado → pattern pro futuro."
+    },
+    {
+      "intent": "design_composition",
+      "triggers": [
+        "gerar design",
+        "css",
+        "layout",
+        "paleta",
+        "tipografia",
+        "spacing",
+        "componente visual",
+        "renderizar",
+        "hero section",
+        "score card",
+        "landing page design",
+        "tokens css",
+        "oklch",
+        "shadow system",
+        "radius scale",
+        "motion duration",
+        "font pairing",
+        "color palette",
+        "dark mode",
+        "responsive grid",
+        "glassmorphism",
+        "backdrop blur"
+      ],
+      "pipeline": "design_composition",
+      "layers": [
+        "rsxt:L0",
+        "rsxt:L1",
+        "rsxt:L3",
+        "rsxt:L4",
+        "rsxt:L5",
+        "rsxt:L6"
+      ],
+      "tools": [
+        "queryDesignSystem",
+        "queryMaterioTokens",
+        "queryMediaAnimation",
+        "queryComponentsByIntent",
+        "queryDesignBestPractices"
+      ],
+      "storage": "rsxt:v0 → design systems similares · rsxt:k0 → component dependency graph · rsxt:adsentice-materio → token values",
+      "doctrine": "DESIGN COMPOSITION RULES (medido=verdade):\nL0: Extrai segmento, superfície, score do lead. Determina o QUE compor.\nL1: Classifica: tom emocional (confiança/luxo/energia/acolhimento), público-alvo, faixa de renda.\nL3: SENSOR — busca design systems que MATCHAM o segmento (NUNCA usa hint de outro nicho). Threshold 0.30.\n     queryDesignSystem(segment) → cores, tipografia, spacing, shadows, motion do corpus.\n     queryMaterioTokens() → valores CSS reais (36 tokens).\n     queryComponentsByIntent(intent) → componentes com a11y_role, tokens, edges.\nL4: GRAPH — resolveDependencies BFS. Cada componente herda a11y do payload FLAT.\nL5: CRITIQUE 6D — composite = VH×0.20 + DE×0.15 + FN×0.25 + IN×0.10 + PC×0.15 + MF×0.15.\n     Se composite < 7.0 → Devloop re-iterate (max 3x).\nL6: ÁRBITRO — se L0-L5 não bastarem, DeepSeek sugere ajustes de copy/tom. NUNCA gera CSS.\n\nCSS OUTPUT RULES:\n- cores: SEMPRE oklch(). NUNCA hex puro (paleta primária).\n- tipografia: SEMPRE font-display:swap. Font do Materio, não hardcoded.\n- shadows: escala do Materio (sh-sm/sh-md/sh-lg/sh-coral).\n- spacing: sistema de 5 níveis (xs→xl), valores do Materio.\n- motion: 3 durações (fast/smooth/reveal), ease-default do Materio.\n- radius: pill (9999px) para badges/CTAs, r-md para cards.\n- dark mode: @media (prefers-color-scheme: dark) com tokens invertidos.\n- a11y: role + aria-label em TODOS os elementos interativos. ContrastRatio ≥ 4.5.\n- semantic: <header>, <main>, <footer>. NUNCA <div> para estrutura.\n- performance: font-display:swap, preconnect fonts.googleapis.com.\n- responsive: container queries ou @media (600px, 768px, 480px)."
     }
   ],
   "default_intent": {
