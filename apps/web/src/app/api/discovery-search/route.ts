@@ -594,7 +594,14 @@ export async function POST(request: NextRequest) {
 
     // ═══ PAGINATION: fetch remaining pages (offset 100,200...) ═══
     // DataForSEO max 100 per call. RJ 5km = 538 dentists = 5 pages.
-    // Tracker: search_metadata — histórico de execução (v091: +city/uf p/ SessionLog)
+    // Tracker: search_metadata — histórico de execução + qualidade do mercado (v093)
+    const sampleListings = items || []
+    const sampleN = sampleListings.length || 1
+    const pfAvgRating = sampleListings.length > 0
+      ? Math.round((sampleListings.reduce((s: number, l: any) => s + ((l.rating_value ?? (l.rating as any)?.value as number) || 0), 0) / sampleListings.length) * 10) / 10
+      : 0
+    const pfClaimedPct = Math.round((sampleListings.filter((l: any) => l.is_claimed).length / sampleN) * 100)
+    const pfWebsitePct = Math.round((sampleListings.filter((l: any) => l.website || l.url).length / sampleN) * 100)
     const searchMetadata = {
       tracker_id: `discovery_${Date.now().toString(36)}`,
       batch_id: batchId || null,
@@ -605,9 +612,10 @@ export async function POST(request: NextRequest) {
       remaining: Math.max(0, totalCount - items.length),
       offsets_used: [startOffset],
       city: bodyCity || null,
-      uf: null as string | null,   // preenchido pelo L4 IBGE após enriquecimento
+      uf: null as string | null,
       viewLimit: limit || 100,
       categories,
+      ...(preflight ? { avg_rating: pfAvgRating, claimed_pct: pfClaimedPct, website_pct: pfWebsitePct } : {}),
     }
 
     let pagOffset = (limit || 100)

@@ -652,15 +652,16 @@ const DiscoveryPage = () => {
         const res = await fetch('/api/discovery-search', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            categories: cats.slice(0, 10),  // DataForSEO max 10 cats
+            categories: cats.slice(0, 10),
             lat: m.lat, lng: m.lng,
-            radiusKm: preflightRadius,  // IBGE area-based: 5-25km (ADR-0030)
-            limit: 5,  // pre-criteria: $0.01380 — total_count + quality (rating, website, claimed)
+            radiusKm: preflightRadius,
+            limit: 5,
             force: true,
             enrich: 0,
             paginate: false,
             preflight: true,
             batchId: pfBatchId,
+            city: m.nome,  // v093: persiste cidade no search_metadata
           }),
         })
         if (res.ok) {
