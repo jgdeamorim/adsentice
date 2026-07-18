@@ -302,6 +302,7 @@ ${morph.css}
 import { generateCopy, trackLLMCost } from "./deepseek"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
+import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
@@ -681,6 +682,10 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     // 6a-ter. Media animation knowledge (Framer Motion, Lucide, SVG) — já ingerido, agora wireado
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
 
+    // TOKENS UNIFICADOS (ADR-0036 Arquitetura Vencedora)
+    // 3 fontes -> 1 saida canonica. O SurfaceSpecialist decide qual fonte.
+    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
+
     // 6b. Query Warp components from Qdrant (ADR-0033 Level 1)
     const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
     const hasComponents = components.length > 0
@@ -807,27 +812,27 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
 <style>
 @font-face{font-family:Inter;font-display:swap}
 :root{
-  --primary:${p};--primary-fg:#fff;--secondary:${s};--secondary-fg:#fff;--accent:${a};
-  --bg:${odSystem?.colors?.bg ? '#'+odSystem.colors.bg : '#f8fafc'};--fg:${odSystem?.colors?.fg ? '#'+odSystem.colors.fg : '#0f172a'};
-  --card:${odSystem?.colors?.surface ? '#'+odSystem.colors.surface : '#fff'};--muted:${materio?.palette?.['surface-alt'] || '#f1f5f9'};--muted-fg:#475569;
-  --border:${odSystem?.colors?.border ? '#'+odSystem.colors.border : '#e2e8f0'};--destructive:${odSystem?.colors?.danger ? '#'+odSystem.colors.danger : '#ef4444'};--success:${odSystem?.colors?.success ? '#'+odSystem.colors.success : '#10b981'};--warning:${odSystem?.colors?.warning ? '#'+odSystem.colors.warning : '#f59e0b'};
-  --font:${materio?.typography?.body ? "'"+materio.typography.body+"',system-ui,sans-serif" : "'Inter',system-ui,sans-serif"};
-  --font-display:${materio?.typography?.display ? "'"+materio.typography.display+"',Georgia,serif" : "'Inter',Georgia,serif"};
-  --spacing-xs:${materio?.spacing?.[0] || '0.25rem'};--spacing-sm:${materio?.spacing?.[1] || '0.5rem'};--spacing-md:${materio?.spacing?.[3] || '1rem'};--spacing-lg:${materio?.spacing?.[5] || '1.5rem'};--spacing-xl:${materio?.spacing?.[7] || '2rem'};
-  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -4px rgba(0,0,0,0.1);
-  --radius:${odSystem?.components?.cardRadius || '0.75rem'};--radius-sm:${materio?.radius?.[0] || '0.25rem'};--radius-pill:${materio?.radius?.find((r: string) => r === '9999px') || '9999px'};
-  --motion-fast:${materio?.motion?.[0] || '150ms ease'};--motion:${materio?.motion?.[1] || '300ms ease'};--motion-smooth:${materio?.motion?.[2] || '500ms ease'};
+  --primary:${T.primary};--primary-fg:${T.primaryFg};--secondary:${T.secondary};--secondary-fg:${T.secondaryFg};--accent:${T.accent};
+  --bg:${T.bg};--fg:${T.fg};
+  --card:${T.card};--muted:${T.muted};--muted-fg:${T.mutedFg};
+  --border:${T.border};--destructive:${T.destructive};--success:${T.success};--warning:${T.warning};
+  --font:${T.font},system-ui,sans-serif;
+  --font-display:${T.fontDisplay},Georgia,serif;
+  --spacing-xs:${T.spacing[0]};--spacing-sm:${T.spacing[1]};--spacing-md:${T.spacing[3] || T.spacing[2]};--spacing-lg:${T.spacing[5] || T.spacing[4]};--spacing-xl:${T.spacing[7] || T.spacing[6]};
+  --shadow-sm:${T.shadowSm};--shadow-md:${T.shadowMd};--shadow-lg:${T.shadowLg};
+  --radius:${T.radius};--radius-sm:${T.radiusSm};--radius-pill:${T.radiusPill};
+  --motion-fast:${T.motionFast};--motion:${T.motion};--motion-smooth:${T.motionSmooth};
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
-.hero{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;min-height:${odSystem?.layout?.heroMinHeight || "50vh"};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
+.hero{background:linear-gradient(135deg,${T.primary} 0%,${T.secondary} 100%);color:#fff;min-height:${T.heroMinHeight};display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
 .hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
 .hero-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:.375rem .875rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
 .hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:.75rem}
 .hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
-.container{max-width:${odSystem?.layout?.maxWidth || "1200px"};margin:0 auto;padding:0 ${odSystem?.layout?.gutter || "24px"}}
-.section{padding:${odSystem?.layout?.sectionSpacingDesktop || "80px"} 0}@media(max-width:768px){.section{padding:${odSystem?.layout?.sectionSpacingTablet || "48px"} 0}}@media(max-width:480px){.section{padding:${odSystem?.layout?.sectionSpacingPhone || "32px"} 0}}
+.container{max-width:${T.containerMaxWidth};margin:0 auto;padding:0 ${T.containerGutter}}
+.section{padding:${T.sectionSpacing} 0}@media(max-width:768px){.section{padding:${T.sectionSpacingTablet} 0}}@media(max-width:480px){.section{padding:${T.sectionSpacingPhone} 0}}
 .score-card{background:var(--card);border:${odSystem?.components?.cardBorder || "1px solid var(--border)"};border-radius:var(--radius);padding:${odSystem?.components?.cardPadding || "20px"};box-shadow:${odSystem?.components?.cardShadow || "var(--shadow)"};display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
 .score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(${p} 0% ${Math.min(fit,100)}%,${a} ${Math.min(fit,100)}% ${Math.min(fit+eng,100)}%,${s} ${Math.min(fit+eng,100)}% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -869,10 +874,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .cta{background:linear-gradient(135deg,${p} 0%,${s} 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
 .cta h2{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
 .cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
-.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${p};padding:${odSystem?.components?.buttonPaddingBlock || "10px"} ${odSystem?.components?.buttonPaddingInline || "16px"};border-radius:${odSystem?.components?.buttonRadius || "8px"};font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:${odSystem?.components?.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)"}}
-.cta-btn:hover{transform:${odSystem?.components?.cardShadow === "none" ? "none" : "translateY(-2px)"};box-shadow:0 8px 25px rgba(0,0,0,0.18)}
-footer{text-align:center;padding:${odSystem?.layout?.sectionSpacingDesktop || "80px"} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
-footer span{color:${p};font-weight:600}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:${T.primary};padding:${T.buttonPaddingBlock} ${T.buttonPaddingInline};border-radius:${T.buttonRadius};font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:${T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)"}}
+.cta-btn:hover{transform:${T.cardShadow === "none" ? "none" : "translateY(-2px)"};box-shadow:0 8px 25px rgba(0,0,0,0.18)}
+footer{text-align:center;padding:${T.sectionSpacing} 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:2rem}
+footer span{color:${T.primary};font-weight:600}
 @media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
 </style>
 <script type="application/ld+json">
