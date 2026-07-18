@@ -40,44 +40,92 @@ DRY_RUN = "--dry-run" in sys.argv
 # ═══════════════════════════════════════════════════════════════
 
 def classify(filepath: Path) -> dict:
-    """L0 AST/regex classification (EVO-API pattern: no LLM)."""
+    """L0 AST/regex classification (EVO-API pattern: no LLM).
+    Next.js-aware: detects Server/Client Components, layouts, pages, routes, middleware."""
     ext = filepath.suffix
     name = filepath.stem
     path_str = str(filepath)
 
+    # ═══ NEXT.JS SEMANTIC DETECTION ═══
+    # page.tsx = renderable route page
+    is_next_page = name == "page" and ext in (".tsx", ".jsx")
+    # layout.tsx = hierarchical wrapper (persists across navigation)
+    is_next_layout = name == "layout" and ext in (".tsx", ".jsx")
+    # loading.tsx = Suspense fallback
+    is_next_loading = name == "loading" and ext in (".tsx", ".jsx")
+    # error.tsx = Error boundary
+    is_next_error = name == "error" and ext in (".tsx", ".jsx")
+    # not-found.tsx = 404 page
+    is_next_not_found = name == "not-found" and ext in (".tsx", ".jsx")
+    # route.ts = API handler
+    is_next_route_handler = name == "route" and ext == ".ts"
+    # middleware.ts = Edge middleware
+    is_next_middleware = name == "middleware" and ext == ".ts"
+    # template.tsx = re-mounted on navigation
+    is_next_template = name == "template" and ext in (".tsx", ".jsx")
+
     # Directory-based hints
-    is_api_route = "/app/api/" in path_str or "/route.ts" in path_str
+    is_api_route = "/app/api/" in path_str or ("/app/" in path_str and is_next_route_handler)
     is_component = "/components/" in path_str and ext == ".tsx"
-    is_layout = "/@layouts/" in path_str
+    is_layout_path = "/@layouts/" in path_str
     is_hoc = "/hocs/" in path_str
     is_view = "/views/" in path_str
     is_lib = "/lib/" in path_str and ext == ".ts"
     is_theme = "/@core/theme/" in path_str and ext == ".ts"
     is_css = ext in (".css", ".scss")
+    is_css_module = ext == ".css" and ".module.css" in str(filepath)
 
+    # ═══ NEXT.JS ROUTE HIERARCHY ═══
+    # Extract route segment from path: [lang]/(dashboard)/(private)/admin/pipeline
+    if "/app/" in path_str:
+        route_parts = path_str.split("/app/", 1)[-1].replace("/" + filepath.name, "").split("/")
+        nextjs_route = "/" + "/".join(route_parts) if route_parts and route_parts[0] else "/"
+    else:
+        nextjs_route = ""
+
+    # ═══ CLASSIFY ═══
+    if is_next_middleware:
+        return {"kind": "nextjs-middleware", "category": "edge", "nextjs_role": "middleware", "route": nextjs_route}
+    if is_next_route_handler:
+        return {"kind": "route", "category": "api", "nextjs_role": "route-handler", "route": nextjs_route}
+    if is_next_page:
+        return {"kind": "component", "category": "page", "nextjs_role": "page", "route": nextjs_route}
+    if is_next_layout:
+        return {"kind": "component", "category": "layout", "nextjs_role": "layout", "route": nextjs_route}
+    if is_next_loading:
+        return {"kind": "component", "category": "loading-fallback", "nextjs_role": "loading", "route": nextjs_route}
+    if is_next_error:
+        return {"kind": "component", "category": "error-boundary", "nextjs_role": "error", "route": nextjs_route}
+    if is_next_not_found:
+        return {"kind": "component", "category": "not-found", "nextjs_role": "not-found", "route": nextjs_route}
+    if is_next_template:
+        return {"kind": "component", "category": "template", "nextjs_role": "template", "route": nextjs_route}
+    if is_css_module:
+        return {"kind": "stylesheet", "category": "css-module", "css_scope": "local", "nextjs_role": "style"}
     if is_css:
-        return {"kind": "stylesheet", "category": "style"}
+        return {"kind": "stylesheet", "category": "style", "css_scope": "global", "nextjs_role": "style"}
     if is_api_route:
-        return {"kind": "route", "category": "api"}
-    if is_component or is_layout or is_hoc or is_view or (ext == ".tsx"):
-        return {"kind": "component", "category": "ui"}
+        return {"kind": "route", "category": "api", "nextjs_role": "api-route", "route": nextjs_route}
+    if is_component or is_layout_path or is_hoc or is_view or (ext == ".tsx"):
+        return {"kind": "component", "category": "ui", "nextjs_role": "component", "route": nextjs_route}
     if is_theme:
-        return {"kind": "module", "category": "theme"}
+        return {"kind": "module", "category": "theme", "nextjs_role": "utility"}
     if is_lib and "types" not in name.lower():
-        return {"kind": "module", "category": "business-logic"}
+        return {"kind": "module", "category": "business-logic", "nextjs_role": "utility"}
     if "types" in name.lower():
-        return {"kind": "type", "category": "types"}
+        return {"kind": "type", "category": "types", "nextjs_role": "type-definition"}
     if ext == ".ts":
-        return {"kind": "module", "category": "utility"}
+        return {"kind": "module", "category": "utility", "nextjs_role": "utility"}
 
-    return {"kind": "file", "category": "other"}
+    return {"kind": "file", "category": "other", "nextjs_role": "other"}
 
 # ═══════════════════════════════════════════════════════════════
 # L1: EXTRACT STRUCTURE
 # ═══════════════════════════════════════════════════════════════
 
 def extract_structure(filepath: Path, meta: dict) -> dict:
-    """Extract imports, exports, JSX elements, CSS classes, tokens via regex (L0)."""
+    """Extract imports, exports, JSX elements, CSS classes, tokens via regex (L0).
+    Next.js-aware: detects 'use client', Tailwind classes, CSS modules, route params."""
     try:
         content = filepath.read_text(encoding="utf-8")
     except:
@@ -85,7 +133,25 @@ def extract_structure(filepath: Path, meta: dict) -> dict:
 
     struct: dict[str, Any] = {}
 
-    # ── IMPORTS: local modules (edges) ──
+    # ═══ NEXT.JS: 'use client' detection ═══
+    struct["react_mode"] = "client" if "'use client'" in content or '"use client"' in content else "server"
+
+    # ═══ NEXT.JS: route params extraction ═══
+    # params: { lang: string; place_id: string }
+    params_match = re.findall(r'params\s*:\s*(?:Promise<)?\{([^}]+)\}', content)
+    struct["route_params"] = []
+    for m in params_match:
+        struct["route_params"].extend(re.findall(r'(\w+)\s*(?::\s*\w+)?', m))
+    struct["route_params"] = struct["route_params"][:5]
+
+    # ═══ NEXT.JS: dynamic config ═══
+    struct["next_config"] = {
+        "dynamic": bool(re.search(r'export\s+const\s+dynamic\s*=', content)),
+        "revalidate": bool(re.search(r'export\s+const\s+revalidate\s*=', content)),
+        "runtime": (re.search(r'export\s+const\s+runtime\s*=\s*"([^"]+)"', content) or [None, ""])[1] or "",
+    }
+
+    # ── IMPORTS ──
     imports_local = re.findall(r'^import\s+.*\s+from\s+["\'](\.\.?/[^"\']+)["\']', content, re.MULTILINE)
     imports_pkg = re.findall(r'^import\s+.*\s+from\s+["\'](@[^"\']+|packages/[^"\']+)["\']', content, re.MULTILINE)
     struct["imports"] = imports_local[:20]
@@ -97,28 +163,7 @@ def extract_structure(filepath: Path, meta: dict) -> dict:
     struct["exports"] = exports_named[:15]
     struct["exports_default"] = exports_default[:3]
 
-    # ── JSX ELEMENTS (componente React) ──
-    jsx_tags = re.findall(r'<([A-Z]\w+)', content)
-    html_tags = re.findall(r'<(div|span|header|main|footer|section|nav|button|input|form|a|img|p|h[1-6])[\s>]', content)
-    struct["jsx_tags"] = list(set(jsx_tags))[:15]
-    struct["html_tags"] = list(set(html_tags))[:10]
-
-    # ── CSS CLASSES ──
-    css_classes = re.findall(r'class(?:Name)?=["\']([^"\']+)["\']', content)
-    classes_flat = []
-    for c in css_classes:
-        classes_flat.extend(re.findall(r'([a-z][a-zA-Z0-9_-]+)', c))
-    struct["css_classes"] = list(set(classes_flat))[:20]
-
-    # ── DESIGN TOKENS ──
-    tokens = re.findall(r'--([a-z][a-z-]+)', content)
-    struct["design_tokens"] = list(set(tokens))[:15]
-
-    # ── FUNCTIONS / HOOKS / CLASSES ──
-    functions = re.findall(r'(?:export\s+)?(?:async\s+)?function\s+(\w+)', content)
-    struct["functions"] = functions[:20]
-
-    # ── IMPORTS NAMED (what symbols are imported from local modules) ──
+    # ── IMPORTS NAMED ──
     imports_named = re.findall(r'import\s+\{([^}]+)\}\s+from\s+["\']([^"\']+)["\']', content)
     imported_symbols = []
     for symbols, path in imports_named:
@@ -128,7 +173,43 @@ def extract_structure(filepath: Path, meta: dict) -> dict:
                 imported_symbols.append({"symbol": sym_clean, "from": path})
     struct["imported_symbols"] = imported_symbols[:10]
 
-    # ── HEURISTIC INTENT (what this file DOES, from comments) ──
+    # ── NEXT.JS specific imports ──
+    next_imports = re.findall(r"from\s+['\"](next/[^'\"]+)['\"]", content)
+    struct["nextjs_imports"] = list(set(next_imports))[:8]
+
+    # ── JSX ELEMENTS ──
+    jsx_tags = re.findall(r'<([A-Z]\w+)', content)
+    html_tags = re.findall(r'<(div|span|header|main|footer|section|nav|button|input|form|a|img|p|h[1-6]|table|ul|li|article|aside)[\s>]', content)
+    struct["jsx_tags"] = list(set(jsx_tags))[:15]
+    struct["html_tags"] = list(set(html_tags))[:10]
+
+    # ── CSS: detect framework (Tailwind, MUI, CSS Modules) ──
+    css_classes = re.findall(r'class(?:Name)?=["\']([^"\']+)["\']', content)
+    classes_flat = []
+    tailwind_patterns = []
+    for c in css_classes:
+        parts = re.findall(r'([a-z][a-zA-Z0-9_-]+)', c)
+        classes_flat.extend(parts)
+        # Tailwind detection: utility-first patterns (gap-4, flex, text-sm...)
+        for p in parts:
+            if re.match(r'^(flex|grid|gap|p[xy]?|m[xy]?|w-|h-|text-|bg-|border|rounded|shadow|transition|transform|opacity|z-|overflow|object|font-|leading|tracking|align|justify|items|self|order|hidden|block|inline|relative|absolute|fixed|sticky|top|left|right|bottom|inset)', p):
+                tailwind_patterns.append(p)
+    struct["css_classes"] = list(set(classes_flat))[:20]
+    struct["css_framework"] = "tailwind" if tailwind_patterns else "mui" if "Mui" in content else "none"
+    struct["tailwind_classes"] = list(set(tailwind_patterns))[:15]
+
+    # ── DESIGN TOKENS ──
+    tokens = re.findall(r'--([a-z][a-z-]+)', content)
+    struct["design_tokens"] = list(set(tokens))[:15]
+
+    # ── FUNCTIONS / HOOKS ──
+    functions = re.findall(r'(?:export\s+)?(?:async\s+)?function\s+(\w+)', content)
+    struct["functions"] = functions[:20]
+    # React hooks used
+    hooks = re.findall(r'\b(use[A-Z]\w+)\s*\(', content)
+    struct["react_hooks"] = list(set(hooks))[:10]
+
+    # ── HEURISTIC INTENT ──
     first_comment = re.search(r'/\*\*?\s*\n?\s*\*?\s*(.+?)(?:\n|$)', content)
     struct["intent_hint"] = first_comment.group(1).strip()[:120] if first_comment else ""
 
@@ -267,17 +348,30 @@ def main():
             "segments": ["all"],
             "ext": fp.suffix,
             "size_bytes": fp.stat().st_size,
+            # Next.js semantic fields
+            "nextjs_role": meta.get("nextjs_role", ""),
+            "route": meta.get("route", ""),
+            "react_mode": struct.get("react_mode", "server"),
+            "next_config": json.dumps(struct.get("next_config", {})),
+            "route_params": struct.get("route_params", []),
+            "nextjs_imports": struct.get("nextjs_imports", []),
+            # CSS framework detection
+            "css_framework": struct.get("css_framework", "none"),
+            "tailwind_classes": struct.get("tailwind_classes", []),
+            "css_scope": meta.get("css_scope", "none"),
+            # Core structure
             "exports": struct.get("exports", []),
             "exports_default": struct.get("exports_default", []),
             "functions": struct.get("functions", []),
+            "react_hooks": struct.get("react_hooks", []),
             "jsx_tags": struct.get("jsx_tags", []),
             "html_tags": struct.get("html_tags", []),
             "css_classes": struct.get("css_classes", []),
             "design_tokens": struct.get("design_tokens", []),
             "imports_count": len(struct.get("imports", [])),
             "intent_hint": struct.get("intent_hint", ""),
-            # Text for embedding
-            "text": f"{fp.stem} {' '.join(struct.get('exports',[]))} {' '.join(struct.get('functions',[]))} {struct.get('intent_hint','')}",
+            # Text for embedding — enriched with Next.js semantics
+            "text": f"{fp.stem} {meta.get('nextjs_role','')} {meta.get('route','')} react_{struct.get('react_mode','server')} css_{struct.get('css_framework','none')} {' '.join(struct.get('exports',[]))} {' '.join(struct.get('functions',[]))} {' '.join(struct.get('react_hooks',[]))} {struct.get('intent_hint','')}",
         }
 
         entities.append(entity)
@@ -316,6 +410,18 @@ def main():
                 "segments": entity["segments"],
                 "ext": entity["ext"],
                 "size_bytes": entity["size_bytes"],
+                # Next.js semantic fields
+                "nextjs_role": entity.get("nextjs_role", ""),
+                "route": entity.get("route", ""),
+                "react_mode": entity.get("react_mode", "server"),
+                "next_config": entity.get("next_config", "{}"),
+                "route_params": entity.get("route_params", []),
+                "nextjs_imports": entity.get("nextjs_imports", []),
+                "css_framework": entity.get("css_framework", "none"),
+                "tailwind_classes": entity.get("tailwind_classes", []),
+                "css_scope": entity.get("css_scope", "none"),
+                "react_hooks": entity.get("react_hooks", []),
+                # Core structure
                 "exports": json.dumps(entity["exports"]),
                 "functions": json.dumps(entity["functions"]),
                 "jsx_tags": entity["jsx_tags"],
