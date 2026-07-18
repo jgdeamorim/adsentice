@@ -26,6 +26,7 @@
     "./composer-core": "./src/composer-core.ts",
     "./embed": "./src/embed.ts",
     "./market-ontology": "./src/market-ontology.ts",
+    "./marketing-kg": "./src/marketing-kg.ts",
     "./tokens-composer": "./src/tokens-composer.ts",
     "./tokens-unifier": "./src/tokens-unifier.ts",
     "./plugins": "./src/plugins.ts",
