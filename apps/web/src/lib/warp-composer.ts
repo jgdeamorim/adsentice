@@ -306,7 +306,7 @@ import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
-import { resolveMorph } from "../../../../packages/warp/src/morph-resolver"
+import { resolveMorph, composeLayout } from "../../../../packages/warp/src/morph-resolver"
 import { queryRelevantSkills } from "../../../../packages/warp/src/marketing-kg"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
@@ -633,6 +633,8 @@ interface S10BlueOutput {
   mktFrameworks: any[]
   // ── SLOT MORPH (ADR-0037 Fase 2 — corpus-driven CSS mutations) ──
   morph: any
+  // ── COMPOSED LAYOUT (ADR-0037 Fase 5 — morphable slot composition) ──
+  composedLayout: any
   // ── K0 SURFACE QUERY (ADR-0037 Fase 4 — existing code templates) ──
   k0Templates: any[]
 }
@@ -870,7 +872,7 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     // Intent vocab (resolveIntentVocab → facets driven by market ontology)
     vocab: resolveIntentVocab(seg, ontology),
     // Slot morph (ADR-0037 Fase 2) — corpus-driven CSS mutations per slot
-    morph: resolveMorph({
+    const slotMorph = resolveMorph({
       segment: seg,
       designFacets: ontology.designSystem?.atmosphere ? [ontology.designSystem.atmosphere] : [],
       animationFacets: mediaAnim?.keyframeRecommendations || [],
@@ -881,7 +883,22 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
       schwartzLevel: lead.schwartz_label || 'Problem Aware',
       cssPatterns: cssPatterns || null,
       T: T as any,
-    }),
+    })
+    morph: slotMorph,
+    // Composed layout (ADR-0037 Fase 5) — morphable slot composition
+    composedLayout: composeLayout({
+      segment: seg,
+      score: lead.score_compound || 50,
+      schwartzLevel: lead.schwartz_label || 'Problem Aware',
+      gapCount: gaps.length,
+      topGapSeverity: gaps[0]?.severity || 'Médio',
+      isClaimed: lead.is_claimed || false,
+      hasWebsite: !!lead.website,
+      competitorCount: competitors,
+      primaryEmotion: ontology.psychology?.primaryEmotion || '',
+      designAtmosphere: ontology.designSystem?.atmosphere || '',
+      conversionTriggers: nicho.conversionTriggers || [],
+    }, slotMorph),
     // Marketing KG frameworks (ADR-0037 Fase 1 — raw Qdrant query)
     mktFrameworks,
     // k0 surface query (ADR-0037 Fase 4 — existing code templates)
@@ -1077,7 +1094,8 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
   // Se o specialist adicionar slot novo (ex: testimonials), aparece automaticamente
   // se existir renderer registrado. Senão, emite comentário HTML (não quebra).
-  const slotOrder = Object.keys(L)
+  const composed = output.composedLayout
+  const slotOrder = composed?.slots?.length ? composed.slots.map(function(s) { return s.slotName }) : Object.keys(L)
   const renderedSlots = slotOrder.map(slotName => {
     const slotConfig = L[slotName]
     const renderer = SLOT_RENDERERS[slotName]
@@ -1400,6 +1418,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
         topFrameworks: blue.mktFrameworks.slice(0, 3).map((f: any) => ({ skill: f.skillName || '?', source: f.source, score: Math.round((f.score || 0) * 100) / 100 })),
       } : { source: 'mkt-offline' },
       // ── SLOT MORPH TRACE (ADR-0037 Fase 2) ──
+      _composed: blue.composedLayout ? {
+        strategy: blue.composedLayout.strategy,
+        slotOrder: blue.composedLayout.slots.map((s: any) => s.slotName + ':' + s.variant),
+        reasoning: blue.composedLayout.reasoning?.slice(0, 3),
+      } : { source: 'compose-offline' },
       _morph: blue.morph ? {
         hero: { gradientAngle: blue.morph.hero.gradientAngle, reasoning: blue.morph.hero.reasoning },
         infoCards: { borderRadius: blue.morph.infoCards.borderRadius, padding: blue.morph.infoCards.padding, columns: blue.morph.infoCards.columns },
