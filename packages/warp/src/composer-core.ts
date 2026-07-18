@@ -302,7 +302,7 @@ ${morph.css}
 import { generateCopy, trackLLMCost } from "./deepseek"
 import { unifyTokens } from "./tokens-unifier"
 import { S10RaioXPipeline } from "./s10-raio-x"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns } from "./warp-kg"
 import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
@@ -619,6 +619,7 @@ interface S10BlueOutput {
   specialistActive: boolean; grammarType: string
   // ── ICONS ──
   icons: Record<string, string>
+  cssPatterns: any
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -628,7 +629,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   morph: MorphResult, p: string, s: string, a: string, p15: string, p12: string,
   designIntel: any, inspoUrls: string[], odSystem: any, materio: any, mediaAnim: any,
   T: ReturnType<typeof unifyTokens>,
-  icons: Record<string, string>
+  icons: Record<string, string>,
+  cssPatterns: any
 ): Promise<S10BlueOutput> {
   const name = lead.title
   const score = lead.score_compound || 50
@@ -804,6 +806,7 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     // Surface specialist info
     specialistActive: !!specialist, grammarType: layoutTree.type,
     icons,
+    cssPatterns,
   }
 }
 
@@ -1007,6 +1010,8 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
 '<link href="https://fonts.googleapis.com/css2?family=' + T.font.replace(/ /g, '+') + ':wght@400;500;600;700;800&display=swap" rel="stylesheet">\n' +
 '<style>\n' +
+'/* CSS: tokens unificados (M9+OD+Materio) + design-knowledge Qdrant + layoutHints specialist */\n' +
+(output.cssPatterns?.sources?.length ? '/* Corpus sources: ' + output.cssPatterns.sources.slice(0, 3).join(', ') + ' */\n' : '') +
 '@font-face{font-family:' + T.font + ';font-display:swap}\n' +
 ':root{\n' +
 '  --primary:' + T.primary + ';--primary-fg:' + T.primaryFg + ';--secondary:' + T.secondary + ';--secondary-fg:' + T.secondaryFg + ';--accent:' + T.accent + ';\n' +
@@ -1170,6 +1175,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const materio = await queryMaterioTokens().catch(() => null)
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
     const icons = await queryMediaIcons().catch(() => ({} as Record<string, string>))
+    const cssPatterns = await queryCSSPatterns(seg, 'S10').catch(() => null)
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
