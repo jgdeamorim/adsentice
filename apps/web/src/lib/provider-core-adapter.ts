@@ -291,8 +291,9 @@ return { profiles, cost_usd: totalCost }
 export async function onPageInstantAudit(url: string): Promise<SEOInstantAudit | null> {
   const c = getClient()
   const body = [{ url, enable_javascript: false, accept_language: "pt-BR" }]
-  const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/on_page/instant_pages", body)
-  const item = data.items?.[0]
+  const data = await c.post<{ tasks?: Array<{ result?: Array<{ items?: Record<string, unknown>[] }> }>; items?: Record<string, unknown>[] }>("/v3/on_page/instant_pages", body)
+  // shape cru DataForSEO: tasks[0].result[0].items[0] (fix v088 — {items} direto nunca existiu; L2 retornava null silencioso)
+  const item = data.tasks?.[0]?.result?.[0]?.items?.[0] ?? data.items?.[0]
 
   if (!item) return null
   const resource = (item.resource || item) as Record<string, unknown>
@@ -321,8 +322,10 @@ return {
 export async function domainTechnologies(domain: string): Promise<DomainTechnologies | null> {
   const c = getClient()
   const body = [{ target: domain }]
-  const data = await c.post<{ items: Record<string, unknown>[] }>("/v3/domain_analytics/technologies/domain_technologies/live", body)
-  const item = data.items?.[0]
+  const data = await c.post<{ tasks?: Array<{ result?: Array<Record<string, unknown>> }>; items?: Record<string, unknown>[] }>("/v3/domain_analytics/technologies/domain_technologies/live", body)
+  // shape real technologies/live: tasks[0].result[0] É o item (sem .items — medido curl 2026-07-18)
+  const r0 = data.tasks?.[0]?.result?.[0] as Record<string, unknown> | undefined
+  const item = (r0 as any)?.items?.[0] ?? r0 ?? data.items?.[0]
 
   if (!item) return null
   

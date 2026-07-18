@@ -103,7 +103,7 @@ return { enrichedListings, enrichedScores, enrichmentCost }
 // Puramente SEO: onpage score, meta tags, CMS, analytics, word count.
 // Redes sociais e contatos foram extraídos para L3.
 
-async function _enrichTopLeadsL2(
+async function enrichTopLeadsL2(
   listings: any[],
   scores: ScoreData[],
   maxEnrich: number = 30
@@ -250,7 +250,7 @@ return { l2EnrichedListings, l2EnrichedScores, l2Cost }
 // do HTML do website. WhatsApp é campo SEPARADO (l3_whatsapp), não misturado com phone.
 // Preenche gaps do GMB (phone, email ausentes).
 
-async function _enrichTopLeadsL3(
+async function enrichTopLeadsL3(
   listings: any[],
   scores: ScoreData[],
   maxEnrich: number = 30
@@ -422,12 +422,108 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight, layers: bodyLayers, city: bodyCity } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
   const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
 
+  // ═══ LAYERS: seleção livre L0-L4 (retrocompat: sem body.layers = comportamento legado) ═══
+  const layers = {
+    l0: bodyLayers ? bodyLayers.l0 !== false : true,
+    l1: bodyLayers ? bodyLayers.l1 === true : !!(enrich || force),
+    l2: bodyLayers?.l2 === true,
+    l3: bodyLayers?.l3 === true,
+    l4: bodyLayers ? bodyLayers.l4 !== false : true,
+  }
+
   if (!categories?.length) {
     return NextResponse.json({ error: "categories required" }, { status: 400 })
+  }
+
+  // ═══ MODO RE-ENRICH (layers.l0=false): enriquece leads JÁ EXISTENTES no Supabase ═══
+  // Zero custo de search. Carrega por categoria+cidade (dedup place_id — a tabela é
+  // SÉRIE, 1 row por search — memory 624d599c), roda L2/L3/L4 selecionados.
+  // L2/L3 persistem via PATCH próprio; L1 refresh exige nova busca (não suportado aqui).
+  if (!layers.l0) {
+    if (!bodyCity) return NextResponse.json({ error: "city required no modo re-enrich (L0 desmarcado)" }, { status: 400 })
+    const t0re = Date.now()
+    try {
+      const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+      const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+      const catFilter = categories.map((c: string) => `"${c}"`).join(",")
+      const res = await fetch(
+        `${supaUrl}/rest/v1/discovery_listings?select=*&category=in.(${encodeURIComponent(catFilter)})&city=eq.${encodeURIComponent(bodyCity)}&order=enrichment_level.desc.nullslast,created_at.desc&limit=400`,
+        { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, cache: "no-store" }
+      )
+      if (!res.ok) return NextResponse.json({ error: `Supabase ${res.status}` }, { status: 502 })
+      const rows = await res.json() as any[]
+      // dedup por place_id (1ª row = maior enrichment_level pela ordenação)
+      const byPid = new Map<string, any>()
+      for (const r of rows) if (r.place_id && !byPid.has(r.place_id)) byPid.set(r.place_id, r)
+      let listings = [...byPid.values()]
+      if (!listings.length) return NextResponse.json({ error: "nenhum lead existente p/ categoria+cidade", mode: "re-enrich" }, { status: 404 })
+      let scores: ScoreData[] = scoreLeads(listings)
+
+      let l2Cost = 0, l3Cost = 0
+      const maxN = enrich || 50
+      if (layers.l2) {
+        const r2 = await enrichTopLeadsL2(listings, scores, maxN)
+        listings = r2.l2EnrichedListings; scores = r2.l2EnrichedScores; l2Cost = r2.l2Cost
+      }
+      if (layers.l3) {
+        const r3 = await enrichTopLeadsL3(listings, scores, maxN)
+        listings = r3.l3EnrichedListings; scores = r3.l3EnrichedScores; l3Cost = r3.l3Cost
+      }
+      if (layers.l4) {
+        const r4 = await enrichTopLeadsL4(listings, scores)
+        listings = r4.l4EnrichedListings; scores = r4.l4EnrichedScores
+      }
+      // ── PERSISTÊNCIA (as funções L2/L3 só atualizam in-memory; no fluxo L0 o
+      //    persistDiscovery grava — aqui gravamos PATCH por id da row carregada) ──
+      const L2L3_COLS = new Set(["enrichment_level","l2_onpage_score","l2_lighthouse_seo","l2_lighthouse_pwa","l2_enriched_at","l2_cost_usd","l2_content_maturity","l2_content_gaps","l2_social_links","l3_social_links","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_seo_checks","l2_has_analytics","l2_domain_rank","l2_lighthouse_performance","l2_lighthouse_accessibility","l2_lighthouse_best_practices","l2_meta_title","l2_meta_description","l3_whatsapp","l2_technology_categories","l3_emails","l2_country_iso_code","l2_emails","l2_cms"])
+      // colunas INTEGER no Postgres — a API manda decimais (onpage_score 98.9) → arredondar (fix 22P02, medido)
+      const INT_COLS = new Set(["enrichment_level","l2_onpage_score","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_domain_rank","l2_content_maturity"])
+      let persisted = 0
+      const toSave = listings.filter((l: any) => l.id && (l.enrichment_level || 0) >= 2)
+      await Promise.allSettled(toSave.map(async (l: any) => {
+        const patch: Record<string, unknown> = {}
+        for (const k of Object.keys(l)) {
+          if (!L2L3_COLS.has(k) || l[k] === undefined) continue
+          patch[k] = INT_COLS.has(k) && typeof l[k] === "number" ? Math.round(l[k]) : l[k]
+        }
+        if (!Object.keys(patch).length) return
+        const pr = await fetch(`${supaUrl}/rest/v1/discovery_listings?id=eq.${l.id}`, {
+          method: "PATCH",
+          headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify(patch),
+        })
+        if (pr.ok) persisted++
+        else console.warn(`[re-enrich] PATCH ${l.place_id}: ${pr.status} ${(await pr.text().catch(() => "")).slice(0, 120)}`)
+      }))
+
+      const totalCost = l2Cost + l3Cost
+      if (totalCost > 0) {
+        // ADR-0024 Parte 3: o universo do re-enrich é a BASE por place_id — sem lógica de raio.
+        // Coordenadas do tracker = centroide REAL dos leads da base (só informativo no Redis).
+        const withGeo = listings.filter((l: any) => l.latitude && l.longitude)
+        const cLat = withGeo.length ? withGeo.reduce((s: number, l: any) => s + l.latitude, 0) / withGeo.length : 0
+        const cLng = withGeo.length ? withGeo.reduce((s: number, l: any) => s + l.longitude, 0) / withGeo.length : 0
+        trackCost({ categories: [...categories, "re-enrich"], lat: cLat, lng: cLng, radiusKm: 0, costUsd: totalCost, totalCount: listings.length })
+      }
+      console.log(`[discovery:re-enrich] ${listings.length} existentes · L2 $${l2Cost.toFixed(4)} · L3 $${l3Cost.toFixed(4)} · ${Date.now() - t0re}ms`)
+      return NextResponse.json({
+        mode: "re-enrich", layers, city: bodyCity,
+        total_count: listings.length,
+        l2EnrichedCount: listings.filter((l: any) => (l.enrichment_level || 0) >= 2).length,
+        l3EnrichedCount: listings.filter((l: any) => (l.enrichment_level || 0) >= 3).length,
+        withWebsite: listings.filter((l: any) => !!l.website).length,
+        persisted,
+        l2Cost, l3Cost, cost_usd: totalCost, totalCost,
+        latency_ms: Date.now() - t0re,
+        costToday: getCostToday(), costTotal: getCostTotal(),
+      })
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message, mode: "re-enrich" }, { status: 500 })
+    }
   }
 
   const cacheKey = `discovery:${categories.sort().join(',')}:${lat}:${lng}:${radiusKm}`
@@ -532,11 +628,11 @@ export async function POST(request: NextRequest) {
     let enrichedCount = 0
 
     console.log(`[discovery] L0: ${listings.length} listings, first score: ${scores[0]?.compound ?? 'none'}, first listing: ${listings[0]?.title?.slice(0,40)}`)
-    const l2Cost = 0
-    const l3Cost = 0
+    let l2Cost = 0
+    let l3Cost = 0
 
     // ═══ L1: ENRICHMENT (27-field GMB profile, $0.0054/lead, ALL 50) ═══
-    const shouldEnrich = !preflight && (enrich || force)
+    const shouldEnrich = !preflight && (layers.l1 || enrich || force)
 
     if (shouldEnrich) {
       const enriched = await enrichTopLeads(listings, scores, enrich || 50)
@@ -554,10 +650,21 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // ═══ L2 + L3: ADIADO para pós-conversão ═══
-      // Estratégia: L0+L1+L4 → Raio-X Warp (lead magnet) → conversão → L2 (SEO) + L3 (Social)
-      // Executar L2/L3 só quando o lead já engajou — economia de ~30% por Discovery
-      // Para ativar: descomentar blocos abaixo e ajustar custos no payload
+      // ═══ L2 + L3: por SELEÇÃO (v088 — antes adiados p/ pós-conversão, agora livres) ═══
+    }
+
+    // L2 Website+SEO ($0.010125/lead c/ website) — independente do L1
+    if (!preflight && layers.l2) {
+      const r2 = await enrichTopLeadsL2(listings, scores, enrich || 50)
+      listings = r2.l2EnrichedListings; scores = r2.l2EnrichedScores; l2Cost = r2.l2Cost
+      if (l2Cost > 0) trackCost({ categories: [...categories, "L2_enrichment"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l2Cost, totalCount: listings.filter((l: any) => (l.enrichment_level || 0) >= 2).length })
+    }
+
+    // L3 Social & Contatos ($0.0005/lead c/ cache L2 · $0.0105 sem) — independente do L1
+    if (!preflight && layers.l3) {
+      const r3 = await enrichTopLeadsL3(listings, scores, enrich || 50)
+      listings = r3.l3EnrichedListings; scores = r3.l3EnrichedScores; l3Cost = r3.l3Cost
+      if (l3Cost > 0) trackCost({ categories: [...categories, "L3_enrichment"], lat: lat || -23.55, lng: lng || -46.63, radiusKm: radiusKm || 10, costUsd: l3Cost, totalCount: listings.filter((l: any) => (l.enrichment_level || 0) >= 3).length })
     }
 
     // ═══ City Fallback: Nominatim reverse geocode para listings sem city ═══
@@ -584,11 +691,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══ L4: IBGE MARKET CONTEXT (ADR-0024 · $0/lead) ═══
-    // Roda SEMPRE (independente de L1). $0/lead, usa ibge_panorama + ibge_income.
-    const l4Result = await enrichTopLeadsL4(listings, scores)
+    // Por seleção (v088) — default ON ($0, contexto de mercado).
+    if (layers.l4) {
+      const l4Result = await enrichTopLeadsL4(listings, scores)
 
-    listings = l4Result.l4EnrichedListings
-    scores = l4Result.l4EnrichedScores
+      listings = l4Result.l4EnrichedListings
+      scores = l4Result.l4EnrichedScores
+    }
 
     // ═══ FINAL SCORING + DISTRIBUTION ═══
     const distribution: ScoreDistribution = computeDistribution(scores)
