@@ -32,7 +32,7 @@ ROOTS = [
 QDRANT = "http://127.0.0.1:6352"
 COLLECTION = "adsentice-self"
 EMBED = "http://127.0.0.1:8081/embed"
-BATCH_SIZE = 20
+BATCH_SIZE = 10
 DRY_RUN = "--dry-run" in sys.argv
 
 # ═══════════════════════════════════════════════════════════════
@@ -177,7 +177,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
     try:
-        r = httpx.post(EMBED, json={"texts": texts}, timeout=30.0)
+        r = httpx.post(EMBED, json={"texts": texts}, timeout=60.0)
         if r.status_code == 200:
             return r.json().get("vectors", [])
     except Exception as e:
