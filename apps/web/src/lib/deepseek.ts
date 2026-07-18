@@ -88,7 +88,7 @@ export async function generateCopy(lead: {
   gaps?: { title: string; severity: string; signal: string }[]
 }, temperature = 0.8): Promise<CopyOutput | null> {
   const key = getKey()
-  if (!key) return null
+  if (!key) { console.error("[DeepSeek] DEEPSEEK_API_KEY nao configurado"); return null }
 
   const name = lead.title || "Empreendedor"
   const cat = lead.category || "negócio local"
@@ -97,8 +97,11 @@ export async function generateCopy(lead: {
   const rating = lead.rating || 0
   const gapLabels = (lead.gaps || []).slice(0, 3).map(g => g.title).join("; ")
 
-  // Fetch REAL market intelligence
-  const market = await fetchMarketContext(cat, lead.city)
+  // Fetch market intelligence with 3s timeout (non-blocking fallback)
+  const market = await Promise.race([
+    fetchMarketContext(cat, lead.city),
+    new Promise<MarketContext>((resolve) => setTimeout(() => resolve({ avgScore: 32, avgRating: 4.8, claimedPct: 55 }), 3000)),
+  ])
 
   // Build market intelligence section for the prompt
   const marketIntel = [
@@ -155,7 +158,7 @@ REGRAS:
       }),
       signal: AbortSignal.timeout(15000),
     })
-    if (!res.ok) return null
+    if (!res.ok) { const errBody = await res.text().catch(() => ""); console.error("[DeepSeek] API " + res.status + ": " + errBody.slice(0, 100)); return null }
     const data = await res.json()
     // DeepSeek V4 Flash é reasoning model — gasta tokens em reasoning_content.
     // Se content vier vazio, extrai do reasoning_content (padrão Python:208)
@@ -163,7 +166,7 @@ REGRAS:
     if (!text) {
       text = data.choices?.[0]?.message?.reasoning_content || ""
     }
-    if (!text) return null
+    if (!text) { console.error("[DeepSeek] empty response: " + JSON.stringify(data).slice(0, 200)); return null }
     // Parse robusto: JSON.parse → fallback regex
     let json: { headline?: string; subtitle?: string; cta?: string }
     try {
@@ -176,7 +179,8 @@ REGRAS:
       json = { headline: h[1], subtitle: s?.[1] || "", cta: c?.[1] || "" }
     }
     return { headline: json.headline || "", subtitle: json.subtitle || "", cta: json.cta || "" }
-  } catch {
+  } catch (e: any) {
+    console.error("[DeepSeek] exception: " + (e?.message || e))
     return null
   }
 }
