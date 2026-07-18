@@ -3,7 +3,7 @@
 // medido=verdade · zero hardcoded · 2026-07-17
 
 import { NextResponse } from "next/server"
-import { compose, composeS10 } from "@/lib/warp-composer"
+import { compose, composeS10, composeS11 } from "@/lib/warp-composer"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -16,7 +16,8 @@ function qualityGate(html: string) {
   const labels = html.split('aria-label="').length - 1
   const checks: Record<string,boolean> = {
     a11y: roles >= 4 && labels >= 6,
-    performance: html.includes("font-display:swap") && html.includes("preconnect"),
+    // font-display swap aplica por CSS (@font-face) OU por URL param do Google Fonts — ambos válidos
+    performance: (html.includes("font-display:swap") || html.includes("display=swap")) && html.includes("preconnect"),
     schema: html.includes("application/ld+json") && html.includes('"name":"'),
     semantic: html.includes("<header ") && html.includes("<main ") && html.includes("<footer"),
     responsive: html.includes("viewport") && html.includes("@media"),
@@ -33,9 +34,43 @@ function qualityGate(html: string) {
   }
 }
 
+// ── GET: leads reais p/ o cockpit do Intend Composer v2 (dropdown) + info do endpoint ──
+export async function GET() {
+  try {
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const res = await fetch(
+      `${supaUrl}/rest/v1/discovery_listings?select=place_id,title,category,city,district,score_compound,rating_value,rating_votes&order=score_compound.desc&limit=24`,
+      { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, cache: "no-store" }
+    )
+    const leads = res.ok ? await res.json() : []
+    return NextResponse.json({
+      leads,
+      info: "POST { place_id, surface: 'S10'|'S11' } → pipeline real (specialists+estratégias) · POST { surface, segment, plan } → compose() genérico",
+    })
+  } catch (e: any) {
+    return NextResponse.json({ leads: [], error: e.message }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+
+    // REAL PIPELINE S11: composeS11 → par A/B por ESTRATÉGIA (ADR-0037 F6)
+    if (body.place_id && body.surface === 'S11') {
+      const result = await composeS11(body.place_id)
+      if (!result) return NextResponse.json({ error: "Lead not found or S11 generation failed" }, { status: 404 })
+      const variants = result.variants.map(v => ({
+        ab: v.ab, strategyFacet: v.strategyFacet, hypothesis: v.hypothesis,
+        copyModel: v.copyModel, headline: v.headline, html: v.html,
+        qualityGate: qualityGate(v.html),
+      }))
+      return NextResponse.json({
+        surface: 'S11', variants, meta: result.meta,
+        _meta: { pipeline: "composeS11", source: "Supabase + StrategyResolver + DeepSeek V4" },
+      })
+    }
 
     // REAL PIPELINE: composeS10 with place_id
     if (body.place_id) {
@@ -94,19 +129,4 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    info: "POST /api/surface/compose — Intend → compose (live data sources)",
-    example: {
-      surface: "S10", segment: "saude", plan: "internal", mode: "internal",
-      niche: "dentist", region: "ES",
-      leadData: { title: "Dra. Karina", score: 65, city: "Vitória" },
-    },
-    sourcesBasis: [
-      "Materio Qdrant (36 design tokens: palette, typography, spacing, shadow)",
-      "IBGE panorama (area_km2, densidade_demografica, pib_per_capita)",
-      "warp-surface-status.json (22 superficies × skills × planos)",
-      "category_analytics Supabase (segmentos reais do mercado)",
-    ],
-  })
-}
+// (info do endpoint fundida no GET principal acima — leads + info · fix duplicate GET v085)

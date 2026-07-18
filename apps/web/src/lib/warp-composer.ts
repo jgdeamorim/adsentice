@@ -1621,7 +1621,11 @@ function renderS11_GREEN(input: {
   }
 
   const order: string[] = (composedLayout?.slots || []).map((sl: any) => sl.slotName).filter((n: string) => R[n])
-  const body = (order.length ? order : Object.keys(R)).map(n => R[n]()).join('\n')
+  const finalOrder = order.length ? order : Object.keys(R)
+  // Landmarks ARIA: hero = <header role=banner> (já) · slots = <main> · footer = contentinfo
+  const heroHtml = finalOrder.includes('hero') ? R.hero() : ''
+  const mainHtml = finalOrder.filter(n => n !== 'hero').map(n => R[n]()).join('\n')
+  const body = heroHtml + '\n<main role="main" aria-label="' + esc(nicho.name) + ' — informações e contato">\n' + mainHtml + '\n</main>'
 
   const schemaJson = JSON.stringify({
     '@context': 'https://schema.org', '@type': 'LocalBusiness',
@@ -1699,7 +1703,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
     `<style>/* S11 · strategy=${strategy.facet} (${strategy.abLabel}) · ${esc(strategy.hypothesis)} */\n${css}</style>` +
     `<script type="application/ld+json">${schemaJson}</script>` +
     `</head><body>\n${body}\n` +
-    `<footer class="s11-footer"><p>${esc(lead.title)} · ${esc(local)} · <a href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a></p><p>Página por <a href="https://adsentice.com.br" rel="noopener">adsentice</a></p></footer>` +
+    `<footer class="s11-footer" role="contentinfo"><p>${esc(lead.title)} · ${esc(local)} · <a href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a></p><p>Página por <a href="https://adsentice.com.br" rel="noopener">adsentice</a></p></footer>` +
     `</body></html>`
 }
 
