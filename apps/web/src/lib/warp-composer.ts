@@ -232,7 +232,7 @@ export async function compose(intend: Intend, ibgeContext?: { densidade?: number
 <meta name="description" content="Warp ${intend.surface} · ${branding} · ${r.intentLabel}">
 <title>${intend.surface} · ${branding} | adsentice Warp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=${T.font.replace(/ /g, "+")}:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=${r.typography.font.replace(/'/g, '').replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @font-face{font-family:Inter;font-display:swap}
 ${morph.css}
