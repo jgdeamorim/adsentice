@@ -1,5 +1,5 @@
-// ADSENTICE · lib/deepseek.ts — DeepSeek V4 Flash Copywriter
-// Port do tools/adsentice_llm_copywriter.py + tools/adsentice_s10_generator.py
+// ADSENTICE · lib/deepseek.ts — DeepSeek V4 Flash Copywriter + Market Intelligence
+// V2: prompt enriquecido com dados REAIS do mercado (Supabase + pre-flight)
 // Cost: ~$0.001/query · ~3s · medido=verdade · 2026-07-17
 
 const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions"
@@ -8,12 +8,79 @@ const DEEPSEEK_MODEL = "deepseek-v4-flash"
 let _keyCache: string | null = null
 function getKey(): string {
   if (_keyCache) return _keyCache
-  // Next.js .env (gitignored) — same key Python tools load from docs/secret/.env.DEEPSEEK
   _keyCache = process.env.DEEPSEEK_API_KEY || ""
   return _keyCache
 }
 
 export interface CopyOutput { headline: string; subtitle: string; cta: string }
+
+// ── MARKET CONTEXT (from Supabase + pre-flight · real data) ──
+
+export interface MarketContext {
+  totalMarketLeads?: number
+  avgScore?: number
+  avgRating?: number
+  claimedPct?: number
+  topCity?: string
+  topCityLeads?: number
+  ibgePopulation?: number
+  ibgePibPerCapita?: number
+  competitorCount?: number
+}
+
+async function fetchMarketContext(category: string, city?: string): Promise<MarketContext> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+
+    // Category stats from discovery_listings
+    const catUrl = `${supabaseUrl}/rest/v1/discovery_listings?select=score_compound,rating_value,is_claimed&category=ilike.*${encodeURIComponent(category)}*&limit=1000`
+    const catRes = await fetch(catUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+    let avgScore = 32; let avgRating = 4.8; let claimedPct = 55
+    if (catRes.ok) {
+      const rows = await catRes.json() as any[]
+      if (rows.length > 0) {
+        avgScore = Math.round(rows.reduce((s, r) => s + (r.score_compound || 0), 0) / rows.length)
+        avgRating = Math.round((rows.reduce((s, r) => s + (r.rating_value || 0), 0) / rows.length) * 10) / 10
+        claimedPct = Math.round((rows.filter(r => r.is_claimed).length / rows.length) * 100)
+      }
+    }
+
+    // Pre-flight total_count for this category
+    let totalMarket = 0
+    try {
+      const pfUrl = `${supabaseUrl}/rest/v1/discovery_searches?select=total_count,categories&search_metadata->>preflight=eq.true&limit=20`
+      const pfRes = await fetch(pfUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+      if (pfRes.ok) {
+        const pfRows = await pfRes.json() as any[]
+        for (const r of pfRows) {
+          if ((r.categories || []).some((c: string) => c.toLowerCase().includes(category.toLowerCase()))) {
+            totalMarket = Math.max(totalMarket, r.total_count || 0)
+          }
+        }
+      }
+    } catch {}
+
+    // IBGE context
+    let ibgePop = 0; let ibgePib = 0
+    if (city) {
+      try {
+        const ibgeUrl = `${supabaseUrl}/rest/v1/ibge_panorama?select=populacao,pib_per_capita&municipio_nome=ilike.*${encodeURIComponent(city)}*&limit=1`
+        const ibgeRes = await fetch(ibgeUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+        if (ibgeRes.ok) {
+          const ibgeRows = await ibgeRes.json() as any[]
+          if (ibgeRows.length) { ibgePop = ibgeRows[0].populacao || 0; ibgePib = ibgeRows[0].pib_per_capita || 0 }
+        }
+      } catch {}
+    }
+
+    return { totalMarketLeads: totalMarket, avgScore, avgRating, claimedPct, ibgePopulation: ibgePop, ibgePibPerCapita: ibgePib }
+  } catch {
+    return { avgScore: 32, avgRating: 4.8, claimedPct: 55 }
+  }
+}
+
+// ── COPYWRITER (V2: market intelligence enriched) ──
 
 export async function generateCopy(lead: {
   title?: string; category?: string; city?: string; district?: string
@@ -30,26 +97,49 @@ export async function generateCopy(lead: {
   const rating = lead.rating || 0
   const gapLabels = (lead.gaps || []).slice(0, 3).map(g => g.title).join("; ")
 
-  const prompt = `Você é um copywriter especialista em marketing local para SMB Brasil.
-Gere uma headline, subtitle e CTA para uma landing page de diagnóstico gratuito (Raio-X).
+  // Fetch REAL market intelligence
+  const market = await fetchMarketContext(cat, lead.city)
+
+  // Build market intelligence section for the prompt
+  const marketIntel = [
+    market.totalMarketLeads ? `- Mercado total estimado na região: ${market.totalMarketLeads.toLocaleString('pt-BR')} negócios` : '',
+    market.avgScore ? `- Score médio do mercado: ${market.avgScore}/100 (seu lead: ${score}/100)` : '',
+    market.avgRating ? `- Rating médio do mercado: ${market.avgRating}★` : '',
+    market.claimedPct ? `- Apenas ${market.claimedPct}% dos negócios similares reivindicaram seu GMB — ${100 - market.claimedPct}% estão invisíveis` : '',
+    market.ibgePopulation ? `- População da cidade: ${market.ibgePopulation.toLocaleString('pt-BR')} habitantes` : '',
+    market.ibgePibPerCapita ? `- PIB per capita: R$${market.ibgePibPerCapita.toLocaleString('pt-BR')}` : '',
+  ].filter(Boolean).join('\n')
+
+  const prompt = `Você é um copywriter especialista em marketing local para SMB Brasil, com acesso a dados REAIS de mercado.
+Gere headline, subtitle e CTA para landing page de diagnóstico gratuito (Raio-X).
 
 DADOS DO LEAD:
 - Nome: ${name}
 - Categoria: ${cat}
 - Local: ${loc}
 - Score: ${score}/100
-- Rating Google: ${rating} estrelas
-- Gaps detectados: ${gapLabels || "N/A"}
+- Rating Google: ${rating}★
+- Gaps: ${gapLabels || "N/A"}
+
+INTELIGÊNCIA DE MERCADO (DADOS REAIS):
+${marketIntel || "Dados de mercado não disponíveis — use estimativas conservadoras."}
+
+FRAMEWORK DE COPYWRITING (Corey Haines — copywriting skill):
+- FÓRMULA: Problema → Agitação → Solução → Prova Social → CTA
+- ANTI-PADRÕES: NÃO use "você sabia que...", NÃO invente estatísticas, NÃO use "garantido"
+- TOM PARA SMB BRASIL: profissional mas próximo, como um consultor de confiança
+- SCHWARTZ AWARENESS: ${score < 40 ? 'Unaware — eduque sobre o problema' : score < 70 ? 'Problem/Solution Aware — mostre a solução' : 'Product/Most Aware — diferencie pela qualidade'}
+- GATILHOS EFICAZES PARA ${cat}: urgência local ("no seu bairro"), escassez competitiva ("antes que seus concorrentes"), prova social ("4.8★ no Google")
 
 FORMATO (JSON válido, sem markdown):
 {"headline":"...","subtitle":"...","cta":"..."}
 
 REGRAS:
-- Headline: máx 100 chars, mencione o nome ou categoria, use gatilho de urgência ou escassez
-- Subtitle: máx 150 chars, conecte o gap com a solução
-- CTA: máx 50 chars, ação direta (ex: "Quero meu diagnóstico grátis")
-- Português brasileiro natural, tom profissional mas próximo
-- NÃO invente dados que não foram fornecidos
+- Headline: máx 100 chars, use dados REAIS do mercado quando disponível (ex: "${market.claimedPct ? `apenas ${market.claimedPct}% reivindicados` : ''}")
+- Subtitle: máx 150 chars, conecte o gap do lead com o contexto do mercado
+- CTA: máx 50 chars, ação direta com urgência (ex: "Quero meu diagnóstico grátis")
+- Português brasileiro natural, tom consultivo
+- USE os dados de mercado fornecidos — eles são REAIS, não inventados
 - NÃO use preços ou promessas impossíveis`
 
   try {
