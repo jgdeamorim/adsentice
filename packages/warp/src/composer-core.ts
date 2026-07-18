@@ -857,54 +857,67 @@ function renderInfoGridSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y, icon, stars, O } = ctx
   const cardComp = output.cardComp
   const displayStars = stars(output.rating)
-  // Info cards definidas pelo slot do specialist — se tem cards[] usa, senão fallback GMB/Website/Concorrência
+  const st = slot?.tokens || {}  // specialist grammar: padding, radius
+  const cardStyle = (extra: string) => ' style="--i:' + extra + ';' + (st.padding ? 'padding:' + st.padding + ';' : '') + (st.radius ? 'border-radius:' + st.radius + ';' : '') + '"'
   const cards = slot?.cards || [
     { slot: 'gmb', component: cardComp?.id || 'info-card' },
     { slot: 'website', component: cardComp?.id || 'info-card' },
     { slot: 'competition', component: cardComp?.id || 'info-card' },
   ]
   const renderInfoCard = (c: any, idx: number): string => {
+    const base = '<div class="' + ctx.cls('info-card') + '" ' + a11y(cardComp, "region", c.slot === 'gmb' ? 'Google Meu Negócio' : c.slot === 'website' ? 'Website' : c.slot === 'competition' ? 'Concorrência' : c.slot) + cardStyle(idx + '')
     switch (c.slot) {
       case 'gmb':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
+        return base + '><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
       case 'website':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
+        return base + '><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
       case 'competition':
-        return '<div class="info-card" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
+        return base + '><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
       default:
-        return '<div class="info-card" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
+        return base + '><h4>' + c.slot + '</h4><div class="value">—</div></div>'
     }
   }
   const cols = slot?.columns || cards.length || 3
-  return '<div class="info-grid" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
+  const gridGap = st.gap ? 'gap:' + st.gap + ';' : ''
+  const gridMargin = st.margin ? 'margin:' + st.margin + ';' : ''
+  return '<div class="' + ctx.cls('info-grid') + '" style="--cols:' + cols + ';' + gridGap + gridMargin + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
 }
 
 function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y, icon, O } = ctx
   const cardComp = output.cardComp
+  const st = slot?.tokens || {}
+  const gapStyle = (extra: string) => ' style="--i:' + extra + ';' + (st.padding ? 'padding:' + st.padding + ';' : '') + (st.radius ? 'border-radius:' + st.radius + ';' : '') + '"'
   const heading = output.gaps.length + ' ' + (O?.psychology?.primaryEmotion
     ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades'
     : 'Gaps e Oportunidades')
   const approach = O?.persona?.approach || 'Análise baseada em dados reais.'
-  return '<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
+  return '<div class="' + ctx.cls('section') + '"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
     '<p style="color:var(--muted-fg);margin-bottom:1.5rem">' + approach + '</p>' +
     output.gaps.map((g, idx) => {
       const sev = g.severity
       const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
       const sevIcon = sevClass === 'critico' ? icon('shield') : sevClass === 'forca' ? icon('star') : icon('trend')
-      return '<div class="gap ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="gap-header"><span class="gap-severity ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>' + sevIcon + ' Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + icon('trend') + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
+      return '<div class="' + ctx.cls('gap') + ' ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + gapStyle(idx + '') + '><div class="' + ctx.cls('gap-header') + '"><span class="' + ctx.cls('gap-severity') + ' ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>' + sevIcon + ' Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + icon('trend') + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
     }).join("") + '</div>'
 }
 
 function renderCtaSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y, icon, O } = ctx
   const btnComp = output.btnComp
-  return '<div class="cta"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="cta-btn" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
+  const st = slot?.tokens || {}
+  const sectionPad = st.sectionPadding || (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem')
+  const btnPad = st.buttonPadding || T.buttonPaddingBlock + ' ' + T.buttonPaddingInline
+  const btnRad = st.buttonRadius || T.buttonRadius
+  return '<div class="' + ctx.cls('cta') + '" style="padding:' + sectionPad + '"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="' + ctx.cls('cta-btn') + '" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' style="padding:' + btnPad + ';border-radius:' + btnRad + '" target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
 }
 
 function renderFooterSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, O } = ctx
-  return '<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
+  const st = slot?.tokens || {}
+  const footerPad = st.padding || T.sectionSpacing + ' 0'
+  const footerMT = st.marginTop || (T.spacing[4] || '2rem')
+  return '<footer class="' + ctx.cls('footer') + '" style="padding:' + footerPad + ';margin-top:' + footerMT + '"><div class="' + ctx.cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
 }
 
 // ═══ SLOT RENDERER REGISTRY (slot type → render function) ═══
@@ -1150,7 +1163,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const materio = await queryMaterioTokens().catch(() => null)
     const mediaAnim = await queryMediaAnimation(seg).catch(() => null)
     const icons = await queryMediaIcons().catch(() => ({} as Record<string, string>))
-    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio)
+    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
     const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, morph, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons)

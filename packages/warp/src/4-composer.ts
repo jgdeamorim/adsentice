@@ -68,7 +68,6 @@ const S10_SPECIALIST: SurfaceSpecialist = {
   name: 'Relatório Raio-X',
   skills: ['seo-audit', 'schema', 'site-architecture', 'copywriting', 'psychology', 'cro', 'local-seo'],
   inferLayout(context, components) {
-    // Decompõe componentes do discovery por papel na gramática S10
     const byRole = (role: string) => components.find(c =>
       c.id.includes(role) || c.component.name.toLowerCase().includes(role))
     const heroComp = byRole('badge') || byRole('chip')
@@ -76,14 +75,30 @@ const S10_SPECIALIST: SurfaceSpecialist = {
     const ringComp = byRole('progress') || byRole('circular') || byRole('gauge')
     const btnComp = byRole('button') || byRole('cta')
 
+    // ═══ S10 DESIGN GRAMMAR (Warp Excellence spec · Python generator gold standard) ═══
+    // Cada slot emite seus tokens — o renderer aplica. g0 doctrine.
     return {
       id: 'layout.s10',
       type: 's10-raio-x',
+      layoutHints: {
+        container: '860px',
+        sectionSpacing: '2.5rem',
+        sectionSpacingTablet: '1.5rem',
+        sectionSpacingPhone: '1rem',
+        cardPadding: '2rem',
+        infoCardPadding: '1.25rem',
+        gapPadding: '1.5rem',
+        buttonRadius: '99px',
+        buttonPaddingBlock: '.75rem',
+        buttonPaddingInline: '1.75rem',
+        footerPadding: '2rem',
+      },
       slots: {
         hero: {
           type: 'hero-section',
           component: heroComp?.id || 'hero-badge',
           badge: heroComp?.id || 'badge',
+          tokens: { padding: '3.5rem 2rem', minHeight: 'auto' },
         },
         score: {
           type: 'score-card',
@@ -91,6 +106,7 @@ const S10_SPECIALIST: SurfaceSpecialist = {
           card: cardComp?.id || 'score-card',
           info: cardComp?.id || 'score-info',
           bars: { count: 3 },
+          tokens: { padding: '2rem', radius: 'var(--radius)', border: '1px solid var(--border)' },
         },
         info_grid: {
           type: 'info-grid',
@@ -100,21 +116,25 @@ const S10_SPECIALIST: SurfaceSpecialist = {
             { slot: 'website', component: cardComp?.id || 'info-card' },
             { slot: 'competition', component: cardComp?.id || 'info-card' },
           ],
+          tokens: { padding: '1.25rem', radius: 'var(--radius-sm)', gap: '1rem', margin: '1.5rem 0' },
         },
         gaps: {
           type: 'gap-list',
           component: cardComp?.id || 'gap-card',
-          severity_colors: true, // accent bar: destructive/warning/success
-          fix_section: true,     // "Como resolver" em cada gap
+          severity_colors: true,
+          fix_section: true,
+          tokens: { padding: '1.5rem', radius: 'var(--radius-sm)', accentBar: '4px' },
         },
         cta: {
           type: 'cta-section',
           component: btnComp?.id || 'cta-button',
-          style: 'pill', // white bg, primary color
+          style: 'pill',
+          tokens: { sectionPadding: '2.5rem 2rem', buttonRadius: '99px', buttonPadding: '.75rem 1.75rem' },
         },
         footer: {
           type: 'footer',
           component: 'footer',
+          tokens: { padding: '2rem 0', marginTop: '2rem' },
         },
       },
     }

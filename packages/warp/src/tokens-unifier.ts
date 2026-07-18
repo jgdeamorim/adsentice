@@ -78,6 +78,7 @@ export function unifyTokens(
   palette: { primary: string; secondary: string; accent: string },
   odSystem: ODSystem | null,
   materio: MaterioTokens | null,
+  surface?: string,
 ): UnifiedTokens {
   // ═══ SHADOWS: Materio neutro. NUNCA sh-coral para lg ═══
   const shadowNeutral = (shadows: string[] | undefined, idx: number, fallback: string) => {
@@ -132,19 +133,19 @@ export function unifyTokens(
 
     // LAYOUT — OD
     heroMinHeight: odSystem?.layout?.heroMinHeight || "50vh",
-    containerMaxWidth: odSystem?.layout?.maxWidth || "1200px",
-    containerGutter: odSystem?.layout?.gutter || "24px",
-    sectionSpacing: odSystem?.layout?.sectionSpacingDesktop || "80px",
+    containerMaxWidth: odSystem?.layout?.maxWidth || (surface === "S10" ? "860px" : "1200px"),
+    containerGutter: odSystem?.layout?.gutter || "1.5rem",
+    sectionSpacing: odSystem?.layout?.sectionSpacingDesktop || (surface === "S10" ? "2.5rem" : "80px"),
     sectionSpacingTablet: odSystem?.layout?.sectionSpacingTablet || "48px",
     sectionSpacingPhone: odSystem?.layout?.sectionSpacingPhone || "32px",
 
     // COMPONENTS — OD
-    cardPadding: odSystem?.components?.cardPadding || "20px",
+    cardPadding: odSystem?.components?.cardPadding || (surface === "S10" ? "2rem" : "20px"),
     cardBorder: odSystem?.components?.cardBorder?.replace("var(--border)", "var(--border)") || "1px solid var(--border)",
     cardShadow,
-    buttonPaddingBlock: odSystem?.components?.buttonPaddingBlock || "10px",
-    buttonPaddingInline: odSystem?.components?.buttonPaddingInline || "16px",
-    buttonRadius: odSystem?.components?.buttonRadius || "8px",
+    buttonPaddingBlock: odSystem?.components?.buttonPaddingBlock || (surface === "S10" ? ".75rem" : "10px"),
+    buttonPaddingInline: odSystem?.components?.buttonPaddingInline || (surface === "S10" ? "1.75rem" : "16px"),
+    buttonRadius: odSystem?.components?.buttonRadius || (surface === "S10" ? "99px" : "8px"),
 
     // META
     designSystem: odSystem?.designSystem || "warp-default",
