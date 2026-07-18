@@ -1001,7 +1001,15 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   // Classes = gramatica estrutural. Scoping via CSS custom properties.
   const cls = (name: string): string => name
 
-  const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars, cls }
+  // ═══ SPECIALIST LAYOUT HINTS: override OD values com gramatica S10 ═══
+  const hints = output.tracedLayout?.layoutHints || {}
+  const Tlocal = { ...T }
+  if (hints.container) Tlocal.containerMaxWidth = hints.container
+  if (hints.sectionSpacing) Tlocal.sectionSpacing = hints.sectionSpacing
+  if (hints.sectionSpacingTablet) Tlocal.sectionSpacingTablet = hints.sectionSpacingTablet
+  if (hints.sectionSpacingPhone) Tlocal.sectionSpacingPhone = hints.sectionSpacingPhone
+
+  const ctx: SlotRenderCtx = { output, T: Tlocal, O, esc, a11y, icon, stars, cls }
 
   // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
   // Se o specialist adicionar slot novo (ex: testimonials), aparece automaticamente
