@@ -843,8 +843,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
 // g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials.
 // ═══════════════════════════════════════════════════════════════
 
-// No-op passthrough: CSS classes sao gramatica estrutural do LayoutTree.
-// Scoping via CSS custom properties (--primary, --spacing-xs, etc).
+// No-op: classes sao gramatica estrutural do LayoutTree.
+// Scoping via CSS custom properties — DAG #19: NAO-APLICADO.
 const cls = (name: string): string => name
 
 type SlotRenderCtx = {
@@ -865,22 +865,22 @@ function renderHeroSlot(slot: any, ctx: SlotRenderCtx): string {
   const emotionLabel = O?.psychology?.primaryEmotion
     ? O.psychology.primaryEmotion.split(' + ')[0]
     : output.seg
-  return '<header class="' + cls('hero') + '" ' + a11y(badgeComp, "banner", output.headline) + '><div class="' + cls('hero-content') + '">' +
-    '<div class="' + cls('hero-badge') + '" ' + a11y(badgeComp, "status", badgeLabel) + '>' + icon('search') + ' ' + emotionLabel + ' · ' + badgeLabel + '</div>' +
-    '<h1>' + ctx.esc(output.headline) + '</h1><p class="' + cls('hero') + '-subtitle">' + ctx.esc(output.subtitle) + '</p>' +
+  return '<header class="' + ctx.cls('hero') + '" ' + a11y(badgeComp, "banner", output.headline) + '><div class="' + ctx.cls('hero-content') + '">' +
+    '<div class="' + ctx.cls('hero-badge') + '" ' + a11y(badgeComp, "status", badgeLabel) + '>' + icon('search') + ' ' + emotionLabel + ' · ' + badgeLabel + '</div>' +
+    '<h1>' + ctx.esc(output.headline) + '</h1><p class="' + ctx.cls('hero') + '-subtitle">' + ctx.esc(output.subtitle) + '</p>' +
     '</div></header>'
 }
 
 function renderScoreSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y } = ctx
   const cardComp = output.cardComp; const ringComp = output.ringComp; const badgeComp = output.chipComp
-  return '<div class="' + cls('score-card') + '" ' + a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100")) + '>' +
-    '<div class="' + cls('score-ring') + '" ' + a11y(ringComp, "progressbar", "Score " + output.score + " de 100") + '><div class="' + cls('score-inner') + '" aria-hidden="true"><div class="' + cls('score-value') + '">' + output.score + '</div><div class="' + cls('score-label') + '">de 100</div></div></div>' +
-    '<div class="' + cls('score-info') + '"><h2>' + esc(output.name) + '</h2><div class="' + cls('score-level') + '" ' + a11y(badgeComp, "status", "Nível de consciência: " + output.level) + '>' + output.level + ' · ' + output.nichoName + '</div>' +
-    '<div class="' + cls('score-bars') + '">' +
-    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Presença</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.fit + '%;background:' + output.p + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.fit + '%</span></div>' +
-    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Engajamento</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.eng + '%;background:' + output.a + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.eng + '%</span></div>' +
-    '<div class="' + cls('score-bar') + '"><span class="' + cls('score-bar-label') + '">Intenção</span><div class="' + cls('score-bar-track') + '"><div class="' + cls('score-bar-fill') + '" style="width:' + output.ints + '%;background:' + output.s + '"></div></div><span class="' + cls('score-bar-val') + '">' + output.ints + '%</span></div>' +
+  return '<div class="' + ctx.cls('score-card') + '" ' + a11y(cardComp, "region", esc("Diagnóstico de " + output.name + ": score " + output.score + " de 100")) + '>' +
+    '<div class="' + ctx.cls('score-ring') + '" ' + a11y(ringComp, "progressbar", "Score " + output.score + " de 100") + '><div class="' + ctx.cls('score-inner') + '" aria-hidden="true"><div class="' + ctx.cls('score-value') + '">' + output.score + '</div><div class="' + ctx.cls('score-label') + '">de 100</div></div></div>' +
+    '<div class="' + ctx.cls('score-info') + '"><h2>' + esc(output.name) + '</h2><div class="' + ctx.cls('score-level') + '" ' + a11y(badgeComp, "status", "Nível de consciência: " + output.level) + '>' + output.level + ' · ' + output.nichoName + '</div>' +
+    '<div class="' + ctx.cls('score-bars') + '">' +
+    '<div class="' + ctx.cls('score-bar') + '"><span class="' + ctx.cls('score-bar-label') + '">Presença</span><div class="' + ctx.cls('score-bar-track') + '"><div class="' + ctx.cls('score-bar-fill') + '" style="width:' + output.fit + '%;background:' + output.p + '"></div></div><span class="' + ctx.cls('score-bar-val') + '">' + output.fit + '%</span></div>' +
+    '<div class="' + ctx.cls('score-bar') + '"><span class="' + ctx.cls('score-bar-label') + '">Engajamento</span><div class="' + ctx.cls('score-bar-track') + '"><div class="' + ctx.cls('score-bar-fill') + '" style="width:' + output.eng + '%;background:' + output.a + '"></div></div><span class="' + ctx.cls('score-bar-val') + '">' + output.eng + '%</span></div>' +
+    '<div class="' + ctx.cls('score-bar') + '"><span class="' + ctx.cls('score-bar-label') + '">Intenção</span><div class="' + ctx.cls('score-bar-track') + '"><div class="' + ctx.cls('score-bar-fill') + '" style="width:' + output.ints + '%;background:' + output.s + '"></div></div><span class="' + ctx.cls('score-bar-val') + '">' + output.ints + '%</span></div>' +
     '</div></div></div>'
 }
 
@@ -897,17 +897,17 @@ function renderInfoGridSlot(slot: any, ctx: SlotRenderCtx): string {
   const renderInfoCard = (c: any, idx: number): string => {
     switch (c.slot) {
       case 'gmb':
-        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
+        return '<div class="' + ctx.cls('info-card') + '" ' + a11y(cardComp, "region", "Google Meu Negócio") + ' style="--i:' + idx + '"><h4>Google Meu Negócio</h4><div class="value stars">' + displayStars + '</div><div class="meta">' + output.rating.toFixed(1) + '★ · ' + output.reviews + ' avaliações</div><div class="status ok">' + output.photos + ' fotos · ' + output.claimed + '</div></div>'
       case 'website':
-        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
+        return '<div class="' + ctx.cls('info-card') + '" ' + a11y(cardComp, "region", "Website") + ' style="--i:' + idx + '"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">' + String(output.website).slice(0, 35) + '</div><div class="meta">' + esc(output.local) + '</div><div class="status ok">' + icon('shield') + ' Online</div></div>'
       case 'competition':
-        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
+        return '<div class="' + ctx.cls('info-card') + '" ' + a11y(cardComp, "region", "Concorrência") + ' style="--i:' + idx + '"><h4>Concorrência</h4><div class="value">' + (output.competitors > 1 ? output.competitors - 1 : "—") + '</div><div class="meta">' + output.nichoName.toLowerCase() + 's na região</div><div class="status ok">' + icon('chart') + ' Score ' + output.score + '/100</div></div>'
       default:
-        return '<div class="' + cls('info-card') + '" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
+        return '<div class="' + ctx.cls('info-card') + '" ' + a11y(cardComp, "region", c.slot) + ' style="--i:' + idx + '"><h4>' + c.slot + '</h4><div class="value">—</div></div>'
     }
   }
   const cols = slot?.columns || cards.length || 3
-  return '<div class="' + cls('info-grid') + '" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
+  return '<div class="' + ctx.cls('info-grid') + '" style="--cols:' + cols + '">' + cards.map((c: any, i: number) => renderInfoCard(c, i)).join('') + '</div>'
 }
 
 function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
@@ -917,7 +917,7 @@ function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
     ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades'
     : 'Gaps e Oportunidades')
   const approach = O?.persona?.approach || 'Análise baseada em dados reais.'
-  return '<div class="' + cls('section') + '"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
+  return '<div class="' + ctx.cls('section') + '"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">' + heading + '</h2>' +
     '<p style="color:var(--muted-fg);margin-bottom:1.5rem">' + approach + '</p>' +
     output.gaps.map((g, idx) => {
       const sev = g.severity
@@ -930,12 +930,12 @@ function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
 function renderCtaSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, esc, a11y, icon, O } = ctx
   const btnComp = output.btnComp
-  return '<div class="' + cls('cta') + '"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="' + cls('cta-btn') + '" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
+  return '<div class="' + ctx.cls('cta') + '"><h2>' + esc(output.offer) + '</h2><p>' + (O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.') + '</p><a href="https://wa.me/' + (process.env.WHATSAPP_NUMBER || '5521999999999') + '" class="' + ctx.cls('cta-btn') + '" ' + a11y(btnComp, "button", output.cta + " no WhatsApp") + ' target="_blank" rel="noopener">' + icon('message') + ' ' + output.cta + ' no WhatsApp</a></div>'
 }
 
 function renderFooterSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, O } = ctx
-  return '<footer><div class="' + cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
+  return '<footer><div class="' + ctx.cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
 }
 
 // ═══ SLOT RENDERER REGISTRY (slot type → render function) ═══
