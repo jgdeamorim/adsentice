@@ -845,6 +845,20 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     odDesignSystem: odSystem?.designSystem || "warp-default",
   })
 
+  // ═══ PRE-RETURN: compute slotMorph before object literal ═══
+  const slotMorph = resolveMorph({
+    segment: seg,
+    designFacets: ontology.designSystem?.atmosphere ? [ontology.designSystem.atmosphere] : [],
+    animationFacets: mediaAnim?.keyframeRecommendations || [],
+    designSystemAtmosphere: ontology.designSystem?.atmosphere || '',
+    spacingStyle: ontology.designSystem?.spacingStyle || 'default',
+    motionStyle: ontology.designSystem?.motionStyle || 'subtle',
+    primaryEmotion: ontology.psychology?.primaryEmotion || '',
+    schwartzLevel: lead.schwartz_label || 'Problem Aware',
+    cssPatterns: cssPatterns || null,
+    T: T as any,
+  })
+
   return {
     name, category: cat, seg, score, fit, eng, ints,
     rating, reviews, photos, website, claimed, city, district,
@@ -872,18 +886,6 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     // Intent vocab (resolveIntentVocab → facets driven by market ontology)
     vocab: resolveIntentVocab(seg, ontology),
     // Slot morph (ADR-0037 Fase 2) — corpus-driven CSS mutations per slot
-    const slotMorph = resolveMorph({
-      segment: seg,
-      designFacets: ontology.designSystem?.atmosphere ? [ontology.designSystem.atmosphere] : [],
-      animationFacets: mediaAnim?.keyframeRecommendations || [],
-      designSystemAtmosphere: ontology.designSystem?.atmosphere || '',
-      spacingStyle: ontology.designSystem?.spacingStyle || 'default',
-      motionStyle: ontology.designSystem?.motionStyle || 'subtle',
-      primaryEmotion: ontology.psychology?.primaryEmotion || '',
-      schwartzLevel: lead.schwartz_label || 'Problem Aware',
-      cssPatterns: cssPatterns || null,
-      T: T as any,
-    })
     morph: slotMorph,
     // Composed layout (ADR-0037 Fase 5) — morphable slot composition
     composedLayout: composeLayout({
