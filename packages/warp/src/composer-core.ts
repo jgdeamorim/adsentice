@@ -301,6 +301,7 @@ ${morph.css}
 
 import { generateCopy, trackLLMCost } from "./deepseek"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem } from "./warp-kg"
+import { pluginRegistry } from "./plugins"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -576,6 +577,9 @@ function computeCritique(graph: Map<string, GraphNode>, segment: string, surface
 
 export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
   try {
+    // ── PLUGIN SYSTEM (ADR-0036 Fase 1) ──
+    await pluginRegistry.activateAll()
+
     // 1. Fetch lead
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -611,6 +615,21 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
 
     // 4. Gaps
     const gaps = computeGaps(lead, nicho)
+
+    // ── PLUGIN HOOK 1: onEnrich (ADR-0036 Fase 1) ──
+    const designCtx = {
+      segment: seg as string, plan: "r0" as string, businessName: lead.title,
+      palette: { primary: p, secondary: s, accent: a },
+      typography: { heading: "Inter", body: "Inter" },
+      designInspiration: inspoUrls, suggestedComponents: components.map(c => c.name),
+      landingPattern: "S10-raio-x", previewHtml: "",
+    }
+    for (const plugin of pluginRegistry.listActive()) {
+      if (plugin.onEnrich) {
+        const enriched = await plugin.onEnrich(designCtx as any).catch(() => null)
+        if (enriched?.palette) { Object.assign(designCtx, enriched) }
+      }
+    }
 
     // 5. Copy
     let copyModel = "deepseek-v4-flash"
@@ -651,6 +670,22 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     // 6b. Query Warp components from Qdrant (ADR-0033 Level 1)
     const components = await queryComponentsByIntent(`diagnostico raio-x ${seg}`, "S10", seg).catch(() => [])
     const hasComponents = components.length > 0
+
+    // ── PLUGIN HOOK 1: onEnrich (ADR-0036 Fase 1) ──
+    // Cada plugin ativo enriquece o contexto de design (Kimera PATTERNS, dark mode, etc.)
+    const designCtx = {
+      segment: seg as string, plan: "r0" as string, businessName: lead.title,
+      palette: { primary: p, secondary: s, accent: a },
+      typography: { heading: "Inter", body: "Inter" },
+      designInspiration: inspoUrls, suggestedComponents: components.map(c => c.name),
+      landingPattern: "S10-raio-x", previewHtml: "",
+    }
+    for (const plugin of pluginRegistry.listActive()) {
+      if (plugin.onEnrich) {
+        const enriched = await plugin.onEnrich(designCtx as any).catch(() => null)
+        if (enriched?.palette) { Object.assign(designCtx, enriched) }
+      }
+    }
 
     // 6c. N1.3 (ADR-0033) — render por componentes: cada seção herda a11y do
     // componente REAL do Qdrant (payload FLAT: a11y_role/a11y_keyboard/tokens/edges)
@@ -732,7 +767,19 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       if (ch2) { usedComponents.push(ch2.id); chipComp = ch2 as any }
       critique = computeCritique(graph, seg, "S10")
     }
-    const tracedLayout = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
+    let tracedLayout: any = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
+
+    // ── PLUGIN HOOK 2: onCritique (ADR-0036 Fase 1) ──
+    designCtx.previewHtml = ""; designCtx.critiqueScore = critique as any
+    for (const plugin of pluginRegistry.listActive()) {
+      if (plugin.onCritique) {
+        const enforced = await plugin.onCritique(critique as any, designCtx as any).catch(() => null)
+        if (enforced?.enforced) {
+          critique = { ...critique, ...enforced.score }
+          tracedLayout.critique = { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter, enforced: true }
+        }
+      }
+    }
 
     // 7. Build HTML (FULL Python template port + Qdrant design intelligence)
     const html = `<!DOCTYPE html><html lang="pt-BR">
@@ -869,6 +916,15 @@ ${gaps.map(g => {
       computedAt: new Date().toISOString(),
       city, district,
     }
-    return { html, meta }
+    // ── PLUGIN HOOK 3: onGenerate (ADR-0036 Fase 1) ──
+    let finalHtml = html
+    for (const plugin of pluginRegistry.listActive()) {
+      if (plugin.onGenerate) {
+        const transformed = await plugin.onGenerate(designCtx as any, finalHtml).catch(() => null)
+        if (transformed) finalHtml = transformed
+      }
+    }
+
+    return { html: finalHtml, meta }
   } catch (e: any) { console.error("[composeS10]", e.message); return null }
 }
