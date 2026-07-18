@@ -69,16 +69,23 @@ const SEGMENT_BASE_HUE: Record<string, number> = {
 function segmentPalette(segment: SegmentId | 'todos', ibgeContext?: { densidade?: number; pibPerCapita?: number }) {
   const seg = segment === 'todos' ? 'servicos' as SegmentId : segment as SegmentId
   const hue = SEGMENT_BASE_HUE[seg] || 260
-  const sat = (ibgeContext?.densidade && ibgeContext.densidade > 2000) ? '45%' : '35%'
-  const light = (ibgeContext?.pibPerCapita && ibgeContext.pibPerCapita > 80000) ? '35%' : '55%'
+  // CSS válido: valores computados em JS — nunca calc() com % ± número sem unidade
+  const satPct = (ibgeContext?.densidade && ibgeContext.densidade > 2000) ? 45 : 35
+  const lightPct = (ibgeContext?.pibPerCapita && ibgeContext.pibPerCapita > 80000) ? 35 : 55
 
   return {
-    primary: `oklch(${light} ${sat} ${hue})`,
-    secondary: `oklch(calc(${light} - 0.15) ${sat} ${hue})`,
-    accent: `oklch(calc(${light} + 0.1) calc(${sat} * 0.8) ${hue})`,
+    primary: `oklch(${lightPct}% ${satPct}% ${hue})`,
+    secondary: `oklch(${Math.max(lightPct - 15, 10)}% ${satPct}% ${hue})`,
+    accent: `oklch(${Math.min(lightPct + 10, 95)}% ${Math.round(satPct * 0.8)}% ${hue})`,
     bg: '#f8fafc', fg: '#0f172a', muted: '#f1f5f9',
     success: '#10b981', destructive: '#ef4444',
   }
+}
+
+// Alpha compatível com oklch() E hex — `${cor}15` (hex-alpha) é inválido em oklch
+function withAlpha(c: string, hex2: string): string {
+  const t = c.trim()
+  return t.endsWith(")") ? t.replace(/\)$/, ` / ${Math.round(parseInt(hex2, 16) / 2.55)}%)`) : `${t}${hex2}`
 }
 
 function segmentTypography(segment: SegmentId | 'todos') {
@@ -574,6 +581,7 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const p = morph.tokens["color-primary"] || "#2563EB"
     const s = morph.tokens["color-secondary"] || "#1E40AF"
     const a = morph.tokens["color-accent"] || "#3B82F6"
+    const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // 4. Gaps
     const gaps = computeGaps(lead, nicho)
@@ -656,7 +664,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
 .score-info{flex:1;min-width:240px}
 .score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
-.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:99px;font-size:.8125rem;font-weight:600;background:${p}15;color:${p};margin-bottom:1rem}
+.score-level{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .75rem;border-radius:99px;font-size:.8125rem;font-weight:600;background:${p15};color:${p};margin-bottom:1rem}
 .score-bars{display:flex;flex-direction:column;gap:.625rem}
 .score-bar{display:flex;align-items:center;gap:.75rem}
 .score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
@@ -670,7 +678,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 .info-card .value.stars{color:#f59e0b}
 .info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:.25rem}
 .info-card .status{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600;margin-top:.5rem}
-.info-card .status.ok{background:${p}12;color:${p}}
+.info-card .status.ok{background:${p12};color:${p}}
 .gap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all var(--motion);position:relative}
 .gap:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
 .gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
