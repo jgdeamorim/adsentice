@@ -16,7 +16,7 @@ Pattern: rsxt-k0 (NodeId/EdgeKind Strings, add_edge, sync canonical)
 medido=verdade · 2026-07-18 · adsentice
 """
 
-import json, os, re, sys, time, hashlib
+import json, os, re, sys, time, uuid
 from pathlib import Path
 from typing import Any
 import httpx
@@ -199,11 +199,13 @@ def upsert_batch(points: list[dict]) -> bool:
             f"{QDRANT}/collections/{COLLECTION}/points",
             json=body,
             params={"wait": "true"},
-            timeout=30.0,
+            timeout=60.0,
         )
+        if r.status_code != 200:
+            print(f"\n  ⚠️  Upsert fail: HTTP {r.status_code} {r.text[:200]}")
         return r.status_code == 200
     except Exception as e:
-        print(f"  ⚠️  Upsert error: {e}")
+        print(f"\n  ⚠️  Upsert error: {e}")
         return False
 
 # ═══════════════════════════════════════════════════════════════
@@ -255,7 +257,7 @@ def main():
         rel_path = str(fp.relative_to(fp.parents[2]) if len(fp.parents) > 2 else fp)
 
         entity = {
-            "id": hashlib.md5(str(fp).encode()).hexdigest()[:12],
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, str(fp))),
             "kind": meta["kind"],
             "category": meta["category"],
             "name": fp.stem,
