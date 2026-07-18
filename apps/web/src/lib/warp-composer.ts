@@ -892,7 +892,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 </div>`
 
   const gapsSection = `
-<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">${output.gaps.length} Gaps e Oportunidades</h2>
+<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '">${output.gaps.length} ${O?.psychology?.primaryEmotion ? O.psychology.primaryEmotion.split(' + ')[0] + ' · Oportunidades' : 'Gaps e Oportunidades'}</h2>
 <p style="color:var(--muted-fg);margin-bottom:1.5rem">${O?.persona?.approach || 'Análise baseada em dados reais.'}</p>
 ${output.gaps.map((g, idx) => {
   const sev = g.severity
@@ -904,7 +904,7 @@ ${output.gaps.map((g, idx) => {
 <div class="cta"><h2>${esc(output.offer)}</h2><p>${O?.persona?.offer || 'Diagnóstico gratuito em 30 segundos.'}</p><a href="https://wa.me/${process.env.WHATSAPP_NUMBER || '5521999999999'}" class="cta-btn" ${a11y(btnComp, "button", output.cta + " no WhatsApp")} target="_blank" rel="noopener">${I.message} ${output.cta} no WhatsApp</a></div>`
 
   const footer = `
-<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:${T.spacing[0] || '.25rem'}">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>`
+<footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — ${O?.persona?.who || 'inteligência de mercado para negócios locais.'}</p><p style="margin-top:${T.spacing[0] || '.25rem'}">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>`
 
   // ═══ CSS (morph puro: tokens unificados + keyframes + reduced-motion) ═══
   // Zero texto hardcoded. Só custom properties e @keyframes do Materio motion.
@@ -989,7 +989,7 @@ ${output.gaps.map((g, idx) => {
 '.gap .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
 '.gap .fix strong{color:var(--fg)}\n' +
 '.gap .meta-row{display:flex;gap:' + (T.spacing[3] || '1.25rem') + ';margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
-'.cta{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
+'.cta{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem') + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
 '.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
 '.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +
