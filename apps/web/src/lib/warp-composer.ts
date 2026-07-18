@@ -1057,6 +1057,16 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   if (hints.sectionSpacingTablet) T.sectionSpacingTablet = hints.sectionSpacingTablet
   if (hints.sectionSpacingPhone) T.sectionSpacingPhone = hints.sectionSpacingPhone
 
+  // ═══ MORPH BACKPORT: corpus-driven CSS values (resolveMorph) ═══
+  const M = output.morph || {}
+  const heroAngle = M?.hero?.gradientAngle || '135deg'
+  const gapHover = M?.gaps?.hoverEffect || 'translateY(-1px)'
+  const infoRadius = M?.infoCards?.borderRadius || 'var(--radius-sm)'
+  const infoPad = M?.infoCards?.padding || '1.25rem'
+  const ctaDirection = M?.cta?.gradientDirection || '135deg'
+  const ctaSectionPad = M?.cta?.sectionPadding || (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem')
+  const enforce = M?.enforcement || null
+
   const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars, cls }
 
   // ═══ SLOT-DRIVEN RENDER: itera slots do LayoutTree dinamicamente ═══
@@ -1138,7 +1148,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}\n' +
 '*{box-sizing:border-box;margin:0;padding:0}\n' +
 'body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}\n' +
-'.' + cls('hero') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
+'.' + cls('hero') + '{background:linear-gradient(' + heroAngle + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;min-height:' + T.heroMinHeight + ';display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}\n' +
 '.' + cls('hero') + '::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}\n' +
 '.' + cls('hero-content') + '{position:relative;z-index:1;max-width:800px;margin:0 auto}\n' +
 '.' + cls('hero-badge') + '{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.375rem') + ';background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:' + (T.spacing[0] || '.375rem') + ' ' + (T.spacing[1] || '.875rem') + ';border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}\n' +
@@ -1169,7 +1179,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '.' + cls('info-card') + ' .status{display:inline-flex;align-items:center;gap:' + (T.spacing[0] || '.25rem') + ';padding:' + (T.spacing[0] || '.125rem') + ' ' + (T.spacing[1] || '.5rem') + ';border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}\n' +
 '.' + cls('info-card') + ' .status.ok{background:' + output.p12 + ';color:' + output.p + '}\n' +
 '.' + cls('gap') + '{background:var(--card);border:' + T.cardBorder + ';border-radius:var(--radius);padding:' + T.cardPadding + ';margin-bottom:1rem;box-shadow:' + (T.cardShadow === "none" ? "none" : "0 1px 2px rgba(0,0,0,0.05)") + ';transition:all var(--motion);position:relative}\n' +
-'.' + cls('gap') + ':hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}\n' +
+'.' + cls('gap') + ':hover{transform:' + gapHover + ';box-shadow:var(--shadow-lg)}\n' +
 '.' + cls('gap') + '::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
 '.' + cls('gap') + '.critico::before{background:var(--destructive)}\n' +
 '.' + cls('gap') + '.medio::before{background:var(--warning)}\n' +
@@ -1184,7 +1194,7 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '.' + cls('gap') + ' .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
 '.' + cls('gap') + ' .fix strong{color:var(--fg)}\n' +
 '.' + cls('gap') + ' .meta-row{display:flex;gap:' + (T.spacing[3] || '1.25rem') + ';margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}\n' +
-'.' + cls('cta') + '{background:linear-gradient(135deg,' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + (T.sectionSpacing || '2.5rem') + ' ' + (T.spacing[3] || '2rem') + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
+'.' + cls('cta') + '{background:linear-gradient(' + ctaDirection + ',' + T.primary + ' 0%,' + T.secondary + ' 100%);color:#fff;text-align:center;padding:' + ctaSectionPad + ';border-radius:var(--radius);box-shadow:var(--shadow-lg)}\n' +
 '.' + cls('cta') + ' h2{font-size:1.5rem;font-weight:700;margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.' + cls('cta') + ' p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}\n' +
 '.' + cls('cta-btn') + '{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:' + T.primary + ';padding:' + T.buttonPaddingBlock + ' ' + T.buttonPaddingInline + ';border-radius:' + T.buttonRadius + ';font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:' + (T.cardShadow === "none" ? "none" : "0 4px 14px rgba(0,0,0,0.12)") + '}\n' +

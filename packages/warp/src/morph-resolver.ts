@@ -229,5 +229,15 @@ export function resolveMorph(input: MorphInput): PerSlotMutations {
       reducedMotion: hasReducedMotion || motionStyle === 'zero',
       reasoning: font.reason + ' | typography + motion from corpus hints',
     },
+    // ── BEST PRACTICE ENFORCEMENT (from corpus) ──
+    enforcement: {
+      contrastMinimum: '4.5:1',
+      focusVisible: '2px solid var(--ring)',
+      semanticHTML: true,
+      prefersReducedMotion: hasReducedMotion || motionStyle === 'zero',
+      headingHierarchy: true,
+      keyboardNavigation: true,
+      reasoning: 'WCAG 2.2 AA + React best practices from corpus enrichment',
+    },
   }
 }
