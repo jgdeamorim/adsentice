@@ -304,6 +304,7 @@ import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByInt
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
+import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
@@ -615,6 +616,8 @@ interface S10BlueOutput {
   designSystem: string; mediaAnim: any
   // ── SURFACE SPECIALIST ──
   specialistActive: boolean; grammarType: string
+  // ── MARKET ONTOLOGY (persona + psicologia + design + mercado) ──
+  ontology: any
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -780,6 +783,28 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     if (c && !usedComponents.includes(c.id)) usedComponents.push(c.id)
   }
 
+  // ── MARKET ONTOLOGY (persona + psicologia + design + mercado) ──
+  // Unifica 4 fontes: S10RaioXPipeline + Marketing skills + OD design-systems + dados reais
+  const ontology = computeMarketOntology({
+    category: cat,
+    nichoName: nicho.name,
+    nichoSpecialties: nicho.specialties,
+    nichoAudience: nicho.audience,
+    nichoKeywords: nicho.keywords,
+    nichoPains: nicho.pains,
+    nichoObjections: nicho.objections || [],
+    nichoConversionTriggers: nicho.conversionTriggers,
+    segment: seg,
+    schwartzLevel: lead.schwartz_label || "Problem Aware",
+    competitors,
+    city, district,
+    score,
+    rating, reviews,
+    claimed: lead.is_claimed || false,
+    categoryDisplay: lead.category || cat,
+    odDesignSystem: odSystem?.designSystem || "warp-default",
+  })
+
   return {
     name, category: cat, seg, score, fit, eng, ints,
     rating, reviews, photos, website, claimed, city, district,
@@ -798,6 +823,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     mediaAnim,
     // Surface specialist info
     specialistActive: !!specialist, grammarType: layoutTree.type,
+    // MarketOntology (persona + psicologia de cor + dados de mercado)
+    ontology,
   }
 }
 
@@ -1075,6 +1102,8 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       computedAt: new Date().toISOString(),
       city, district,
       designSystem: blue.designSystem,
+      // ── MARKET ONTOLOGY (persona + psicologia de cor + design + mercado) ──
+      ontology: blue.ontology,
       // BLUE/GREEN marker (RSXT doctrine compliance)
       _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_BLUE", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
     }
