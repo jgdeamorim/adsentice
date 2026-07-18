@@ -684,6 +684,40 @@ export async function queryCSSPatterns(segment: string, surface: string): Promis
   } catch { return null }
 }
 
+/** ADR-0037 Fase 4 — query k0 code structure for surface-aware templates.
+ *  Semantic vec() search over 984 code entities (Next.js-aware).
+ *  Returns existing components, pages, layouts that match the surface intent.
+ *  Used by morph-resolver to suggest component reuse and avoid duplication. */
+export async function queryK0ForSurface(surface: string, segment?: string): Promise<{
+  source: string; kind: string; nextjsRole: string; route: string
+  cssFramework: string; reactMode: string; jsxTags: string[]
+  score: number
+}[]> {
+  try {
+    const query = `${surface} page component layout ${segment || ''} design template`
+    const vec = await embedQuery(query)
+    if (vec.length === 0) return []
+
+    const results = await qdrantSearch(vec, {
+      must: [{ key: "tag", match: { value: "adsentice-k0" } }],
+    }, 8)
+
+    return results.filter(p => (p.score || 0) >= SCORE_THRESHOLD).map(p => {
+      const pl = p.payload || {}
+      return {
+        source: (pl.source as string) || "",
+        kind: (pl.kind as string) || "",
+        nextjsRole: (pl.nextjs_role as string) || "",
+        route: (pl.route as string) || "",
+        cssFramework: (pl.css_framework as string) || "none",
+        reactMode: (pl.react_mode as string) || "server",
+        jsxTags: (pl.jsx_tags as string[]) || [],
+        score: p.score || 0,
+      }
+    })
+  } catch { return [] }
+}
+
 /** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
  *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
  *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */

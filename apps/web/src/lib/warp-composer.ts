@@ -300,7 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns, queryK0ForSurface } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
@@ -633,6 +633,8 @@ interface S10BlueOutput {
   mktFrameworks: any[]
   // ── SLOT MORPH (ADR-0037 Fase 2 — corpus-driven CSS mutations) ──
   morph: any
+  // ── K0 SURFACE QUERY (ADR-0037 Fase 4 — existing code templates) ──
+  k0Templates: any[]
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -643,7 +645,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   designIntel: any, inspoUrls: string[], odSystem: any, materio: any, mediaAnim: any,
   T: ReturnType<typeof unifyTokens>,
   icons: Record<string, string>,
-  cssPatterns: any
+  cssPatterns: any,
+  k0Templates: any[]
 ): Promise<S10BlueOutput> {
   const name = lead.title
   const score = lead.score_compound || 50
@@ -881,6 +884,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     }),
     // Marketing KG frameworks (ADR-0037 Fase 1 — raw Qdrant query)
     mktFrameworks,
+    // k0 surface query (ADR-0037 Fase 4 — existing code templates)
+    k0Templates,
   }
 }
 
@@ -1328,10 +1333,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     const mediaAnim = await queryMediaAnimation(seg, preVocab.animationFacets).catch(() => null)
     const icons = await queryMediaIcons(preVocab.iconFacets).catch(() => ({} as Record<string, string>))
     const cssPatterns = await queryCSSPatterns(seg, 'S10').catch(() => null)
+    const k0Templates = await queryK0ForSurface('S10', seg).catch(() => [])
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S10')
 
     // ═══ BLUE → GREEN: composição de decisões → render puro ═══
-    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, null as any, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons, cssPatterns)
+    const blue = await composeS10_BLUE(lead, cat, seg, nicho, level, local, city, district, competitors, null as any, p, s, a, p15, p12, designIntel, inspoUrls, odSystem, materio, mediaAnim, T, icons, cssPatterns, k0Templates)
     
     // ═══ GREEN PHASE (G2 RENDER — sync, pure, NO LLM, <1ms target) ═══
     // RSXT doctrine: g0 doesn't draw → specialist (BLUE) decides grammar, GREEN applies materials
