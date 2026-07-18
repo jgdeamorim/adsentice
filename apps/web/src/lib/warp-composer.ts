@@ -935,7 +935,7 @@ function renderCtaSlot(slot: any, ctx: SlotRenderCtx): string {
 
 function renderFooterSlot(slot: any, ctx: SlotRenderCtx): string {
   const { output, T, O } = ctx
-  return '<footer><div class="' + ctx.cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
+  return '<footer class="' + ctx.cls('footer') + '"><div class="' + ctx.cls('container') + '"><p>Diagnóstico gerado por <span>adsentice</span> — ' + (O?.persona?.who || 'inteligência de mercado para negócios locais.') + '</p><p style="margin-top:' + (T.spacing[0] || '.25rem') + '">Dados: Google Meu Negócio · website · mercado local · ' + new Date().toLocaleDateString('pt-BR') + '</p></div></footer>'
 }
 
 // ═══ SLOT RENDERER REGISTRY (slot type → render function) ═══
@@ -1084,12 +1084,12 @@ function renderS10_GREEN(output: S10BlueOutput): string {
 '.' + cls('gap') + '::before{content:\'\';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}\n' +
 '.' + cls('gap') + '.critico::before{background:var(--destructive)}\n' +
 '.' + cls('gap') + '.medio::before{background:var(--warning)}\n' +
-'.gap.oportunidade::before,.' + cls('gap') + '.forca::before{background:var(--success)}\n' +
+'.' + cls('gap') + '.oportunidade::before,.' + cls('gap') + '.forca::before{background:var(--success)}\n' +
 '.' + cls('gap-header') + '{display:flex;align-items:center;gap:' + (T.spacing[1] || '.75rem') + ';margin-bottom:' + (T.spacing[1] || '.5rem') + '}\n' +
 '.' + cls('gap-severity') + '{font-size:.75rem;font-weight:700;text-transform:uppercase}\n' +
 '.' + cls('gap-severity') + '.critico{color:var(--destructive)}\n' +
 '.' + cls('gap-severity') + '.medio{color:var(--warning)}\n' +
-'.gap-severity.oportunidade,.' + cls('gap-severity') + '.forca{color:var(--success)}\n' +
+'.' + cls('gap-severity') + '.oportunidade,.' + cls('gap-severity') + '.forca{color:var(--success)}\n' +
 '.' + cls('gap') + ' h4{font-size:1.05rem;font-weight:700}\n' +
 '.' + cls('gap') + ' p{color:var(--muted-fg);font-size:.9rem;margin-bottom:' + (T.spacing[1] || '.75rem') + '}\n' +
 '.' + cls('gap') + ' .fix{background:var(--muted);padding:' + (T.spacing[1] || '.875rem') + ' ' + (T.spacing[2] || '1rem') + ';border-radius:var(--radius-sm);font-size:.875rem}\n' +
