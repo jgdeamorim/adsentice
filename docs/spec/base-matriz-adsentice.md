@@ -5,7 +5,7 @@ status: living
 type: spec
 version: "2.0.0"
 date: 2026-07-11
-updated: 2026-07-16T01:30:00-03:00
+updated: 2026-07-18T18:40:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -109,6 +109,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | `ADS.COR.adr.0035` | Genealogia Excelência — rsxt/evo-api → Karina HTML | ✅ accepted (2026-07-18) |
 | `ADS.COR.adr.0036` | Kimera Gabarito — Plugin System + Antigravity | ✅ accepted (2026-07-18) |
 | `ADS.COR.adr.0037` | **Convergência Runtime Semântico — Unificação Market KG + Design KG + Marketing KG** | ✅ accepted (2026-07-18) |
+| `ADS.COR.adr.0038` | **S10 Generate-then-Serve — Artefatos Vault-backed (R2+Supabase) TTL 30d** | ✅ accepted+implementado (2026-07-18) |
 
 ### ADS.COR.llm — Inteligência de Linguagem
 
@@ -123,6 +124,8 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
 | `ADS.COR.pipeline.s10_generator` | S10 Raio-X · Gerador Automático — Supabase→classify→copywriter→gaps→Qdrant→HTML+trace | `tools/adsentice_s10_generator.py` | ✅ ativo (2026-07-15) |
+| `ADS.COR.pipeline.s10_artifacts` | **Generate-then-Serve (ADR-0038)** — composeS10→QG gate→R2 blob imutável→série s10_artifacts (TTL 30d) → serve 0.54s | `apps/web/src/lib/s10-artifacts.ts` + migration 014 | ✅ LIVE (2026-07-18) |
+| `ADS.COR.pipeline.migrate_pg` | Aplicador DDL real — pg direct :5432 (migrations de verdade) | `tools/adsentice_migrate_pg.mjs` | ✅ ativo (2026-07-18) |
 | `ADS.COR.pipeline.market_intel` | Market Intelligence v1.0 · Trace Feedback Loop — cada S10 alimenta Qdrant → Qdrant enriquece próximo S10 | `packages/warp/src/market-intel.ts` | ✅ ativo (2026-07-15) |
 | `ADS.COR.pipeline.s10_rota` | Rota completa: category→nicho→persona→DeepSeek→tokens→gaps→Qdrant→HTML | `packages/warp/src/s10-raio-x.ts` | ✅ ativo (2026-07-15) |
 | `ADS.COR.pipeline.design_playbook` | Design Pipeline Playbook — regras, anti-padrões, arquitetura | `docs/spec/adsentice-design-pipeline-playbook.md` | ✅ v1.0 (2026-07-15) |
@@ -372,15 +375,15 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 | Rota | Descrição | Fonte | Status |
 |---|---|---|---|
-| `ADS.INT.kg.edges` | Arestas do KG adsentice | `tools/adsentice_kg_server.py` | ✅ 34 arestas, 5 tipos de relação |
+| `ADS.INT.kg.edges` | Arestas do KG adsentice | `tools/adsentice_kg_server.py` | ✅ 166 entities · 174 edges · 12 relações (medido 2026-07-18) |
 | `ADS.INT.kg.tools` | MCP tools: edges, neighbors, what_produces, stats | `adsentice-kg` MCP server | ✅ vivo |
 
 ### ADS.INT.conversation — Histórico e Memória
 
 | Rota | Descrição | Coleção Qdrant | Status |
 |---|---|---|---|
-| `ADS.INT.conv.history` | Histórico Claude Code (adsentice + EVO-API ref) | `adsentice-conversation` | ✅ 57,199 pts (2 sessões) |
-| `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | ✅ 24 memórias (23 + 1 nova v007) |
+| `ADS.INT.conv.history` | Histórico Claude Code (adsentice + EVO-API ref) | `adsentice-conversation` | ✅ 87,419 pts (medido 2026-07-18) |
+| `ADS.INT.conv.memory` | Memória ativa curada | `claude-memory` | ✅ 61 memórias (medido 2026-07-18) |
 | `ADS.INT.conv.tools` | MCP tools: search, recall, remember, status | `adsentice-conversation` MCP server | ✅ vivo |
 | `ADS.INT.conv.ingest` | Scripts de ingestão (7 scripts ativos) | `tools/adsentice_*_ingest.py` | ✅ 7 scripts (RUST-CHAT, Claude history, Corey, Strategy, Skills, Warp base, Warp max, Warp snippets, UUPM) |
 | `ADS.INT.conv.precompact` | Ingest automático no PreCompact | `.claude/hooks/adsentice-pre-compact.py` | ✅ vivo (sync ingest) |
@@ -404,7 +407,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | `ADS.INF.embed` | Embed server | :8081 | `embed-server-rs` (mpnet) | ✅ compartilhado |
 | `ADS.INF.vercel` | Frontend deploy | :3000 (dev) | Next.js 15 | ✅ dev |
 | `ADS.INF.s3_bucket` | Backend target (ADR-0016) | Hetzner CAX11 $5.39/mês | Docker Compose + Cloudflare Workers (Hono) | 🔴 a provisionar |
-| `ADS.INF.supabase` | Database + Auth | — | Supabase | ✅ auth wire |
+| `ADS.INF.cloudflare` | **Plataforma edge ratificada (founder 2026-07-18 · ADR-0010/0038)** | free tier | R2 ✅ produção (artefatos S10 + backups + lifecycle 35d) · Workers ⬜ 1º · KV ⬜ 2º · AI Gateway ⬜ 3º · Pages ⬜ 4º · D1 ⬜ 5º · Queues ⬜ ⚠ verificar free | ⚠️ parcial |
+| `ADS.INF.supabase` | Database + Auth | — | Supabase | ✅ auth wire · série s10_artifacts (migration 014) |
 
 ---
 
@@ -511,7 +515,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v1.5.0 · 2026-07-15 · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · Família Warp COMPLETA (M1-M9, 22 arquivos TS) · 18K+ corpus A · 75K+ corpus C · S10 Generator automático (DeepSeek V4 Flash) · Market Intelligence feedback loop · Embed Quality Gate · Design Pipeline Playbook · 7 skills Claude · 208 commits · 21 ADRs · Pipeline 6/6 OK · BOA 0.959 EXCELLENT · OD foundation SUPERIOR (6,301 vs 88 pts) · Runtime 4/5 gaps fechados*
+*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-18 (selo v082) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs (ADR-0038 Generate-then-Serve LIVE) · corpus A 19,749 · conversation 87,419 · claude-memory 61 · KG 166/174 · Cloudflare R2 ✅ produção + Supabase ratificados (founder 2026-07-18) · S10 surface pronta: serve 0.54s · BOA 0.9277 EXCELLENT*
 
 ## Changelog
 
@@ -546,7 +550,9 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v027 | 2026-07-13 | adr-0010-cloudflare-free-tier-enterprise | `docs/adr/0010-cloudflare-free-tier-enterprise.md` — Workers+D1+Queues+R2+KV como plataforma enterprise ($0) | ✅ accepted |
 | v028 | 2026-07-14 | warpfield-completo-absorcao-od-v0.9.0 | Família Warp completa (M1-M9) + 6,267 pts design Qdrant + 6,103 design knowledge + 5 skills + 2 Claude skills + 5 refinamentos sobre OD | ✅ vivo |
 | v029 | 2026-07-15 | s10-deepseek-copywriter-market-intel | S10 Generator + DeepSeek V4 Flash Copywriter + Market Intelligence v1.0 + LLM Copywriter unificado (DeepSeek+Qwen) + Embed Quality Gate + Design Pipeline Playbook | ✅ vivo |
+| v030-v080 | 2026-07-15→18 | ciclo warp composer (render destravado → morphable composer multi-surface) | `docs/handoff/active/HANDOFF-2026-07-18-v0{42..80}-*.md` (selos v042-v080) | ✅ vivo |
+| v081 | 2026-07-18 | s10-jsx-route-live-surface-pronta | `HANDOFF-2026-07-18-v081-final-s10-jsx-route-live.md` (commits 2fddd41+25beea2+dcfd766) — rota pública, blue exposto, zero hardcode | ✅ vivo |
+| v082 | 2026-07-18 | adr-0038-generate-then-serve-live | `HANDOFF-2026-07-18-v082-final-adr-0038-generate-then-serve.md` (commits 4085616+70e575c) — serve 0.54s, QG gate, TTL 30d, R2+Supabase ratificados | ✅ vivo |
 
 ---
 
-*Base-Matriz adsentice v1.3.0 · 2026-07-13 · 7 dimensoes · 100+ rotas · medido=verdade · ADR-0008/0009/0010 (3 novos) · Enrichment Engine v0.4 (37 sinais, 9 dimensoes) · Market Intelligence v0.6 · Geo Resolver (27 capitais) · R2 Vault wireado · Cron semanal · 723 corpus · 740 conversation · 27 changelog · 10 ADRs · Supabase pg Pool · Cloudflare R2+Workers+D1+Queues*
