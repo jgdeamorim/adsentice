@@ -1379,6 +1379,13 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
         skillsUsed: blue.mktFrameworks.length,
         topFrameworks: blue.mktFrameworks.slice(0, 3).map((f: any) => ({ skill: f.skillName || '?', source: f.source, score: Math.round((f.score || 0) * 100) / 100 })),
       } : { source: 'mkt-offline' },
+      // ── SLOT MORPH TRACE (ADR-0037 Fase 2) ──
+      _morph: blue.morph ? {
+        hero: { gradientAngle: blue.morph.hero.gradientAngle, reasoning: blue.morph.hero.reasoning },
+        infoCards: { borderRadius: blue.morph.infoCards.borderRadius, padding: blue.morph.infoCards.padding, columns: blue.morph.infoCards.columns },
+        cta: { buttonShape: blue.morph.cta.buttonShape, sectionPadding: blue.morph.cta.sectionPadding },
+        global: { containerMaxWidth: blue.morph.global.containerMaxWidth, textWrapBalance: blue.morph.global.textWrapBalance },
+      } : { source: 'morph-offline' },
     }
 
     // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
