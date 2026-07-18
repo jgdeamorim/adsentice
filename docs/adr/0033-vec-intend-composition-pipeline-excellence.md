@@ -276,6 +276,26 @@ Score: 4/5 → DELIVER (with 1 warning)
 
 Tudo já está pago — os embeddings existem, os componentes estão no Qdrant, o código está em `packages/warp/src/`. É só wirear.
 
+## Nota medida — contrato REAL do payload (2026-07-18)
+
+⚠️ O exemplo de payload nested acima (`a11y:{...}`, `designSystem:{...}`) é **idealizado**. Scroll completo no Qdrant (236 pts `kind=component`) mediu o contrato real, que é **FLAT**:
+
+```
+a11y_role · a11y_keyboard · a11y_contrast     ← flat, não nested
+tokens                                         ← equivale a designSystem.sections
+edges                                          ← grafo de dependências JÁ NO PAYLOAD (Nível 2 pronto)
+intent · triggers · surfaces · segments · mode · type · source_name · source_quality
+```
+
+Exemplo real (`Button`, 21 campos). **Zero** componentes têm `a11y{}` nested. Implicações:
+
+1. **Nível 1.3:** o render component-based consome campos flat (`a11y_role`, `tokens`).
+2. **Nível 2:** `resolveDependencies` não precisa inferir — o campo `edges` já traz o grafo.
+3. **Corpus para intent medido:** 60 componentes motion (Animated Beam, Particles, Number Ticker, Animated Circular Progress Bar…), Framer Motion knowledge (Gestures, Layout Animations, SVG Path Animation stroke+pathLength), 733 color-palettes, 388 ui-styles, 168 micro-interactions, 387 glassmorphism, 64 svg, 483 icon-libraries, 8.920 google-fonts, 113 chart-types.
+4. **Schema.org image:** `warp-composer.ts` usa `lead.website` hardcoded como `image` (inválido para Rich Results). O corpus tem SVG components/knowledge para gerar og-image/hero SVG real via intent.
+
+Fonte: scroll Qdrant `adsentice-self` 2026-07-18 · claude-memory `d291d67b`.
+
 ## Referências
 
 - `packages/warp/src/2-registry.ts` — ComponentRegistry com `queryByIntent()` (vec search)
