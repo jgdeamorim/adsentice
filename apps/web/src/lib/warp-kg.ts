@@ -674,7 +674,7 @@ export async function queryMediaIcons(iconFacets?: string[]): Promise<Record<str
           { key: "kind", match: { value: "component" } },
           { key: "category", match: { value: "icon" } },
         ] },
-        limit: 30, with_payload: true,
+        limit: 50, with_payload: true,
       }),
       signal: AbortSignal.timeout(5000),
     })
