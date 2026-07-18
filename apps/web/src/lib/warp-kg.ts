@@ -551,8 +551,9 @@ export async function queryMediaAnimation(segment: string): Promise<{
 }
 
 /** ADR-0036 Fase 4 — query SVG icons do corpus (kind=component, category=icon).
- *  Retorna map facet→SVG markup do Qdrant. Sem fallback hardcoded —
- *  se Qdrant offline ou sem hits, retorna {} e o GREEN usa texto puro (embedding sensor doctrine). */
+ *  Retorna map facet→SVG markup. SVG no campo `text`, facets no array `facets`.
+ *  KG: vocab.facets.* → media.icon_set.lucide → has_facet (search/chat/star/shield...).
+ *  Se Qdrant offline ou sem hits, retorna {} — GREEN usa texto puro. */
 export async function queryMediaIcons(): Promise<Record<string, string>> {
   try {
     const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
@@ -563,20 +564,40 @@ export async function queryMediaIcons(): Promise<Record<string, string>> {
           { key: "kind", match: { value: "component" } },
           { key: "category", match: { value: "icon" } },
         ] },
-        limit: 20, with_payload: true,
+        limit: 30, with_payload: true,
       }),
       signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return {}
     const data = await res.json()
-    const points = data.result?.points || []
+    const points: QdrantPoint[] = data.result?.points || []
+
+    // Map icon payload id → renderer facet name (what slot renderers call via icon('...'))
+    const idToFacet: Record<string, string> = {
+      search: 'search', 'icon-search': 'search',
+      chart: 'chart', 'icon-chart': 'chart',
+      trend: 'trend', 'icon-trend': 'trend',
+      message: 'message', 'icon-message': 'message',
+      star: 'star', 'icon-star': 'star',
+      shield: 'shield', 'icon-shield': 'shield',
+      spark: 'spark', 'icon-spark': 'spark',
+      arrow: 'arrow', 'icon-arrow': 'arrow', 'icon-chevron-right': 'arrow',
+      'icon-alert-triangle': 'alert',
+      'icon-tooth': 'tooth',
+    }
 
     const icons: Record<string, string> = {}
     for (const p of points) {
       const pl = p.payload || {}
-      const facet = (pl.facet as string) || (pl.name as string) || ""
-      const markup = (pl.description as string) || (pl.text as string) || ""
-      if (facet && markup.includes("<svg")) icons[facet] = markup
+      const id = (pl.id as string) || ""
+      // SVG markup no campo `text` (payload FLAT — medido Qdrant scroll)
+      const markup = (pl.text as string) || (pl.description as string) || ""
+      if (!markup.includes("<svg")) continue
+      // Priority: explicit facet match, then id mapping, then facets array
+      const facetFromId = idToFacet[id]
+      if (facetFromId) { icons[facetFromId] = markup; continue }
+      const facets = (pl.facets as string[]) || []
+      for (const f of facets) { if (f !== 'icon' && !icons[f]) { icons[f] = markup; break } }
     }
     return icons
   } catch { return {} }
