@@ -125,6 +125,7 @@ ADS.EVD  — EVIDÊNCIA   (vault, audit trail, testes, métricas)
 |---|---|---|---|
 | `ADS.COR.pipeline.s10_generator` | S10 Raio-X · Gerador Automático — Supabase→classify→copywriter→gaps→Qdrant→HTML+trace | `tools/adsentice_s10_generator.py` | ✅ ativo (2026-07-15) |
 | `ADS.COR.pipeline.s10_artifacts` | **Generate-then-Serve (ADR-0038)** — composeS10→QG gate→R2 blob imutável→série s10_artifacts (TTL 30d) → serve 0.54s | `apps/web/src/lib/s10-artifacts.ts` + migration 014 | ✅ LIVE (2026-07-18) |
+| `ADS.COR.pipeline.s11_landing` | **S11 Landing do Cliente A/B por ESTRATÉGIA (ADR-0037 F6)** — resolveStrategies (8 facets vocab.conversion × sinais reais) → par A/B congelado → /s11-landing + /r/ conversão medida | `composeS11` + `strategy-resolver.ts` + migration 015 | ✅ LIVE (2026-07-18) · 2/22 surfaces |
 | `ADS.COR.pipeline.migrate_pg` | Aplicador DDL real — pg direct :5432 (migrations de verdade) | `tools/adsentice_migrate_pg.mjs` | ✅ ativo (2026-07-18) |
 | `ADS.COR.pipeline.market_intel` | Market Intelligence v1.0 · Trace Feedback Loop — cada S10 alimenta Qdrant → Qdrant enriquece próximo S10 | `packages/warp/src/market-intel.ts` | ✅ ativo (2026-07-15) |
 | `ADS.COR.pipeline.s10_rota` | Rota completa: category→nicho→persona→DeepSeek→tokens→gaps→Qdrant→HTML | `packages/warp/src/s10-raio-x.ts` | ✅ ativo (2026-07-15) |
