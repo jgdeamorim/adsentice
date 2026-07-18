@@ -304,6 +304,7 @@ import { unifyTokens } from "./tokens-unifier"
 import { S10RaioXPipeline } from "./s10-raio-x"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation } from "./warp-kg"
 import { pluginRegistry } from "./plugins"
+import { getSurfaceSpecialist } from "./4-composer"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -612,6 +613,8 @@ interface S10BlueOutput {
   tracedLayout: any
   // ── META ──
   designSystem: string; mediaAnim: any
+  // ── SURFACE SPECIALIST ──
+  specialistActive: boolean; grammarType: string
 }
 
 /** BLUE PHASE: async intelligence (Qdrant + Supabase + DeepSeek + critique + plugins).
@@ -684,6 +687,11 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     for (const c of fetched) if (!graph.has(c.id) && graph.size < 12) graph.set(c.id, { comp: c, depth, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 - depth * 0.2 })
   }
   for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
+  
+  // ── SURFACE SPECIALIST S10 (g0: specialist emite gramatica) ──
+  const specialist = getSurfaceSpecialist("S10")
+  // Se o specialist existir, sua gramatica TIPADA substitui o layout hardcoded
+  
   const getGraphComps = () => [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
   
   const pickComp = (...keys: string[]): WarpComp | null => {
@@ -720,20 +728,43 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     }
     critique = computeCritique(graph, seg, "S10")
   }
-  let layoutTree = {
-    id: "layout.s10", type: "landing-shell",
-    slots: {
-      hero: { component: chipComp?.id || "hero-badge" },
-      score: { component: ringComp?.id || "score-ring", card: cardComp?.id || "score-card" },
-      info: { type: "grid", columns: 3, component: cardComp?.id || "info-card" },
-      gaps: { component: cardComp?.id || "gap-card", count: gaps.length },
-      cta: { component: btnComp?.id || "cta-button" },
-    },
+  // ── LAYOUT TREE via SurfaceSpecialist ou fallback ──
+  // Se specialist existe (4-composer.ts:70 S10_SPECIALIST), usa gramatica TIPADA.
+  // Senao, fallback para estrutura hardcoded.
+  let layoutTree: any
+  if (specialist) {
+    // Converte graph nodes para ResolvedComponent[] (contrato do specialist)
+    const resolved = [...graph.values()].map(n => ({
+      id: n.comp.id, component: { id: n.comp.id, name: (n.comp as any).name || n.comp.id, a11y: n.comp.a11y, category: (n.comp as any).category || "layout", tokens: (n.comp as any).tokens || [], edges: n.dependencies },
+      depth: n.depth, dependencies: n.dependencies, dependents: n.dependents, props: {}, relevanceScore: n.relevanceScore,
+    }))
+    layoutTree = specialist.inferLayout({ page: "S10", category: seg }, resolved as any)
+  } else {
+    layoutTree = {
+      id: "layout.s10", type: "landing-shell",
+      slots: {
+        hero: { component: chipComp?.id || "hero-badge" },
+        score: { component: ringComp?.id || "score-ring", card: cardComp?.id || "score-card" },
+        info: { type: "grid", columns: 3, component: cardComp?.id || "info-card" },
+        gaps: { component: cardComp?.id || "gap-card", count: gaps.length },
+        cta: { component: btnComp?.id || "cta-button" },
+      },
+    }
   }
   let tracedLayout: any = { ...layoutTree, critique: { composite: critique.composite, passed: critique.passed, feedback: critique.feedback, devloopIter }, graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })) }
 
-  // PLUGIN HOOK 2: onCritique
-  const designCtx = { segment: seg, plan: "r0", businessName: lead.title, palette: { primary: p, secondary: s, accent: a }, typography: { heading: "Inter", body: "Inter" }, designInspiration: inspoUrls, suggestedComponents: getGraphComps().map(c => c.name), landingPattern: "S10-raio-x", previewHtml: "", critiqueScore: critique }
+  // ── PLUGIN HOOK 2: onCritique (passa designCtx REAL — não {}) ──
+  const enrichedComps = getGraphComps()
+  const designCtx = {
+    segment: seg, plan: "r0", businessName: lead.title,
+    palette: { primary: p, secondary: s, accent: a },
+    typography: { heading: "Inter", body: "Inter" },
+    designInspiration: inspoUrls,
+    suggestedComponents: enrichedComps.map(c => (c as any).name || (c as any).id || ""),
+    landingPattern: "S10-raio-x",
+    previewHtml: "", // preenchido APÓS GREEN render (onCritique roda antes)
+    critiqueScore: critique,
+  }
   for (const plugin of pluginRegistry.listActive()) {
     if (plugin.onCritique) {
       const enforced = await plugin.onCritique(critique as any, designCtx as any).catch(() => null)
@@ -765,6 +796,8 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
     tracedLayout,
     designSystem: odSystem?.designSystem || "warp-default",
     mediaAnim,
+    // Surface specialist info
+    specialistActive: !!specialist, grammarType: layoutTree.type,
   }
 }
 
@@ -991,7 +1024,7 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       city, district,
       designSystem: blue.designSystem,
       // BLUE/GREEN marker (RSXT doctrine compliance)
-      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_BLUE", doctrine: "g0: specialist emites grammar, GREEN applies materials" },
+      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_BLUE", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
     }
 
     return { html, meta }
