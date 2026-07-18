@@ -130,21 +130,21 @@ export function unifyTokens(
     radiusSm: materio?.radius?.[0] || "0.25rem",
     radiusPill: materio?.radius?.[0] === "9999px" ? "9999px" : (materio?.radius?.find((r: string) => r === "9999px") || "9999px"),
 
-    // LAYOUT — OD
+    // LAYOUT — gabarito Python generator S10 (referencia calibrada)
     heroMinHeight: odSystem?.layout?.heroMinHeight || "50vh",
-    containerMaxWidth: odSystem?.layout?.maxWidth || "1200px",
-    containerGutter: odSystem?.layout?.gutter || "24px",
-    sectionSpacing: odSystem?.layout?.sectionSpacingDesktop || "80px",
-    sectionSpacingTablet: odSystem?.layout?.sectionSpacingTablet || "48px",
-    sectionSpacingPhone: odSystem?.layout?.sectionSpacingPhone || "32px",
+    containerMaxWidth: odSystem?.layout?.maxWidth || "860px",
+    containerGutter: odSystem?.layout?.gutter || "1.5rem",
+    sectionSpacing: odSystem?.layout?.sectionSpacingDesktop || "2.5rem",
+    sectionSpacingTablet: odSystem?.layout?.sectionSpacingTablet || "1.5rem",
+    sectionSpacingPhone: odSystem?.layout?.sectionSpacingPhone || "1rem",
 
-    // COMPONENTS — OD
-    cardPadding: odSystem?.components?.cardPadding || "20px",
+    // COMPONENTS — gabarito Python generator S10 (PILL=99px identidade)
+    cardPadding: odSystem?.components?.cardPadding || "2rem",
     cardBorder: odSystem?.components?.cardBorder?.replace("var(--border)", "var(--border)") || "1px solid var(--border)",
     cardShadow,
-    buttonPaddingBlock: odSystem?.components?.buttonPaddingBlock || "10px",
-    buttonPaddingInline: odSystem?.components?.buttonPaddingInline || "16px",
-    buttonRadius: odSystem?.components?.buttonRadius || "8px",
+    buttonPaddingBlock: odSystem?.components?.buttonPaddingBlock || ".75rem",
+    buttonPaddingInline: odSystem?.components?.buttonPaddingInline || "1.75rem",
+    buttonRadius: odSystem?.components?.buttonRadius || "99px",
 
     // META
     designSystem: odSystem?.designSystem || "warp-default",
