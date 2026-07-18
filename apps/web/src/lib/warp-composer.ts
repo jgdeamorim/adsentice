@@ -954,6 +954,11 @@ const SLOT_RENDERERS: Record<string, (slot: any, ctx: SlotRenderCtx) => string> 
 /**
  * GREEN MORPH: render puro por intent (ADR-0036 · RSXT doctrine v2 + g0).
  *
+ * REFERÊNCIA OD: :7456 projeto adsentice — SOBERANIA HTML/CSS puro, zero React/lib,
+ *   ícones SVG inline, zero emoji, a11y WCAG AA, zones com data-od-id.
+ *   Padrão: hero→trust→how→capabilities→stats→voice→pricing→faq→cta-final.
+ *   Nosso S10 segue: hero→score→info_grid→gaps→cta→footer.
+ *
  * REGRAS:
  *   - ZERO texto hardcoded (headline, cta, gap text → vêm do BLUE via S10BlueOutput)
  *   - ZERO copy fixa (tudo do copywriter especialista + MarketOntology)
@@ -962,6 +967,7 @@ const SLOT_RENDERERS: Record<string, (slot: any, ctx: SlotRenderCtx) => string> 
  *   - SÓ a11y (componentes do vec() → a11y_role + aria-label)
  *   - g0 doctrine: specialist (BLUE) emite gramática, GREEN aplica materials
  *   - SLOT-DRIVEN: itera output.tracedLayout.slots, despacha para renderer por slot name
+ *   - CSS↔HTML: classes geradas via ctx.cls() — mesma string, CSS e HTML. 0 mismatch.
  *   - Função pura: mesma entrada → mesma saída
  */
 function renderS10_GREEN(output: S10BlueOutput): string {
