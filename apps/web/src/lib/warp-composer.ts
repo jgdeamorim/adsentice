@@ -296,10 +296,10 @@ import { generateCopy, trackLLMCost } from "./deepseek"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent } from "./warp-kg"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
-interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[] }
+interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
 const NICHO_MAP: Record<string, NichoProfile> = {
-  dentist: { name:"Dentista", specialties:["Clínico Geral","Ortodontia","Periodontia","Implantodontia","Endodontia","Odontopediatria","Estética Dental"], audience:"Adultos 30-55, classes B/A", keywords:["dentista [bairro]","implante dentário [cidade]","clareamento dental","aparelho ortodôntico","canal dentário","periodontista","ortodontista"], pains:["Poucos pacientes novos","Concorrência local forte","Pacientes só vão quando dói","Site desatualizado"], tone:"Autoridade com acolhimento", conversionTriggers:["Primeira consulta gratuita","Raio-X digital na hora","Aceita convênios","Emergência 24h"] },
-  medical_clinic: { name:"Clínica Médica", specialties:["Clínico Geral","Cardiologia","Dermatologia","Ginecologia","Pediatria","Oftalmologia","Endocrinologia"], audience:"Adultos 25-70, todas as classes", keywords:["clínica médica [bairro]","médico [especialidade]","exames de rotina","check-up médico"], pains:["Dificuldade de agendamento","Falta de especialistas","Pacientes que não retornam"], tone:"Profissional, acolhedor, humanizado", conversionTriggers:["Agendamento online 24h","Telemedicina","Resultados online","Lembrete WhatsApp"] },
+  dentist: { name:"Dentista", specialties:["Clínico Geral","Ortodontia","Periodontia","Implantodontia","Endodontia","Odontopediatria","Estética Dental"], audience:"Adultos 30-55, classes B/A", keywords:["dentista [bairro]","implante dentário [cidade]","clareamento dental","aparelho ortodôntico","canal dentário","periodontista","ortodontista"], pains:["Poucos pacientes novos","Concorrência local forte","Pacientes só vão quando dói","Site desatualizado"], tone:"Autoridade com acolhimento", conversionTriggers:["Primeira consulta gratuita","Raio-X digital na hora","Aceita convênios","Emergência 24h"], clientTerm:"paciente" },
+  medical_clinic: { name:"Clínica Médica", specialties:["Clínico Geral","Cardiologia","Dermatologia","Ginecologia","Pediatria","Oftalmologia","Endocrinologia"], audience:"Adultos 25-70, todas as classes", keywords:["clínica médica [bairro]","médico [especialidade]","exames de rotina","check-up médico"], pains:["Dificuldade de agendamento","Falta de especialistas","Pacientes que não retornam"], tone:"Profissional, acolhedor, humanizado", conversionTriggers:["Agendamento online 24h","Telemedicina","Resultados online","Lembrete WhatsApp"], clientTerm:"paciente" },
   beauty_salon: { name:"Salão de Beleza", specialties:["Cabelo","Manicure","Estética Facial","Maquiagem","Depilação"], audience:"Mulheres 20-55, classes B/A", keywords:["salão de beleza [bairro]","manicure [cidade]","cabeleireiro [bairro]"], pains:["Muita concorrência local","Clientes infiéis","Instagram não converte"], tone:"Próximo, trendy, acolhedor", conversionTriggers:["Primeira visita com desconto","Agendamento via WhatsApp"] },
   barber_shop: { name:"Barbearia", specialties:["Corte","Barba","Hidratação","Pigmentação"], audience:"Homens 18-50, classes B/A", keywords:["barbearia [bairro]","corte masculino [cidade]","barba [bairro]"], pains:["Alta concorrência","Ticket baixo","Fidelização difícil"], tone:"Masculino, direto, confiante", conversionTriggers:["Cerveja cortesia","Agendamento online","Pacote fidelidade"] },
   restaurant: { name:"Restaurante", specialties:["Executivo","À la carte","Delivery","Buffet"], audience:"Adultos 25-55, classes B/A", keywords:["restaurante [bairro]","melhor [tipo] [cidade]","delivery [bairro]"], pains:["Margem apertada","Alta rotatividade","Delivery dominado por apps"], tone:"Acolhedor, sensorial, pessoal", conversionTriggers:["Reserva online","Cardápio digital","Google Maps atualizado"] },
@@ -307,17 +307,29 @@ const NICHO_MAP: Record<string, NichoProfile> = {
   pet_store: { name:"Pet Shop", specialties:["Banho/Tosa","Veterinário","Hotel","Adestramento"], audience:"Donos de pets 25-50, classes B/A", keywords:["pet shop [bairro]","banho e tosa [cidade]","veterinário [bairro]"], pains:["Muita concorrência","Ticket baixo por serviço"], tone:"Afetivo, confiável, divertido", conversionTriggers:["Primeiro banho grátis","Day care experimental"] },
   school: { name:"Escola Particular", specialties:["Infantil","Fundamental","Médio","Integral","Bilíngue"], audience:"Pais 30-50, classes B/A", keywords:["escola particular [bairro]","melhor escola [cidade]","matrícula escolar"], pains:["Captação sazonal","Ticket alto mas ciclo longo"], tone:"Confiança, futuro, cuidado", conversionTriggers:["Visita guiada","Aula experimental","Bolsa mérito"] },
   hotel: { name:"Pousada/Hotel", specialties:["Diária","Pacote","Eventos","Fim de Semana"], audience:"Viajantes 25-55, turistas", keywords:["hotel [cidade]","pousada [região]","melhor estadia"], pains:["Dependência de OTAs","Sazonalidade","Review management"], tone:"Aconchegante, local, exclusivo", conversionTriggers:["Reserva direta com desconto","Late checkout cortesia"] },
-  psychologist: { name:"Psicólogo", specialties:["Clínica","Online","Casais","Infantil"], audience:"Adultos 25-55, classes B/A", keywords:["psicólogo [bairro]","terapia online","psicólogo infantil"], pains:["Tabu ainda forte","Conversão lenta"], tone:"Acolhedor, seguro, profissional", conversionTriggers:["Primeira sessão gratuita","Atendimento online"] },
-  veterinarian: { name:"Veterinário", specialties:["Clínico","Cirurgia","Vacinas","Exames"], audience:"Donos de pets 25-55, classes B/A", keywords:["veterinário [bairro]","clínica veterinária [cidade]","vacina pet"], pains:["Urgência = decisão rápida","Fidelização pós-emergência"], tone:"Técnico, acolhedor, urgente", conversionTriggers:["Consulta de emergência","Plano de saúde pet"] },
+  psychologist: { name:"Psicólogo", specialties:["Clínica","Online","Casais","Infantil"], audience:"Adultos 25-55, classes B/A", keywords:["psicólogo [bairro]","terapia online","psicólogo infantil"], pains:["Tabu ainda forte","Conversão lenta"], tone:"Acolhedor, seguro, profissional", conversionTriggers:["Primeira sessão gratuita","Atendimento online"], clientTerm:"paciente" },
+  veterinarian: { name:"Veterinário", specialties:["Clínico","Cirurgia","Vacinas","Exames"], audience:"Donos de pets 25-55, classes B/A", keywords:["veterinário [bairro]","clínica veterinária [cidade]","vacina pet"], pains:["Urgência = decisão rápida","Fidelização pós-emergência"], tone:"Técnico, acolhedor, urgente", conversionTriggers:["Consulta de emergência","Plano de saúde pet"], clientTerm:"tutor" },
   gym: { name:"Academia", specialties:["Musculação","Crossfit","Yoga","Pilates","Lutas"], audience:"Adultos 20-45, classes B/A", keywords:["academia [bairro]","crossfit [cidade]","aula experimental"], pains:["Alta rotatividade","Sazonalidade (verão/ano novo)"], tone:"Motivacional, energia, resultado", conversionTriggers:["Aula experimental grátis","Avaliação física gratuita"] },
+}
+
+// ── Normalização de categoria (medido=verdade · Supabase guarda display name DataForSEO) ──
+// "Barber shop" → barber_shop · fallback honesto: NUNCA apresentar nicho errado
+const GENERIC_NICHO: NichoProfile = { name:"Negócio Local", specialties:["Atendimento local"], audience:"Clientes da região", keywords:["[categoria] [bairro]","[categoria] [cidade]"], pains:["Concorrência local","Pouca visibilidade no Google"], tone:"Direto, próximo, confiável", conversionTriggers:["Diagnóstico gratuito","Agendamento via WhatsApp"] }
+const CAT_ALIAS: Record<string, string> = {
+  beautician: "beauty_salon", beauty_product_supplier: "beauty_salon",
+  hair_salon: "beauty_salon", hairdresser: "beauty_salon", barbershop: "barber_shop",
+}
+function normalizeCategory(raw: string | null | undefined): string {
+  const k = (raw || "").toLowerCase().trim().replace(/[\s-]+/g, "_")
+  return CAT_ALIAS[k] || k
 }
 
 // ── PERSONA FALLBACKS (port from Python) ──
 const PERSONA_FALLBACK: Record<string, { headline: string; cta: string; offer: string }> = {
-  "Unaware":         { headline:"{N} {SERVIÇO}s em {LOCAL} — você está perdendo pacientes?", cta:"Quero aparecer no Google", offer:"Seu consultório existe, mas seus pacientes não te encontram online." },
-  "Problem Aware":   { headline:"{N} {SERVIÇO}s em {LOCAL} — como atrair mais pacientes pelo Google?", cta:"Quero meu diagnóstico grátis", offer:"Você sabe que precisa estar online, mas não sabe por onde começar. Nosso Raio-X mostra o caminho." },
+  "Unaware":         { headline:"{N} {SERVIÇO}s em {LOCAL} — você está perdendo clientes?", cta:"Quero aparecer no Google", offer:"Seu negócio existe, mas seus clientes não te encontram online." },
+  "Problem Aware":   { headline:"{N} {SERVIÇO}s em {LOCAL} — como atrair mais clientes pelo Google?", cta:"Quero meu diagnóstico grátis", offer:"Você sabe que precisa estar online, mas não sabe por onde começar. Nosso Raio-X mostra o caminho." },
   "Solution Aware":  { headline:"Apareça no Google antes dos seus concorrentes em {LOCAL}", cta:"Quero resolver isso", offer:"Você já tentou algumas coisas, mas ainda não vê resultado. O Raio-X mostra exatamente o que está faltando." },
-  "Product Aware":   { headline:"Seu consultório no topo do Google em {LOCAL} — comprovado por dados", cta:"Quero meu Raio-X gratuito", offer:"Você tem presença digital. Agora é hora de otimizar para liderar o mercado local." },
+  "Product Aware":   { headline:"Seu negócio no topo do Google em {LOCAL} — comprovado por dados", cta:"Quero meu Raio-X gratuito", offer:"Você tem presença digital. Agora é hora de otimizar para liderar o mercado local." },
   "Most Aware":      { headline:"Dados reais do seu mercado em {LOCAL} — tome decisões baseadas em evidência", cta:"Ver meus dados agora", offer:"Você está pronto para escalar. Precisa de dados reais para decisões estratégicas." },
 }
 
@@ -345,6 +357,7 @@ interface S10Gap { title: string; severity: string; desc: string; fix: string; i
 // ── computeGaps (FULL port from Python) ──
 function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
   const gaps: S10Gap[] = []
+  const CLIENTE = nicho.clientTerm || "cliente"
   const signals = new Set(lead.signals_detected || [])
   const city = lead.city || ""; const district = lead.district || ""
   const local = district || city || "sua região"
@@ -365,26 +378,26 @@ function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
   if (!hasClaimed) gaps.push({
     title:"Perfil GMB não reivindicado — você não controla o que aparece no Google",
     severity:"🔴 Crítico",
-    desc:"Seu perfil no Google Meu Negócio não foi verificado. Qualquer pessoa pode sugerir alterações no seu horário, telefone ou endereço. Você está invisível para 80% dos pacientes que buscam no Google.",
+    desc:`Seu perfil no Google Meu Negócio não foi verificado. Qualquer pessoa pode sugerir alterações no seu horário, telefone ou endereço. Você está invisível para 80% dos ${CLIENTE}s que buscam no Google.`,
     fix:"Reivindicar seu perfil GMB em business.google.com. Leva 5 minutos. Enviam um cartão postal com código de verificação em 5-10 dias.",
     impact:"Crítico", effort:"5 min",
     signal:"I1:nao_reivindicado",
   })
 
   if (!hasWebsite) gaps.push({
-    title:"Sem website — pacientes não conseguem encontrar informações sobre você",
+    title:`Sem website — ${CLIENTE}s não conseguem encontrar informações sobre você`,
     severity:"🔴 Crítico",
-    desc:"47% dos consumidores esperam que um negócio local tenha site. Sem site, você perde pacientes que buscam informações antes de agendar.",
+    desc:`47% dos consumidores esperam que um negócio local tenha site. Sem site, você perde ${CLIENTE}s que buscam informações antes de agendar.`,
     fix:"Criar landing page one-page com: nome, endereço, telefone, horários, serviços, fotos, e link para WhatsApp. Pode ser criada em 1 dia.",
     impact:"Alto", effort:"1 dia",
     signal:"F3:sem_website",
   })
 
   if (rating < 3.0 && reviews >= 5) gaps.push({
-    title:`Reputação comprometida (${rating}★) — pacientes podem estar te evitando`,
+    title:`Reputação comprometida (${rating}★) — ${CLIENTE}s podem estar te evitando`,
     severity:"🔴 Crítico",
-    desc:`Com ${rating} estrelas e ${reviews} avaliações, pacientes estão vendo que sua reputação é baixa. No Google, 3 estrelas ou menos reduz drasticamente o clique.`,
-    fix:"Implementar programa de reviews: pedir avaliação 30min após cada consulta (via WhatsApp com link direto do Google). Meta: 4.3+ em 90 dias.",
+    desc:`Com ${rating} estrelas e ${reviews} avaliações, ${CLIENTE}s estão vendo que sua reputação é baixa. No Google, 3 estrelas ou menos reduz drasticamente o clique.`,
+    fix:"Implementar programa de reviews: pedir avaliação 30min após cada atendimento (via WhatsApp com link direto do Google). Meta: 4.3+ em 90 dias.",
     impact:"Alto", effort:"Contínuo",
     signal:"I2:reputacao_toxica",
   })
@@ -459,7 +472,7 @@ function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
   if (rating >= 4.5 && reviews >= 20) gaps.push({
     title:"Reputação excepcional — ative essa força no site",
     severity:"✅ Força",
-    desc:`Com ${rating}★ e ${reviews} avaliações, sua clínica tem uma das melhores reputações da região. Isso é um ativo que você não está usando no site.`,
+    desc:`Com ${rating}★ e ${reviews} avaliações, seu negócio tem uma das melhores reputações da região. Isso é um ativo que você não está usando no site.`,
     fix:"Adicionar schema AggregateRating no site para exibir estrelas nos resultados do Google. Incluir seção de depoimentos na home page.",
     impact:"Alto", effort:"30 min",
     signal:"E1+E2 (rating≥4.5, reviews≥20)",
@@ -468,7 +481,7 @@ function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
   if (hasClaimed && hasWebsite && rating >= 4.0 && photos >= 10) gaps.push({
     title:"Base digital sólida — hora de escalar",
     severity:"✅ Força",
-    desc:"Sua clínica tem os fundamentos: GMB verificado, site próprio, boa reputação. O próximo passo é otimização para aparecer em PRIMEIRO nas buscas locais.",
+    desc:"Seu negócio tem os fundamentos: GMB verificado, site próprio, boa reputação. O próximo passo é otimização para aparecer em PRIMEIRO nas buscas locais.",
     fix:`Focar em SEO local: otimizar cada página para palavras-chave específicas, criar conteúdo regular (blog), conseguir backlinks de sites locais.`,
     impact:"Alto", effort:"Contínuo",
     signal:"F3+E4+E1 (claimed+website+rating≥4.0+photos≥10)",
@@ -478,7 +491,7 @@ function computeGaps(lead: S10Lead, nicho: NichoProfile): S10Gap[] {
   gaps.push({
     title:"Diferenciação no mercado local",
     severity:"✅ Oportunidade",
-    desc:`O mercado de ${nicho.name.toLowerCase()} tem concorrência ativa. A vantagem: a MAIORIA dos concorrentes ignora marketing digital. Quem aparece primeiro no Google leva o paciente.`,
+    desc:`O mercado de ${nicho.name.toLowerCase()} tem concorrência ativa. A vantagem: a MAIORIA dos concorrentes ignora marketing digital. Quem aparece primeiro no Google leva o ${CLIENTE}.`,
     fix:`Criar landing pages para: '${nicho.specialties[0].toLowerCase()} em ${local}' — buscas com alta intenção e baixa concorrência.`,
     impact:"Alto", effort:"1-2 semanas",
     signal:"market:category_context",
@@ -540,14 +553,21 @@ export async function composeS10(placeId: string): Promise<string | null> {
     if (!leads.length) return null
     const lead = leads[0]
 
-    // 2. Classify
-    const cat = (lead.category || "dentist").toLowerCase()
+    // 2. Classify — normaliza display name DataForSEO ("Barber shop" → barber_shop)
+    const cat = normalizeCategory(lead.category)
     const seg = CAT_TO_SEGMENT[cat] || 'servicos'
-    const nicho = NICHO_MAP[cat] || NICHO_MAP.dentist
+    const nicho = NICHO_MAP[cat] || { ...GENERIC_NICHO, name: lead.category || GENERIC_NICHO.name }
     const level = lead.schwartz_label || "Problem Aware"
     const district = lead.district || ""
     const city = lead.city || ""
     const local = district ? `${district}, ${city}` : city
+
+    // 2b. Concorrência real — count mesma categoria na cidade (medido=verdade, nunca "47" fixo)
+    let competitors = 0
+    try {
+      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
+      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+    } catch (e: unknown) { void e }
 
     // 3. Tokens
     const morph = await morphTokens({ surface:"S10", segment: seg, plan:"r0", mode:"internal" })
@@ -567,7 +587,7 @@ export async function composeS10(placeId: string): Promise<string | null> {
     if (copy) await trackLLMCost(0.001)
     if (!copy) {
       const fb = PERSONA_FALLBACK[level] || PERSONA_FALLBACK["Problem Aware"]
-      const N = "47"; const SERVICO = nicho.name.toLowerCase()
+      const N = competitors > 1 ? String(competitors - 1) : "Dezenas de"; const SERVICO = nicho.name.toLowerCase()
       copy = {
         headline: fb.headline.replace("{N}", N).replace("{SERVIÇO}", SERVICO).replace("{LOCAL}", local),
         subtitle: "Análise baseada em dados reais do Google Meu Negócio e do seu site. Resultado em 30 segundos.",
@@ -702,7 +722,7 @@ footer span{color:${p};font-weight:600}
 <div class="info-grid">
 <div class="info-card"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
 <div class="info-card"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card"><h4>Concorrência</h4><div class="value">47</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
+<div class="info-card"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nicho.name.toLowerCase()}s na região</div><div class="status ok">📊 Score ${score}/100</div></div>
 </div>
 <div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
 <p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
