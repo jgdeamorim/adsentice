@@ -947,7 +947,7 @@ const SLOT_RENDERERS: Record<string, (slot: any, ctx: SlotRenderCtx) => string> 
  *   - Função pura: mesma entrada → mesma saída
  */
 function renderS10_GREEN(output: S10BlueOutput): string {
-  const T = output.T
+  let T = output.T
   const O = output.ontology
   const L = output.tracedLayout?.slots || {}
 
@@ -960,6 +960,13 @@ function renderS10_GREEN(output: S10BlueOutput): string {
   const icon = (name: string): string => output.icons?.[name] || ''
 
   const stars = (r: number) => r >= 5 ? "★★★★★" : "★".repeat(Math.max(1, Math.round(r))) + "☆".repeat(Math.max(0, 5 - Math.round(r)))
+
+  // ═══ SPECIALIST LAYOUT HINTS: override OD values com gramatica S10 ═══
+  const hints = output.tracedLayout?.layoutHints || {}
+  if (hints.container) T.containerMaxWidth = hints.container
+  if (hints.sectionSpacing) T.sectionSpacing = hints.sectionSpacing
+  if (hints.sectionSpacingTablet) T.sectionSpacingTablet = hints.sectionSpacingTablet
+  if (hints.sectionSpacingPhone) T.sectionSpacingPhone = hints.sectionSpacingPhone
 
   const ctx: SlotRenderCtx = { output, T, O, esc, a11y, icon, stars }
 
