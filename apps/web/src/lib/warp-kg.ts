@@ -5,7 +5,7 @@
 // medido=verdade · 2026-07-17
 // ══════════════════════════════════════════════════════════════════
 
-const QDRANT = "http://127.0.0.1:6333"
+const QDRANT = "http://127.0.0.1:6352"
 const EMBED = "http://127.0.0.1:8081/embed"
 const COLLECTION = "adsentice-self"
 
