@@ -283,3 +283,50 @@ export async function queryComponentsByIntent(intent: string, surface?: string, 
     return []
   }
 }
+
+/** Busca componentes por id exato do payload (resolução de edges — ADR-0034 órgão 2).
+ *  Usado pelo BFS do resolveComponentGraph para trazer dependências que a busca
+ *  semântica não retornou (ex: "Bento Grid" → edge "card" → Card real do corpus). */
+export async function fetchComponentsByIds(ids: string[]): Promise<{
+  name: string; id: string; a11y: { role: string; ariaLabel: string; keyboardNav: boolean; contrastRatio: number }
+  tokens: string[]; category: string; intent: string; edges: string[]
+}[]> {
+  if (!ids.length) return []
+  try {
+    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: { must: [
+          { key: "kind", match: { value: "component" } },
+          { key: "id", match: { any: ids } },
+        ] },
+        limit: ids.length * 2, with_payload: true,
+      }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    const points: QdrantPoint[] = data.result?.points || []
+    const seen = new Set<string>()
+    return points.map(p => {
+      const pl = p.payload || {}
+      return {
+        name: (pl.name as string) || (pl.id as string) || "unknown",
+        id: (pl.id as string) || "unknown",
+        a11y: {
+          role: (pl.a11y_role as string) || "region",
+          ariaLabel: (pl.a11y_role as string) ? `${pl.name} component` : "Content section",
+          keyboardNav: (pl.a11y_keyboard as boolean) || false,
+          contrastRatio: (pl.a11y_contrast as number) || 3.0,
+        },
+        tokens: (pl.tokens as string[]) || [],
+        category: (pl.category as string) || "layout",
+        intent: (pl.intent as string) || "",
+        edges: (pl.edges as string[]) || [],
+      }
+    }).filter(c => !seen.has(c.id) && seen.add(c.id) !== undefined)
+  } catch {
+    return []
+  }
+}

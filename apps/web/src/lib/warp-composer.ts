@@ -300,7 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, trackLLMCost } from "./deepseek"
-import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent } from "./warp-kg"
+import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds } from "./warp-kg"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -623,9 +623,27 @@ export async function composeS10(placeId: string): Promise<string | null> {
     // 6c. N1.3 (ADR-0033) — render por componentes: cada seção herda a11y do
     // componente REAL do Qdrant (payload FLAT: a11y_role/a11y_keyboard/tokens/edges)
     type WarpComp = (typeof components)[number]
+
+    // 6d. N2 (ADR-0033/0034 órgão 2) — grafo REAL via edges do payload FLAT.
+    // Espelha 4-composer.ts:181 resolveDependencies (BFS depth≤2, cap 12,
+    // relevanceScore=1-depth*0.2, dependents reversos). Unificação por import
+    // direto de packages/warp fica para a migração ADR-0017.
+    type GraphNode = { comp: WarpComp; depth: number; dependencies: string[]; dependents: string[]; relevanceScore: number }
+    const graph = new Map<string, GraphNode>()
+    for (const c of components) graph.set(c.id, { comp: c, depth: 0, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 })
+    for (let depth = 1; depth <= 2 && graph.size < 12; depth++) {
+      const missing = [...new Set([...graph.values()].flatMap(n => n.dependencies))].filter(id => !graph.has(id))
+      if (!missing.length) break
+      const fetched = await fetchComponentsByIds(missing.slice(0, 12 - graph.size)).catch(() => [])
+      if (!fetched.length) break
+      for (const c of fetched) if (!graph.has(c.id) && graph.size < 12) graph.set(c.id, { comp: c, depth, dependencies: [...c.edges], dependents: [], relevanceScore: 1.0 - depth * 0.2 })
+    }
+    for (const [gid, n] of graph) for (const depId of n.dependencies) { const dep = graph.get(depId); if (dep) dep.dependents.push(gid) }
+    const graphComps = [...graph.values()].sort((x, y) => y.relevanceScore - x.relevanceScore).map(n => n.comp)
+
     const usedComponents: string[] = []
     const pickComp = (...keys: string[]): WarpComp | null => {
-      const found = components.find(c => keys.some(k =>
+      const found = graphComps.find(c => keys.some(k =>
         c.id.toLowerCase().includes(k) || c.name.toLowerCase().includes(k) || c.intent.toLowerCase().includes(k)))
       if (found && !usedComponents.includes(found.id)) usedComponents.push(found.id)
       return found || null
@@ -637,6 +655,19 @@ export async function composeS10(placeId: string): Promise<string | null> {
     const btnComp = pickComp("button", "botao")
     const ringComp = pickComp("progress", "ring", "circular", "gauge")
     const chipComp = pickComp("badge", "chip", "status")
+
+    // LayoutTree S10 (landing-shell) — slots ligados aos componentes resolvidos
+    const layoutTree = {
+      id: "layout.s10", type: "landing-shell",
+      slots: {
+        hero: { component: chipComp?.id || "hero-badge" },
+        score: { component: ringComp?.id || "score-ring", card: cardComp?.id || "score-card" },
+        info: { type: "grid", columns: 3, component: cardComp?.id || "info-card" },
+        gaps: { component: cardComp?.id || "gap-card", count: gaps.length },
+        cta: { component: btnComp?.id || "cta-button" },
+      },
+      graph: [...graph.values()].map(n => ({ id: n.comp.id, depth: n.depth, edges: n.dependencies, dependents: n.dependents, relevance: Math.round(n.relevanceScore * 100) / 100 })),
+    }
 
     // Auto-critique via design knowledge
     const critiqueNotes: string[] = []
@@ -731,7 +762,8 @@ footer span{color:${p};font-weight:600}
   "address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},
   "aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}
 }
-</script></head><body>
+</script>
+<script type="application/json" id="warp-layout">${JSON.stringify(layoutTree)}</script></head><body>
 <header class="hero" role="banner" aria-label="Diagnóstico Raio-X"><div class="hero-content">
 <div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}>🔍 Relatório Raio-X · Diagnóstico Gratuito</div>
 <h1>${copy.headline}</h1><p class="subtitle">${copy.subtitle}</p>
@@ -758,7 +790,7 @@ ${gaps.map(g => {
 }).join("")}
 </div>
 <div class="cta"><h2>${offer}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" role="${btnComp?.a11y.role || "button"}" aria-label="${esc(copy.cta)} no WhatsApp" target="_blank" rel="noopener">💬 ${copy.cta} no WhatsApp</a></div></div>
-${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${components.map(c => `${usedComponents.includes(c.id) ? "🔗 " : ""}${c.name} (${c.a11y.role} · ${c.tokens.slice(0,2).join(",")}${c.edges.length ? ` → ${c.edges.join(",")}` : ""})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
+${(hasCritique || hasComponents) ? `<div class="section" style="padding-top:0"><div class="info-grid">${hasCritique ? `<div class="info-card" style="border-left:3px solid var(--accent)"><h4>🧠 Design Intelligence</h4><div class="meta" style="line-height:1.8">${critiqueNotes.join('<br>')}</div>${inspoUrls.length > 0 ? `<div class="meta" style="margin-top:.5rem;font-family:monospace;font-size:.7rem">📚 Fontes: ${inspoUrls.map(u => u.split('/').pop()?.slice(0,20)).join(', ')}</div>` : ''}</div>` : ''}${hasComponents ? `<div class="info-card" style="border-left:3px solid var(--success)"><h4>📦 Warp Components</h4><div class="meta" style="line-height:1.8">${[...graph.values()].map(n => `${"└ ".repeat(n.depth)}${usedComponents.includes(n.comp.id) ? "🔗 " : ""}${n.comp.name} (${n.comp.a11y.role} · d${n.depth} · r${Math.round(n.relevanceScore * 100) / 100}${n.dependencies.length ? ` → ${n.dependencies.join(",")}` : ""})`).join('<br>')}</div></div>` : ''}</div></div>` : ""}
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
