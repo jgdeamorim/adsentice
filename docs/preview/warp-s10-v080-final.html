@@ -1,0 +1,110 @@
+<!DOCTYPE html><html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Descobrimos exatamente por que sua clínica não aparece no Google — e quantos pacientes você está perdendo">
+<meta property="og:image" content="https://www.clinicakamillascalzer.com.br/">
+<title>Raio-X · Clínica Kamilla Scalzer | adsentice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* CSS: tokens unificados (M9+OD+Materio) + design-knowledge Qdrant + layoutHints specialist */
+/* Intent vocab: search trust star data-display health chart */
+/* Corpus sources: Framer Motion (context7 + docs), adsentice-original (Materio motion + Framer Motion patterns), Web Performance standards (context7 + MDN) */
+@font-face{font-family:Inter;font-display:swap}
+:root{
+  --primary:oklch(0.55 0.18 220);--primary-fg:#fff;--secondary:oklch(0.90 0.03 220);--secondary-fg:#fff;--accent:oklch(0.65 0.22 250);
+  --bg:#FAFAFA;--fg:#111111;
+  --card:#FFFFFF;--muted:#f1f5f9;--muted-fg:#475569;
+  --border:#E5E5E5;--destructive:#DC2626;--success:#17A34A;--warning:#EAB308;
+  --font:Inter,system-ui,sans-serif;
+  --font-display:Plus Jakarta Sans,Georgia,serif;
+  --spacing-xs:0.25rem;--spacing-sm:0.5rem;--spacing-md:1rem;--spacing-lg:1.5rem;--spacing-xl:2rem;
+  --shadow-sm:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);--shadow-md:0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -4px rgba(0,0,0,0.1);
+  --radius:12px;--radius-sm:0.25rem;--radius-pill:9999px;
+  --motion-fast:150ms ease;--motion:300ms ease;--motion-smooth:500ms ease;
+}
+@keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes scaleIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.hero h1{animation:fadeInUp var(--motion-smooth) both}
+.hero .subtitle{animation:fadeInUp var(--motion-smooth) .1s both}
+.hero-badge{animation:fadeIn var(--motion) .2s both}
+.score-card{animation:scaleIn var(--motion-smooth) .15s both}
+.info-card{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.08s)}
+.gap{animation:slideUp var(--motion) both;animation-delay:calc(var(--i,0)*.1s)}
+.cta{animation:fadeInUp var(--motion-smooth) .2s both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(180deg,oklch(0.55 0.18 220) 0%,oklch(0.90 0.03 220) 100%);color:#fff;min-height:50vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 60%,rgba(255,255,255,0.08) 0%,transparent 60%)}
+.hero-content{position:relative;z-index:1;max-width:800px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:0.25rem;background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);padding:0.25rem 0.5rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:500;margin-bottom:1.25rem}
+.hero h1{font-size:clamp(1.5rem,3.5vw,2.25rem);font-weight:800;line-height:1.2;margin-bottom:0.5rem}
+.hero .subtitle{font-size:1.05rem;opacity:.9;max-width:600px;margin:0 auto}
+.container{max-width:860px;margin:0 auto;padding:0 24px}
+.section{padding:2.5rem 0}@media(max-width:768px){.section{padding:1.5rem 0}}@media(max-width:480px){.section{padding:1rem 0}}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;margin-top:-2rem;position:relative;z-index:2}
+.score-ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(oklch(0.55 0.18 220) 0% 64%,oklch(0.65 0.22 250) 64% 100%,oklch(0.90 0.03 220) 100% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.score-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-value{font-size:2.25rem;font-weight:800;line-height:1;color:oklch(0.55 0.18 220)}
+.score-label{font-size:.7rem;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;margin-top:0.25rem}
+.score-info{flex:1;min-width:240px}
+.score-info h2{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
+.score-level{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;border-radius:var(--radius-pill);font-size:.8125rem;font-weight:600;background:oklch(0.55 0.18 220 / 8%);color:oklch(0.55 0.18 220);margin-bottom:1rem}
+.score-bars{display:flex;flex-direction:column;gap:0.25rem}
+.score-bar{display:flex;align-items:center;gap:0.5rem}
+.score-bar-label{width:110px;font-size:.8rem;font-weight:500;color:var(--muted-fg)}
+.score-bar-track{flex:1;height:8px;background:var(--muted);border-radius:99px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:99px}
+.score-bar-val{width:36px;text-align:right;font-size:.8rem;font-weight:600}
+.info-grid{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(240px,1fr));gap:0.75rem;margin:1rem 0}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm)}
+.info-card h4{font-size:.9rem;font-weight:700;margin-bottom:0.5rem}
+.info-card .value{font-size:1.5rem;font-weight:800;line-height:1.2;color:oklch(0.55 0.18 220)}
+.info-card .value.stars{color:#f59e0b}
+.info-card .meta{font-size:.8125rem;color:var(--muted-fg);margin-top:0.25rem}
+.info-card .status{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600;margin-top:.5rem}
+.info-card .status.ok{background:oklch(0.55 0.18 220 / 7%);color:oklch(0.55 0.18 220)}
+.gap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all var(--motion);position:relative}
+.gap:hover{transform:none;box-shadow:var(--shadow-lg)}
+.gap::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.gap.critico::before{background:var(--destructive)}
+.gap.medio::before{background:var(--warning)}
+.gap.oportunidade::before,.gap.forca::before{background:var(--success)}
+.gap-header{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem}
+.gap-severity{font-size:.75rem;font-weight:700;text-transform:uppercase}
+.gap-severity.critico{color:var(--destructive)}
+.gap-severity.medio{color:var(--warning)}
+.gap-severity.oportunidade,.gap-severity.forca{color:var(--success)}
+.gap h4{font-size:1.05rem;font-weight:700}
+.gap p{color:var(--muted-fg);font-size:.9rem;margin-bottom:0.5rem}
+.gap .fix{background:var(--muted);padding:0.5rem 0.75rem;border-radius:var(--radius-sm);font-size:.875rem}
+.gap .fix strong{color:var(--fg)}
+.gap .meta-row{display:flex;gap:1rem;margin-top:.75rem;font-size:.8rem;color:var(--muted-fg)}
+.cta{background:linear-gradient(180deg,oklch(0.55 0.18 220) 0%,oklch(0.90 0.03 220) 100%);color:#fff;text-align:center;padding:2.5rem 2rem;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+.cta h2{font-size:1.5rem;font-weight:700;margin-bottom:0.5rem}
+.cta p{opacity:.9;max-width:450px;margin:0 auto 1.5rem;font-size:.95rem}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--card);color:oklch(0.55 0.18 220);padding:10px 16px;border-radius:8px;font-size:.95rem;font-weight:700;text-decoration:none;transition:all var(--motion);box-shadow:0 4px 14px rgba(0,0,0,0.12)}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.18)}
+.footer{text-align:center;padding:2.5rem 0;color:var(--muted-fg);font-size:.75rem;border-top:1px solid var(--border);margin-top:1.25rem}
+.footer span{color:oklch(0.55 0.18 220);font-weight:600}
+@media(max-width:600px){.score-card{flex-direction:column;text-align:center}.info-grid{grid-template-columns:1fr}}
+/* ═══ MICRO-INTERACTIONS (corpus) ═══ */
+.cta-btn:active{transform:scale(.97)}
+.info-card:nth-child(1){animation-delay:0ms}.info-card:nth-child(2){animation-delay:80ms}.info-card:nth-child(3){animation-delay:160ms}
+@supports(animation-timeline:view()){.hero{animation:linear fade-in both;animation-timeline:view()}}
+/* ═══ LAYOUT HINTS (corpus) ═══ */
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"LocalBusiness","name":"Clínica Kamilla Scalzer","image":"https://www.clinicakamillascalzer.com.br/","address":{"@type":"PostalAddress","addressLocality":"Vitória"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"4.9","reviewCount":"131"}}
+</script></head><body>
+<header class="hero" role="status" aria-label="Descobrimos exatamente por que sua clínica não aparece no Google — e quantos pacientes você está perdendo"><div class="hero-content"><div class="hero-badge" role="status" aria-label="Relatório gratuito com os principais gaps do seu negócio"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Confiança · Relatório gratuito com os principais gaps do seu negócio</div><h1>Descobrimos exatamente por que sua clínica não aparece no Google — e quantos pacientes você está perdendo</h1><p class="hero-subtitle">AGITAR A DOR — quantificar o problema + oferecer caminho claro</p></div></header>
+<main class="container" role="main" aria-label="Resultado do diagnóstico">
+<div class="score-card" role="region" aria-label="Diagnóstico de Clínica Kamilla Scalzer: score 46 de 100"><div class="score-ring" role="progressbar" aria-label="Score 46 de 100"><div class="score-inner" aria-hidden="true"><div class="score-value">46</div><div class="score-label">de 100</div></div></div><div class="score-info"><h2>Clínica Kamilla Scalzer</h2><div class="score-level" role="status" aria-label="Nível de consciência: Problem Aware">Problem Aware · Dentista</div><div class="score-bars"><div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:64%;background:oklch(0.55 0.18 220)"></div></div><span class="score-bar-val">64%</span></div><div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:57%;background:oklch(0.65 0.22 250)"></div></div><span class="score-bar-val">57%</span></div><div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:50%;background:oklch(0.90 0.03 220)"></div></div><span class="score-bar-val">50%</span></div></div></div></div>
+<div class="info-grid" style="--cols:3;gap:1rem;margin:1.5rem 0;"><div class="info-card" role="region" aria-label="Google Meu Negócio" style="--i:0;padding:1.25rem;border-radius:var(--radius-sm);"><h4>Google Meu Negócio</h4><div class="value stars">★★★★★</div><div class="meta">4.9★ · 131 avaliações</div><div class="status ok">0 fotos · ✅ Sim</div></div><div class="info-card" role="region" aria-label="Website" style="--i:1;padding:1.25rem;border-radius:var(--radius-sm);"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">https://www.clinicakamillascalzer.c</div><div class="meta">Praia do Canto, Vitória</div><div class="status ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Online</div></div><div class="info-card" role="region" aria-label="Concorrência" style="--i:2;padding:1.25rem;border-radius:var(--radius-sm);"><h4>Concorrência</h4><div class="value">101</div><div class="meta">dentistas na região</div><div class="status ok"> Score 46/100</div></div></div>
+<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:0.5rem">3 Confiança · Oportunidades</h2><p style="color:var(--muted-fg);margin-bottom:1.5rem">AGITAR A DOR — quantificar o problema + oferecer caminho claro</p><div class="gap oportunidade" role="region" aria-label="Site não analisado — dados de SEO indisponíveis" style="--i:0;padding:1.5rem;border-radius:var(--radius-sm);"><div class="gap-header"><span class="gap-severity oportunidade">ℹ️ Info</span><h4>Site não analisado — dados de SEO indisponíveis</h4></div><p>Seu site ainda não passou por auditoria de SEO. Não sabemos se tem schema, meta tags, conteúdo adequado ou problemas técnicos.</p><div class="fix"><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Como resolver:</strong> Rodar auditoria completa de SEO (gratuita na primeira análise). O diagnóstico revela schema, conteúdo, velocidade e backlinks. | Framework: marketing-psychology (score=0.56)</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: Info</span><span>⏱️ Esforço: Automático</span></div></div><div class="gap forca" role="region" aria-label="Reputação excepcional — ative essa força no site" style="--i:1;padding:1.5rem;border-radius:var(--radius-sm);"><div class="gap-header"><span class="gap-severity forca">✅ Força</span><h4>Reputação excepcional — ative essa força no site</h4></div><p>Com 4.9★ e 131 avaliações, seu negócio tem uma das melhores reputações da região. Isso é um ativo que você não está usando no site.</p><div class="fix"><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" style="color:#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Como resolver:</strong> Adicionar schema AggregateRating no site para exibir estrelas nos resultados do Google. Incluir seção de depoimentos na home page. | Framework: lead-magnets (score=0.56)</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: Alto</span><span>⏱️ Esforço: 30 min</span></div></div><div class="gap oportunidade" role="region" aria-label="Diferenciação no mercado local" style="--i:2;padding:1.5rem;border-radius:var(--radius-sm);"><div class="gap-header"><span class="gap-severity oportunidade">✅ Oportunidade</span><h4>Diferenciação no mercado local</h4></div><p>O mercado de dentista tem concorrência ativa. A vantagem: a MAIORIA dos concorrentes ignora marketing digital. Quem aparece primeiro no Google leva o paciente.</p><div class="fix"><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Como resolver:</strong> Criar landing pages para: 'clínico geral em Praia do Canto' — buscas com alta intenção e baixa concorrência. | Framework: copywriting (score=0.52)</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: Alto</span><span>⏱️ Esforço: 1-2 semanas</span></div></div></div>
+<div class="cta" style="padding:2.5rem 2rem"><h2>Relatório gratuito com os 3 principais gaps da sua clínica</h2><p>Relatório gratuito com os principais gaps do seu negócio</p><a href="https://wa.me/5521999999999" class="cta-btn" role="button" aria-label="Ver Meus Gaps Agora no WhatsApp" tabindex="0" style="padding:.75rem 1.75rem;border-radius:99px" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> Ver Meus Gaps Agora no WhatsApp</a></div>
+</main>
+<footer class="footer" style="padding:2rem 0;margin-top:2rem"><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — Sabe que tem poucos clientes mas não sabe resolver</p><p style="margin-top:0.25rem">Dados: Google Meu Negócio · website · mercado local · 18/07/2026</p></div></footer>
+</body></html>
