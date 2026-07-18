@@ -5,7 +5,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // páginas públicas (sem login) — as telas de auth + marketing. O resto do app é protegido.
 const AUTH_PAGES = ['login', 'register', 'forgot-password', 'reset-password', 'verify-email', 'two-steps']
-const PUBLIC_PREFIXES = ['front-pages', 'auth', 's10-raio-x'] // marketing + callback OAuth + raio-X público (link enviado ao lead)
+const PUBLIC_PREFIXES = ['front-pages', 'auth', 's10-raio-x', 's11-landing', 'r'] // marketing + OAuth + raio-X + landing do cliente + redirect de conversão (links outbound)
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })

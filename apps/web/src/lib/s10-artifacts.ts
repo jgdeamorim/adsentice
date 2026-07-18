@@ -21,6 +21,7 @@ import { composeS10 } from "./warp-composer"
 export interface S10ArtifactRow {
   id: string
   place_id: string
+  surface: string
   version: number
   status: string
   blob_key: string
@@ -136,7 +137,7 @@ async function blobGet(key: string): Promise<{ html: string; blue: unknown; meta
 export async function getPublishedS10(placeId: string): Promise<S10Served | null> {
   const nowIso = new Date().toISOString()
   const rows = await seriesQuery(
-    `place_id=eq.${encodeURIComponent(placeId)}&status=eq.published&expires_at=gt.${encodeURIComponent(nowIso)}&order=version.desc&limit=1`
+    `place_id=eq.${encodeURIComponent(placeId)}&surface=eq.S10&status=eq.published&expires_at=gt.${encodeURIComponent(nowIso)}&order=version.desc&limit=1`
   )
   const artifact = rows[0]
   if (!artifact) return null
@@ -153,7 +154,7 @@ export async function getPublishedS10(placeId: string): Promise<S10Served | null
 /** Versão específica (?v=N — inspeção admin). Ignora expiração e status. */
 export async function getS10Version(placeId: string, version: number): Promise<S10Served | null> {
   const rows = await seriesQuery(
-    `place_id=eq.${encodeURIComponent(placeId)}&version=eq.${version}&limit=1`
+    `place_id=eq.${encodeURIComponent(placeId)}&surface=eq.S10&version=eq.${version}&limit=1`
   )
   const artifact = rows[0]
   if (!artifact) return null
@@ -175,15 +176,16 @@ export async function generateS10Artifact(placeId: string): Promise<S10Served | 
   // o próximo request re-tenta a geração.
   const passed = critique.passed !== false
 
-  // versão: última + 1 (corrida → UNIQUE(place_id,version) rejeita; re-lemos published)
-  const last = await seriesQuery(`place_id=eq.${encodeURIComponent(placeId)}&order=version.desc&limit=1&select=version`)
+  // versão: última + 1 (corrida → UNIQUE rejeita; re-lemos published)
+  const last = await seriesQuery(`place_id=eq.${encodeURIComponent(placeId)}&surface=eq.S10&order=version.desc&limit=1&select=version`)
   const version = ((last[0]?.version as number | undefined) ?? 0) + 1
   const blobKey = `s10/${placeId}/v${version}.json`
   const contentHash = sha256(result.html)
 
-  const composed = (meta._composed || {}) as Record<string, unknown>
+  const composed = (meta._composed || {}) as Record<string, any>
   const row = {
     place_id: placeId,
+    surface: 'S10',
     version,
     status: passed ? "published" : "rejected",
     blob_key: blobKey,
@@ -192,7 +194,8 @@ export async function generateS10Artifact(placeId: string): Promise<S10Served | 
     subtitle: (meta.subtitle as string) || null,
     cta: (meta.cta as string) || null,
     copy_model: (meta.copy_model as string) || null,
-    ab_variant: composed.abTest != null ? String(composed.abTest) : null,
+    // fix v082: abTest é objeto {active, variant, ...} — gravar a variante, não String(obj)
+    ab_variant: composed.abTest?.variant ? String(composed.abTest.variant) : null,
     qg_composite: critique.composite ?? null,
     qg_passed: passed,
     segment: (meta.segment as string) || null,
@@ -228,4 +231,112 @@ export async function getOrGenerateS10(placeId: string): Promise<S10Served | nul
   const published = await getPublishedS10(placeId)
   if (published) return published
   return generateS10Artifact(placeId)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S11 LANDING — artefatos A/B por ESTRATÉGIA (ADR-0037 F6 + ADR-0038)
+// Cada geração publica DUAS variantes (A e B) da mesma versão.
+// O serve escolhe a variante por visitante (cookie) — congelada
+// entre views para medição de conversão limpa.
+// ═══════════════════════════════════════════════════════════════
+
+export async function getPublishedS11(placeId: string, variant: 'A' | 'B'): Promise<S10Served | null> {
+  const nowIso = new Date().toISOString()
+  const rows = await seriesQuery(
+    `place_id=eq.${encodeURIComponent(placeId)}&surface=eq.S11&ab_variant=eq.${variant}&status=eq.published&expires_at=gt.${encodeURIComponent(nowIso)}&order=version.desc&limit=1`
+  )
+  const artifact = rows[0]
+  if (!artifact) return null
+  const blob = await blobGet(artifact.blob_key)
+  if (!blob?.html) return null
+  if (sha256(blob.html) !== artifact.content_hash) {
+    console.error("[s11-artifacts] hash mismatch", artifact.blob_key)
+    return null
+  }
+  return { html: blob.html, artifact, source: "artifact" }
+}
+
+/** Gera e publica AMBAS as variantes (A+B). Retorna a variante pedida. */
+export async function generateS11Artifacts(placeId: string, want: 'A' | 'B'): Promise<S10Served | null> {
+  const { composeS11 } = await import("./warp-composer")
+  const result = await composeS11(placeId)
+  if (!result?.variants?.length) return null
+
+  // versão única para o PAR A/B (mesma rodada de estratégias)
+  const last = await seriesQuery(`place_id=eq.${encodeURIComponent(placeId)}&surface=eq.S11&order=version.desc&limit=1&select=version`)
+  const version = ((last[0]?.version as number | undefined) ?? 0) + 1
+
+  let served: S10Served | null = null
+  for (const v of result.variants) {
+    const blobKey = `s11/${placeId}/v${version}${v.ab}.json`
+    const contentHash = sha256(v.html)
+    const stored = await blobPut(blobKey, JSON.stringify({ html: v.html, meta: { ...result.meta, strategy: v.strategyFacet, hypothesis: v.hypothesis, ab: v.ab } }))
+    let artifact: S10ArtifactRow | null = null
+    if (stored) {
+      artifact = await seriesInsert({
+        place_id: placeId,
+        surface: 'S11',
+        version,
+        status: "published",
+        blob_key: blobKey,
+        content_hash: contentHash,
+        headline: v.headline || null,
+        subtitle: v.hypothesis || null,   // hipótese testável da estratégia (trace da série)
+        cta: null,
+        copy_model: v.copyModel,
+        ab_variant: v.ab,
+        qg_composite: null,
+        qg_passed: true,
+        segment: (result.meta.segment as string) || null,
+        score: (result.meta.score as number) ?? null,
+        cost_usd: v.copyModel === 'deepseek-landing' ? 0.001 : 0,
+      })
+      if (!artifact) {
+        // corrida: outro request publicou esta versão → usa o dele
+        const raced = await getPublishedS11(placeId, v.ab)
+        if (raced && v.ab === want) served = { ...raced, source: "generated" }
+        continue
+      }
+    }
+    if (v.ab === want) {
+      served = {
+        html: v.html,
+        artifact: artifact ?? ({ place_id: placeId, surface: 'S11', version, ab_variant: v.ab, id: 'inline', status: 'published' } as S10ArtifactRow),
+        source: "generated",
+      }
+    }
+  }
+  return served
+}
+
+export async function getOrGenerateS11(placeId: string, variant: 'A' | 'B'): Promise<S10Served | null> {
+  const published = await getPublishedS11(placeId, variant)
+  if (published) return published
+  return generateS11Artifacts(placeId, variant)
+}
+
+// ═══ EVENTOS DE CONVERSÃO (F6 — view/cta_click por variante · fire-and-forget) ═══
+
+export function trackSurfaceEvent(ev: {
+  place_id: string; surface: string; version?: number | null
+  ab_variant?: string | null; event: 'view' | 'cta_click'
+}): void {
+  const { url, key } = supa()
+  fetch(`${url}/rest/v1/s11_events`, {
+    method: "POST",
+    headers: { ...supaHeaders(key), Prefer: "return=minimal" },
+    body: JSON.stringify(ev),
+  }).catch((e: unknown) => { void e })
+}
+
+/** Phone do lead (para o /r/ redirect wa.me do PRÓPRIO cliente). */
+export async function getLeadContact(placeId: string): Promise<{ phone: string | null; title: string | null } | null> {
+  const { url, key } = supa()
+  const res = await fetch(
+    `${url}/rest/v1/discovery_listings?select=phone,title&place_id=eq.${encodeURIComponent(placeId)}&limit=1`,
+    { headers: supaHeaders(key), cache: "no-store" }
+  )
+  if (!res.ok) return null
+  const rows = (await res.json()) as { phone: string | null; title: string | null }[]
+  return rows[0] ?? null
 }
