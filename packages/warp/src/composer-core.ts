@@ -307,7 +307,7 @@ import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
 import { WarpCache } from "./7-cache"
 import { TokenComposer } from "./tokens-composer"
-import { queryRelevantSkills, applyFramework } from "./marketing-kg"
+import { queryRelevantSkills } from "./marketing-kg"
 import { resolveIntentVocab } from "./vocab-resolver"
 import { resolveIntentVocab } from "./vocab-resolver"
 
