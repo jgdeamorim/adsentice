@@ -33,7 +33,16 @@ export interface MorphInput {
   motionStyle: string          // from ontology.designSystem.motionStyle
   primaryEmotion: string       // from ontology.psychology.primaryEmotion
   schwartzLevel: string        // from ontology.persona
-  cssPatterns: {               // from queryCSSPatterns (raw text patterns)
+  cssPatterns: {               // from queryCSSPatterns (structured + raw)
+    cssHints?: {
+      hoverTransform: string; transitionDuration: string; transitionEasing: string
+      staggerDelay: string; prefersReducedMotion: boolean
+      scrollAnimation: string; springPhysics: string
+    }
+    layoutHints?: {
+      columns: number; gap: string; maxWidth: string
+      spacingStyle: string; textWrapBalance: boolean
+    }
     microInteractions: string[]
     layoutRecommendations: string[]
     keyframeVariants: string[]
@@ -167,21 +176,40 @@ export function resolveMorph(input: MorphInput): PerSlotMutations {
   const shadow = deriveShadowLevel(animationFacets)
   const font = deriveFontPairing(designFacets, input.segment)
 
-  // Enrich from cssPatterns (text → structured hints)
+  // Enrich from cssPatterns — PREFER structured hints over text regex
+  const ch = cssPatterns?.cssHints || null
+  const lh = cssPatterns?.layoutHints || null
   const patternText = (cssPatterns?.layoutRecommendations || []).join(' ')
   const microText = (cssPatterns?.microInteractions || []).join(' ')
 
-  // Layout recommendations from corpus
-  const hasSpaciousLayout = /spacious|airy|generous/i.test(patternText)
-  const hasCompactLayout = /compact|dense|tight/i.test(patternText)
-  const hasTypoBalance = /typography|heading.*clarity|text-wrap/i.test(patternText)
-  const hasReducedMotion = /reduced.motion|prefers-reduced-motion/i.test(microText)
+  // Structured hints (deterministic from queryCSSPatterns) take precedence
+  const hasSpaciousLayout = lh?.spacingStyle === 'airy' || /spacious|airy|generous/i.test(patternText)
+  const hasCompactLayout = lh?.spacingStyle === 'compact' || /compact|dense|tight/i.test(patternText)
+  const hasTypoBalance = lh?.textWrapBalance || /typography|heading.*clarity|text-wrap/i.test(patternText)
+  const hasReducedMotion = ch?.prefersReducedMotion || /reduced.motion|prefers-reduced-motion/i.test(microText)
 
-  // Column count from corpus hints + spacing
-  const infoColumns = hasSpaciousLayout ? 2 : hasCompactLayout ? 4 : 3
+  // Column count: structured > regex
+  const infoColumns = lh?.columns || (hasSpaciousLayout ? 2 : hasCompactLayout ? 4 : 3)
 
-  // Gap accent bar
+  // Gap accent bar from design boldness
   const barWidth = /bold|dramatic|vibrant/.test(designFacets.join(' ')) ? '6px' : '4px'
+
+  // Hover effect: structured hint > animation facet derivation
+  const hoverEffect = ch?.hoverTransform || shadow.hover
+
+  // Hero minHeight from layout hints
+  const heroMinH = lh?.maxWidth === '1200px' ? '60vh' : hasSpaciousLayout ? '60vh' : hasCompactLayout ? '40vh' : '50vh'
+
+  // Stagger: from structured hint
+  const staggerCSS = ch?.staggerDelay && ch.staggerDelay !== '0ms'
+    ? '.info-card:nth-child(1){animation-delay:0ms}.info-card:nth-child(2){animation-delay:' + ch.staggerDelay + '}.info-card:nth-child(3){animation-delay:' + (parseInt(ch.staggerDelay) * 2) + 'ms}' : ''
+
+  // Scroll animation: from structured hint
+  const scrollCSS = ch?.scrollAnimation || ''
+
+  // Spring physics for transitions
+  const transitionTiming = ch?.springPhysics || ch?.transitionEasing || 'ease'
+  const transitionDur = ch?.transitionDuration || '200ms'
 
   return {
     hero: {
@@ -222,12 +250,15 @@ export function resolveMorph(input: MorphInput): PerSlotMutations {
       reasoning: 'footer padding from spacing style',
     },
     global: {
-      containerMaxWidth: T.containerMaxWidth || '860px',
+      containerMaxWidth: lh?.maxWidth || T.containerMaxWidth || '860px',
       fontPairing: font.font,
-      motionEasing: T.motion || '200ms cubic-bezier(0.4,0,0.2,1)',
+      motionEasing: transitionTiming,
       textWrapBalance: hasTypoBalance,
-      reducedMotion: hasReducedMotion || motionStyle === 'zero',
-      reasoning: font.reason + ' | typography + motion from corpus hints',
+      reducedMotion: hasReducedMotion,
+      staggerCSS,
+      scrollCSS,
+      transitionDuration: transitionDur,
+      reasoning: font.reason + ' | typography + motion from corpus structured hints',
     },
     // ── BEST PRACTICE ENFORCEMENT (from corpus) ──
     enforcement: {

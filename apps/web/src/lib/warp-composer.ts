@@ -879,7 +879,7 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
       motionStyle: ontology.designSystem?.motionStyle || 'subtle',
       primaryEmotion: ontology.psychology?.primaryEmotion || '',
       schwartzLevel: lead.schwartz_label || 'Problem Aware',
-      cssPatterns: designIntel ? { microInteractions: designIntel.inspirationUrls || [], layoutRecommendations: [designIntel.spacingRecommendation || ''], keyframeVariants: designIntel.inspirationUrls || [] } : null,
+      cssPatterns: cssPatterns || null,
       T: T as any,
     }),
     // Marketing KG frameworks (ADR-0037 Fase 1 — raw Qdrant query)

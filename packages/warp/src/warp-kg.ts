@@ -623,24 +623,39 @@ export async function queryMediaIcons(iconFacets?: string[]): Promise<Record<str
 
 /** ADR-0036 Fase 4 — query CSS patterns + design knowledge do corpus.
  *  Enriquecimento semântico: embeda o segmento, busca design-knowledge + media-knowledge
- *  e retorna micro-interações, keyframes e padrões de layout aplicáveis. */
+ *  e retorna CSS estruturado (derivado do texto do corpus) + raw text para trace. */
 export async function queryCSSPatterns(segment: string, surface: string): Promise<{
-  microInteractions: string[]    // hover, focus, active patterns
-  keyframeVariants: string[]    // segment-specific animation variants
-  layoutRecommendations: string[] // spacing, grid, composition hints
-  sources: string[]             // Qdrant sources for traceability
+  // ── STRUCTURED (aplicável diretamente no CSS) ──
+  cssHints: {
+    hoverTransform: string        // 'translateY(-1px)' | 'translateY(-2px)' | 'none'
+    transitionDuration: string    // '200ms' | '300ms' | '150ms'
+    transitionEasing: string      // 'ease' | 'cubic-bezier(0.34,1.56,0.64,1)'
+    staggerDelay: string           // '80ms' | '100ms' | '0ms'
+    prefersReducedMotion: boolean
+    scrollAnimation: string        // CSS snippet or ''
+    springPhysics: string          // cubic-bezier or ''
+  }
+  layoutHints: {
+    columns: number               // 2 | 3 | 4
+    gap: string                   // '1rem' | '1.5rem' | '2rem'
+    maxWidth: string              // '860px' | '1200px' | ''
+    spacingStyle: string          // 'airy' | 'compact' | 'default'
+    textWrapBalance: boolean
+  }
+  // ── RAW (for traceability) ──
+  microInteractions: string[]
+  keyframeVariants: string[]
+  layoutRecommendations: string[]
+  sources: string[]
 } | null> {
   try {
     const query = `${segment} ${surface} CSS design patterns micro-interactions keyframes layout landing page`
     const vec = await embedQuery(query)
     if (vec.length === 0) return null
 
-    // Query media-knowledge for CSS patterns
     const mediaResults = await qdrantSearch(vec, {
       must: [{ key: "kind", match: { value: "media-knowledge" } }],
     }, 8)
-
-    // Query design-knowledge for layout/typography patterns
     const designResults = await qdrantSearch(vec, {
       must: [{ key: "kind", match: { value: "design-knowledge" } }],
     }, 8)
@@ -658,7 +673,6 @@ export async function queryCSSPatterns(segment: string, surface: string): Promis
       const text = (pl.text as string) || (pl.name as string) || ""
       const source = (pl.source as string) || ""
       const name = (pl.name as string) || ""
-
       if (source && !sources.includes(source)) sources.push(source)
 
       if (text) {
@@ -675,7 +689,64 @@ export async function queryCSSPatterns(segment: string, surface: string): Promis
       }
     }
 
+    // ═══ DERIVE STRUCTURED CSS HINTS FROM CORPUS TEXT (deterministic parse) ═══
+    const allText = [...microInteractions, ...layoutRecommendations, ...keyframeVariants].join(' ')
+    const lowerAll = allText.toLowerCase()
+
+    // Hover: corpus mentions stagger → translateY(-2px), spring → translateY(-2px), otherwise -1px
+    const hoverTransform = /spring|stagger|gesture|drag/i.test(lowerAll)
+      ? 'translateY(-2px)' : 'translateY(-1px)'
+
+    // Duration: corpus mentions spring → 300ms, fast → 150ms, default 200ms
+    const transitionDuration = /spring|stagger|gesture/i.test(lowerAll)
+      ? '300ms' : /fast|quick/i.test(lowerAll) ? '150ms' : '200ms'
+
+    // Easing: corpus mentions spring → cubic-bezier spring, default ease
+    const transitionEasing = /spring/i.test(lowerAll)
+      ? 'cubic-bezier(0.34,1.56,0.64,1)' : 'ease'
+
+    // Stagger: corpus mentions stagger/throttle → delay, else no stagger
+    const staggerDelay = /stagger/i.test(lowerAll) ? '80ms' : '0ms'
+
+    // Reduced motion: always true (a11y baseline)
+    const prefersReducedMotion = true
+
+    // Scroll animation: if corpus mentions scroll-driven/view-timeline
+    const scrollAnimation = /scroll[- ]driven|view[- ]timeline|animation[- ]timeline/i.test(lowerAll)
+      ? '@supports(animation-timeline:view()){@keyframes fade-in-out{from{opacity:0}to{opacity:1}}}.animate-scroll{animation:linear fade-in-out both;animation-timeline:view()}' : ''
+
+    // Spring physics: if corpus mentions spring/cubic
+    const springPhysics = /spring|spring/i.test(lowerAll)
+      ? 'cubic-bezier(0.34,1.56,0.64,1)' : ''
+
+    // Layout hints
+    const columns = /4[ -]col|four[ -]col/i.test(lowerAll) ? 4
+      : /2[ -]col|two[ -]col/i.test(lowerAll) ? 2 : 3
+    const gap = /airy|spacious|generous/i.test(lowerAll) ? '2rem'
+      : /compact|dense|tight/i.test(lowerAll) ? '0.75rem' : '1rem'
+    const maxWidth = /1200|full[ -]width/i.test(lowerAll) ? '1200px'
+      : /narrow|compact|600/i.test(lowerAll) ? '600px' : ''
+    const spacingStyle = /airy|spacious|generous/i.test(lowerAll) ? 'airy'
+      : /compact|dense|tight/i.test(lowerAll) ? 'compact' : 'default'
+    const textWrapBalance = /typography|heading.*clarity|text[- ]wrap/i.test(lowerAll)
+
     return {
+      cssHints: {
+        hoverTransform,
+        transitionDuration,
+        transitionEasing,
+        staggerDelay,
+        prefersReducedMotion,
+        scrollAnimation,
+        springPhysics,
+      },
+      layoutHints: {
+        columns,
+        gap,
+        maxWidth,
+        spacingStyle,
+        textWrapBalance,
+      },
       microInteractions: microInteractions.slice(0, 3),
       keyframeVariants: keyframeVariants.slice(0, 3),
       layoutRecommendations: layoutRecommendations.slice(0, 3),
