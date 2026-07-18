@@ -305,6 +305,7 @@ import { S10RaioXPipeline } from "./s10-raio-x"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons } from "./warp-kg"
 import { pluginRegistry } from "./plugins"
 import { getSurfaceSpecialist } from "./4-composer"
+import { WarpCache } from "./7-cache"
 
 // ── NICHO_MAP (port from Python NICHO_MAP dict) ──
 interface NichoProfile { name: string; specialties: string[]; audience: string; keywords: string[]; pains: string[]; tone: string; conversionTriggers: string[]; clientTerm?: string }
@@ -1077,6 +1078,9 @@ footerHTML + '\n' +
 
 
 
+// ═══ S10 CACHE (L1 memory LRU + L2 Redis :6396) ═══
+const s10Cache = new WarpCache<{ html: string; meta: Record<string, unknown> }>()
+
 export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
   try {
     // ── PLUGIN SYSTEM (ADR-0036 Fase 1) ──
@@ -1108,6 +1112,11 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
       competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
     } catch (e: unknown) { void e }
+
+    // ── CACHE CHECK (L1 memory LRU + L2 Redis :6396) ──
+    const cacheKey = `s10:${placeId}:${seg}:${lead.score_compound || 0}`
+    const cached = await s10Cache.get(cacheKey)
+    if (cached) { return cached }
 
     // 3. Tokens (L3 — sensor: Materio + OD + segment palette)
     const morph = await morphTokens({ surface:"S10", segment: seg as SegmentId, plan:"r0", mode:"internal" })
@@ -1159,9 +1168,12 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
       city, district,
       designSystem: blue.designSystem,
       // BLUE/GREEN marker (RSXT doctrine compliance)
-      _pipeline: { phase: "BLUE→GREEN", blueDecisions: 14, greenFunction: "renderS10_GREEN", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
+      _pipeline: { phase: "BLUE->GREEN", blueDecisions: 14, greenFunction: "renderS10_GREEN", doctrine: "g0: specialist emites grammar, GREEN applies materials", specialistActive: blue.specialistActive, grammarType: blue.grammarType },
     }
 
-    return { html, meta }
+    // ── CACHE WRITE-THROUGH (L1 memory + L2 Redis) ──
+    const result = { html, meta }
+    await s10Cache.set(cacheKey, result, 300_000) // 5min TTL
+    return result
   } catch (e: any) { console.error("[composeS10]", e.message); return null }
 }
