@@ -299,7 +299,7 @@ ${morph.css}
 // medido=verdade · ported 2026-07-17
 // ═══════════════════════════════════════════════════════════════
 
-import { generateCopy, trackLLMCost } from "./deepseek"
+import { generateCopy, generateLandingCopy, trackLLMCost, type LandingCopy } from "./deepseek"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns, queryK0ForSurface } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
@@ -307,6 +307,7 @@ import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
 import { resolveMorph, composeLayout } from "../../../../packages/warp/src/morph-resolver"
+import { resolveStrategies, type ConversionStrategy } from "../../../../packages/warp/src/strategy-resolver"
 import { queryRelevantSkills } from "../../../../packages/warp/src/marketing-kg"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
@@ -1448,4 +1449,376 @@ export async function composeS10(placeId: string): Promise<{ html: string; meta:
     await s10Cache.set(cacheKey, result, 300_000) // 5min TTL
     return result
   } catch (e: any) { console.error("[composeS10]", e.message); return null }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S11 LANDING PAGE DO CLIENTE (ADR-0037 Fase 6 · ADR-0038 reuso)
+//
+// A landing do NEGÓCIO DO LEAD (produto r197) — gerada em DUAS
+// variantes A/B, cada uma sob uma ESTRATÉGIA de conversão completa
+// (strategy-resolver · vocab.conversion do KG). Ontologia por slot
+// da referência OD gold: hero=convencer 10s · trust=prova social ·
+// how=fricção · capabilities=evidência · stats=números honestos ·
+// voice=reputação real · pricing=remover risco · faq=objeção · cta.
+// LEI: honesto — zero preço/depoimento/estatística inventada.
+// ═══════════════════════════════════════════════════════════════
+
+interface S11Lead {
+  place_id: string; title: string; category: string
+  rating_value: number | null; rating_votes: number | null
+  is_claimed: boolean | null; website: string | null; phone: string | null
+  score_compound: number; schwartz_label: string | null
+  city: string | null; district: string | null
+}
+
+export interface S11Variant {
+  ab: 'A' | 'B'
+  html: string
+  strategyFacet: string
+  hypothesis: string
+  copyModel: string
+  headline: string
+}
+
+export interface S11ComposeResult {
+  variants: S11Variant[]
+  meta: Record<string, unknown>
+}
+
+// ── Fallback determinístico HONESTO (dados reais do nicho/lead — zero jargão interno) ──
+function buildLandingCopyFallback(lead: S11Lead, nicho: NichoProfile, local: string, strategy: ConversionStrategy): LandingCopy {
+  const term = nicho.clientTerm || 'cliente'
+  const spec = nicho.specialties.slice(0, 3)
+  const trigger = nicho.conversionTriggers[0] || 'Atendimento personalizado'
+  const rating = lead.rating_value || 0
+  const reviews = lead.rating_votes || 0
+  const social = rating >= 4 && reviews >= 10 ? `${rating}★ no Google com ${reviews} avaliações` : `${nicho.name} em ${local}`
+  return {
+    hero: {
+      headline: `${lead.title} — ${nicho.name} em ${local}`,
+      subtitle: strategy.facet === 'social_proof' && rating >= 4
+        ? `${social}. ${spec[0]} e ${spec[1] || 'atendimento completo'} perto de você.`
+        : `${spec.slice(0, 2).join(' e ')} com ${trigger.toLowerCase()}.`,
+    },
+    how: {
+      title: 'Como funciona',
+      steps: [
+        { title: 'Fale conosco', desc: `Chame no WhatsApp e conte o que você precisa — resposta rápida e sem compromisso.` },
+        { title: 'Atendimento', desc: `Você é recebido por quem entende de ${(spec[0] || nicho.name).toLowerCase()}.` },
+        { title: 'Acompanhamento', desc: `Seu caso acompanhado do início ao fim, como todo ${term} merece.` },
+      ],
+    },
+    capabilities: {
+      title: `Especialidades`,
+      items: spec.map(s => ({ title: s, desc: `${s} com atendimento dedicado em ${local}.` })),
+    },
+    voice: { title: reviews >= 10 ? `Quem já veio, avaliou: ${rating}★ em ${reviews} avaliações públicas no Google.` : `Atendimento avaliado publicamente no Google.` },
+    pricing: {
+      title: strategy.pricingFrame === 'free-first' ? 'Comece sem compromisso' : 'Sua primeira visita',
+      offerLine: trigger,
+      riskRemoval: strategy.pricingFrame === 'guarantee'
+        ? 'Tire todas as dúvidas antes de decidir — sem pressão, sem surpresa.'
+        : 'Agende quando fizer sentido para você — cancelamento sem burocracia.',
+    },
+    faq: {
+      items: nicho.pains.slice(0, 4).map((p, i) => ({
+        q: i === 0 ? `Por que escolher ${lead.title}?` : `E se "${p.toLowerCase()}"?`,
+        a: i === 0
+          ? `${social}. Especialidades: ${spec.join(', ')}.${lead.is_claimed ? ' Perfil verificado no Google.' : ''}`
+          : `É exatamente por isso que o primeiro contato é sem compromisso — você conhece o atendimento antes de decidir.`,
+      })),
+    },
+    cta: { label: 'Falar no WhatsApp', sub: trigger },
+  }
+}
+
+// ── Merge: DeepSeek slot a slot com fallback nos vazios ──
+function mergeLandingCopy(ai: LandingCopy | null, fb: LandingCopy): { copy: LandingCopy; model: string } {
+  if (!ai) return { copy: fb, model: 's11-fallback' }
+  return {
+    copy: {
+      hero: { headline: ai.hero.headline || fb.hero.headline, subtitle: ai.hero.subtitle || fb.hero.subtitle },
+      how: { title: ai.how.title || fb.how.title, steps: ai.how.steps?.length === 3 ? ai.how.steps : fb.how.steps },
+      capabilities: { title: ai.capabilities.title || fb.capabilities.title, items: ai.capabilities.items?.length ? ai.capabilities.items : fb.capabilities.items },
+      voice: { title: ai.voice.title || fb.voice.title },
+      pricing: {
+        title: ai.pricing.title || fb.pricing.title,
+        offerLine: ai.pricing.offerLine || fb.pricing.offerLine,
+        riskRemoval: ai.pricing.riskRemoval || fb.pricing.riskRemoval,
+      },
+      faq: { items: ai.faq.items?.length >= 3 ? ai.faq.items : fb.faq.items },
+      cta: { label: ai.cta.label || fb.cta.label, sub: ai.cta.sub || fb.cta.sub },
+    },
+    model: 'deepseek-landing',
+  }
+}
+
+// ── GREEN S11: render puro (g0 · zero-lib soberano · WCAG AA · scroll-driven progressivo) ──
+function renderS11_GREEN(input: {
+  lead: S11Lead; nicho: NichoProfile; local: string; seg: string
+  copy: LandingCopy; strategy: ConversionStrategy; composedLayout: any
+  T: ReturnType<typeof unifyTokens>; p: string; s: string; a: string; p15: string; p12: string
+  icons: Record<string, string>
+}): string {
+  const { lead, nicho, local, copy, strategy, composedLayout, T, p, s, p15, p12, icons } = input
+  const esc = (t: unknown) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const icon = (n: string) => icons[n] || ''
+  const rating = lead.rating_value || 0
+  const reviews = lead.rating_votes || 0
+  const hasSocial = rating >= 4 && reviews >= 10
+  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(lead.place_id)}`
+  const ctaHref = `/r/${encodeURIComponent(lead.place_id)}?v=${strategy.abLabel}&s=S11`
+  const stars = '★★★★★'.slice(0, Math.round(rating)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(rating))
+  const emphasized = new Set<string>((composedLayout?.slots || []).filter((sl: any) => sl.renderHint === 'highlight').map((sl: any) => sl.slotName))
+  const em = (slot: string) => emphasized.has(slot) ? ' s11-em' : ''
+
+  // ── SLOT RENDERERS (ordem vem da ESTRATÉGIA via composedLayout.slots) ──
+  const R: Record<string, () => string> = {
+    hero: () => `<header class="s11-hero" role="banner" aria-label="${esc(copy.hero.headline)}"><div class="s11-hero-in">` +
+      (hasSocial ? `<div class="s11-badge" role="status">${icon('star')}<span aria-hidden="true">${stars}</span> ${rating.toFixed(1)} · ${reviews} avaliações no Google${lead.is_claimed ? ' · verificado' : ''}</div>` : `<div class="s11-badge" role="status">${esc(nicho.name)} · ${esc(local)}</div>`) +
+      `<h1>${esc(copy.hero.headline)}</h1><p class="s11-sub">${esc(copy.hero.subtitle)}</p>` +
+      `<a class="s11-btn s11-btn-hero" href="${ctaHref}">${icon('message')}${esc(copy.cta.label)}</a>` +
+      `</div></header>`,
+    trust: () => `<section class="s11-trust${em('trust')}" aria-label="Confiança"><div class="s11-wrap s11-trust-row">` +
+      (hasSocial ? `<span class="s11-chip">${icon('star')}<strong>${rating.toFixed(1)}★</strong>&nbsp;no Google</span><span class="s11-chip">${icon('chart')}<strong>${reviews}</strong>&nbsp;avaliações</span>` : '') +
+      (lead.is_claimed ? `<span class="s11-chip">${icon('shield')}Perfil verificado</span>` : '') +
+      `<span class="s11-chip">${icon('search')}${esc(local)}</span>` +
+      `<a class="s11-chip s11-chip-link" href="${mapsUrl}" target="_blank" rel="noopener">Ver no Google Maps</a>` +
+      `</div></section>`,
+    how: () => `<section class="s11-sec${em('how')}" aria-label="${esc(copy.how.title)}"><div class="s11-wrap">` +
+      `<h2>${esc(copy.how.title)}</h2><div class="s11-steps">` +
+      copy.how.steps.map((st, i) => `<div class="s11-step" style="--i:${i}"><div class="s11-step-n" aria-hidden="true">${i + 1}</div><h3>${esc(st.title)}</h3><p>${esc(st.desc)}</p></div>`).join('') +
+      `</div></div></section>`,
+    capabilities: () => `<section class="s11-sec s11-alt${em('capabilities')}" aria-label="${esc(copy.capabilities.title)}"><div class="s11-wrap">` +
+      `<h2>${esc(copy.capabilities.title)}</h2><div class="s11-grid3">` +
+      copy.capabilities.items.map((it, i) => `<div class="s11-card" style="--i:${i}"><h3>${esc(it.title)}</h3><p>${esc(it.desc)}</p></div>`).join('') +
+      `</div></div></section>`,
+    stats: () => `<section class="s11-stats${em('stats')}" aria-label="Números"><div class="s11-wrap s11-stats-row">` +
+      (hasSocial ? `<div class="s11-stat"><div class="s11-stat-v">${rating.toFixed(1)}★</div><div class="s11-stat-l">nota no Google</div></div><div class="s11-stat"><div class="s11-stat-v">${reviews}</div><div class="s11-stat-l">avaliações públicas</div></div>` : '') +
+      `<div class="s11-stat"><div class="s11-stat-v">${nicho.specialties.length}</div><div class="s11-stat-l">especialidades</div></div>` +
+      `<div class="s11-stat"><div class="s11-stat-v">${esc(lead.district || lead.city || 'local')}</div><div class="s11-stat-l">atendimento em</div></div>` +
+      `</div></section>`,
+    voice: () => `<section class="s11-sec${em('voice')}" aria-label="Reputação"><div class="s11-wrap s11-voice">` +
+      `<div class="s11-voice-stars" aria-label="Nota ${rating.toFixed(1)} de 5">${stars}</div>` +
+      `<p class="s11-voice-t">${esc(copy.voice.title)}</p>` +
+      `<a class="s11-voice-link" href="${mapsUrl}" target="_blank" rel="noopener">Ler avaliações no Google →</a>` +
+      `</div></section>`,
+    pricing: () => `<section class="s11-sec s11-alt${em('pricing')}" aria-label="${esc(copy.pricing.title)}"><div class="s11-wrap s11-offer-wrap">` +
+      `<div class="s11-offer"><h2>${esc(copy.pricing.title)}</h2>` +
+      `<p class="s11-offer-line">${icon('spark')}${esc(copy.pricing.offerLine)}</p>` +
+      `<p class="s11-offer-risk">${esc(copy.pricing.riskRemoval)}</p>` +
+      `<a class="s11-btn" href="${ctaHref}">${esc(copy.cta.label)}</a></div>` +
+      `</div></section>`,
+    faq: () => `<section class="s11-sec${em('faq')}" aria-label="Perguntas frequentes"><div class="s11-wrap s11-faq">` +
+      `<h2>Perguntas frequentes</h2>` +
+      copy.faq.items.map(f => `<details class="s11-faq-i"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('') +
+      `</div></section>`,
+    cta: () => `<section class="s11-cta${em('cta')}" aria-label="Fale conosco"><div class="s11-wrap">` +
+      `<h2>${esc(copy.hero.headline.length > 60 ? copy.pricing.offerLine : copy.hero.headline)}</h2>` +
+      `<p>${esc(copy.cta.sub)}</p>` +
+      `<a class="s11-btn s11-btn-inv" href="${ctaHref}">${icon('arrow-right')}${esc(copy.cta.label)}</a>` +
+      `</div></section>`,
+  }
+
+  const order: string[] = (composedLayout?.slots || []).map((sl: any) => sl.slotName).filter((n: string) => R[n])
+  const body = (order.length ? order : Object.keys(R)).map(n => R[n]()).join('\n')
+
+  const schemaJson = JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'LocalBusiness',
+    name: lead.title, address: { '@type': 'PostalAddress', addressLocality: lead.city || 'BR' },
+    ...(lead.website && /^https?:\/\//.test(lead.website) ? { url: lead.website } : {}),
+    ...(hasSocial ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: rating.toFixed(1), reviewCount: String(reviews) } } : {}),
+  })
+
+  const css = `:root{--p:${p};--s:${s};--p15:${p15};--p12:${p12};--bg:${T.bg};--fg:${T.fg};--card:${T.card};--muted:${T.muted};--muted-fg:${T.mutedFg};--border:${T.border};--radius:${T.radius};--pill:${T.radiusPill};--font:${T.font},system-ui,sans-serif;--motion:${T.motion};--motion-smooth:${T.motionSmooth}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.65;-webkit-font-smoothing:antialiased}
+.s11-wrap{max-width:${T.containerMaxWidth};margin:0 auto;padding:0 1.5rem}
+.s11-sec{padding:${T.sectionSpacing} 0}
+.s11-alt{background:var(--muted)}
+.s11-sec h2{font-size:clamp(1.375rem,2.6vw,1.875rem);font-weight:800;margin-bottom:1.75rem;text-wrap:balance}
+@keyframes s11up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.s11-hero{background:linear-gradient(135deg,var(--p) 0%,var(--s) 100%);color:#fff;min-height:62vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden;padding:4rem 1.5rem}
+.s11-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 28% 62%,rgba(255,255,255,.09),transparent 60%)}
+.s11-hero-in{position:relative;z-index:1;max-width:820px}
+.s11-badge{display:inline-flex;align-items:center;gap:.45rem;background:rgba(255,255,255,.13);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:var(--pill);font-size:.85rem;font-weight:600;margin-bottom:1.5rem;animation:s11up var(--motion-smooth) both}
+.s11-hero h1{font-size:clamp(1.75rem,4.2vw,2.75rem);font-weight:800;line-height:1.15;text-wrap:balance;margin-bottom:1rem;animation:s11up var(--motion-smooth) .08s both}
+.s11-sub{font-size:1.125rem;opacity:.92;max-width:640px;margin:0 auto 2rem;animation:s11up var(--motion-smooth) .16s both}
+.s11-btn{display:inline-flex;align-items:center;gap:.5rem;background:#fff;color:var(--p);padding:.9rem 2.1rem;border-radius:var(--pill);font-weight:700;font-size:1rem;text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.14);transition:transform var(--motion),box-shadow var(--motion)}
+.s11-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.2)}
+.s11-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.s11-btn-hero{animation:s11up var(--motion-smooth) .24s both}
+.s11-btn-inv{background:#fff;color:var(--p)}
+.s11-trust{background:var(--card);border-bottom:1px solid var(--border);padding:1.1rem 0}
+.s11-trust-row{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center}
+.s11-chip{display:inline-flex;align-items:center;gap:.4rem;background:var(--p12);color:var(--fg);padding:.45rem .95rem;border-radius:var(--pill);font-size:.85rem}
+.s11-chip strong{color:var(--p)}
+.s11-chip-link{text-decoration:none;color:var(--p);font-weight:600}
+.s11-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.s11-step{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;animation:s11up var(--motion) both;animation-delay:calc(var(--i)*.09s)}
+.s11-step-n{width:2.25rem;height:2.25rem;border-radius:50%;background:var(--p);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:.9rem}
+.s11-step h3,.s11-card h3{font-size:1.05rem;font-weight:700;margin-bottom:.45rem}
+.s11-step p,.s11-card p{color:var(--muted-fg);font-size:.925rem}
+.s11-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
+.s11-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;transition:transform var(--motion),box-shadow var(--motion);animation:s11up var(--motion) both;animation-delay:calc(var(--i)*.09s)}
+.s11-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.07)}
+.s11-stats{background:linear-gradient(135deg,var(--p) 0%,var(--s) 100%);color:#fff;padding:3rem 0}
+.s11-stats-row{display:flex;flex-wrap:wrap;gap:2.5rem;justify-content:center;text-align:center}
+.s11-stat-v{font-size:2.1rem;font-weight:800;line-height:1.1}
+.s11-stat-l{font-size:.85rem;opacity:.85;margin-top:.3rem}
+.s11-voice{text-align:center;max-width:680px}
+.s11-voice-stars{color:#f59e0b;font-size:1.6rem;letter-spacing:.2rem;margin-bottom:.8rem}
+.s11-voice-t{font-size:1.15rem;font-weight:500;text-wrap:balance;margin-bottom:.9rem}
+.s11-voice-link{color:var(--p);font-weight:600;text-decoration:none}
+.s11-offer-wrap{display:flex;justify-content:center}
+.s11-offer{background:var(--card);border:2px solid var(--p);border-radius:var(--radius);padding:2.5rem;max-width:560px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.08)}
+.s11-offer-line{display:inline-flex;align-items:center;gap:.5rem;font-size:1.15rem;font-weight:700;color:var(--p);margin:.4rem 0 .8rem}
+.s11-offer-risk{color:var(--muted-fg);font-size:.925rem;margin-bottom:1.5rem}
+.s11-offer .s11-btn{background:var(--p);color:#fff}
+.s11-offer .s11-btn:focus-visible{outline:3px solid var(--p);outline-offset:3px}
+.s11-faq{max-width:760px}
+.s11-faq-i{background:var(--card);border:1px solid var(--border);border-radius:${T.radiusSm};padding:1.1rem 1.4rem;margin-bottom:.75rem}
+.s11-faq-i summary{font-weight:700;cursor:pointer;font-size:.975rem}
+.s11-faq-i summary:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.s11-faq-i p{color:var(--muted-fg);font-size:.925rem;margin-top:.7rem}
+.s11-cta{background:linear-gradient(135deg,var(--p) 0%,var(--s) 100%);color:#fff;text-align:center;padding:4.5rem 0}
+.s11-cta h2{font-size:clamp(1.4rem,3vw,2rem);font-weight:800;text-wrap:balance;margin-bottom:.7rem}
+.s11-cta p{opacity:.92;margin-bottom:1.8rem}
+.s11-em{position:relative}
+.s11-footer{text-align:center;padding:2.5rem 1.5rem;color:var(--muted-fg);font-size:.8rem;border-top:1px solid var(--border)}
+.s11-footer a{color:var(--p);text-decoration:none}
+@supports (animation-timeline: view()){.s11-sec .s11-step,.s11-sec .s11-card{animation:s11up linear both;animation-timeline:view();animation-range:entry 0% entry 42%}}
+@media(max-width:860px){.s11-steps,.s11-grid3{grid-template-columns:1fr}.s11-hero{min-height:52vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important}}`
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">` +
+    `<meta name="description" content="${esc(copy.hero.subtitle || copy.hero.headline)}">` +
+    `<title>${esc(lead.title)} · ${esc(nicho.name)} em ${esc(local)}</title>` +
+    `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` +
+    `<link href="https://fonts.googleapis.com/css2?family=${(T.font || 'Inter').replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap" rel="stylesheet">` +
+    `<style>/* S11 · strategy=${strategy.facet} (${strategy.abLabel}) · ${esc(strategy.hypothesis)} */\n${css}</style>` +
+    `<script type="application/ld+json">${schemaJson}</script>` +
+    `</head><body>\n${body}\n` +
+    `<footer class="s11-footer"><p>${esc(lead.title)} · ${esc(local)} · <a href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a></p><p>Página por <a href="https://adsentice.com.br" rel="noopener">adsentice</a></p></footer>` +
+    `</body></html>`
+}
+
+// ── COMPOSE S11: BLUE sensor compartilhado → 2 estratégias → 2 variantes ──
+const s11Cache = new WarpCache<S11ComposeResult>()
+
+export async function composeS11(placeId: string): Promise<S11ComposeResult | null> {
+  try {
+    // 1. Lead (L0 — inclui phone para o CTA WhatsApp do PRÓPRIO cliente)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const url = `${supabaseUrl}/rest/v1/discovery_listings?select=place_id,title,category,rating_value,rating_votes,is_claimed,website,phone,score_compound,schwartz_label,city,district&place_id=eq.${encodeURIComponent(placeId)}&limit=1`
+    const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+    if (!res.ok) return null
+    const leads = await res.json() as S11Lead[]
+    if (!leads.length) return null
+    const lead = leads[0]
+
+    // 2. Classify (reuso dos mapas canônicos)
+    const cat = normalizeCategory(lead.category)
+    const seg = CAT_TO_SEGMENT[cat] || 'servicos'
+    const nicho = NICHO_MAP[cat] || { ...GENERIC_NICHO, name: lead.category || GENERIC_NICHO.name }
+    const city = lead.city || ""
+    const district = lead.district || ""
+    const local = district ? `${district}, ${city}` : (city || 'sua região')
+
+    // ── CACHE (mesmo padrão ADR-0038 do S10) ──
+    const cacheKey = `s11v1:${placeId}:${seg}:${lead.score_compound || 0}`
+    const cached = await s11Cache.get(cacheKey)
+    if (cached) return cached
+
+    // 2b. Concorrência (count=exact — reuso do padrão S10)
+    let competitors = 0
+    try {
+      const cr = await fetch(`${supabaseUrl}/rest/v1/discovery_listings?select=place_id&category=eq.${encodeURIComponent(lead.category || "")}&city=eq.${encodeURIComponent(city)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" } })
+      competitors = parseInt((cr.headers.get("content-range") || "").split("/")[1] || "0", 10) || 0
+    } catch (e: unknown) { void e }
+
+    // 3. Tokens (M9 + palette — reuso)
+    const m9 = new TokenComposer()
+    const m9Result = await m9.compose({
+      intent: `landing page cliente ${seg}`, segment: seg as SegmentId, plan: 'sentinela',
+      surface: 'S11', market: { category: lead.category || cat, region: city || 'BR' },
+    }).catch(() => null)
+    const palette = segmentPalette(seg as SegmentId)
+    const p = m9Result?.tokens.palette.primary || palette.primary
+    const s = m9Result?.tokens.palette.secondary || palette.secondary
+    const a = m9Result?.tokens.palette.accent || palette.accent
+    const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
+
+    // 4. Vocab (agora com conversionFacets) + sensor queries (paralelas)
+    const primaryEmotion = seg === 'saude' ? 'Confiança + Profissionalismo' : seg === 'beleza' ? 'Autoestima + Transformação' : 'Resultado + Crescimento'
+    const preVocab = resolveIntentVocab(seg, {
+      persona: { who: lead.schwartz_label || 'Problem Aware', schwartzLevel: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: nicho.conversionTriggers[0] || '', urgency: 'média' as const },
+      psychology: { primaryEmotion, colorPsychology: '', urgencyLevel: 'medium', toneOfVoice: nicho.tone, copyRules: [], triggers: [] },
+      designSystem: { recommended: '', atmosphere: '', colorPalette: { primary: '', secondary: '', accent: '', hue: 0 }, typography: { heading: '', body: '' }, spacingStyle: '', motionStyle: '' },
+      marketData: { competitors, category: lead.category || seg, categoryDisplay: nicho.name, city, district, avgScore: 32, claimed: lead.is_claimed || false, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 },
+      niche: { name: nicho.name, specialties: nicho.specialties, audience: nicho.audience, keywords: nicho.keywords, pains: nicho.pains, objections: [], conversionTriggers: nicho.conversionTriggers },
+      skills: [], computedAt: new Date().toISOString(),
+    })
+    const [odSystem, materio, icons, cssPatterns] = await Promise.all([
+      queryDesignSystem(seg, "S11").catch(() => null),
+      queryMaterioTokens().catch(() => null),
+      queryMediaIcons(preVocab.iconFacets).catch(() => ({} as Record<string, string>)),
+      queryCSSPatterns(seg, 'S11').catch(() => null),
+    ])
+    const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S11')
+
+    // 5. ESTRATÉGIAS (o cérebro A/B — vocab.conversion do KG + sinais reais)
+    const intent = {
+      surface: 'S11', segment: seg, score: lead.score_compound || 50,
+      schwartzLevel: lead.schwartz_label || 'Problem Aware',
+      gapCount: 0, topGapSeverity: '', isClaimed: lead.is_claimed || false,
+      hasWebsite: !!lead.website, competitorCount: competitors,
+      primaryEmotion, designAtmosphere: '',
+      conversionTriggers: nicho.conversionTriggers || [],
+      personaOffer: nicho.conversionTriggers[0] || '', personaWho: '',
+      nichePains: nicho.pains, nicheAudience: nicho.audience,
+      ontology: { marketData: { rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 } },
+    }
+    const strategies = resolveStrategies(intent, preVocab.conversionFacets)
+
+    // 6. Morph (corpus-driven — reuso do MorphInput do S10)
+    const slotMorph = resolveMorph({
+      segment: seg, designFacets: preVocab.designFacets, animationFacets: preVocab.animationFacets,
+      designSystemAtmosphere: '', spacingStyle: 'default', motionStyle: 'subtle',
+      primaryEmotion, schwartzLevel: lead.schwartz_label || 'Problem Aware',
+      cssPatterns, T,
+    } as any)
+
+    // 7. Por ESTRATÉGIA: layout + copy + render (2 variantes)
+    const variants: S11Variant[] = []
+    for (const strat of [strategies.A, strategies.B]) {
+      const composed = composeLayout(intent, slotMorph, strat)
+      const fb = buildLandingCopyFallback(lead, nicho, local, strat)
+      const ai = await generateLandingCopy({
+        name: lead.title, category: lead.category, nichoName: nicho.name,
+        clientTerm: nicho.clientTerm || 'cliente', specialties: nicho.specialties,
+        local, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+        isClaimed: lead.is_claimed || false, triggers: nicho.conversionTriggers,
+        pains: nicho.pains, tone: nicho.tone,
+      }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
+      if (ai) await trackLLMCost(0.001)
+      const { copy, model } = mergeLandingCopy(ai, fb)
+      const html = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons })
+      variants.push({ ab: strat.abLabel, html, strategyFacet: strat.facet, hypothesis: strat.hypothesis, copyModel: model, headline: copy.hero.headline })
+    }
+
+    const meta = {
+      surface: 'S11', lead: lead.title, segment: seg, score: lead.score_compound || 50,
+      local, competitors, phone: lead.phone || null,
+      strategies: { A: strategies.A.facet, B: strategies.B.facet, scores: strategies.scores, reasoning: strategies.reasoning.slice(0, 8) },
+      conversionFacets: preVocab.conversionFacets,
+      _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: 'g0 + strategy A/B (ADR-0037 F6)' },
+      computedAt: new Date().toISOString(),
+    }
+
+    const result: S11ComposeResult = { variants, meta }
+    await s11Cache.set(cacheKey, result, 300_000)
+    return result
+  } catch (e: any) { console.error("[composeS11]", e.message); return null }
 }

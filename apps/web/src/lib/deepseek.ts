@@ -185,6 +185,107 @@ REGRAS:
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// LANDING COPY POR SLOT (S11 · ADR-0037 Fase 6)
+// 1 chamada por ESTRATÉGIA de conversão (A/B) — a estratégia é a
+// diretiva do copywriter. LEI (OD gold): honesto — zero preço,
+// depoimento ou estatística inventada; só dados reais fornecidos.
+// ═══════════════════════════════════════════════════════════════
+
+export interface LandingCopy {
+  hero: { headline: string; subtitle: string }
+  how: { title: string; steps: { title: string; desc: string }[] }
+  capabilities: { title: string; items: { title: string; desc: string }[] }
+  voice: { title: string }
+  pricing: { title: string; offerLine: string; riskRemoval: string }
+  faq: { items: { q: string; a: string }[] }
+  cta: { label: string; sub: string }
+}
+
+export async function generateLandingCopy(
+  biz: {
+    name: string; category: string; nichoName: string; clientTerm: string
+    specialties: string[]; local: string; rating: number; reviews: number
+    isClaimed: boolean; triggers: string[]; pains: string[]; tone: string
+  },
+  strategy: { facet: string; copyAngle: string; pricingFrame: string; faqAngle: string },
+): Promise<LandingCopy | null> {
+  const key = getKey()
+  if (!key) { console.error("[DeepSeek] DEEPSEEK_API_KEY nao configurado"); return null }
+
+  const prompt = `Você é copywriter sênior de landing pages para negócios locais no Brasil (SMB).
+Gere a copy COMPLETA da landing page do negócio abaixo, slot a slot, sob UMA estratégia de conversão.
+
+NEGÓCIO (dados REAIS — use somente estes):
+- Nome: ${biz.name} · Categoria: ${biz.nichoName} · Local: ${biz.local}
+- Rating Google: ${biz.rating}★ com ${biz.reviews} avaliações · Perfil ${biz.isClaimed ? "verificado" : "não verificado"}
+- Especialidades: ${biz.specialties.slice(0, 5).join(", ")}
+- Diferenciais reais (triggers): ${biz.triggers.join("; ") || "atendimento local"}
+- Dores do público: ${biz.pains.slice(0, 3).join("; ")}
+- Tom da marca: ${biz.tone} · Cliente = "${biz.clientTerm}"
+
+ESTRATÉGIA DE CONVERSÃO (variante ${strategy.facet} — siga à risca):
+- Ângulo: ${strategy.copyAngle}
+- Frame do pricing: ${strategy.pricingFrame} (free-first=oferta de entrada sem compromisso; guarantee=remover risco; anchor=valor antes da oferta; commitment-steps=passos pequenos)
+- FAQ deve dissolver: ${strategy.faqAngle}
+
+LEIS INVIOLÁVEIS (honestidade):
+- ZERO preço em R$ (a menos que esteja nos triggers) · ZERO depoimento inventado · ZERO estatística inventada
+- O slot voice só CONTEXTUALIZA a reputação real (${biz.rating}★, ${biz.reviews} avaliações) — não cria falas de clientes
+- Steps do "how" = jornada REAL do ${biz.clientTerm} (contato → atendimento → resultado)
+- Português brasileiro natural, tom ${biz.tone.toLowerCase()}
+
+FORMATO (JSON válido, sem markdown, TODAS as chaves):
+{"hero":{"headline":"máx 90 chars","subtitle":"máx 140 chars"},
+"how":{"title":"máx 50","steps":[{"title":"máx 30","desc":"máx 90"},{"title":"","desc":""},{"title":"","desc":""}]},
+"capabilities":{"title":"máx 50","items":[{"title":"máx 35","desc":"máx 90"},{"title":"","desc":""},{"title":"","desc":""}]},
+"voice":{"title":"máx 80 — contextualiza a reputação real"},
+"pricing":{"title":"máx 50","offerLine":"máx 100 — a oferta de entrada real (dos triggers)","riskRemoval":"máx 90 — por que não há risco"},
+"faq":{"items":[{"q":"máx 70","a":"máx 160"},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}]},
+"cta":{"label":"máx 40 — ação direta","sub":"máx 80 — reforço final"}}`
+
+  try {
+    const res = await fetch(DEEPSEEK_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 2800,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(25000),
+    })
+    if (!res.ok) { const errBody = await res.text().catch(() => ""); console.error("[DeepSeek] landing " + res.status + ": " + errBody.slice(0, 100)); return null }
+    const data = await res.json()
+    let text = data.choices?.[0]?.message?.content || ""
+    if (!text) text = data.choices?.[0]?.message?.reasoning_content || ""
+    if (!text) { console.error("[DeepSeek] landing empty response"); return null }
+
+    let json: Partial<LandingCopy>
+    try { json = JSON.parse(text) } catch (e: unknown) { void e; console.error("[DeepSeek] landing JSON invalido"); return null }
+    // validação mínima: hero é obrigatório; demais slots degradam para o fallback determinístico do chamador
+    if (!json.hero?.headline || json.hero.headline.length < 10) return null
+    return {
+      hero: { headline: json.hero.headline, subtitle: json.hero.subtitle || "" },
+      how: { title: json.how?.title || "", steps: (json.how?.steps || []).slice(0, 3) },
+      capabilities: { title: json.capabilities?.title || "", items: (json.capabilities?.items || []).slice(0, 3) },
+      voice: { title: json.voice?.title || "" },
+      pricing: {
+        title: json.pricing?.title || "",
+        offerLine: json.pricing?.offerLine || "",
+        riskRemoval: json.pricing?.riskRemoval || "",
+      },
+      faq: { items: (json.faq?.items || []).filter(i => i?.q && i?.a).slice(0, 4) },
+      cta: { label: json.cta?.label || "", sub: json.cta?.sub || "" },
+    }
+  } catch (e: any) {
+    console.error("[DeepSeek] landing exception: " + (e?.message || e))
+    return null
+  }
+}
+
 // Track LLM cost to Redis
 export async function trackLLMCost(costUsd = 0.001): Promise<void> {
   try {
