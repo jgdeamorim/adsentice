@@ -47,18 +47,19 @@ async function qdrantSearch(vector: number[], filter: Record<string, unknown>, l
   } catch { return [] }
 }
 
-// ── Count by kind/tag via scroll ──
-async function qdrantCount(filter: Record<string, unknown>, limit = 500): Promise<number> {
+// ── Count by kind/tag — EXACT via /points/count (fix v085: scroll limit=500
+//    subcontava categorias grandes — banner dizia 500 design pts vs 6.103 reais) ──
+async function qdrantCount(filter: Record<string, unknown>, _limit = 500): Promise<number> {
   try {
-    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/scroll`, {
+    const res = await fetch(`${QDRANT}/collections/${COLLECTION}/points/count`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filter, limit, with_payload: true }),
+      body: JSON.stringify({ filter, exact: true }),
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return 0
     const data = await res.json()
-    return data.result?.points?.length || data.result?.length || 0
+    return data.result?.count || 0
   } catch { return 0 }
 }
 
