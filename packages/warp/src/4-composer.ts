@@ -28,6 +28,103 @@ import type {
 import { ComponentRegistry, registry as defaultRegistry } from './2-registry'
 import { WarpCache, warpCache as defaultCache } from './7-cache'
 
+
+// ═══════════════════════════════════════════════════════════════
+// SURFACE SPECIALISTS (ADR-0036 Fase 4 — Compositor Global → Sub-Compositor)
+// ═══════════════════════════════════════════════════════════════
+
+/** Cada superfície Warp (22) tem um especialista que conhece sua gramática
+ *  estrutural. O Compositor Global roteia surfaceId → specialist.inferLayout(). */
+export interface SurfaceSpecialist {
+  /** ID da superfície Warp (ex: "S10", "S5", "S11") */
+  surfaceId: string
+  /** Nome legível */
+  name: string
+  /** Skills de marketing ativas nesta superfície */
+  skills: string[]
+  /** Gramática estrutural — retorna LayoutTree com slots TIPADOS da superfície */
+  inferLayout(context: CompositionRequest['context'], components: ResolvedComponent[]): LayoutTree
+}
+
+/** Surface Router — mapeia surfaceId → SurfaceSpecialist.
+ *  Registrado no boot. Cada nova superfície ganha um specialist. */
+const surfaceSpecialists = new Map<string, SurfaceSpecialist>()
+
+export function registerSurfaceSpecialist(specialist: SurfaceSpecialist): void {
+  surfaceSpecialists.set(specialist.surfaceId, specialist)
+}
+
+export function getSurfaceSpecialist(surfaceId: string): SurfaceSpecialist | undefined {
+  return surfaceSpecialists.get(surfaceId)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S10 SPECIALIST — Relatório Raio-X (ADR-0036 Fase 4)
+// Gramática: hero→score-card→info-grid(3)→gap-list→cta→footer
+// ═══════════════════════════════════════════════════════════════
+
+const S10_SPECIALIST: SurfaceSpecialist = {
+  surfaceId: 'S10',
+  name: 'Relatório Raio-X',
+  skills: ['seo-audit', 'schema', 'site-architecture', 'copywriting', 'psychology', 'cro', 'local-seo'],
+  inferLayout(context, components) {
+    // Decompõe componentes do discovery por papel na gramática S10
+    const byRole = (role: string) => components.find(c =>
+      c.id.includes(role) || c.component.name.toLowerCase().includes(role))
+    const heroComp = byRole('badge') || byRole('chip')
+    const cardComp = byRole('card') || byRole('bento')
+    const ringComp = byRole('progress') || byRole('circular') || byRole('gauge')
+    const btnComp = byRole('button') || byRole('cta')
+
+    return {
+      id: 'layout.s10',
+      type: 's10-raio-x',
+      slots: {
+        hero: {
+          type: 'hero-section',
+          component: heroComp?.id || 'hero-badge',
+          badge: heroComp?.id || 'badge',
+        },
+        score: {
+          type: 'score-card',
+          ring: ringComp?.id || 'score-ring',
+          card: cardComp?.id || 'score-card',
+          info: cardComp?.id || 'score-info',
+          bars: { count: 3 },
+        },
+        info_grid: {
+          type: 'info-grid',
+          columns: 3,
+          cards: [
+            { slot: 'gmb', component: cardComp?.id || 'info-card' },
+            { slot: 'website', component: cardComp?.id || 'info-card' },
+            { slot: 'competition', component: cardComp?.id || 'info-card' },
+          ],
+        },
+        gaps: {
+          type: 'gap-list',
+          component: cardComp?.id || 'gap-card',
+          severity_colors: true, // accent bar: destructive/warning/success
+          fix_section: true,     // "Como resolver" em cada gap
+        },
+        cta: {
+          type: 'cta-section',
+          component: btnComp?.id || 'cta-button',
+          style: 'pill', // white bg, primary color
+        },
+        footer: {
+          type: 'footer',
+          component: 'footer',
+        },
+      },
+    }
+  },
+}
+
+// Register built-in specialists
+registerSurfaceSpecialist(S10_SPECIALIST)
+
+
 // ═══════════════════════════════════════════════════════════════
 // Pipeline Stages (OD-style)
 // ═══════════════════════════════════════════════════════════════
@@ -145,7 +242,17 @@ function inferLayout(
     }
   }
 
-  // Landing page
+  // ── SURFACE SPECIALIST (ADR-0036 Fase 4) ──
+  // Cada superfície Warp tem gramática própria. O specialist sabe
+  // exatamente quais slots compõem a superfície e como os componentes
+  // do discovery se encaixam em cada slot.
+  const surfaceId = context.page || context.category || ''
+  const specialist = getSurfaceSpecialist(surfaceId)
+  if (specialist) {
+    return specialist.inferLayout(context, components)
+  }
+
+  // Landing page (fallback — superfícies sem specialist registrado)
   if (!page || page === '/') {
     return {
       id: 'layout.landing',
@@ -286,11 +393,18 @@ export class Composer {
     // ═══ ATOMIC PIPELINE ═══
 
     // ── STAGE 1: DISCOVERY ──
-    // "O que o usuário precisa?" → busca semântica no Qdrant
-    const discovered = await this.registry.queryByIntent(request.intent, 15)
+    // "O que o usuário precisa?" → busca semântica no Qdrant, informada
+    // pela superfície (S10=diagnóstico, S5=conversão, S3=analytics...)
+    const surface = request.context.page || ''
+    const specialist = getSurfaceSpecialist(surface)
+    const enrichedIntent = specialist
+      ? `${request.intent} ${specialist.skills.slice(0, 3).join(' ')}`
+      : request.intent
+    const discovered = await this.registry.queryByIntent(enrichedIntent, 15)
 
     // ── STAGE 2: PLAN ──
     // "Quais componentes + layout + tokens?"
+    // Surface specialist define a gramática estrutural (slots TIPADOS)
     const resolved = resolveDependencies(discovered, this.registry, 2, 12)
     const layout = inferLayout(request.context, resolved)
 

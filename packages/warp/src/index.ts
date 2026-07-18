@@ -28,7 +28,7 @@ import { DesignPipeline, designPipeline as defaultDesignPipeline } from './pipel
 
 export { ComponentRegistry } from './2-registry'
 export { Destiller } from './3-destiller'
-export { Composer } from './4-composer'
+export { Composer, SurfaceSpecialist, registerSurfaceSpecialist, getSurfaceSpecialist } from './4-composer'
 export { WarpCache } from './7-cache'
 export { WarpTracker } from './6-telemetry'
 export { TokenComposer, composeTokens } from './tokens-composer'
