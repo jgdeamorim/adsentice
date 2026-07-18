@@ -299,6 +299,7 @@ const DiscoveryPage = () => {
   // ── VERDADE DA BASE (modo re-enrich · preflight $0 no Supabase — v089) ──
   const [basePreflight, setBasePreflight] = useState<{ base: number; withWebsite: number; jaL2: number; jaL3: number; l2Candidates: number; l3Candidates: number; l2ExactCost: number; l3ExactCost: number } | null>(null)
   const [baseLoading, setBaseLoading] = useState(false)
+  const [preflightChecked, setPreflightChecked] = useState(false)  // v096: 3-state — impede bloqueio prematuro do botão
   const [selectedLead, setSelectedLead] = useState<Listing | null>(null)
   const [selectedScore, setSelectedScore] = useState<ScoreData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitiveData | null>(null)
@@ -387,19 +388,17 @@ const DiscoveryPage = () => {
   const preflightL0Cost = preflightTotalPages * l0PageCost
   const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
-  const preflightMissing = selectedLayers.l0 && !hasPreflight && !baseLoading  // v092: sem pre-flight = bloqueia
+  const preflightMissing = selectedLayers.l0 && !hasPreflight && preflightChecked  // v096: só bloqueia APÓS confirmar que não existe
 
-  // ── CARREGAR PRE-FLIGHT (v092): ao abrir popup, consulta histórico para NÃO estimar ──
+  // ── CARREGAR PRE-FLIGHT (v096): 3-state — sem race condition no botão ──
   useEffect(() => {
-    if (!confirmOpen || !selected.length) { setBasePreflight(null); setBaseLoading(false); return }
+    if (!confirmOpen || !selected.length) { setBasePreflight(null); setBaseLoading(false); setPreflightChecked(false); return }
     const cityName = cityLabel.split('(')[0].trim()
-    setBasePreflight(null); setBaseLoading(true)
+    setBasePreflight(null); setBaseLoading(true); setPreflightChecked(false)
     const abort = new AbortController()
-
     const run = async () => {
       try {
         if (!selectedLayers.l0) {
-          // Modo re-enrich: conta base ($0 no Supabase)
           const res = await fetch('/api/discovery-search', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ categories: selected, city: cityName, preflight: true, layers: selectedLayers }),
@@ -407,11 +406,9 @@ const DiscoveryPage = () => {
           })
           if (res.ok) setBasePreflight(await res.json())
         } else {
-          // Modo L0: busca pre-flights JÁ EXECUTADOS (histórico)
           const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${selected.join(',')}`, { signal: abort.signal })
           if (res.ok) {
             const d = await res.json()
-            // Preenche preflightData com total_count, websitePct, claimedPct reais
             if (d.preflights?.length) {
               const pfMap: Record<string, any> = {}
               for (const pf of d.preflights) {
@@ -423,16 +420,15 @@ const DiscoveryPage = () => {
                 }
               }
               if (Object.keys(pfMap).length) setPreflightData(pfMap)
-              setBasePreflight(null)  // L0 mode: basePreflight é só p/ re-enrich
+              setBasePreflight(null)
             } else {
-              // NENHUM pre-flight — popup mostra ⚠️ + botão desabilita
               setPreflightData({})
               setBasePreflight(null)
             }
           }
         }
       } catch (e: unknown) { if (!(e instanceof DOMException && e.name === 'AbortError')) void e }
-      finally { setBaseLoading(false) }
+      finally { setBaseLoading(false); setPreflightChecked(true) }
     }
     run()
     return () => abort.abort()
@@ -1191,19 +1187,18 @@ return colors[level ?? 0] || colors[0]
                 onClick={() => setSelectedLayers(prev => ({ ...prev, l4: !prev.l4 }))}
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
-              {/* v095: chips 1|10|20|50|100 + toggle Todas páginas com indicador visual */}
-              <Box sx={{ display: 'flex', gap: 0.3, alignItems: 'center' }}>
-                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>pág:</Typography>
-                {[1,10,20,50,100].map(n => (
-                  <Chip key={n} label={String(n)} clickable size='small'
-                    color={viewLimit === n ? 'primary' : 'default'}
-                    variant={viewLimit === n ? 'filled' : 'outlined'}
-                    onClick={() => setViewLimit(n)}
-                    sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: n < 10 ? 20 : 28 }} />
-                ))}
-              </Box>
+              {/* v096: leads/pág + modo multi-página unificado num chip só */}
+              <Chip label={`📄 ${viewLimit} leads/pág`} size='small' color='primary' variant='filled'
+                sx={{ fontSize: '0.6rem', fontFamily: 'monospace' }} />
+              {[10,20,50,100].map(n => (
+                <Chip key={n} label={String(n)} clickable size='small'
+                  color={viewLimit === n ? 'primary' : 'default'}
+                  variant={viewLimit === n ? 'filled' : 'outlined'}
+                  onClick={() => setViewLimit(n)}
+                  sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: 28 }} />
+              ))}
               <Chip
-                label={paginatePartial ? `🛑 1 pág` : `🔄 Todas`}
+                label={paginatePartial ? '1 pág' : '🔄 Todas págs'}
                 clickable size='small'
                 color={paginatePartial ? 'warning' : 'success'}
                 variant={paginatePartial ? 'filled' : 'outlined'}

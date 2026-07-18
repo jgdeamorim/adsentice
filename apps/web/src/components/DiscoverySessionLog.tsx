@@ -292,7 +292,7 @@ export default function DiscoverySessionLog({
           )}
 
           {/* History toggle */}
-          {(batches.length > 0 || preflights.length > 1) && (
+          {(batches.length > 0 || preflights.length > 0) && (
             <Box sx={{ mt: 1.5, borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
               <Button size='small' onClick={() => setShowHistory(!showHistory)}
                 sx={{ fontSize: '0.7rem' }}>
