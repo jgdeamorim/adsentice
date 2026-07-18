@@ -516,7 +516,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-18 (selo v082) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs (ADR-0038 Generate-then-Serve LIVE) · corpus A 19,749 · conversation 87,419 · claude-memory 61 · KG 166/174 · Cloudflare R2 ✅ produção + Supabase ratificados (founder 2026-07-18) · S10 surface pronta: serve 0.54s · BOA 0.9277 EXCELLENT*
+*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-18 (selo v088 · 8 selos no dia) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia + loop f0) · Discovery seleção livre L0-L4 + re-enrich por base (doutrina place_id ADR-0024 P3) · migrations 014-016 DDL real · Cloudflare R2 ✅ + Supabase ratificados · BOA EXCELLENT*
 
 ## Changelog
 
@@ -554,6 +554,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v030-v080 | 2026-07-15→18 | ciclo warp composer (render destravado → morphable composer multi-surface) | `docs/handoff/active/HANDOFF-2026-07-18-v0{42..80}-*.md` (selos v042-v080) | ✅ vivo |
 | v081 | 2026-07-18 | s10-jsx-route-live-surface-pronta | `HANDOFF-2026-07-18-v081-final-s10-jsx-route-live.md` (commits 2fddd41+25beea2+dcfd766) — rota pública, blue exposto, zero hardcode | ✅ vivo |
 | v082 | 2026-07-18 | adr-0038-generate-then-serve-live | `HANDOFF-2026-07-18-v082-final-adr-0038-generate-then-serve.md` (commits 4085616+70e575c) — serve 0.54s, QG gate, TTL 30d, R2+Supabase ratificados | ✅ vivo |
+| v083-v087 | 2026-07-18 | sessão épica (plataforma ratificada → S11 A/B estratégia → dashboard conversão → Intend v2 cockpit → honestidade números) | `HANDOFF-2026-07-18-v08{3..7}-*.md` — S11 LIVE 2/22, StrategyResolver 8 facets KG, loop f0 /r/, migration 016 count_unique_places | ✅ vivo |
+| v088 | 2026-07-18 | discovery-selecao-livre-l0-l4-reenrich-por-base | `HANDOFF-2026-07-18-v088-final-discovery-selecao-livre-reenrich.md` (commits b6b39e6+76ebb5c) — L2/L3 destravados (3 bugs raiz), doutrina place_id ADR-0024 P3, 19 leads L2 reais | ✅ vivo |
 
 ---
 
