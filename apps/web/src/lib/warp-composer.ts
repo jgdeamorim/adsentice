@@ -801,22 +801,100 @@ async function composeS10_BLUE(lead: S10Lead, cat: string, seg: string, nicho: N
   }
 }
 
-/** GREEN PHASE: pure sync render. g0 rule: specialist emite gramatica (BLUE),
- *  renderer aplica materials (GREEN). ZERO Qdrant, ZERO LLM, ZERO async.
- *  Mesma entrada → mesmo HTML. Função pura. */
+/** GREEN PHASE: pure sync render — slot-driven (ADR-0036 Fase 3 final).
+ *  Recebe S10BlueOutput (todas as decisões do BLUE).
+ *  Itera sobre LayoutTree.slots do specialist (gramática TIPADA).
+ *  Cada slot → componente do vec() → a11y + tokens → HTML.
+ *  g0 rule: specialist emite gramática, GREEN aplica materials.
+ *  ZERO Qdrant, ZERO LLM, ZERO async. Função pura. */
 function renderS10_BLUE(output: S10BlueOutput): string {
   const { name, seg, score, fit, eng, ints, rating, reviews, photos,
     website, claimed, city, district, level, nichoName, offer, competitors, local,
     headline, subtitle, cta, copyModel,
     p, s, a, p15, p12, T, gaps, cardComp, btnComp, ringComp, chipComp,
+    tracedLayout,
   } = output
 
   const esc = (t: string) => t.replace(/"/g, "&quot;")
-
-  // Helper: compAttrs — a11y do vec() (BLUE decision, GREEN aplica)
   const compAttrs = (c: WarpComp | null, fallbackRole: string, label: string) =>
     `role="${c?.a11y.role || fallbackRole}" aria-label="${esc(label)}"${c?.a11y.keyboardNav ? ' tabindex="0"' : ""}`
 
+  // ── SLOT-DRIVEN RENDER: cada slot do LayoutTree vira seção HTML ──
+  // O specialist (BLUE) decidiu quais slots e em qual ordem.
+  // O GREEN só aplica materials e gera tags.
+  const slots = (tracedLayout?.slots || {}) as Record<string, any>
+
+  // Cada slot gera seu bloco de HTML com o componente correspondente
+  const slotRenderers: Record<string, () => string> = {
+    hero: () => {
+      const heroSlot = slots.hero || {}
+      const badgeComp = heroSlot.component ? output.graphComps.find((c: any) => (c.id||'').includes(heroSlot.component) || (c.name||'').toLowerCase().includes(heroSlot.component)) : chipComp
+      return `<header class="hero" ${compAttrs(badgeComp || chipComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
+<div class="hero-badge" ${compAttrs(badgeComp || chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Relatório Raio-X · Diagnóstico Gratuito</div>
+<h1>${headline}</h1><p class="subtitle">${subtitle}</p>
+</div></div>`
+    },
+
+    score: () => {
+      const scoreSlot = slots.score || {}
+      const ringId = scoreSlot.ring || ringComp?.id || "score-ring"
+      const cardId = scoreSlot.card || scoreSlot.component || cardComp?.id || "score-card"
+      const ringC = output.graphComps.find((c: any) => (c.id||'').includes(ringId) || (c.name||'').toLowerCase().includes(ringId)) || ringComp
+      const cardC = output.graphComps.find((c: any) => (c.id||'').includes(cardId) || (c.name||'').toLowerCase().includes(cardId)) || cardComp
+      return `<div class="score-card" ${compAttrs(cardC, "region", esc(`Diagnóstico de ${name}: score ${score} de 100`))}>
+<div class="score-ring" ${compAttrs(ringC, "progressbar", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
+<div class="score-info"><h2>${esc(name)}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nichoName}</div>
+<div class="score-bars">
+<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
+<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
+</div></div></div>`
+    },
+
+    info_grid: () => {
+      const infoSlot = slots.info_grid || slots.info || {}
+      const cardCount = infoSlot.cards?.length || infoSlot.columns || 3
+      const cardId = infoSlot.component || infoSlot.cards?.[0] || cardComp?.id || "info-card"
+      const infoCardC = output.graphComps.find((c: any) => (c.id||'').includes(cardId) || (c.name||'').toLowerCase().includes(cardId)) || cardComp
+      const cards = [
+        { title: "Google Meu Negócio", stars: "★".repeat(Math.max(1,Math.round(rating))) + "☆".repeat(Math.max(0,5-Math.round(rating))), meta: `${rating.toFixed(1)}★ · ${reviews} avaliações`, extra: `${photos} fotos · ${claimed}` },
+        { title: "Website", value: String(website).slice(0,35), meta: local, extra: "✅ Online" },
+        { title: "Concorrência", value: competitors > 1 ? String(competitors - 1) : "—", meta: `${nichoName.toLowerCase()}s na região`, extra: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score ${score}/100` },
+      ]
+      return `<div class="info-grid">${cards.slice(0, cardCount).map((c, i) => `
+<div class="info-card" ${compAttrs(infoCardC, "region", c.title)} style="--i:${i}"><h4>${c.title}</h4>${c.value ? `<div class="value" style="font-size:1.1rem;word-break:break-all">${c.value}</div>` : `<div class="value stars">${c.stars}</div>`}<div class="meta">${c.meta}</div><div class="status ok">${c.extra}</div></div>`).join("")}</div>`
+    },
+
+    gaps: () => {
+      const gapSlot = slots.gaps || {}
+      const gapCardId = gapSlot.component || cardComp?.id || "gap-card"
+      const gapCardC = output.graphComps.find((c: any) => (c.id||'').includes(gapCardId) || (c.name||'').toLowerCase().includes(gapCardId)) || cardComp
+      return `<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
+<p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
+${gaps.map((g, idx) => {
+  const sev = g.severity
+  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
+  return `<div class="gap ${sevClass}" ${compAttrs(gapCardC, "region", esc(g.title))} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${esc(g.title)}</h4></div><p>${esc(g.desc)}</p><div class="fix"><strong>✅ Como resolver:</strong> ${esc(g.fix)}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
+}).join("")}</div>`
+    },
+
+    cta: () => {
+      const ctaSlot = slots.cta || {}
+      const btnId = ctaSlot.component || btnComp?.id || "cta-button"
+      const btnC = output.graphComps.find((c: any) => (c.id||'').includes(btnId) || (c.name||'').toLowerCase().includes(btnId)) || btnComp
+      return `<div class="cta"><h2>${esc(offer)}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" ${compAttrs(btnC, "button", `${cta} no WhatsApp`)} target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${cta} no WhatsApp</a></div>`
+    },
+  }
+
+  // Monta o HTML na ordem do LayoutTree (ou na ordem padrão S10)
+  const slotOrder = Object.keys(slots).length > 0 
+    ? Object.keys(slots).filter(k => slotRenderers[k])
+    : ["hero", "score", "info_grid", "gaps", "cta"]
+
+  const bodySlots = slotOrder.filter(k => k !== "hero" && k !== "footer").map(k => slotRenderers[k]?.() || "").join("")
+  const heroHTML = slotRenderers["hero"]?.() || ""
+
+  // ── CSS + HTML output (GREEN: aplica materials do BLUE) ──
   return `<!DOCTYPE html><html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="${esc(headline)}">
@@ -913,36 +991,13 @@ footer span{color:${T.primary};font-weight:600}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"LocalBusiness","name":"${esc(name)}","image":"${website && /^https?:\/\//.test(website) ? website.replace(/"/g,"&quot;") : ""}","address":{"@type":"PostalAddress","addressLocality":"${city || 'BR'}"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"${rating.toFixed(1)}","reviewCount":"${reviews}"}}
 </script></head><body>
-<header class="hero" ${compAttrs(chipComp, "banner", "Diagnóstico Raio-X")}><div class="hero-content">
-<div class="hero-badge" ${compAttrs(chipComp, "status", "Relatório Raio-X · Diagnóstico Gratuito")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Relatório Raio-X · Diagnóstico Gratuito</div>
-<h1>${headline}</h1><p class="subtitle">${subtitle}</p>
-</div></div>
+${heroHTML}
 <main class="container" role="main" aria-label="Resultado do diagnóstico">
-<div class="score-card" ${compAttrs(cardComp, "region", esc(`Diagnóstico de ${name}: score ${score} de 100`))}>
-<div class="score-ring" ${compAttrs(ringComp, "progressbar", `Score ${score} de 100`)}><div class="score-inner" aria-hidden="true"><div class="score-value">${score}</div><div class="score-label">de 100</div></div></div>
-<div class="score-info"><h2>${esc(name)}</h2><div class="score-level" ${compAttrs(chipComp, "status", `Nível de consciência: ${level}`)}>${level} · ${nichoName}</div>
-<div class="score-bars">
-<div class="score-bar"><span class="score-bar-label">Presença</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${fit}%;background:${p}"></div></div><span class="score-bar-val">${fit}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Engajamento</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${eng}%;background:${a}"></div></div><span class="score-bar-val">${eng}%</span></div>
-<div class="score-bar"><span class="score-bar-label">Intenção</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${ints}%;background:${s}"></div></div><span class="score-bar-val">${ints}%</span></div>
-</div></div></div>
-<div class="info-grid">
-<div class="info-card" ${compAttrs(cardComp, "region", "Google Meu Negócio")} style="--i:0"><h4>Google Meu Negócio</h4><div class="value stars">${"★".repeat(Math.max(1,Math.round(rating)))}${"☆".repeat(Math.max(0,5-Math.round(rating)))}</div><div class="meta">${rating.toFixed(1)}★ · ${reviews} avaliações</div><div class="status ok">${photos} fotos · ${claimed}</div></div>
-<div class="info-card" ${compAttrs(cardComp, "region", "Website")} style="--i:1"><h4>Website</h4><div class="value" style="font-size:1.1rem;word-break:break-all">${String(website).slice(0,35)}</div><div class="meta">${local}</div><div class="status ok">✅ Online</div></div>
-<div class="info-card" ${compAttrs(cardComp, "region", "Concorrência")} style="--i:2"><h4>Concorrência</h4><div class="value">${competitors > 1 ? competitors - 1 : "—"}</div><div class="meta">${nichoName.toLowerCase()}s na região</div><div class="status ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Score ${score}/100</div></div>
-</div>
-<div class="section"><h2 style="font-size:1.35rem;font-weight:700;margin-bottom:.5rem">${gaps.length} Gaps e Oportunidades</h2>
-<p style="color:var(--muted-fg);margin-bottom:1.5rem">Análise baseada em dados reais do Google Meu Negócio e do seu site.</p>
-${gaps.map((g, idx) => {
-  const sev = g.severity
-  const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
-  return `<div class="gap ${sevClass}" ${compAttrs(cardComp, "region", esc(g.title))} style="--i:${idx}"><div class="gap-header"><span class="gap-severity ${sevClass}">${g.severity}</span><h4>${esc(g.title)}</h4></div><p>${esc(g.desc)}</p><div class="fix"><strong>✅ Como resolver:</strong> ${esc(g.fix)}</div><div class="meta-row"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Impacto: ${g.impact}</span><span>⏱️ Esforço: ${g.effort}</span></div></div>`
-}).join("")}
-</div>
-<div class="cta"><h2>${esc(offer)}</h2><p>Diagnóstico gratuito. Nosso plano Sentinela (R$197/mês) monitora seu negócio todo mês.</p><a href="https://wa.me/5521999999999" class="cta-btn" ${compAttrs(btnComp, "button", `${cta} no WhatsApp`)} target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ${cta} no WhatsApp</a></div></div>
+${bodySlots}
 </main>
 <footer><div class="container"><p>Diagnóstico gerado por <span>adsentice</span> — hub inteligente de marketing para negócios locais.</p><p style="margin-top:.25rem">Dados: Google Meu Negócio · website · mercado local · ${new Date().toLocaleDateString('pt-BR')}</p></div></footer>
 </body></html>`
+
 }
 
 export async function composeS10(placeId: string): Promise<{ html: string; meta: Record<string, unknown> } | null> {
