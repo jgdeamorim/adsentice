@@ -923,7 +923,7 @@ function renderGapListSlot(slot: any, ctx: SlotRenderCtx): string {
       const sev = g.severity
       const sevClass = sev.includes("Crítico") ? "critico" : sev.includes("Médio") ? "medio" : sev.includes("Força") ? "forca" : "oportunidade"
       const sevIcon = sevClass === 'critico' ? icon('shield') : sevClass === 'forca' ? icon('star') : icon('trend')
-      return '<div class="gap ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="gap-header"><span class="gap-severity ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>' + sevIcon + ' Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + icon('trend') + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
+      return '<div class="' + ctx.cls('gap') + ' ' + sevClass + '" ' + a11y(cardComp, "region", esc(g.title)) + ' style="--i:' + idx + '"><div class="' + ctx.cls('gap-header') + '"><span class="' + ctx.cls('gap-severity') + ' ' + sevClass + '">' + g.severity + '</span><h4>' + esc(g.title) + '</h4></div><p>' + esc(g.desc) + '</p><div class="fix"><strong>' + sevIcon + ' Como resolver:</strong> ' + esc(g.fix) + '</div><div class="meta-row"><span>' + icon('trend') + ' Impacto: ' + g.impact + '</span><span>⏱️ Esforço: ' + g.effort + '</span></div></div>'
     }).join("") + '</div>'
 }
 
