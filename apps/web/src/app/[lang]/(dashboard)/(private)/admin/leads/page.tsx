@@ -90,21 +90,26 @@ const LeadsPage = async ({ params, searchParams }: {
   try {
     const supabase = getAdminClient()
 
-    // Build query
-    let q = supabase.from("discovery_listings").select("*").order("enrichment_level", { ascending: false }).limit(2000)
+    // Build query — fetch ALL leads (paginated: Supabase REST caps at 1000/request)
+    let allData: any[] = []
+    const PAGE = 1000
+    for (let off = 0; off < 5000; off += PAGE) {
+      let q = supabase.from("discovery_listings").select("*").order("enrichment_level", { ascending: false }).range(off, off + PAGE - 1)
+      if (filterCategory) q = q.eq("category", filterCategory)
+      if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
+      if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
+      if (filterCity) q = q.eq("city", filterCity)
+      const { data: chunk, error: chunkErr } = await q
+      if (chunkErr || !chunk?.length) break
+      allData.push(...chunk)
+      if (chunk.length < PAGE) break  // última página
+    }
 
-    if (filterCategory) q = q.eq("category", filterCategory)
-    if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
-    if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
-    if (filterCity) q = q.eq("city", filterCity)
-
-    const { data, error } = await q
-
-    if (!error && data) {
+    if (allData.length) {
       // Dedup by place_id (keep highest enrichment_level)
       const deduped = new Map<string, any>()
 
-      for (const r of data as any[]) { const e = deduped.get(r.place_id);
+      for (const r of allData) { const e = deduped.get(r.place_id);
 
  if (!e) deduped.set(r.place_id, r) }
 
