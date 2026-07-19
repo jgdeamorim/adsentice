@@ -118,9 +118,10 @@ export default function WaCheckPage() {
             </Typography>
             {evoStatus.instance && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography variant='body2'>
-                  Status: <Chip label={evoStatus.instance.connectionStatus} size='small' color={evoStatus.connected ? 'success' : 'warning'} variant='tonal' />
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant='body2'>Status:</Typography>
+                  <Chip label={evoStatus.instance.connectionStatus} size='small' color={evoStatus.connected ? 'success' : 'warning'} variant='tonal' />
+                </Box>
                 {evoStatus.instance.ownerJid && (
                   <Typography variant='caption'>JID: {evoStatus.instance.ownerJid}</Typography>
                 )}

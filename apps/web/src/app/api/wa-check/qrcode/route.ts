@@ -16,7 +16,9 @@ export async function GET() {
 
     // QR code como imagem PNG
     if (data.base64) {
-      const buf = Buffer.from(data.base64, "base64")
+      // Remove data URI prefix if present
+      const b64 = data.base64.replace(/^data:image\/\w+;base64,/, "")
+      const buf = Buffer.from(b64, "base64")
       return new Response(buf, {
         headers: { "content-type": "image/png", "cache-control": "no-cache" },
       })
