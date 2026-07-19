@@ -69,7 +69,7 @@ export function parseHTML(html: string, url: string): ParsedSite {
           })
         }
       }
-    } catch { /* JSON inválido — skip */ }
+    } catch (e: unknown) { void e /* JSON inválido — skip */ }
   })
 
   // ── Headings ──
@@ -178,7 +178,7 @@ export function parseHTML(html: string, url: string): ParsedSite {
 function extractDomainFromUrl(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "")
-  } catch {
+  } catch (e: unknown) { void e }
     return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
   }
 }

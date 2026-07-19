@@ -29,18 +29,14 @@ export function normalizeUrl(raw: string): string | null {
   try {
     const u = new URL(url)
     return u.origin === "null" ? null : u.href.replace(/\/$/, "")
-  } catch {
-    return null
-  }
+  } catch (e: unknown) { void e; return null }
 }
 
 /** Extrai domínio da URL (sem www, sem protocolo) */
 export function extractDomain(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "")
-  } catch {
-    return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
-  }
+  } catch (e: unknown) { void e; return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0] }
 }
 
 /**

@@ -1,6 +1,8 @@
 // ══════════════════════════════════════════════════════════════════
 // ADSENTICE · Brain A3 — Pattern Cache (ADR-0011 §Container A3)
 // Redis via child_process (redis-cli) — mesmo padrao do scoring.ts
+// Exporta redisRaw() como utilidade compartilhada (usado por L2b cache)
+// medido=verdade · 2026-07-19
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
@@ -17,10 +19,8 @@ function corpusWatermark(): string {
   try {
     const fs = require("fs")
     const head = fs.readFileSync("var/self-ingest.head", "utf-8").trim()
-
-    
-return head.split(/\s+/)[0] || "none"
-  } catch { return "none" }
+    return head.split(/\s+/)[0] || "none"
+  } catch (e: unknown) { void e; return "none" }
 }
 
 export interface CacheEntry {
@@ -29,29 +29,24 @@ export interface CacheEntry {
   watermark: string; created_at: string
 }
 
-function redisRaw(cmd: string): string | null {
+/** Redis raw command — exportado como utilidade compartilhada (L2b, Wa-Check, etc.) */
+export function redisRaw(cmd: string): string | null {
   try {
     const { execSync } = require("child_process")
     const result = execSync(`redis-cli -p 6396 --no-auth-warning ${cmd}`, { timeout: 2000, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] })
-
-    
-return result.trim() || null
-  } catch { return null }
+    return result.trim() || null
+  } catch (e: unknown) { void e; return null }
 }
 
 export async function cacheGet(question: string, intent: string): Promise<CacheEntry | null> {
   const key = CACHE_PREFIX + situationKey(intent, question)
   const raw = redisRaw(`GET ${key}`)
-
   if (!raw) return null
-
   try {
     const entry: CacheEntry = JSON.parse(raw)
-
     if (entry.watermark !== corpusWatermark()) return null
-    
-return entry
-  } catch { return null }
+    return entry
+  } catch (e: unknown) { void e; return null }
 }
 
 export async function cachePut(
@@ -61,13 +56,11 @@ export async function cachePut(
   const entry: CacheEntry = { reply, tier, intent, facts, certainty, watermark: corpusWatermark(), created_at: new Date().toISOString() }
   const key = CACHE_PREFIX + situationKey(intent, question)
   const json = JSON.stringify(entry).replace(/'/g, "'\\''")
-
   redisRaw(`SETEX ${key} ${CACHE_TTL} '${json}'`)
 }
 
 export async function cacheInvalidateAll(): Promise<void> {
   const keys = redisRaw(`KEYS ${CACHE_PREFIX}*`)
-
   if (keys) {
     for (const k of keys.split("\n")) {
       if (k.trim()) redisRaw(`DEL ${k.trim()}`)
@@ -77,7 +70,5 @@ export async function cacheInvalidateAll(): Promise<void> {
 
 export async function cacheStats(): Promise<{ entries: number }> {
   const keys = redisRaw(`KEYS ${CACHE_PREFIX}*`)
-
-  
-return { entries: keys ? keys.split("\n").filter(Boolean).length : 0 }
+  return { entries: keys ? keys.split("\n").filter(Boolean).length : 0 }
 }

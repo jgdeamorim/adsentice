@@ -2,25 +2,15 @@
 // ADSENTICE · L2b Content Enrichment — Cache (Redis cross-lead)
 // Chave: adsentice:l2:content:{domain} · TTL 24h
 // Múltiplos leads no mesmo domínio (franquias) batem cache
+// ESTENDE: a3-cache.ts (redisRaw compartilhado)
 // medido=verdade · $0 · 2026-07-19
 // ══════════════════════════════════════════════════════════════════
 
-import { execSync } from "child_process"
+import { redisRaw } from "@/lib/brain/a3-cache"
 import type { EnrichResult } from "./types"
 
 const CACHE_PREFIX = "adsentice:l2:content"
 const DEFAULT_TTL = 86400 // 24 horas
-
-function redisRaw(cmd: string): string | null {
-  try {
-    return execSync(
-      `redis-cli -p 6396 --no-auth-warning ${cmd}`,
-      { encoding: "utf-8", timeout: 2000 },
-    ).trim() || null
-  } catch {
-    return null
-  }
-}
 
 /** Gera chave de cache para um domínio. */
 export function cacheKey(domain: string): string {
@@ -33,9 +23,7 @@ export async function getCached(domain: string): Promise<EnrichResult | null> {
     const raw = redisRaw(`GET ${cacheKey(domain)}`)
     if (!raw) return null
     return JSON.parse(raw) as EnrichResult
-  } catch {
-    return null
-  }
+  } catch (e: unknown) { void e; return null }
 }
 
 /** Salva resultado no cache com TTL de 24h. */
@@ -46,25 +34,16 @@ export async function setCache(
 ): Promise<void> {
   try {
     const safe = JSON.stringify(result).replace(/'/g, "'\\''")
-    execSync(
-      `redis-cli -p 6396 --no-auth-warning SETEX ${cacheKey(domain)} ${ttl} '${safe}'`,
-      { encoding: "utf-8", timeout: 2000 },
-    )
-  } catch {
-    /* fail-soft: cache é otimização, não requisito */
-  }
+    redisRaw(`SETEX ${cacheKey(domain)} ${ttl} '${safe}'`)
+  } catch (e: unknown) { void e /* fail-soft */ }
 }
 
 /** Invalida cache para um domínio (ex: após re-discovery). */
 export async function invalidateCache(domain: string): Promise<void> {
-  try {
-    redisRaw(`DEL ${cacheKey(domain)}`)
-  } catch {
-    /* fail-soft */
-  }
+  try { redisRaw(`DEL ${cacheKey(domain)}`) } catch (e: unknown) { void e /* fail-soft */ }
 }
 
-/** Verifica se um domínio está cached (sem retornar o valor). */
+/** Verifica se um domínio está cached. */
 export async function hasCache(domain: string): Promise<boolean> {
   return (await redisRaw(`EXISTS ${cacheKey(domain)}`)) === "1"
 }
@@ -73,9 +52,7 @@ export async function hasCache(domain: string): Promise<boolean> {
 export async function cacheTTL(domain: string): Promise<number> {
   try {
     return parseInt(redisRaw(`TTL ${cacheKey(domain)}`) || "0", 10) || 0
-  } catch {
-    return 0
-  }
+  } catch (e: unknown) { void e; return 0 }
 }
 
 /** Lista todos os domínios em cache. */
@@ -84,9 +61,7 @@ export async function listCachedDomains(): Promise<string[]> {
     const keys = redisRaw(`KEYS ${CACHE_PREFIX}:*`)
     if (!keys) return []
     return keys.split("\n").map(k => k.replace(`${CACHE_PREFIX}:`, "")).filter(Boolean)
-  } catch {
-    return []
-  }
+  } catch (e: unknown) { void e; return [] }
 }
 
 /** Limpa todo o cache L2b (uso administrativo). */
@@ -99,7 +74,5 @@ export async function clearAllCache(): Promise<number> {
       redisRaw(`DEL ${key}`)
     }
     return count
-  } catch {
-    return 0
-  }
+  } catch (e: unknown) { void e; return 0 }
 }
