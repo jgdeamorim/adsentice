@@ -101,7 +101,7 @@ export async function GET(request: Request) {
           // E o pre-flight não tem mais que 3 cats extras (senão total_count superestima)
           return overlap >= targetCats.length * 0.5 && cats.length <= targetCats.length + 4
         })
-        .slice(0, 20)
+        .slice(0, 60)  // 34 municípios × até 2 ondas = ~68 pre-flights máximo
         .map((s: any) => {
           let meta: any = {}
           try { meta = typeof s.search_metadata === "string" ? JSON.parse(s.search_metadata) : s.search_metadata || {} } catch {}
