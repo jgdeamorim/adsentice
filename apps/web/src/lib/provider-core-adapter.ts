@@ -146,14 +146,14 @@ return {
       longitude: (item.longitude as number) ?? null,
       is_claimed: (item.is_claimed as boolean) ?? null,
 
-      // Extra fields from address_info (L0 — needed for L4 IBGE matching)
+      // v114+v115: TODOS os campos que a API L0 retorna (37/37)
+      // phone/total_photos/description: fix v104/v113 (API retorna, adapter descartava)
       city: (addrInfo.city as string) || null,
       district: (addrInfo.borough as string) || null,
       website: (item.url as string) || null,
       phone: (item.phone as string) || null,
       total_photos: (item.total_photos as number) ?? null,
       description: (item.description as string) || null,
-      // v114: campos L0 que a API SEMPRE retorna e o adapter descartava
       main_image: (item.main_image as string) || null,
       rating_distribution: (item.rating_distribution || null) as Record<string,number> | null,
       snippet: (item.snippet as string) || null,
@@ -165,6 +165,18 @@ return {
       attributes: (item.attributes || null) as any,
       logo: (item.logo as string) || null,
       work_time: (item.work_time || null) as any,
+      // v115: campos restantes (15/15)
+      additional_categories: (item.additional_categories as string[]) || null,
+      category_ids: (item.category_ids as string[]) || null,
+      contact_info: (item.contact_info || null) as any,
+      feature_id: (item.feature_id as string) || null,
+      hotel_rating: (item.hotel_rating || null) as any,
+      local_business_links: (item.local_business_links || null) as any,
+      original_title: (item.original_title as string) || null,
+      place_topics: (item.place_topics || null) as any,
+      popular_times: (item.popular_times || null) as any,
+      services: (item.services || null) as any,
+      source_type: (item.type as string) || null,
     } as any
   })
 
