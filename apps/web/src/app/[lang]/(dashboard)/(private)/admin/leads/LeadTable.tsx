@@ -99,7 +99,7 @@ export default function LeadTable({ leads }: Props) {
                 <TableCell align='right'><Typography variant='body2'>{l.rating_votes || 0}</Typography></TableCell>
                 <TableCell>
                   {l.phone
-                    ? <Chip label={detectWA(l.phone) ? '💬 WhatsApp' : '📞 Fixo'} size='small' color={detectWA(l.phone) ? 'success' : 'warning'} variant='tonal' />
+                    ? <Chip label={detectWA(l.phone) ? '💬 WhatsApp' : '📞 Fixo'} size='small' color={detectWA(l.phone) ? 'success' : 'default'} variant='tonal' />
                     : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                 </TableCell>
                 <TableCell>
@@ -187,7 +187,7 @@ export default function LeadTable({ leads }: Props) {
                   <Grid container spacing={1} sx={{ mb: 2 }}>
                     {[
                       ['Telefone', selected.phone],
-                      ['WhatsApp', detectWA(selected.phone)],
+                      ['WhatsApp', detectWA(selected.phone) ? '✅ WhatsApp detectado' : '❌ Não é WhatsApp'],
                       ['Website', selected.website],
                       ['Tipo de Site', siteKind(selected.website)],
                     ].filter(([, v]) => v).map(([label, value]) => (
@@ -355,10 +355,14 @@ function contactLabel(methods: string[] | null): string {
 return methods.join(', ')
 }
 
-function detectWA(phone: string | null | undefined): string | null {
-  if (!phone) return null
-  
-return /(?:9\d{4}-\d{4}|9\d{8}|\(?\d{2}\)?\s*9\d{4}-?\d{4})/.test(phone) ? '✅ WhatsApp detectado' : '❌ Não é WhatsApp'
+function detectWA(phone: string | null | undefined): boolean {
+  if (!phone) return false
+  // Strip all non-digits
+  let digits = phone.replace(/\D/g, '')
+  // Remove country code 55 if present
+  if (digits.startsWith('55') && digits.length >= 12) digits = digits.slice(2)
+  // Brazilian cell: 11 digits, 3rd char is '9' (XX 9XXXX-XXXX)
+  return digits.length === 11 && digits.charAt(2) === '9'
 }
 
 function siteKind(url: string | null | undefined): string | null {
