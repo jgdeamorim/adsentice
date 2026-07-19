@@ -50,7 +50,7 @@ const PER_PAGE = 30
 
 const LeadsPage = async ({ params, searchParams }: {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ category?: string; schwartz?: string; page?: string; search?: string; city?: string }>
+  searchParams: Promise<{ category?: string; schwartz?: string; page?: string; search?: string; city?: string; uf?: string }>
 }) => {
   const { lang } = await params
   const sp = await searchParams
@@ -58,6 +58,7 @@ const LeadsPage = async ({ params, searchParams }: {
   const filterSchwartz = parseInt(sp.schwartz || '0') || 0
   const filterSearch = sp.search || ''
   const filterCity = sp.city || ''
+  const filterUf = sp.uf || ''
   const currentPage = Math.max(1, parseInt(sp.page || '1') || 1)
   const offset = (currentPage - 1) * PER_PAGE
 
@@ -76,6 +77,15 @@ const LeadsPage = async ({ params, searchParams }: {
   let categories: { category: string; count: number }[] = []
   let schwartzDist: { level: number; label: string; count: number }[] = []
   let cities: { city: string; count: number }[] = []
+  let estados: { uf: string; count: number }[] = []
+
+  // city→UF via ibge_panorama (419 municípios BR)
+  const CITY_UF: Record<string, string> = {}
+  try {
+    const supabase = getAdminClient()
+    const { data: ibgeRows } = await supabase.from("ibge_panorama").select("municipio_nome,uf").limit(500)
+    if (ibgeRows) for (const r of ibgeRows) { CITY_UF[r.municipio_nome] = r.uf }
+  } catch { /* IBGE offline — sem filtro UF */ }
 
   try {
     const supabase = getAdminClient()
@@ -98,14 +108,18 @@ const LeadsPage = async ({ params, searchParams }: {
 
  if (!e) deduped.set(r.place_id, r) }
 
-      const list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
+      let list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
+
+      // UF filter (post-query — city→UF via IBGE panorama)
+      if (filterUf) {
+        list = list.filter((r: any) => CITY_UF[r.city] === filterUf)
+      }
 
       totalCount = list.length
       leads = list.slice(offset, offset + PER_PAGE) as LeadRow[]
 
-      // Stats from the deduped list
+      // Stats + aggregations (city + UF from IBGE)
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
-
       totalScore = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
       withWebsite = list.filter((r: any) => r.website).length
       withPhone = list.filter((r: any) => r.phone).length
@@ -113,14 +127,16 @@ const LeadsPage = async ({ params, searchParams }: {
       withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
       const catCounts: Record<string, number> = {}
       const cityCounts: Record<string, number> = {}
+      const ufCounts: Record<string, number> = {}
 
       for (const r of list) {
         if (r.category) { const k = r.category; catCounts[k] = (catCounts[k] || 0) + 1 }
-        if (r.city) { const c = r.city; cityCounts[c] = (cityCounts[c] || 0) + 1 }
+        if (r.city) { const c = r.city; cityCounts[c] = (cityCounts[c] || 0) + 1; const uf = CITY_UF[c]; if (uf) ufCounts[uf] = (ufCounts[uf] || 0) + 1 }
       }
 
       categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([c, n]) => ({ category: c, count: n }))
       cities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([c, n]) => ({ city: c, count: n }))
+      estados = Object.entries(ufCounts).sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ uf: u, count: n }))
       const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
 
       schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length;
@@ -132,7 +148,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
   } catch { /* Supabase offline */ }
 
   const totalPages = Math.ceil(totalCount / PER_PAGE)
-  const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch || filterCity)
+  const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch || filterCity || filterUf)
 
   const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]
 
@@ -143,6 +159,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
     if (filterCategory) f.category = filterCategory
     if (filterSchwartz) f.schwartz = String(filterSchwartz)
     if (filterCity) f.city = filterCity
+    if (filterUf) f.uf = filterUf
     if (filterSearch) f.search = filterSearch
     for (const [k, v] of Object.entries(f)) { if (v) p.set(k, v) }
     const s = p.toString()
@@ -198,7 +215,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
           <CardContent>
             <Grid container spacing={2} alignItems='center'>
               {/* Schwartz filter chips */}
-              <Grid size={{ xs: 12, md: 7 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
                   🧠 Filtrar por Nível Schwartz:
                 </Typography>
@@ -219,7 +236,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
               </Grid>
 
               {/* Category dropdown */}
-              <Grid size={{ xs: 12, md: 4 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
                   📁 Categoria:
                 </Typography>
@@ -238,10 +255,30 @@ return { level: l, label: schwartzLabels[l], count: n } })
                 </Box>
               </Grid>
 
-              {/* City filter */}
-              <Grid size={{ xs: 12, md: 4 }}>
+              {/* UF / Estado filter */}
+              <Grid size={{ xs: 12, md: 2 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  📍 Cidade / Região:
+                  🗺️ Estado:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label='Todos' size='small' clickable component={Link}
+                    color={!filterUf ? 'primary' : 'default'}
+                    variant={!filterUf ? 'filled' : 'outlined'}
+                    href={`/${lang}/admin/leads${qs({ uf: '' })}`} />
+                  {estados.map((e) => (
+                    <Chip key={e.uf} size='small' clickable component={Link}
+                      label={`${e.uf} (${e.count})`}
+                      color={filterUf === e.uf ? 'primary' : 'default'}
+                      variant={filterUf === e.uf ? 'filled' : 'outlined'}
+                      href={`/${lang}/admin/leads${qs({ uf: e.uf })}`} />
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* City filter */}
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                  📍 Cidade:
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip label='Todas' size='small' clickable component={Link}
