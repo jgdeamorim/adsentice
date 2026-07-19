@@ -2186,11 +2186,13 @@ return (
 
               {/* ── Actions ── */}
               <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button variant='outlined' size='small' onClick={() => {
-                  if (selectedLead.place_id && typeof window !== 'undefined') window.open(`https://www.google.com/maps/place/?q=place_id:${selectedLead.place_id}`, '_blank')
-                }} startIcon={<i className='ri-map-pin-line' />}>Google Maps</Button>
+                <Button variant='outlined' size='small' component='a'
+                  href={selectedLead.place_id ? `https://www.google.com/maps/place/?q=place_id:${selectedLead.place_id}` : '#'}
+                  target='_blank' rel='noopener' startIcon={<i className='ri-map-pin-line' />}>Google Maps</Button>
                 {selectedLead.website && (
-                  <Button variant='outlined' size='small' color='info' onClick={() => { if (typeof window !== 'undefined') window.open(selectedLead.website!, '_blank') }} startIcon={<i className='ri-global-line' />}>Visitar Site</Button>
+                  <Button variant='outlined' size='small' color='info' component='a'
+                    href={selectedLead.website} target='_blank' rel='noopener'
+                    startIcon={<i className='ri-global-line' />}>Visitar Site</Button>
                 )}
                 <Button variant='outlined' size='small' color='warning' startIcon={<i className='ri-file-chart-line' />}
                   onClick={() => { setSelectedLead(null); setSelectedScore(null); }}>Diagnóstico</Button>
