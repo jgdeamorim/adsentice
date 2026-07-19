@@ -425,9 +425,10 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight, layers: bodyLayers, city: bodyCity } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight, layers: bodyLayers, city: bodyCity, pageDepth: bodyPageDepth } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
   const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
+  const pageDepth = typeof bodyPageDepth === 'number' ? bodyPageDepth : (paginate === false ? 1 : 0)
 
   // ═══ LAYERS: seleção livre L0-L4 (retrocompat: sem body.layers = comportamento legado) ═══
   const layers = {
@@ -623,6 +624,8 @@ export async function POST(request: NextRequest) {
 
     if (shouldPaginate) {
       while (result.listings.length >= (limit || 100) && pagOffset < totalCount) {
+        // pageDepth > 0 = stop after N pages (v110)
+        if (pageDepth > 0 && searchMetadata.pages_fetched >= pageDepth) break
         const nextResult = await businessListingsSearch({ ...searchParams, offset: pagOffset })
         const newItems = nextResult.listings.filter((i: any) => i.place_id && !seenPids.has(i.place_id))
 

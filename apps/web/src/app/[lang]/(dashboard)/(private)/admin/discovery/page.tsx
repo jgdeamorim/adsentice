@@ -313,8 +313,8 @@ const DiscoveryPage = () => {
   const [selectedLayers, setSelectedLayers] = useState<{ l0: boolean; l1: boolean; l2: boolean; l3: boolean; l4: boolean }>({
     l0: true, l1: true, l2: false, l3: false, l4: true,
   })
-  const [paginatePartial, setPaginatePartial] = useState(false)  // batch parcial: só 1 página (top N)
-  const [viewLimit, setViewLimit] = useState(100)                 // quantos leads por página (10|20|50|100) — controle de custo
+  const [pageDepth, setPageDepth] = useState(1)      // v110: nº de páginas (0=Todas, 1-5=máximo) — padrão 1 pág
+  const [viewLimit, setViewLimit] = useState(100)     // quantos leads por página (10|20|50|100) — controle de custo
 
   const [batchMode, setBatchMode] = useState<'single' | 'rm' | 'state'>('single')
   const [selectedMunicipios, setSelectedMunicipios] = useState<string[]>([]) // RM multi-select
@@ -384,7 +384,10 @@ const DiscoveryPage = () => {
   const preflightReady = batchMode !== 'single' && selected.length > 0 && rmMunicipios.length > 0
 
   // Real cost from preflight data — usa totalProportional quando cats diferem
-  const preflightTotalPages = Object.values(preflightData).reduce((sum, d: any) => sum + Math.ceil((d.totalProportional || d.totalCount) / viewLimit), 0)
+  const preflightTotalPages = Math.min(
+    Object.values(preflightData).reduce((sum, d: any) => sum + Math.ceil((d.totalProportional || d.totalCount) / viewLimit), 0),
+    pageDepth > 0 ? pageDepth * batchEffective : 9999
+  )
   const preflightL0Cost = preflightTotalPages * l0PageCost
   const hasPreflight = Object.keys(preflightData).length > 0
   const preflightTotalCost = preflightL0Cost + l1Cost + (hasPreflight ? 0 : preflightCost) + enrichExtraCost
@@ -501,7 +504,8 @@ const DiscoveryPage = () => {
               radiusKm: radius,
               limit: viewLimit, force: force,  // v091: controle de custo pelo limite
               enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
-              paginate: !paginatePartial && !isContinue,  // false = só 1 página da onda
+              pageDepth,  // v110: 0=todas, 1-5=N páginas máximo
+              paginate: pageDepth === 0 && !isContinue,
               batchId,
               layers: selectedLayers,       // v088: seleção livre L0-L4
               city: m.nome,                 // modo re-enrich usa (L0 off) + metadata do log
@@ -1211,14 +1215,16 @@ return colors[level ?? 0] || colors[0]
                   onClick={() => setViewLimit(n)}
                   sx={{ height: 20, fontSize: '0.6rem', fontFamily: 'monospace', minWidth: 28 }} />
               ))}
-              <Chip
-                label={paginatePartial ? '1 pág' : '🔄 Todas págs'}
-                clickable size='small'
-                color={paginatePartial ? 'warning' : 'success'}
-                variant={paginatePartial ? 'filled' : 'outlined'}
-                onClick={() => setPaginatePartial(!paginatePartial)}
-                sx={{ fontSize: '0.6rem', fontFamily: 'monospace' }}
-              />
+              {/* v110: nº de páginas — 0=todas, 1-3-5=limitado */}
+              {[0,1,2,3,5].map(n => (
+                <Chip key={n} label={n === 0 ? '🔄 Todas' : String(n)} clickable size='small'
+                  color={pageDepth === n ? (n === 0 ? 'success' : 'primary') : 'default'}
+                  variant={pageDepth === n ? 'filled' : 'outlined'}
+                  onClick={() => setPageDepth(n)}
+                  sx={{ fontSize: '0.6rem', fontFamily: 'monospace', minWidth: n < 10 ? 20 : 40 }} />
+              ))}
+              <Chip label={`págs`} size='small' variant='outlined'
+                sx={{ fontSize: '0.6rem', fontFamily: 'monospace', opacity: 0.6 }} />
               <Box sx={{ flex: 1 }} />
               {/* Batch mode */}
               <Typography variant='caption' color='text.secondary'>
