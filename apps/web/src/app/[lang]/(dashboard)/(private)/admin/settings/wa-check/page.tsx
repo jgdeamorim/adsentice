@@ -49,6 +49,24 @@ export default function WaCheckPage() {
   const [result, setResult] = useState<TriggerResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // ── Evolution API connection state ──
+  const [evoStatus, setEvoStatus] = useState<{ connected: boolean; instance: any; offline: boolean }>({ connected: false, instance: null, offline: false })
+
+  const fetchEvoStatus = useCallback(async () => {
+    try {
+      const r = await fetch('/api/wa-check/evolution')
+      if (!r.ok) return
+      const data = await r.json()
+      if (data.offline) { setEvoStatus({ connected: false, instance: null, offline: true }); return }
+      const inst = Array.isArray(data) ? data.find((i: any) => i.name === 'adsentice') : null
+      setEvoStatus({
+        connected: inst?.connectionStatus === 'open',
+        instance: inst,
+        offline: false,
+      })
+    } catch { setEvoStatus({ connected: false, instance: null, offline: true }) }
+  }, [])
+
   const fetchStatus = useCallback(async () => {
     try {
       const r = await fetch('/api/wa-check/status')
@@ -57,7 +75,7 @@ export default function WaCheckPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchStatus() }, [fetchStatus])
+  useEffect(() => { fetchEvoStatus(); fetchStatus() }, [fetchEvoStatus, fetchStatus])
 
   const handleTrigger = async () => {
     setRunning(true); setError(null); setResult(null)
@@ -87,8 +105,67 @@ export default function WaCheckPage() {
         </Box>
         <Typography variant='body2' color='text.secondary'>
           Verificador de WhatsApp Business via wa.me público. Confirma se o número tem conta real (og:title ≠ &quot;Share on WhatsApp&quot;) e se é Business Account.
+          Engine: Evolution API 2.3.7 (:3100) — ADR-0042.
         </Typography>
       </Grid>
+
+      {/* ═══ EVOLUTION API CONNECTION ═══ */}
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Card sx={{ bgcolor: evoStatus.offline ? 'var(--pastel-red)' : evoStatus.connected ? 'var(--pastel-green)' : 'var(--pastel-yellow)' }}>
+          <CardContent>
+            <Typography variant='h6' gutterBottom>
+              {evoStatus.offline ? '🔴 Evolution API Offline' : evoStatus.connected ? '🟢 WhatsApp Conectado' : '🟡 Aguardando QR Code'}
+            </Typography>
+            {evoStatus.instance && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography variant='body2'>
+                  Status: <Chip label={evoStatus.instance.connectionStatus} size='small' color={evoStatus.connected ? 'success' : 'warning'} variant='tonal' />
+                </Typography>
+                {evoStatus.instance.ownerJid && (
+                  <Typography variant='caption'>JID: {evoStatus.instance.ownerJid}</Typography>
+                )}
+                {evoStatus.instance.profileName && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    {evoStatus.instance.profilePicUrl && (
+                      <Box component='img' src={evoStatus.instance.profilePicUrl} sx={{ width: 40, height: 40, borderRadius: '50%' }} alt='' />
+                    )}
+                    <Typography variant='body2' fontWeight={600}>{evoStatus.instance.profileName}</Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+            {evoStatus.offline && (
+              <Typography variant='body2' color='text.secondary'>Não foi possível conectar à Evolution API em :3100. Verifique se o servidor está rodando.</Typography>
+            )}
+            {!evoStatus.connected && !evoStatus.offline && (
+              <Typography variant='body2' color='text.secondary'>Escaneie o QR Code abaixo com WhatsApp → Aparelhos conectados → Conectar um aparelho</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ═══ QR CODE ═══ */}
+      {!evoStatus.connected && !evoStatus.offline && (
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant='h6' gutterBottom>📱 QR Code — Escaneie para Conectar</Typography>
+              <Box
+                component='img'
+                src='/api/wa-check/qrcode'
+                alt='QR Code WhatsApp'
+                sx={{ width: 200, height: 200, imageRendering: 'pixelated' }}
+              />
+              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                O QR code é atualizado a cada recarregamento da página.
+              </Typography>
+              <Button size='small' variant='outlined' onClick={fetchEvoStatus} sx={{ mt: 1 }}>
+                🔄 Verificar Conexão
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
 
       {/* ═══ STATUS CARDS ═══ */}
       <Grid size={{ xs: 12, md: 3 }}>
