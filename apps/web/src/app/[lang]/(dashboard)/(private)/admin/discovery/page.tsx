@@ -347,7 +347,7 @@ const DiscoveryPage = () => {
   const l0MinCost = l0PageCost * batchEffective                    // mínimo: 1 página por município
   const l0EstCost = l0PageCost * estPagesPerMun * batchEffective   // estimativa pré-L0
   // L1 exige L0 (refresh de GMB em existentes: não suportado no re-enrich v1)
-  const l1Cost = (selectedLayers.l0 && selectedLayers.l1 ? 0.0054 : 0) * batchEffective
+  const l1Cost = (selectedLayers.l1 ? 0.0054 : 0) * batchEffective
   // L2/L3: top 50 enriquecidos × % com website (preflight real || 60% histórico)
   // (preflightData declarado aqui — usado nos custos abaixo E no bloco pre-flight adiante)
   const [preflightData, setPreflightData] = useState<Record<string, { totalCount: number; cost: number; avgRating?: number; claimedPct?: number; websitePct?: number }>>({})
@@ -500,7 +500,7 @@ const DiscoveryPage = () => {
               lat: m.lat, lng: m.lng,
               radiusKm: radius,
               limit: viewLimit, force: force,  // v091: controle de custo pelo limite
-              enrich: isContinue ? 0 : (selectedLayers.l1 && selectedLayers.l0 ? 50 : 0),
+              enrich: isContinue ? 0 : (selectedLayers.l1 ? 50 : 0),
               paginate: !paginatePartial && !isContinue,  // false = só 1 página da onda
               batchId,
               layers: selectedLayers,       // v088: seleção livre L0-L4
@@ -1162,16 +1162,16 @@ return colors[level ?? 0] || colors[0]
                 clickable size='small'
                 color={selectedLayers.l0 ? 'primary' : 'warning'}
                 variant='filled'
-                onClick={() => setSelectedLayers(prev => ({ ...prev, l0: !prev.l0, l1: prev.l0 ? false : prev.l1 }))}
+                onClick={() => setSelectedLayers(prev => ({ ...prev, l0: !prev.l0 }))}
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
-              {/* L1: exige L0 (refresh GMB em existentes: próxima iteração) */}
+              {/* L1: toggle livre (v109) */}
               <Chip
-                label={`${selectedLayers.l1 && selectedLayers.l0 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 && selectedLayers.l0 ? `$${l1Cost.toFixed(4)}` : ''}`}
-                clickable={selectedLayers.l0} size='small' disabled={!selectedLayers.l0}
-                color={selectedLayers.l1 && selectedLayers.l0 ? 'primary' : 'default'}
-                variant={selectedLayers.l1 && selectedLayers.l0 ? 'filled' : 'outlined'}
-                onClick={() => selectedLayers.l0 && setSelectedLayers(prev => ({ ...prev, l1: !prev.l1 }))}
+                label={`${selectedLayers.l1 ? '🟢' : '🔴'} L1 · Profile ${selectedLayers.l1 ? `$${l1Cost.toFixed(4)}` : ''}`}
+                clickable size='small'
+                color={selectedLayers.l1 ? 'primary' : 'default'}
+                variant={selectedLayers.l1 ? 'filled' : 'outlined'}
+                onClick={() => setSelectedLayers(prev => ({ ...prev, l1: !prev.l1 }))}
                 sx={{ fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
               {/* L2: Website+SEO (onpage $0.000125 + tech $0.01 · só leads c/ website) */}
@@ -1555,7 +1555,7 @@ return (
                     ? `${preflightTotalPages} págs reais × $${l0PageCost} (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads${pfDetailAdj}`
                     : `$${l0PageCost}/pág × ${batchEffective} municípios (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads · 🔄 auto-paginação`,
                 always: true, free: !selectedLayers.l0 },
-              { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },
+              { label: 'L1 · GMB Profile', cost: l1Cost, detail: '1 POST batch · $0.0054 flat rate (API confirmado)', optional: true, selected: selectedLayers.l1 },
               { label: 'L2 · Website + SEO', cost: basePreflight ? basePreflight.l2ExactCost : l2CostUi, detail: basePreflight ? `${basePreflight.l2Candidates} leads novos (${basePreflight.jaL2} já enriquecidos · não re-paga) · onpage $0.000125 + tech $0.01` : `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },
               { label: 'L3 · Social & Contatos', cost: basePreflight ? basePreflight.l3ExactCost : l3CostUi, detail: basePreflight ? `${basePreflight.l3Candidates} leads novos · $0.0005/lead (cache L2 ativo — 20× mais barato)` : selectedLayers.l2 ? 'crawl contatos $0.0005/lead (tech via cache L2 — 20× mais barato)' : '⚠ sem L2: tech $0.01 + crawl $0.0005 = $0.0105/lead', optional: true, selected: selectedLayers.l3 },
               { label: '🔬 Pre-flight', cost: selectedLayers.l0 ? (hasPreflight ? 0 : preflightCost) : 0, detail: hasPreflight ? `${Object.keys(preflightData).length} municípios analisados — já executado` : `limit=5 × ${batchEffective} municípios · $0.01380/mun (qualidade + tamanho)`, always: selectedLayers.l0, isPreflight: !hasPreflight, free: hasPreflight },
