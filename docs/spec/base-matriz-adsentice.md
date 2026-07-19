@@ -5,7 +5,7 @@ status: living
 type: spec
 version: "2.0.0"
 date: 2026-07-11
-updated: 2026-07-18T18:40:00-03:00
+updated: 2026-07-19T01:15:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -516,7 +516,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-18 (selo v088 · 8 selos no dia) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia + loop f0) · Discovery seleção livre L0-L4 + re-enrich por base (doutrina place_id ADR-0024 P3) · migrations 014-016 DDL real · Cloudflare R2 ✅ + Supabase ratificados · BOA EXCELLENT*
+*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-19 (selo v100 · 2 dias · 50+ commits) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia + loop f0 /r/) · 341 pre-flights cross-state (SP+MG+ES+RJ · 29/29 cats · $4.67) · Discovery L0-L4 livre + re-enrich + controle limit + SessionLog · backup automático (cron R2 02:57 7d + local BKP 4h 30d) · migrations 014-016 DDL real · BOA EXCELLENT*
 
 ## Changelog
 
@@ -556,6 +556,8 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | v082 | 2026-07-18 | adr-0038-generate-then-serve-live | `HANDOFF-2026-07-18-v082-final-adr-0038-generate-then-serve.md` (commits 4085616+70e575c) — serve 0.54s, QG gate, TTL 30d, R2+Supabase ratificados | ✅ vivo |
 | v083-v087 | 2026-07-18 | sessão épica (plataforma ratificada → S11 A/B estratégia → dashboard conversão → Intend v2 cockpit → honestidade números) | `HANDOFF-2026-07-18-v08{3..7}-*.md` — S11 LIVE 2/22, StrategyResolver 8 facets KG, loop f0 /r/, migration 016 count_unique_places | ✅ vivo |
 | v088 | 2026-07-18 | discovery-selecao-livre-l0-l4-reenrich-por-base | `HANDOFF-2026-07-18-v088-final-discovery-selecao-livre-reenrich.md` (commits b6b39e6+76ebb5c) — L2/L3 destravados (3 bugs raiz), doutrina place_id ADR-0024 P3, 19 leads L2 reais | ✅ vivo |
+| v089-v099 | 2026-07-18→19 | popup real + phone PATCH + pipeline unificado + chips + dedup seguro + backup crontab | `HANDOFF-2026-07-1{8,9}-v089..v099-*.md` (commits af2d9b6→a881cc9) — verdade da base, SessionLog, controle limit, pre-flight qualidade, restauração backup | ✅ vivo |
+| v100 | 2026-07-19 | cross-state-preflight-coverage-backup-automatico | `HANDOFF-2026-07-19-v100-final-cross-state-preflight-coverage.md` (commit 3d10bc8) — 341 pre-flights SP+MG+ES+RJ 29/29 cats FULL $4.67 · backup automático · 50+ commits · 2 dias de sessão | ✅ vivo |
 
 ---
 
