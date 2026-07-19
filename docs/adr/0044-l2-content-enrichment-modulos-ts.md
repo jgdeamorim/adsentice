@@ -8,6 +8,31 @@
 
 ---
 
+## ⚠️ Relação com L2 e L3 — NÃO substitui, COMPLEMENTA
+
+Esta ADR **não substitui** o L2 nem o L3 existentes. Ela adiciona uma nova camada de dados qualitativos que nenhuma API fornece:
+
+```
+L0  · DataForSEO business_listings  → GMB: nome, telefone, endereço, reviews  · $0.048
+L2a · DataForSEO on_page + tech     → SEO técnico, Lighthouse, CMS, analytics  · $0.012
+L2b · ADR-0044 crawler .TS          → Conteúdo, serviços, preços, Design DNA   · $0     ⬅ ESTA ADR
+L3  · DataForSEO backlinks          → Concorrentes, backlinks, domain rank     · $0.08
+Wa  · Evolution API :3100           → WhatsApp check 3 camadas                 · $0
+───
+Total: $0.14/lead ≈ R$0.77
+```
+
+| Dado | DataForSEO | ADR-0044 | Relação |
+|------|-----------|----------|---------|
+| Lighthouse scores | ✅ Numérico preciso | ❌ Não extrai | DataForSEO cobre |
+| CMS/Stack detection | ✅ Wappalyzer-based | ❌ Não extrai | DataForSEO cobre |
+| Backlinks/KW gaps | ✅ API dedicada | ❌ Não extrai | DataForSEO cobre |
+| Conteúdo textual real | ❌ Não fornece | ✅ cheerio extrai | **ADR-0044 cobre** |
+| Serviços/médicos/convênios | ❌ Não fornece | ✅ Extratores dedicados | **ADR-0044 cobre** |
+| Design DNA (cores, fontes, UX) | ❌ Não fornece | ✅ CSS/HTML analysis | **ADR-0044 cobre** |
+
+---
+
 ## 1. Contexto
 
 O L2 atual (`on_page_instant_pages` + `domain_technologies` via DataForSEO) cobre métricas **técnicas** do website (Lighthouse, CMS, analytics, meta tags), mas não extrai o **conteúdo textual e visual** — o que a clínica diz sobre si mesma, quais serviços oferece, qual a identidade visual, se o design é profissional ou amador.
