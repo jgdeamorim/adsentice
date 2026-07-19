@@ -5,7 +5,7 @@ status: living
 type: spec
 version: "2.0.0"
 date: 2026-07-11
-updated: 2026-07-19T01:15:00-03:00
+updated: 2026-07-19T05:15:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
@@ -516,7 +516,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-19 (selo v100 · 2 dias · 50+ commits) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia + loop f0 /r/) · 341 pre-flights cross-state (SP+MG+ES+RJ · 29/29 cats · $4.67) · Discovery L0-L4 livre + re-enrich + controle limit + SessionLog · backup automático (cron R2 02:57 7d + local BKP 4h 30d) · migrations 014-016 DDL real · BOA EXCELLENT*
+*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-19 (selo v116 · 30+ selos em 2 dias) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia) · L0 adapter 37/37 campos + migrations 017+018 · 5.644 place_ids (ES 5.444) · 341 pre-flights cross-state · pageDepth 0-5 · leads UF+Telefone+Social · backup crontab (R2+BKP) · BOA EXCELLENT*
 
 ## Changelog
 
