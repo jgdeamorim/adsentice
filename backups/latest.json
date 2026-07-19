@@ -1,41 +1,40 @@
 {
   "version": "v1.1.0",
-  "backup_id": "2026-07-19-205250",
+  "backup_id": "2026-07-19-230301",
   "date": "2026-07-19",
-  "timestamp": "2026-07-19T205250Z",
+  "timestamp": "2026-07-19T230301Z",
   "mode": "INCREMENTAL",
-  "parent_backup": "2026-07-19-204404",
+  "parent_backup": "2026-07-19-205250",
   "collections": {
     "adsentice-self": 19923,
     "adsentice-conversation": 93493,
-    "claude-memory": 73,
+    "claude-memory": 74,
     "adsentice-materio": 36
   },
-  "redis_keys": 144,
+  "redis_keys": 143,
   "supabase_rows": 1373,
   "checksums": {
     "qdrant": {
       "adsentice-self": "ce0b7df2fb35",
       "adsentice-conversation": "1244e8d1a19b",
-      "claude-memory": "723cb35bf208",
+      "claude-memory": "666c15bd2699",
       "adsentice-materio": "909cb0a65b8c"
     },
-    "redis": "eb88b1ff95d3",
+    "redis": "a11de5e72792",
     "supabase": {
       "discovery_searches": "06ad5f900058",
       "discovery_listings": "989e391dd325",
       "market_holds": "c94471ed3035"
     }
   },
-  "uploaded_to_r2": [
-    "backup/2026-07-19/adsentice-backup-2026-07-19-205250.json.gz",
-    "backup/2026-07-19/redis.json.gz"
-  ],
+  "uploaded_to_r2": [],
   "local_fallback": [
-    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-19/adsentice-backup-2026-07-19-205250.json.gz"
+    "/media/jeffer/5aab5a95-8290-d3f7-2e4f-8c27cc2d09a93/adsentice/backups/2026-07-19/adsentice-backup-2026-07-19-230301.json.gz"
   ],
   "changed": {
-    "qdrant": [],
+    "qdrant": [
+      "claude-memory"
+    ],
     "redis": true,
     "supabase": []
   }
