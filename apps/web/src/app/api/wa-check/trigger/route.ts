@@ -44,17 +44,17 @@ export async function POST(request: Request) {
     // Determina phones a verificar
     let phones: string[] = body.phones || []
     if (!phones.length) {
-      // Usa os pendentes do Redis
+      const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+      const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+      // 1. Tenta Redis pending (city + category específicos)
       const pendingRaw = redisGet('adsentice:wa-check:pending')
       if (pendingRaw) {
-        // Pendentes têm count mas não lista de phones — busca do Supabase
         const pending = JSON.parse(pendingRaw)
         const city = pending.city || body.city
         const cat = pending.category || body.category
         if (city && cat) {
           try {
-            const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-            const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
             const res = await fetch(
               `${supaUrl}/rest/v1/discovery_listings?select=phone&phone=not.is.null&city=eq.${encodeURIComponent(city)}&category=eq.${encodeURIComponent(cat)}&limit=200`,
               { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, signal: AbortSignal.timeout(5000) },
@@ -65,6 +65,34 @@ export async function POST(request: Request) {
             }
           } catch { /* fail-soft */ }
         }
+      }
+
+      // 2. Fallback: busca TODOS os phones NÃO verificados do banco
+      if (!phones.length && supaUrl && supaKey) {
+        try {
+          const res = await fetch(
+            `${supaUrl}/rest/v1/discovery_listings?select=phone&phone=not.is.null&wa_checked=is.false&limit=200`,
+            { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, signal: AbortSignal.timeout(5000) },
+          )
+          if (res.ok) {
+            const rows = await res.json() as any[]
+            phones = [...new Set(rows.map((r: any) => r.phone).filter(Boolean))]
+          }
+        } catch { /* fail-soft */ }
+      }
+
+      // 3. Último fallback: todos os phones não verificados (incluindo null wa_checked)
+      if (!phones.length && supaUrl && supaKey) {
+        try {
+          const res = await fetch(
+            `${supaUrl}/rest/v1/discovery_listings?select=phone&phone=not.is.null&wa_checked=not.is.true&limit=200`,
+            { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, signal: AbortSignal.timeout(5000) },
+          )
+          if (res.ok) {
+            const rows = await res.json() as any[]
+            phones = [...new Set(rows.map((r: any) => r.phone).filter(Boolean))]
+          }
+        } catch { /* fail-soft */ }
       }
     }
 
