@@ -386,11 +386,11 @@ const DiscoveryPage = () => {
   // Real cost from preflight data (if available) vs heuristic estimate
   const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / viewLimit), 0)
   const preflightL0Cost = preflightTotalPages * l0PageCost
-  const preflightTotalCost = preflightL0Cost + l1Cost + preflightCost + enrichExtraCost
   const hasPreflight = Object.keys(preflightData).length > 0
+  const preflightTotalCost = preflightL0Cost + l1Cost + (hasPreflight ? 0 : preflightCost) + enrichExtraCost
   const preflightMissing = selectedLayers.l0 && !hasPreflight && preflightChecked  // v096: só bloqueia APÓS confirmar que não existe
 
-  // ── CARREGAR PRE-FLIGHT (v096): 3-state — sem race condition no botão ──
+  // ── CARREGAR PRE-FLIGHT (v101): lê histórico da API sessions — sem race condition ──
   useEffect(() => {
     if (!confirmOpen || !selected.length) { setBasePreflight(null); setBaseLoading(false); setPreflightChecked(false); return }
     const cityName = cityLabel.split('(')[0].trim()
@@ -406,24 +406,27 @@ const DiscoveryPage = () => {
           })
           if (res.ok) setBasePreflight(await res.json())
         } else {
-          const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${selected.join(',')}`, { signal: abort.signal })
+          const catParam = selected.join(',')
+          const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${catParam}`, { signal: abort.signal })
           if (res.ok) {
             const d = await res.json()
             if (d.preflights?.length) {
               const pfMap: Record<string, any> = {}
               for (const pf of d.preflights) {
-                const c = pf.city || pf.search_metadata?.city
+                const c = pf.city || (pf.search_metadata?.city) || ''
                 if (c && pf.total_count) {
-                  pfMap[c] = { totalCount: pf.total_count, cost: pf.cost_usd || 0,
-                    websitePct: pf.websitePct ?? null, claimedPct: pf.claimedPct ?? null,
-                    avgRating: pf.avgRating ?? null }
+                  // Mantém o pre-flight com MAIOR total_count por cidade (merge de ondas)
+                  if (!pfMap[c] || pf.total_count > (pfMap[c].totalCount || 0)) {
+                    pfMap[c] = { totalCount: pf.total_count, cost: pf.cost_usd || 0,
+                      websitePct: pf.websitePct ?? pf.search_metadata?.website_pct ?? null,
+                      claimedPct: pf.claimedPct ?? pf.search_metadata?.claimed_pct ?? null,
+                      avgRating: pf.avgRating ?? pf.search_metadata?.avg_rating ?? null }
+                  }
                 }
               }
-              if (Object.keys(pfMap).length) setPreflightData(pfMap)
-              setBasePreflight(null)
+              setPreflightData(pfMap)
             } else {
               setPreflightData({})
-              setBasePreflight(null)
             }
           }
         }
@@ -1544,7 +1547,7 @@ return (
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },
               { label: 'L2 · Website + SEO', cost: basePreflight ? basePreflight.l2ExactCost : l2CostUi, detail: basePreflight ? `${basePreflight.l2Candidates} leads novos (${basePreflight.jaL2} já enriquecidos · não re-paga) · onpage $0.000125 + tech $0.01` : `onpage $0.000125 + tech $0.01 · só leads c/ website (~${Math.round(avgWebsitePct * 100)}% ${hasPreflight ? 'medido no pre-flight' : 'histórico'}) · top 50`, optional: true, selected: selectedLayers.l2 },
               { label: 'L3 · Social & Contatos', cost: basePreflight ? basePreflight.l3ExactCost : l3CostUi, detail: basePreflight ? `${basePreflight.l3Candidates} leads novos · $0.0005/lead (cache L2 ativo — 20× mais barato)` : selectedLayers.l2 ? 'crawl contatos $0.0005/lead (tech via cache L2 — 20× mais barato)' : '⚠ sem L2: tech $0.01 + crawl $0.0005 = $0.0105/lead', optional: true, selected: selectedLayers.l3 },
-              { label: '🔬 Pre-flight', cost: selectedLayers.l0 ? preflightCost : 0, detail: `limit=5 × ${batchEffective} municípios · $0.01380/mun (qualidade + tamanho)`, always: selectedLayers.l0, isPreflight: true },
+              { label: '🔬 Pre-flight', cost: selectedLayers.l0 ? (hasPreflight ? 0 : preflightCost) : 0, detail: hasPreflight ? `${Object.keys(preflightData).length} municípios analisados — já executado` : `limit=5 × ${batchEffective} municípios · $0.01380/mun (qualidade + tamanho)`, always: selectedLayers.l0, isPreflight: !hasPreflight, free: hasPreflight },
               { label: 'L4 · IBGE Context', cost: 0, detail: 'população, PIB, densidade — ibge_panorama (419 municípios)', optional: true, selected: selectedLayers.l4, free: true },
             ].filter(s => s.always || s.selected).map((s: any, i, arr) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.8, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
