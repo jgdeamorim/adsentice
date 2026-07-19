@@ -150,7 +150,12 @@ export default function LeadTable({ leads }: Props) {
                   ['Categorias', selected.categories_arr?.join(', ') || null],
                   ['Status', selected.business_status],
                   ['Place ID', selected.place_id],
-                  ['Descrição', selected.description ? (selected.description.length > 150 ? selected.description.substring(0, 150) + '...' : selected.description) : null],
+                  ['Descrição', selected.description ? (selected.description.length > 200 ? selected.description.substring(0, 200) + '...' : selected.description) : null],
+                  ['Snippet', (selected as any).snippet],
+                  ['Fotos', (selected as any).total_photos ? `${selected.total_photos} fotos` : null],
+                  ['Horários', (selected as any).work_time ? '✅ Disponível' : null],
+                  ['Desde', (selected as any).first_seen ? new Date((selected as any).first_seen).toLocaleDateString('pt-BR') : null],
+                  ['Atualizado', (selected as any).last_updated_time ? new Date((selected as any).last_updated_time).toLocaleDateString('pt-BR') : null],
                 ].filter(([, v]) => v).map(([label, value]) => (
                   <Grid key={label} size={{ xs: 12, sm: 6 }}>
                     <Typography variant='caption' color='text.secondary'>{label}</Typography>
@@ -314,15 +319,20 @@ export default function LeadTable({ leads }: Props) {
               )}
 
               {/* ═══ AÇÕES ═══ */}
-              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                 {selected.place_id && (
-                  <Button variant='outlined' size='small'
-                    onClick={() => window.open(`https://www.google.com/maps/place/?q=place_id:${selected.place_id}`, '_blank')}
+                  <Button variant='outlined' size='small' component='a'
+                    href={`https://www.google.com/maps/place/?q=place_id:${selected.place_id}`} target='_blank' rel='noopener'
                     startIcon={<i className='ri-map-pin-line' />}>Google Maps</Button>
                 )}
+                {selected.place_id && (
+                  <Button variant='outlined' size='small' component='a' color='secondary'
+                    href={`https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${selected.place_id}`} target='_blank' rel='noopener'
+                    startIcon={<i className='ri-google-line' />}>Abrir GMB</Button>
+                )}
                 {selected.website && (
-                  <Button variant='outlined' size='small' color='info'
-                    onClick={() => window.open(selected.website!, '_blank')}
+                  <Button variant='outlined' size='small' color='info' component='a'
+                    href={selected.website} target='_blank' rel='noopener'
                     startIcon={<i className='ri-global-line' />}>Visitar Site</Button>
                 )}
               </Box>
