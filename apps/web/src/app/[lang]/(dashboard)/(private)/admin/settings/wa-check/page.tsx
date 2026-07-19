@@ -271,7 +271,7 @@ export default function WaCheckPage() {
               sx={{ mt: 1, height: 8, borderRadius: 4 }}
             />
             <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
-              Rate limit: 15 concorrentes · 800ms entre lotes · 2s entre páginas · evita bloqueio wa.me
+              Padrão humano: 5-10 concorrentes alternando · 2-3s entre lotes · 15-60s entre páginas · evita bloqueio
             </Typography>
           </Alert>
         </Grid>

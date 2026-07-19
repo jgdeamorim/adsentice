@@ -10,11 +10,18 @@ import { execSync } from 'child_process'
 import { checkWhatsapp, checkWhatsappBaileys, type WaCheckResult } from '@/lib/wa-check'
 
 // ═══ Config ═══
-const BATCH_SIZE = 15        // wa.me rate limit amigável (paralelo)
-const L3_BATCH = 100         // Evolution API /check-batch (única chamada)
 const PAGE_SIZE = 200        // Supabase REST LIMIT por página
-const DELAY_BATCH_MS = 800   // delay entre lotes de 15
-const DELAY_PAGE_MS = 2000   // delay entre páginas de 200
+
+/** Padrão humano: alterna entre 5 e 10 concorrentes por lote (evita bloqueio) */
+let batchToggle = false
+function batchSize(): number { batchToggle = !batchToggle; return batchToggle ? 10 : 5 }
+
+/** Padrão humano: alterna entre 2s e 3s de delay entre lotes */
+let delayToggle = false
+function batchDelay(): number { delayToggle = !delayToggle; return delayToggle ? 3000 : 2000 }
+
+/** Padrão humano: delay aleatório entre 15s e 60s entre páginas */
+function pageDelay(): number { return 15000 + Math.floor(Math.random() * 45000) }
 
 // ═══ Redis helpers ═══
 function redisRaw(cmd: string): string | null {
@@ -55,10 +62,13 @@ async function processBatch(phones: string[]) {
   const results: Record<string, WaCheckResult & { baileysExists?: boolean }> = {}
   let business = 0, personal = 0, notFound = 0, errors = 0
 
-  for (let i = 0; i < unique.length; i += BATCH_SIZE) {
-    const batch = unique.slice(i, i + BATCH_SIZE)
+  let i = 0
+  while (i < unique.length) {
+    const bs = batchSize()
+    const batch = unique.slice(i, i + bs)
+    i += bs
 
-    // Camada 2: wa.me (paralelo, 15 concorrentes)
+    // Camada 2: wa.me (paralelo, 5-10 alternando)
     const l2Results = await Promise.all(batch.map(async (phone) => {
       try { return { phone, result: await checkWhatsapp(phone) } }
       catch { return { phone, result: { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false } as WaCheckResult } }
@@ -91,8 +101,8 @@ async function processBatch(phones: string[]) {
       }
     }
 
-    if (i + BATCH_SIZE < unique.length) {
-      await new Promise(r => setTimeout(r, DELAY_BATCH_MS))
+    if (i < unique.length) {
+      await new Promise(r => setTimeout(r, batchDelay()))
     }
   }
 
@@ -195,7 +205,9 @@ export async function POST(request: Request) {
       const currentProgress = redisRaw('GET adsentice:wa-check:progress')
       const cp = currentProgress ? JSON.parse(currentProgress) : null
       if (cp?.status === 'running') {
-        await new Promise(r => setTimeout(r, DELAY_PAGE_MS))
+        const waitMs = pageDelay()
+        console.log(`[wa-check] Aguardando ${(waitMs/1000).toFixed(0)}s antes da próxima página...`)
+        await new Promise(r => setTimeout(r, waitMs))
         fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
