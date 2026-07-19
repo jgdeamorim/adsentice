@@ -1,10 +1,10 @@
 // ══════════════════════════════════════════════════════════════════
 // ADSENTICE · WhatsApp Checker — verifica se número tem conta real
 //
-// Faz 1 GET leve (HTML inicial) ao wa.me/{numero} e analisa og:title.
-// Número REAL:   og:title = "Nome do Dono" (≠ "Share on WhatsApp")
-// Número FALSO:  og:title = "Share on WhatsApp"
-// Medido=verdade · 2026-07-19 · $0 por chamada
+// Versão corrigida: redirect:follow + parsing robusto de meta tags.
+// Business: og:title = "Nome do Perfil"  ·  Pessoal/Falso: "Share on WhatsApp"
+// Complementar à heurística detectWA (formato celular BR).
+// medido=verdade · $0 por chamada · 2026-07-19
 // ══════════════════════════════════════════════════════════════════
 
 import "server-only"
@@ -16,7 +16,7 @@ export interface WaCheckResult {
   checked: boolean
 }
 
-/** Normaliza número BR: strip dígitos, remove +55, garante 55 */
+/** Normaliza número BR: strip dígitos, garante +55, min 10 dígitos */
 export function normWaNumber(phone: string | null | undefined): string | null {
   if (!phone) return null
   let digits = phone.replace(/\D/g, "")
@@ -25,10 +25,9 @@ export function normWaNumber(phone: string | null | undefined): string | null {
   return digits
 }
 
-// Cache em memória (mesmo número reusado várias vezes na UI)
+// Cache em memória (1 verificação por número na sessão do servidor)
 const cache = new Map<string, WaCheckResult>()
 
-/** Verifica se um número BR tem WhatsApp real (GET wa.me → parse HTML). CACHE em memória. */
 export async function checkWhatsapp(phone: string | null | undefined): Promise<WaCheckResult> {
   const digits = normWaNumber(phone)
   if (!digits) return { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
@@ -38,23 +37,24 @@ export async function checkWhatsapp(phone: string | null | undefined): Promise<W
   try {
     const res = await fetch(`https://wa.me/${digits}`, {
       headers: { "User-Agent": "WhatsApp/2.24.25 iOS" },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(5000),
+      redirect: "follow",
     })
+
     if (!res.ok) {
-      const r: WaCheckResult = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
+      const r = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
       cache.set(digits, r)
       return r
     }
 
-    // Lê só os primeiros 8KB — og:title está no <head>
+    // Lê stream parcial (head — primeiros 8KB)
     const reader = res.body?.getReader()
     if (!reader) {
-      const r: WaCheckResult = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
+      const r = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
       cache.set(digits, r)
       return r
     }
 
-    // Coleta ~8KB do início da resposta
     const chunks: Uint8Array[] = []
     let total = 0
     const decoder = new TextDecoder()
@@ -67,37 +67,48 @@ export async function checkWhatsapp(phone: string | null | undefined): Promise<W
     reader.cancel()
 
     const html = decoder.decode(concatU8(chunks))
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/)
-    const ogTitleMatch = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/)
-    const ogDescMatch = html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/)
 
-    const title = ogTitleMatch?.[1] || titleMatch?.[1] || ""
-    const desc = ogDescMatch?.[1] || ""
-    const hasReal = title !== "Share on WhatsApp" && title.length > 0 && !title.includes("WhatsApp Messenger")
-    const isBiz = desc.includes("Business Account")
+    // Parsing robusto — variações de HTML do WhatsApp
+    const ogTitleMatch = html.match(/og:title["']\s*content=["']([^"']+)/i)
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i)
+    const ogDescMatch = html.match(/og:description["']\s*content=["']([^"']+)/i)
 
-    const r: WaCheckResult = {
-      hasWhatsapp: hasReal,
-      displayName: hasReal ? title : null,
-      isBusiness: isBiz,
+    const ogTitle = (ogTitleMatch?.[1] || titleMatch?.[1] || "").trim()
+    const ogDesc = (ogDescMatch?.[1] || "").trim()
+
+    const isSharePage = ogTitle === "Share on WhatsApp" || ogTitle.includes("WhatsApp Messenger")
+    const hasRealAccount = !isSharePage && ogTitle.length > 3
+
+    const isBusiness = hasRealAccount && (
+      ogDesc.includes("Business Account") ||
+      /business/i.test(ogDesc)
+    )
+
+    const result: WaCheckResult = {
+      hasWhatsapp: hasRealAccount,
+      displayName: hasRealAccount ? ogTitle : null,
+      isBusiness,
       checked: true,
     }
-    cache.set(digits, r)
-    return r
-  } catch {
-    const r: WaCheckResult = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
+
+    cache.set(digits, result)
+    return result
+
+  } catch (err) {
+    console.error("[wa-check]", String(err).slice(0, 80))
+    const r = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
     cache.set(digits, r)
     return r
   }
 }
 
 function concatU8(chunks: Uint8Array[]): Uint8Array {
-  const total = chunks.reduce((s, c) => s + c.length, 0)
+  const total = chunks.reduce((sum, c) => sum + c.length, 0)
   const result = new Uint8Array(total)
   let offset = 0
-  for (const c of chunks) {
-    result.set(c, offset)
-    offset += c.length
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
   }
   return result
 }
