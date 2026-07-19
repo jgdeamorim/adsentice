@@ -327,14 +327,14 @@ Modo auto: 250-500 phones por vez · 20-60min entre lotes · padrão humano anti
         <Grid size={{ xs: 12 }}>
           <Alert severity={result.stats.business > 0 ? 'success' : 'info'} variant='outlined'>
             <Typography variant='body2' fontWeight={600} gutterBottom>
-              ✅ Verificação concluída em {(result.entry.latencyMs / 1000).toFixed(1)}s
+              ✅ Verificação concluída em {((result.stats as any).latencyMs ? (result.stats as any).latencyMs / 1000 : 0).toFixed(1)}s
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
               <Chip label={`${result.stats.total} total`} size='small' color='default' variant='tonal' />
               <Chip label={`💼 ${result.stats.business} Business`} size='small' color='primary' variant='tonal' />
               <Chip label={`📱 ${result.stats.personal} Celular`} size='small' color='success' variant='tonal' />
               <Chip label={`📵 ${result.stats.notFound} Não encontrado`} size='small' color='default' variant='tonal' />
-              {(result.entry.errors || 0) > 0 && <Chip label={`❌ ${result.entry.errors} erros`} size='small' color='error' variant='tonal' />}
+              {(result.stats.errors || 0) > 0 && <Chip label={`❌ ${result.stats.errors} erros`} size='small' color='error' variant='tonal' />}
             </Box>
             {result.sampleBusiness && result.sampleBusiness.length > 0 && (
               <Box>
