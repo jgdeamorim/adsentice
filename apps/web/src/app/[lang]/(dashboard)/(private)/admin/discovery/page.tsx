@@ -1407,7 +1407,7 @@ return colors[level ?? 0] || colors[0]
                 {loading ? 'Buscando...'
                   : preflightRunning ? 'Aguardando pre-flight...'
                   : !selectedLayers.l0
-                    ? `♻️ Re-enriquecer Existentes ($${enrichExtraCost.toFixed(2)})`
+                    ? `♻️ Re-enriquecer Existentes ($${(enrichExtraCost + l1Cost).toFixed(2)})`
                   : hasPreflight
                     ? `Buscar Agora ($${preflightTotalCost.toFixed(2)})`
                     : `Buscar Agora ($${(totalEstCost).toFixed(2)})`}
@@ -1584,7 +1584,7 @@ return (
               </Typography>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant='h6' color={basePreflight ? 'success.main' : hasPreflight ? 'success.main' : 'warning.main'} fontWeight={800}>
-                  ${basePreflight ? (basePreflight.l2ExactCost + basePreflight.l3ExactCost).toFixed(4) : hasPreflight ? preflightTotalCost.toFixed(2) : selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
+                  ${basePreflight ? (basePreflight.l2ExactCost + basePreflight.l3ExactCost + (selectedLayers.l1 ? 0.0054 : 0)).toFixed(4) : hasPreflight ? preflightTotalCost.toFixed(2) : selected.length > 1 ? totalEstCost.toFixed(2) : totalMinCost.toFixed(4)}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>
                   {basePreflight
