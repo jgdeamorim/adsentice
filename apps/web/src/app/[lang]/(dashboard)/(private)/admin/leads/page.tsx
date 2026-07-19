@@ -40,6 +40,12 @@ interface LeadRow {
   price_level?: number | null; city?: string | null; district?: string | null
   postal_code?: string | null; country_code?: string | null
   latitude?: number | null; longitude?: number | null
+
+  // L0 sleeping fields (v121)
+  attributes?: Record<string, unknown> | null
+  work_time?: Record<string, unknown> | null
+  rating_distribution?: Record<string, number> | null
+  people_also_search?: Array<{ title?: string; rating?: { value?: number; votes_count?: number } }> | null
 }
 
 const PER_PAGE = 30

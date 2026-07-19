@@ -34,6 +34,12 @@ interface LeadRow {
   l3_social_links?: { platform: string; url: string }[] | null; l3_whatsapp?: string | null
   place_id?: string | null
 
+  // L0 sleeping fields (v121)
+  attributes?: Record<string, unknown> | null
+  work_time?: Record<string, unknown> | null
+  rating_distribution?: Record<string, number> | null
+  people_also_search?: Array<{ title?: string; rating?: { value?: number; votes_count?: number } }> | null
+
   // L2 fields (v0.3)
   l2_onpage_score?: number | null; l2_meta_title?: string | null
   l2_meta_description?: string | null; l2_word_count?: number | null
@@ -153,7 +159,7 @@ export default function LeadTable({ leads }: Props) {
                   ['Descrição', selected.description ? (selected.description.length > 200 ? selected.description.substring(0, 200) + '...' : selected.description) : null],
                   ['Snippet', (selected as any).snippet],
                   ['Fotos', (selected as any).total_photos ? `${selected.total_photos} fotos` : null],
-                  ['Horários', (selected as any).work_time ? '✅ Disponível' : null],
+                  ['Horários', parseWorkTimeLabel((selected as any).work_time)],
                   ['Desde', (selected as any).first_seen ? new Date((selected as any).first_seen).toLocaleDateString('pt-BR') : null],
                   ['Atualizado', (selected as any).last_updated_time ? new Date((selected as any).last_updated_time).toLocaleDateString('pt-BR') : null],
                 ].filter(([, v]) => v).map(([label, value]) => (
@@ -272,9 +278,11 @@ export default function LeadTable({ leads }: Props) {
                 {[
                   ['Rating', selected.rating_value ? `${selected.rating_value}★` : null],
                   ['Reviews', String(selected.rating_votes || 0)],
+                  ['Distribuição ★', parseRatingDistLabel(selected.rating_distribution)],
                   ['Reivindicado', selected.is_claimed ? '✅ Sim' : '⚠️ Não — não controla o próprio perfil!'],
                   ['Fotos', selected.total_photos != null ? String(selected.total_photos) : null],
                   ['Nível Preço', selected.price_level != null ? '💰'.repeat(Math.max(1, selected.price_level)) + ` (${selected.price_level}/4)` : null],
+                  ['Atributos', parseAttrsLabel(selected.attributes)],
                   ['Canal de Contato', selected.contact_methods?.join(', ') || null],
                 ].filter(([, v]) => v).map(([label, value]) => (
                   <Grid key={label} size={{ xs: 12, sm: 6 }}>
@@ -283,6 +291,28 @@ export default function LeadTable({ leads }: Props) {
                   </Grid>
                 ))}
               </Grid>
+
+              {/* ═══ CONCORRENTES (people_also_search) ═══ */}
+              {selected.people_also_search && Array.isArray(selected.people_also_search) && selected.people_also_search.length > 0 && (
+                <>
+                  <Typography variant='overline' fontWeight={700} color='secondary.main'>🏪 Concorrentes Próximos</Typography>
+                  <Grid container spacing={1} sx={{ mb: 2 }}>
+                    {selected.people_also_search.map((p: any, i: number) => (
+                      <Grid key={i} size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant='body2' fontWeight={600} noWrap sx={{ flex: 1 }}>
+                            {p.title || `Concorrente ${i+1}`}
+                          </Typography>
+                          {p.rating?.value != null && (
+                            <Chip label={`${p.rating.value}★`} size='small'
+                              color={p.rating.value >= 4 ? 'success' : p.rating.value >= 3 ? 'warning' : 'error'} variant='tonal' />
+                          )}
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
 
               {/* ═══ SCORE BREAKDOWN ═══ */}
               <Typography variant='overline' fontWeight={700} color='error.main'>📐 Score Composto</Typography>
@@ -387,4 +417,66 @@ function socialAbbrev(links: { platform: string; url: string }[] | null): string
     github: 'git', medium: 'med', discord: 'dis',
   }
   return links.map(l => PLATFORM_ABBREV[l.platform?.toLowerCase()] || l.platform?.slice(0, 3) || '?').join(',')
+}
+
+// ── L0 Sleeping Field Helpers (v121) ──
+
+/** Extrai status atual + resumo textual dos horários */
+function parseWorkTimeLabel(wt: any): string | null {
+  if (!wt) return null
+  try {
+    const wh = typeof wt === 'string' ? JSON.parse(wt) : wt
+    const cs = wh?.work_hours?.current_status
+    const tt = wh?.work_hours?.timetable
+    if (!tt) return cs ? `🟢 ${cs}` : null
+    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+    const withHours = days.filter(d => tt[d] && Array.isArray(tt[d]) && tt[d].length > 0)
+    const statusEmoji = cs === 'open' ? '🟢' : cs === 'close' ? '🔴' : ''
+    if (withHours.length >= 5) return `${statusEmoji} ${withHours.length} dias · ${cs || '?'}`.trim()
+    if (withHours.length >= 2) return `${statusEmoji} ${withHours.length} dias`.trim()
+    return `${statusEmoji} ${withHours.length} dia(s)`.trim()
+  } catch { return null }
+}
+
+/** Mini barras de distribuição de reviews 1★-5★ */
+function parseRatingDistLabel(rd: any): string | null {
+  if (!rd) return null
+  try {
+    const d = typeof rd === 'string' ? JSON.parse(rd) : rd
+    const total = (d['1']||0)+(d['2']||0)+(d['3']||0)+(d['4']||0)+(d['5']||0)
+    if (total === 0) return null
+    const bars = [5,4,3,2,1].map(s => {
+      const n = d[String(s)] || 0
+      const pct = Math.round((n/total)*10)
+      return `${'█'.repeat(pct)}${'░'.repeat(10-pct)} ${n}`
+    }).join('\n')
+    return `5★ ${d['5']||0} · 4★ ${d['4']||0} · 3★ ${d['3']||0} · 2★ ${d['2']||0} · 1★ ${d['1']||0}`
+  } catch { return null }
+}
+
+/** Chips de atributos: pagamento, acessibilidade, amenities */
+function parseAttrsLabel(attr: any): string | null {
+  if (!attr) return null
+  try {
+    const a = typeof attr === 'string' ? JSON.parse(attr) : attr
+    const av = a?.available_attributes
+    if (!av) return null
+    const chips: string[] = []
+    const payments = av.payments
+    if (payments && Array.isArray(payments)) {
+      if (payments.some((p: string) => p.includes('credit'))) chips.push('💳 Crédito')
+      if (payments.some((p: string) => p.includes('debit'))) chips.push('💳 Débito')
+      if (payments.some((p: string) => p.includes('nfc') || p.includes('mobile'))) chips.push('📱 NFC')
+    }
+    const access = av.accessibility
+    if (access && Array.isArray(access) && access.length > 0) chips.push('♿ Acessível')
+    const planning = av.planning
+    if (planning && Array.isArray(planning) && planning.some((p: string) => p.includes('appointment'))) chips.push('📅 Agendamento')
+    const amenities = av.amenities
+    if (amenities && Array.isArray(amenities) && amenities.length > 0) {
+      if (amenities.some((a: string) => a.includes('restroom'))) chips.push('🚻 Banheiro')
+      if (amenities.some((a: string) => a.includes('wifi'))) chips.push('📶 Wi-Fi')
+    }
+    return chips.length > 0 ? chips.join(' · ') : null
+  } catch { return null }
 }

@@ -81,6 +81,11 @@ async function enrichTopLeads(
       is_claimed: enriched.is_claimed, phone: enriched.phone,
       website: enriched.website, total_photos: enriched.total_photos,
       description: enriched.description, business_status: enriched.business_status,
+      // v121: L0 sleeping fields
+      attributes: (enriched as any).attributes ?? null,
+      people_also_search: (enriched as any).people_also_search ?? null,
+      work_time: (enriched as any).work_time ?? null,
+      rating_distribution: (enriched as any).rating_distribution ?? null,
     }
 
     const newScores = scoreLeads([input])
@@ -96,6 +101,42 @@ async function enrichTopLeads(
   console.log(`[enrichment] L1: ${actualEnriched}/${toEnrich.length} leads enriched (1 POST batch), cost $${enrichmentCost.toFixed(4)}`)
   
 return { enrichedListings, enrichedScores, enrichmentCost }
+}
+
+// ── L0 Backfill Re-Enrich (v121) ──
+// Re-executa L0 search para preencher campos null em listings existentes.
+async function enrichTopLeadsL0(
+  listings: any[], scores: ScoreData[],
+): Promise<{ l0EnrichedListings: any[]; l0EnrichedScores: ScoreData[]; l0Cost: number }> {
+  const out = [...listings]; let cost = 0
+  // Agrupa por cidade p/ re-executar L0 search (1 search/cidade)
+  const byCity = new Map<string, { lat: number; lng: number; indices: number[] }>()
+  for (let i = 0; i < listings.length; i++) {
+    const l = listings[i]
+    if (!l.city || !l.latitude || !l.longitude) continue
+    if (!byCity.has(l.city)) byCity.set(l.city, { lat: l.latitude, lng: l.longitude, indices: [] })
+    byCity.get(l.city)!.indices.push(i)
+  }
+  for (const [city, info] of byCity) {
+    try {
+      const r = await businessListingsSearch({ categories: [listings[info.indices[0]]?.category || "dentist"], lat: info.lat, lng: info.lng, radiusKm: 5, limit: 100, offset: 0 })
+      cost += r.cost_usd
+      const fresh = new Map<string, any>()
+      for (const item of r.listings) { if ((item as any).place_id) fresh.set((item as any).place_id, item) }
+      const FIELDS = ['phone','website','total_photos','description','main_image','snippet','check_url','work_time','first_seen','last_updated_time','domain','people_also_search','attributes','logo','additional_categories','category_ids','contact_info','feature_id','hotel_rating','local_business_links','original_title','place_topics','popular_times','services','source_type','business_status','rating_distribution']
+      for (const idx of info.indices) {
+        const freshItem = fresh.get(listings[idx].place_id); if (!freshItem) continue
+        const u: any = { ...listings[idx], _l0Patched: true }
+        for (const f of FIELDS) { if (u[f] === null || u[f] === undefined) u[f] = (freshItem as any)[f] ?? null }
+        if ((u.rating_value == null || u.rating_value === 0) && (freshItem as any).rating_value != null) u.rating_value = (freshItem as any).rating_value
+        if ((u.rating_votes == null || u.rating_votes === 0) && (freshItem as any).rating_votes != null) u.rating_votes = (freshItem as any).rating_votes
+        out[idx] = u
+      }
+    } catch (e: any) { console.warn(`[enrichment] L0 backfill ${city}:`, e.message) }
+  }
+  const n = out.filter((l: any) => l._l0Patched).length
+  console.log(`[enrichment] L0 backfill: ${n}/${listings.length} patched, $${cost.toFixed(4)}`)
+  return { l0EnrichedListings: out, l0EnrichedScores: scores, l0Cost: cost }
 }
 
 // ── L2: Website & SEO técnico (ADR-0024) ──
@@ -221,6 +262,11 @@ return Array.isArray(cms) && cms.length > 0 ? cms[0] : null })()
         phone: enriched.phone, website: enriched.website,
         total_photos: enriched.total_photos, description: enriched.description,
         business_status: enriched.business_status,
+        // v121: L0 sleeping fields
+        attributes: (enriched as any).attributes ?? null,
+        people_also_search: (enriched as any).people_also_search ?? null,
+        work_time: (enriched as any).work_time ?? null,
+        rating_distribution: (enriched as any).rating_distribution ?? null,
         l2_onpage_score: audit.onpage_score,
         l2_https,
         l2_has_title: !!audit.meta?.title,
@@ -425,7 +471,7 @@ return { l4EnrichedListings, l4EnrichedScores, l4Cost: 0 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight, layers: bodyLayers, city: bodyCity, pageDepth: bodyPageDepth } = body
+  const { categories, lat, lng, radiusKm, limit, force, enrich, paginate, offset: bodyOffset, batchId, preflight, layers: bodyLayers, city: bodyCity, pageDepth: bodyPageDepth, l0_backfill } = body
   const shouldPaginate = paginate !== false  // default true — paginate all pages
   const startOffset = bodyOffset || 0       // 0 on first request, N on "Continuar"
   const pageDepth = typeof bodyPageDepth === 'number' ? bodyPageDepth : (paginate === false ? 1 : 0)
@@ -486,8 +532,25 @@ export async function POST(request: NextRequest) {
 
       let scores: ScoreData[] = scoreLeads(listings)
 
-      let l2Cost = 0, l3Cost = 0
+      let l0BackfillCost = 0, l2Cost = 0, l3Cost = 0
       const maxN = enrich || 50
+
+      // ── L0 Backfill (v121): re-executa L0 search p/ preencher campos null ──
+      if (l0_backfill) {
+        const needsBackfill = listings.filter((l: any) =>
+          !l.phone || !l.main_image || !l.work_time || !l.attributes || !l.rating_distribution
+        )
+        if (needsBackfill.length > 0) {
+          const r0 = await enrichTopLeadsL0(needsBackfill, scores)
+          // Merge enriched items back
+          for (let i = 0; i < listings.length; i++) {
+            const enriched = r0.l0EnrichedListings.find((e: any) => e.place_id === listings[i].place_id)
+            if (enriched?._l0Patched) { listings[i] = enriched; scores[i] = r0.l0EnrichedScores[i] ?? scores[i] }
+          }
+          l0BackfillCost = r0.l0Cost
+        }
+      }
+
       if (layers.l2) {
         const r2 = await enrichTopLeadsL2(listings, scores, maxN)
         listings = r2.l2EnrichedListings; scores = r2.l2EnrichedScores; l2Cost = r2.l2Cost
@@ -502,15 +565,17 @@ export async function POST(request: NextRequest) {
       }
       // ── PERSISTÊNCIA (as funções L2/L3 só atualizam in-memory; no fluxo L0 o
       //    persistDiscovery grava — aqui gravamos PATCH por id da row carregada) ──
-      const L2L3_COLS = new Set(["phone","enrichment_level","l2_onpage_score","l2_lighthouse_seo","l2_lighthouse_pwa","l2_enriched_at","l2_cost_usd","l2_content_maturity","l2_content_gaps","l2_social_links","l3_social_links","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_seo_checks","l2_has_analytics","l2_domain_rank","l2_lighthouse_performance","l2_lighthouse_accessibility","l2_lighthouse_best_practices","l2_meta_title","l2_meta_description","l3_whatsapp","l2_technology_categories","l3_emails","l2_country_iso_code","l2_emails","l2_cms"])
+      const ENRICH_COLS = new Set(["phone","enrichment_level","l2_onpage_score","l2_lighthouse_seo","l2_lighthouse_pwa","l2_enriched_at","l2_cost_usd","l2_content_maturity","l2_content_gaps","l2_social_links","l3_social_links","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_seo_checks","l2_has_analytics","l2_domain_rank","l2_lighthouse_performance","l2_lighthouse_accessibility","l2_lighthouse_best_practices","l2_meta_title","l2_meta_description","l3_whatsapp","l2_technology_categories","l3_emails","l2_country_iso_code","l2_emails","l2_cms",
+        // v121: L0 backfill fields
+        "website","total_photos","description","main_image","rating_distribution","snippet","check_url","work_time","first_seen","last_updated_time","domain","people_also_search","attributes","logo","additional_categories","category_ids","contact_info","feature_id","hotel_rating","local_business_links","original_title","place_topics","popular_times","services","source_type","business_status","city","district","region","postal_code","country_code","price_level","is_claimed","rating_value","rating_votes","categories_arr"])
       // colunas INTEGER no Postgres — a API manda decimais (onpage_score 98.9) → arredondar (fix 22P02, medido)
-      const INT_COLS = new Set(["enrichment_level","l2_onpage_score","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_domain_rank","l2_content_maturity"])
+      const INT_COLS = new Set(["enrichment_level","l2_onpage_score","l2_word_count","l2_internal_links_count","l2_external_links_count","l2_images_count","l2_domain_rank","l2_content_maturity","total_photos","rating_votes","price_level"])
       let persisted = 0
-      const toSave = listings.filter((l: any) => l.id && (l.enrichment_level || 0) >= 2)
+      const toSave = listings.filter((l: any) => l.id && ((l.enrichment_level || 0) >= 2 || l._l0Patched))
       await Promise.allSettled(toSave.map(async (l: any) => {
         const patch: Record<string, unknown> = {}
         for (const k of Object.keys(l)) {
-          if (!L2L3_COLS.has(k) || l[k] === undefined) continue
+          if (!ENRICH_COLS.has(k) || l[k] === undefined) continue
           patch[k] = INT_COLS.has(k) && typeof l[k] === "number" ? Math.round(l[k]) : l[k]
         }
         if (!Object.keys(patch).length) return
@@ -523,7 +588,7 @@ export async function POST(request: NextRequest) {
         else console.warn(`[re-enrich] PATCH ${l.place_id}: ${pr.status} ${(await pr.text().catch(() => "")).slice(0, 120)}`)
       }))
 
-      const totalCost = l2Cost + l3Cost
+      const totalCost = l0BackfillCost + l2Cost + l3Cost
       if (totalCost > 0) {
         // ADR-0024 Parte 3: o universo do re-enrich é a BASE por place_id — sem lógica de raio.
         // Coordenadas do tracker = centroide REAL dos leads da base (só informativo no Redis).
@@ -778,6 +843,12 @@ export async function POST(request: NextRequest) {
         is_claimed: l.is_claimed, phone: l.phone, website: l.website,
         total_photos: l.total_photos, description: l.description,
         business_status: l.business_status,
+
+        // v121: L0 sleeping fields
+        attributes: l.attributes ?? null,
+        people_also_search: l.people_also_search ?? null,
+        work_time: l.work_time ?? null,
+        rating_distribution: l.rating_distribution ?? null,
 
         // L2 fields for content gap analysis
         l2_onpage_score: l.l2_onpage_score,

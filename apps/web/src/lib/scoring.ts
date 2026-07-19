@@ -51,6 +51,12 @@ export interface ScoringInput {
   l2_images_count?: number | null
   l2_domain_rank?: number | null
   l2_seo_checks?: Record<string, boolean | null> | null  // ~60 boolean SEO flags from on_page_instant_audit
+
+  // L0 sleeping fields (v121 — salvos no banco desde v114/v115, nunca usados no scoring)
+  attributes?: Record<string, unknown> | null              // accessibility, amenities, planning, payments
+  people_also_search?: Array<{ title?: string; rating?: { value?: number; votes_count?: number } }> | null
+  work_time?: { work_hours?: { timetable?: Record<string, any>; current_status?: string } } | null
+  rating_distribution?: Record<string, number> | null      // {"1": count, "2": count, ..., "5": count}
 }
 
 // ── Output Types ─────────────────────────────────────────────
@@ -342,6 +348,18 @@ export function scoreFit(input: ScoringInput): DimensionScore {
   else if (input.business_status) { missing.push(`F10:${input.business_status}`) }
   else { missing.push("F10:sem_status") }
 
+  // F11 (v121): Work time preenchido — ≥5 dias = negócio estruturado (8pts)
+  if (input.work_time) {
+    const wh = (input.work_time as any)?.work_hours
+    const tt = wh?.timetable
+    if (tt) {
+      const daysWithHours = Object.values(tt).filter((v: any) => v && (Array.isArray(v) ? v.length > 0 : true)).length
+      if (daysWithHours >= 5) { raw += 8; detected.push(`F11:${daysWithHours}dias`) }
+      else if (daysWithHours >= 2) { raw += 4; detected.push(`F11:${daysWithHours}dias`) }
+      else { missing.push(`F11:${daysWithHours}dias`) }
+    } else { missing.push("F11:sem_timetable") }
+  } else { missing.push("F11:sem_work_time") }
+
   // ── W7 (L2): Sem Blog/Conteúdo — proxy: word_count < 300 (5pts) ──
   const hasL2 = input.l2_onpage_score != null
 
@@ -351,7 +369,7 @@ export function scoreFit(input: ScoringInput): DimensionScore {
     else { missing.push("W7:sem_dados") }
   }
 
-  const maxRaw = hasL2 ? 75 : 70
+  const maxRaw = hasL2 ? 83 : 78  // F1-F11 + W7 = 78 (L0) ou 83 (L2)
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -415,6 +433,36 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
   if (input.description && input.description.length > 50 && input.is_claimed === true) {
     raw += 5; detected.push("E7:proxy_desc+claimed")
   } else { missing.push("E7:proxy_insuficiente") }
+
+  // E8 (v121): Attributes preenchidos — ≥2 categorias = perfil rico (10pts)
+  if (input.attributes) {
+    const attrs = (input.attributes as any)?.available_attributes
+    if (attrs) {
+      const attrCats = Object.keys(attrs).filter((k: string) => Array.isArray(attrs[k]) && attrs[k].length > 0)
+      if (attrCats.length >= 3) { raw += 10; detected.push(`E8:${attrCats.length}cats`) }
+      else if (attrCats.length >= 2) { raw += 8; detected.push(`E8:${attrCats.length}cats`) }
+      else if (attrCats.length >= 1) { raw += 5; detected.push(`E8:${attrCats.length}cat`) }
+      else { missing.push("E8:sem_attrs") }
+    } else { missing.push("E8:sem_available") }
+  } else { missing.push("E8:sem_attributes") }
+
+  // E9 (v121): Aceita pagamento digital — credit/debit/NFC (8pts)
+  if (input.attributes) {
+    const payments = (input.attributes as any)?.available_attributes?.payments
+    if (payments && Array.isArray(payments) && payments.length > 0) {
+      const hasCard = payments.some((p: string) => p.includes("credit") || p.includes("debit") || p.includes("nfc"))
+      if (hasCard) { raw += 8; detected.push("E9:pagamento_digital") }
+      else { missing.push("E9:sem_cartao") }
+    } else { missing.push("E9:sem_payments") }
+  }
+
+  // E10 (v121): Acessibilidade declarada — wheelchair, acessível (5pts)
+  if (input.attributes) {
+    const access = (input.attributes as any)?.available_attributes?.accessibility
+    if (access && Array.isArray(access) && access.length > 0) {
+      raw += 5; detected.push("E10:acessibilidade")
+    } else { missing.push("E10:sem_acessibilidade") }
+  }
 
   // ── W2-W6, W8 (L2): Website+SEO engagement signals ──
   const hasL2 = input.l2_onpage_score != null
@@ -499,7 +547,7 @@ export function scoreEngagement(input: ScoringInput): DimensionScore {
     } else { missing.push("W12:sem_lighthouse") }
   }
 
-  const maxRaw = hasL2 ? 88 : 70
+  const maxRaw = hasL2 ? 111 : 93  // E1-E10 + W2-W12 = 93 (L0) ou 111 (L2)
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -538,6 +586,41 @@ export function scoreIntent(input: ScoringInput): DimensionScore {
     } else { missing.push("I3:sem_dados") }
   }
 
+  // I4 (v121): Concorrentes com rating maior — perdendo tráfego (15pts)
+  if (input.people_also_search && Array.isArray(input.people_also_search)) {
+    const leadRating = input.rating_value ?? 0
+    const betterCompetitors = input.people_also_search.filter(
+      (p: any) => p?.rating?.value != null && p.rating.value > leadRating
+    )
+    if (betterCompetitors.length >= 3) { raw += 15; detected.push(`I4:${betterCompetitors.length}concorrentes`) }
+    else if (betterCompetitors.length >= 1) { raw += 8; detected.push(`I4:${betterCompetitors.length}concorrente`) }
+    else { missing.push("I4:concorrentes_piores") }
+  } else { missing.push("I4:sem_people_also_search") }
+
+  // I5 (v121): Rating distribution tóxico — ≥30% das reviews são 1★-2★ (20pts)
+  if (input.rating_distribution) {
+    const rd = input.rating_distribution
+    const total = (rd["1"] || 0) + (rd["2"] || 0) + (rd["3"] || 0) + (rd["4"] || 0) + (rd["5"] || 0)
+    if (total > 0) {
+      const badPct = ((rd["1"] || 0) + (rd["2"] || 0)) / total
+      if (badPct >= 0.3) { raw += 20; detected.push(`I5:${Math.round(badPct*100)}pct_toxico`) }
+      else if (badPct >= 0.15) { raw += 10; detected.push(`I5:${Math.round(badPct*100)}pct_ruim`) }
+      else { missing.push("I5:distribuicao_ok") }
+    } else { missing.push("I5:sem_total") }
+  } else { missing.push("I5:sem_rating_distribution") }
+
+  // I6 (v121): Distribuição bimodal — muitos 5★ E muitos 1★ = suspeito (10pts)
+  if (input.rating_distribution) {
+    const rd = input.rating_distribution
+    const total = (rd["1"] || 0) + (rd["2"] || 0) + (rd["3"] || 0) + (rd["4"] || 0) + (rd["5"] || 0)
+    if (total >= 10) {
+      const highPct = ((rd["5"] || 0) / total)
+      const lowPct = ((rd["1"] || 0) + (rd["2"] || 0)) / total
+      if (highPct >= 0.5 && lowPct >= 0.2) { raw += 10; detected.push("I6:bimodal_suspeito") }
+      else { missing.push("I6:distribuicao_normal") }
+    } else { missing.push("I6:poucas_reviews") }
+  }
+
   // ── W1 (L2): Sem HTTPS — HTTP apenas (20pts) ──
   const hasL2 = input.l2_onpage_score != null
 
@@ -547,7 +630,7 @@ export function scoreIntent(input: ScoringInput): DimensionScore {
     else { missing.push("W1:sem_dados") }
   }
 
-  const maxRaw = hasL2 ? 80 : 60
+  const maxRaw = hasL2 ? 125 : 105  // I1-I6 + W1 = 105 (L0) ou 125 (L2)
 
   
 return { raw, maxRaw, normalized: Math.round((raw / maxRaw) * 100), signalsDetected: detected, signalsMissing: missing }
@@ -663,7 +746,7 @@ function computeConfidence(fit: DimensionScore, engagement: DimensionScore, inte
     engagement.signalsMissing.some(s => s.startsWith("W")) ||
     intent.signalsMissing.some(s => s.startsWith("W"))
 
-  const totalSignals = hasL2Signals ? 28 : 20 // F1-F10(10) + E1-E7(7) + I1-I3(3) + W1-W8(8)
+  const totalSignals = hasL2Signals ? 35 : 27 // F1-F11(11) + E1-E10(10) + I1-I6(6) + W1-W8(8)
 
   const evaluated = fit.signalsDetected.length + fit.signalsMissing.length +
     engagement.signalsDetected.length + engagement.signalsMissing.length +
