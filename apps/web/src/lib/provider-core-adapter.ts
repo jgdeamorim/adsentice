@@ -146,10 +146,16 @@ return {
       longitude: (item.longitude as number) ?? null,
       is_claimed: (item.is_claimed as boolean) ?? null,
 
-      // v114+v115: TODOS os campos que a API L0 retorna (37/37)
+      // v114+v115+v119: TODOS os campos que a API L0 retorna (41/41 extraíveis)
       // phone/total_photos/description: fix v104/v113 (API retorna, adapter descartava)
+      // postal_code/country_code/region: fix v119 (address_info.* — API retorna, adapter descartava)
+      // price_level: fix v119 (top-level key no L0 — API retorna, adapter descartava)
       city: (addrInfo.city as string) || null,
       district: (addrInfo.borough as string) || null,
+      postal_code: (addrInfo.zip as string) || null,
+      country_code: (addrInfo.country_code as string) || null,
+      region: (addrInfo.region as string) || null,
+      price_level: (item.price_level as number) ?? null,
       website: (item.url as string) || null,
       phone: (item.phone as string) || null,
       total_photos: (item.total_photos as number) ?? null,
@@ -165,7 +171,7 @@ return {
       attributes: (item.attributes || null) as any,
       logo: (item.logo as string) || null,
       work_time: (item.work_time || null) as any,
-      // v115: campos restantes (15/15)
+      // v115: campos restantes (11/11, plus postal_code/country_code/region/price_level acima = 41/41 extraíveis)
       additional_categories: (item.additional_categories as string[]) || null,
       category_ids: (item.category_ids as string[]) || null,
       contact_info: (item.contact_info || null) as any,
