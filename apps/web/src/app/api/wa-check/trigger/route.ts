@@ -62,16 +62,31 @@ function batchSize(): number { batchToggle = !batchToggle; return batchToggle ? 
 let delayToggle = false
 function batchDelay(): number { delayToggle = !delayToggle; return delayToggle ? 3000 : 2000 }
 
-// ═══ Processa phones ═══
+// ═══ Processa phones — Camada 3 PRIMEIRO (evita rate limit wa.me) ═══
 async function processPhones(phones: string[]) {
   const unique = [...new Set(phones)]
   const results: Record<string, WaCheckResult & { baileysExists?: boolean }> = {}
   let business = 0, personal = 0, notFound = 0, errors = 0
 
+  // ── Camada 3: Evolution API batch (1 chamada, sem rate limit) ──
+  const l3Map = new Map<string, boolean>()
+  for (let i = 0; i < unique.length; i += 200) {
+    const batch = unique.slice(i, i + 200)
+    const l3Results = await Promise.all(batch.map(async (phone) => {
+      const r = await checkWhatsappBaileys(phone)
+      return { phone, existe: r?.existe ?? false }
+    }))
+    for (const { phone, existe } of l3Results) l3Map.set(phone, existe)
+    if (i + 200 < unique.length) await new Promise(r => setTimeout(r, 2000))
+  }
+
+  // ── Camada 2: wa.me SÓ nos que existem (pra nome Business) ──
+  //   Em lotes pequenos (5-10) com delay humano → sem bloqueio
+  const toCheck = unique.filter(p => l3Map.get(p) === true)
   let i = 0
-  while (i < unique.length) {
+  while (i < toCheck.length) {
     const bs = batchSize()
-    const batch = unique.slice(i, i + bs)
+    const batch = toCheck.slice(i, i + bs)
     i += bs
 
     const l2Results = await Promise.all(batch.map(async (phone) => {
@@ -79,26 +94,28 @@ async function processPhones(phones: string[]) {
       catch { return { phone, result: { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false } as WaCheckResult } }
     }))
 
-    const needL3 = l2Results.filter(({ result }) => result.checked && !result.isBusiness && !result.hasWhatsapp)
-    const l3Map = new Map<string, boolean>()
-    if (needL3.length > 0) {
-      for (const { phone } of needL3) {
-        const r = await checkWhatsappBaileys(phone)
-        l3Map.set(phone, r?.existe ?? false)
-      }
-    }
-
     for (const { phone, result } of l2Results) {
-      if (!result.checked) { errors++; results[phone] = result; continue }
       if (result.isBusiness) { business++; results[phone] = result; continue }
       if (result.hasWhatsapp) { personal++; results[phone] = result; continue }
-      const existe = l3Map.get(phone)
-      if (existe === true) { personal++; results[phone] = { hasWhatsapp: true, displayName: null, isBusiness: false, checked: true, baileysExists: true } }
-      else if (existe === false) { notFound++; results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: true, baileysExists: false } }
-      else { errors++; results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false } }
+      // wa.me não retornou nome → mas Evolution API confirmou que existe
+      personal++; results[phone] = { hasWhatsapp: true, displayName: null, isBusiness: false, checked: true, baileysExists: true }
     }
 
-    if (i < unique.length) { await new Promise(r => setTimeout(r, batchDelay())) }
+    if (i < toCheck.length) { await new Promise(r => setTimeout(r, batchDelay())) }
+  }
+
+  // ── Phones que NÃO existem (Evolution API confirmou) ──
+  for (const phone of unique) {
+    if (results[phone]) continue // já classificado
+    const existe = l3Map.get(phone)
+    if (existe === false) {
+      notFound++
+      results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: true, baileysExists: false }
+    } else if (existe === undefined) {
+      // Evolution API offline → não classificado
+      errors++
+      results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
+    }
   }
 
   return { results, business, personal, notFound, errors }
