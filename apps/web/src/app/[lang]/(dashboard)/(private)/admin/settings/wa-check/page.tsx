@@ -102,15 +102,46 @@ export default function WaCheckPage() {
     }
   }, [evoStatus.connected, evoStatus.offline, fetchEvoStatus])
 
+  // ── Polling de progresso durante execução ──
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (running) {
+      progressRef.current = setInterval(fetchStatus, 2000)
+      return () => { if (progressRef.current) clearInterval(progressRef.current) }
+    } else {
+      if (progressRef.current) { clearInterval(progressRef.current); progressRef.current = null }
+    }
+  }, [running, fetchStatus])
+
   const handleTrigger = async () => {
     setRunning(true); setError(null); setResult(null)
     try {
       const r = await fetch('/api/wa-check/trigger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
       const data = await r.json()
-      if (r.ok) { setResult(data); await fetchStatus() }
+      if (r.ok) {
+        setResult(data)
+        await fetchStatus()
+        // Continua polling até status='done'
+        if (data.hasMore) {
+          // Auto-poll status a cada 2s até terminar
+          const poll = setInterval(async () => {
+            const sr = await fetch('/api/wa-check/trigger', { method: 'GET' })
+            const sp = await sr.json()
+            if (sp.status === 'done') {
+              clearInterval(poll)
+              setRunning(false)
+              await fetchStatus()
+            }
+          }, 2000)
+          // timeout de segurança: 5 min
+          setTimeout(() => { clearInterval(poll); setRunning(false) }, 300000)
+        } else {
+          setRunning(false)
+        }
+      }
       else setError(data.error || 'Erro desconhecido')
-    } catch (e: any) { setError(e.message) }
-    setRunning(false)
+    } catch (e: any) { setError(e.message); setRunning(false) }
   }
 
   const handleDismiss = async () => {
@@ -226,6 +257,25 @@ export default function WaCheckPage() {
           </CardContent>
         </Card>
       </Grid>
+
+      {/* ═══ PROGRESS BAR (fila ativa) ═══ */}
+      {running && status?.progress && status.progress.total > 0 && (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info' variant='outlined'>
+            <Typography variant='body2' fontWeight={600} gutterBottom>
+              ⏳ Processando fila: {status.progress.processed}/{status.progress.total} verificados
+            </Typography>
+            <LinearProgress
+              variant='determinate'
+              value={Math.round((status.progress.processed / status.progress.total) * 100)}
+              sx={{ mt: 1, height: 8, borderRadius: 4 }}
+            />
+            <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+              Rate limit: 15 concorrentes · 800ms entre lotes · 2s entre páginas · evita bloqueio wa.me
+            </Typography>
+          </Alert>
+        </Grid>
+      )}
 
       {/* ═══ PENDING ALERT ═══ */}
       {status?.pending && status.pending.count > 0 && (

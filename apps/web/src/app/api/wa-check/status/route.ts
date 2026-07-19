@@ -51,10 +51,15 @@ export async function GET() {
     const totalVerified = history.reduce((s: number, h: any) => s + (h.total || 0), 0)
     const totalBusiness = history.reduce((s: number, h: any) => s + (h.business || 0), 0)
 
+    // Progresso da fila (v130)
+    const progressRaw = redisGet('adsentice:wa-check:progress')
+    const progress = progressRaw ? JSON.parse(progressRaw) : null
+
     return NextResponse.json({
       pending,
       lastRun: lastRun || null,
-      history: history.slice(0, 20), // últimos 20 runs
+      history: history.slice(0, 20),
+      progress,
       stats: {
         dbPhones,
         totalVerified,
