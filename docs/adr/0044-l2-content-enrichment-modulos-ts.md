@@ -47,9 +47,9 @@ URL
 
 **1. Section Detection (fingerprint.ts → component-extractor.ts)**
 ```typescript
-// 17 padrões: 11 originais + 6 para clínicas
+// 20 padrões GENÉRICOS: 11 originais do vsforge + 9 multi-nicho (29 categorias)
 const SECTION_PATTERNS = [
-  // vsforge originais (11)
+  // vsforge originais (11) — universais para qualquer site
   ["hero", /class="[^"]*hero|id="[^"]*hero|<section[^>]*hero/i],
   ["features", /class="[^"]*feature|id="[^"]*feature|<section[^>]*feature/i],
   ["pricing", /class="[^"]*pric|id="[^"]*pric|<section[^>]*pric/i],
@@ -61,49 +61,57 @@ const SECTION_PATTERNS = [
   ["footer", /<footer/i],
   ["navbar", /<nav|class="[^"]*nav|class="[^"]*header/i],
   ["about", /class="[^"]*about|id="[^"]*about/i],
-  // adsentice clínicas (6 NOVOS)
-  ["booking", /agend|booking|marcar|horário/i],
-  ["doctors", /dra\.?\s|dr\.?\s|crm|equipe|profissional/i],
-  ["insurance", /unimed|bradesco|sulamerica|convênio|plano/i],
-  ["gallery", /antes.depois|resultado|galeria|foto/i],
-  ["blog", /blog|artigo|noticia|novidade/i],
-  ["whatsapp", /wa\.me|whatsapp|api\.whatsapp/i],
+  // adsentice multi-nicho (9 NOVOS — genéricos para 29 categorias SMB)
+  ["booking", /agend|booking|reserva|marcar|horário|consulta|liga|whatsapp/i],
+  ["gallery", /galeria|portfolio|antes.depois|resultado|trabalho|projeto/i],
+  ["blog", /blog|artigo|noticia|novidade|dica|guia/i],
+  ["services", /serviço|servico|especialidade|procedimento|tratamento|atuação/i],
+  ["social_proof", /cliente|parceiro|convênio|plano|credenciado|associado/i],
+  ["location", /endereço|localização|mapa|bairro|região|como.chegar/i],
+  ["menu", /cardápio|catalogo|menu|produto|serviço|preço/i],
+  ["team_specialist", /dr\.?|dra\.?|crm|crea|oab|profissional|especialista/i],
+  ["certification", /certificado|licença|registro|filiado|associado|anvisa/i],
 ]
+// Exemplo para um ADVOGADO: detecta team_specialist (OAB), location, contact, blog
+// Exemplo para uma PADARIA: detecta menu, location, social_proof, contact
+// Exemplo para um DENTISTA: detecta booking (agendamento), team_specialist (CRM), gallery
 ```
 
 **2. Framework Detection Noisy-OR (crawler.ts → strategy-resolver.ts)**
 ```typescript
-// 7 sinais cumulativos, testados em produção
+// 7 sinais cumulativos, testados em produção — agnóstico a nicho
 const signals: Record<string, number[]> = {
   "next.js": [], "react": [], "vue": [], "nuxt": [],
   "webflow": [], "wordpress": [], "shopify": [],
+  "wix": [], "google_sites": [], "landing_page": [], // +3 para SMB
 }
 if (html.includes("__NEXT_DATA__")) signals["next.js"].push(0.9)
 if (html.includes("data-reactroot")) signals["react"].push(0.8)
 if (html.includes("wp-content"))     signals["wordpress"].push(0.85)
 if (html.includes("data-wf-site"))   signals["webflow"].push(0.95)
-// Noisy-OR: 1 - Π(1 - wᵢ) → detecta framework com confiança cumulativa
-function noisyOr(weights: number[]): number {
-  return 1 - weights.reduce((acc, w) => acc * (1 - w), 1)
-}
+if (html.includes("wix.com"))        signals["wix"].push(0.95)
+if (html.includes("sites.google.com")) signals["google_sites"].push(0.90)
+if (html.includes("cdn.shopify.com")) signals["shopify"].push(0.95)
+// Noisy-OR: 1 - Π(1 - wᵢ) → confiança cumulativa por framework
 ```
 
 **3. Quality Scoring adaptado (quality-scorer.ts → content-analyzer.ts)**
 ```typescript
-// Fórmula original vsforge: 0.4×confidence + 0.3×sourceWeight + 0.2×complexity + 0.1×uniqueness
-// Adaptado para clínicas (sem sourceWeight de hubs de design):
-export function scoreClinicDesign(
-  techConfidence: number,    // confiança na detecção do framework
-  sections: string[],        // seções detectadas
-  hasSchemaOrg: boolean,     // dados estruturados?
-  wordCount: number,         // conteúdo textual
+// Fórmula do vsforge: 0.4×confidence + 0.3×sourceWeight + 0.2×complexity + 0.1×uniqueness
+// Adaptada: genérica para 29 categorias, sem sourceWeight
+export function scoreSMBDesign(
+  techConfidence: number,    // Noisy-OR framework confidence (0-1)
+  sections: string[],        // seções detectadas (dos 20 padrões)
+  hasSchemaOrg: boolean,     // JSON-LD estruturado?
+  wordCount: number,         // conteúdo textual (>200 = mínimo)
 ): number {
-  const confidence   = techConfidence            // 0-1 (Noisy-OR)
-  const complexity   = Math.min(sections.length / 8, 1.0)  // min 0, max 1
-  const structure    = hasSchemaOrg ? 1.0 : 0.3  // schema.org é proxy de maturidade
-  const contentRich  = Math.min(wordCount / 500, 1.0)  // 500 palavras = satisfatório
+  const confidence  = techConfidence
+  const complexity  = Math.min(sections.length / 8, 1.0)
+  const structure   = hasSchemaOrg ? 1.0 : 0.3
+  const contentRich = Math.min(wordCount / 500, 1.0)
   return +(confidence * 0.35 + complexity * 0.25 + structure * 0.20 + contentRich * 0.20).toFixed(2)
 }
+// Score universal — funciona igual para dentista, advogado, padaria, academia
 ```
 
 ### O que NÃO trazemos do vsforge
@@ -122,7 +130,7 @@ export function scoreClinicDesign(
 | Módulo L2b | Sem vsforge | Com vsforge | Ganho |
 |------------|------------|------------|-------|
 | `design-extractor.ts` | ~3h (do zero) | ~45min (80% reuso) | 2.25h |
-| `component-extractor.ts` | ~2h (padrões novos) | ~30min (11 copiados + 6 novos) | 1.5h |
+| `component-extractor.ts` | ~2h (padrões novos) | ~30min (11 copiados + 9 genéricos multi-nicho) | 1.5h |
 | `strategy-resolver.ts` | ~1.5h (framework detection) | ~15min (Noisy-OR copiado) | 1.25h |
 | `quality-scorer.ts` | ~1h (fórmula nova) | ~20min (adaptada) | 40min |
 | **Total Fase 4 (Design DNA)** | **~7.5h** | **~2h** | **~5.5h economizadas** |
