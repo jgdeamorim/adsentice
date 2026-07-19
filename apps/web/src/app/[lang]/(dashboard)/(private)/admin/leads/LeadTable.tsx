@@ -199,7 +199,7 @@ export default function LeadTable({ leads }: Props) {
                   <Grid container spacing={1} sx={{ mb: 2 }}>
                     {[
                       ['Telefone', selected.phone],
-                      ['WhatsApp', detectWA(selected.phone) ? '✅ WhatsApp detectado' : '❌ Não é WhatsApp'],
+                      ['WhatsApp', waPopupLabel(selected)],
                       ['Website', selected.website],
                       ['Tipo de Site', siteKind(selected.website)],
                     ].filter(([, v]) => v).map(([label, value]) => (
@@ -516,4 +516,16 @@ function parseAttrsLabel(attr: any): string | null {
     }
     return chips.length > 0 ? chips.join(' · ') : null
   } catch { return null }
+}
+
+/** Label WhatsApp para o popup (v132) — usa dados reais do wa-check */
+function waPopupLabel(l: any): string | null {
+  if (!l.phone) return null
+  if (l.wa_checked) {
+    if (l.wa_is_business && l.wa_display_name) return `✅ WhatsApp Business: ${l.wa_display_name}`
+    if (l.wa_has_whatsapp) return '✅ WhatsApp pessoal (confirmado via Evolution API)'
+    return `❌ Não tem WhatsApp (verificado em ${new Date(l.wa_verified_at || '').toLocaleDateString('pt-BR')})`
+  }
+  // Fallback: ainda não verificado
+  return detectWA(l.phone) ? '⏳ Celular — aguardando verificação wa-check' : '📵 Fixo — aguardando verificação wa-check'
 }
