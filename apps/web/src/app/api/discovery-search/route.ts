@@ -891,22 +891,27 @@ return null
     }
     } // end if (!preflight)
     else {
-      // Pre-flight: salva APENAS metadata (sem listings). Dedup por proximidade
-      // geográfica (0.01° ≈ 1km) + 24h — cliques repetidos = UPDATE, não duplica.
+      // Pre-flight: salva metadata. Dedup por geografia (0.02°) + 24h + CATEGORIAS.
+      // Mesma cidade com categorias DIFERENTES = nova linha (ondas).
       const supabasePf = getAdminClient()
       const oneDayAgo = new Date(Date.now() - 86400000).toISOString()
       const cityKey = bodyCity || `${(lat||0).toFixed(1)},${(lng||0).toFixed(1)}`
-      // Range filter no lat/lng para tolerância float (0.02° ≈ 2km — mesma cidade)
       const la = lat || -23.55; const lo = lng || -46.63
+      const catSet = new Set((categories || []).sort())
       const { data: existing } = await supabasePf.from("discovery_searches" as any)
-        .select("id").gt("lat", la - 0.02).lt("lat", la + 0.02)
+        .select("id,categories").gt("lat", la - 0.02).lt("lat", la + 0.02)
         .gt("lng", lo - 0.02).lt("lng", lo + 0.02)
-        .gte("created_at", oneDayAgo).limit(1)
-      if (existing?.length) {
+        .gte("created_at", oneDayAgo).limit(10)
+      const match = existing?.find((r: any) => {
+        const rCats = new Set((r.categories || []).sort())
+        if (rCats.size !== catSet.size) return false
+        return [...catSet].every(c => rCats.has(c))
+      })
+      if (match) {
         await supabasePf.from("discovery_searches" as any).update({
           total_count: result.total_count, cost_usd: searchCost, search_metadata: searchMetadata,
-        }).eq("id", existing[0].id)
-        console.log(`[preflight] Updated · id=${existing[0].id} · city=${cityKey} · total=${result.total_count}`)
+        }).eq("id", match.id)
+        console.log(`[preflight] Updated · id=${match.id} · city=${cityKey} · cats=${catSet.size} · total=${result.total_count}`)
       } else {
         supabasePf.from("discovery_searches" as any).insert({
           categories, lat: la, lng: lo,
