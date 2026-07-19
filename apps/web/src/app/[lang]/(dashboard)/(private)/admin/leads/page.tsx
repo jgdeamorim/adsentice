@@ -76,7 +76,7 @@ const LeadsPage = async ({ params, searchParams }: {
   // ═══ STATS (1 query leve — COUNT DISTINCT por cidade) ═══
   let totalCount = 0; let totalScore = 0
   let withWebsite = 0; let withPhone = 0; let withSocial = 0; let withWhatsApp = 0
-  let withBusinessWa = 0; let withWhatsAppPersonal = 0; let withFixoSemWa = 0; let withPhonePendente = 0
+  let withBusinessWaTotal = 0; let withWhatsAppPersonalTotal = 0; let withFixoSemWaTotal = 0; let withPhoneTotal = 0
   let categories: { category: string; count: number }[] = []
   let schwartzDist: { level: number; label: string; count: number }[] = []
   let cities: { city: string; count: number }[] = []
@@ -121,12 +121,6 @@ const LeadsPage = async ({ params, searchParams }: {
       withSocial = list.filter((r: any) => r.l3_social_links && Array.isArray(r.l3_social_links) && r.l3_social_links.length > 0).length
       withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
 
-      // v132: wa-check breakdown
-      withBusinessWa = list.filter((r: any) => r.wa_is_business === true).length
-      withWhatsAppPersonal = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === true && !r.wa_is_business).length
-      withFixoSemWa = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === false && !r.wa_is_business).length
-      withPhonePendente = list.filter((r: any) => r.phone && r.wa_checked !== true).length
-
       const catCounts: Record<string, number> = {}
       const cityCounts: Record<string, number> = {}
       const ufCounts: Record<string, number> = {}
@@ -142,6 +136,24 @@ const LeadsPage = async ({ params, searchParams }: {
       estados = Object.entries(ufCounts).sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ uf: u, count: n }))
     }
   } catch { /* Supabase offline */ }
+
+  // ═══ WA-CHECK TOTAIS (banco inteiro, via REST count=exact) ═══
+  try {
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    const fetchCount = async (filter: string) => {
+      const res = await fetch(`${supaUrl}/rest/v1/discovery_listings?select=place_id&${filter}&limit=1`, {
+        headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, ...{ Prefer: 'count=exact' } as any },
+        signal: AbortSignal.timeout(3000),
+      })
+      const range = res.headers.get('content-range')
+      return range ? parseInt(range.split('/')[1]) : 0
+    }
+    withPhoneTotal = await fetchCount('phone=not.is.null')
+    withBusinessWaTotal = await fetchCount('wa_is_business=is.true')
+    withWhatsAppPersonalTotal = await fetchCount('wa_checked=is.true&wa_has_whatsapp=is.true&wa_is_business=is.false')
+    withFixoSemWaTotal = await fetchCount('wa_checked=is.true&wa_has_whatsapp=is.false&wa_is_business=is.false')
+  } catch { /* fail-soft */ }
 
   // ═══ TABLE DATA (1 range paginado — só a página atual) ═══
   let leads: LeadRow[] = []
@@ -216,9 +228,9 @@ const LeadsPage = async ({ params, searchParams }: {
           trendNumber={String(totalScore)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={withPhone.toLocaleString('pt-BR')} title='Com Telefone'
-          subtitle={`💼${withBusinessWa} 📱${withWhatsAppPersonal} 📵${withFixoSemWa}`} avatarColor='success' avatarIcon='ri-phone-line'
-          trendNumber={String(withPhone)} trend='positive' />
+        <CardStatVertical stats={withPhoneTotal.toLocaleString('pt-BR')} title='Com Telefone (total DB)'
+          subtitle={`💼${withBusinessWaTotal} 📱${withWhatsAppPersonalTotal} 📵${withFixoSemWaTotal}`} avatarColor='success' avatarIcon='ri-phone-line'
+          trendNumber={String(withPhoneTotal)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
         <CardStatVertical stats={withWebsite.toLocaleString('pt-BR')} title='Com Website'
