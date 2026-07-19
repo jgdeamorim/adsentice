@@ -31,6 +31,7 @@ interface LeadRow {
   schwartz_label: string; schwartz_level: number
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
+  l3_social_links?: { platform: string; url: string }[] | null; l3_whatsapp?: string | null
   place_id?: string | null
 
   // L2 fields (v0.3)
@@ -75,8 +76,9 @@ export default function LeadTable({ leads }: Props) {
               <TableCell>Categoria</TableCell>
               <TableCell align='right'>⭐</TableCell>
               <TableCell align='right'>📝</TableCell>
-              <TableCell>Contato</TableCell>
+              <TableCell>Telefone</TableCell>
               <TableCell>Site</TableCell>
+              <TableCell>Social</TableCell>
               <TableCell width={50}>Level</TableCell>
             </TableRow>
           </TableHead>
@@ -96,11 +98,17 @@ export default function LeadTable({ leads }: Props) {
                 <TableCell align='right'><Typography variant='body2' fontWeight={600}>{l.rating_value?.toFixed(1) || '—'}★</Typography></TableCell>
                 <TableCell align='right'><Typography variant='body2'>{l.rating_votes || 0}</Typography></TableCell>
                 <TableCell>
-                  <Chip label={contactLabel(l.contact_methods)} size='small'
-                    color={l.contact_methods?.includes('whatsapp') ? 'success' : l.contact_methods?.includes('phone_fixo') ? 'warning' : 'default'} variant='tonal' />
+                  {l.phone
+                    ? <Chip label={detectWA(l.phone) ? '💬 WhatsApp' : '📞 Fixo'} size='small' color={detectWA(l.phone) ? 'success' : 'warning'} variant='tonal' />
+                    : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                 </TableCell>
                 <TableCell>
                   {l.website ? <Chip label='🌐' size='small' color='success' variant='tonal' /> : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
+                </TableCell>
+                <TableCell>
+                  {l.l3_social_links && Array.isArray(l.l3_social_links) && l.l3_social_links.length > 0
+                    ? <Chip label={socialAbbrev(l.l3_social_links)} size='small' color='info' variant='tonal' sx={{ fontFamily: 'monospace', fontSize: '0.6rem' }} />
+                    : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                 </TableCell>
                 <TableCell>
                   <Chip label={`L${l.enrichment_level || 0}`} size='small'
@@ -351,6 +359,18 @@ function siteKind(url: string | null | undefined): string | null {
   if (u.includes('linktr.ee') || u.includes('linktree')) return 'Linktree'
   if (u.includes('facebook.com') || u.includes('instagram.com')) return 'Rede Social'
   if (u.includes('sites.google.com')) return 'Google Sites'
-  
+
 return 'Domínio Próprio'
+}
+
+/** 3 primeiras letras de cada rede social do L3 (ex: ins,x,you,lin) */
+function socialAbbrev(links: { platform: string; url: string }[] | null): string {
+  if (!links || !links.length) return '—'
+  const PLATFORM_ABBREV: Record<string, string> = {
+    instagram: 'ins', facebook: 'fb', twitter: 'x', youtube: 'you', linkedin: 'lin',
+    tiktok: 'tik', pinterest: 'pin', whatsapp: 'w', telegram: 'tel', snapchat: 'snap',
+    reddit: 'rdt', twitch: 'tw', spotify: 'sp', soundcloud: 'sc', vimeo: 'vim',
+    github: 'git', medium: 'med', discord: 'dis',
+  }
+  return links.map(l => PLATFORM_ABBREV[l.platform?.toLowerCase()] || l.platform?.slice(0, 3) || '?').join(',')
 }
