@@ -90,16 +90,19 @@ const LeadsPage = async ({ params, searchParams }: {
     if (ibgeRows) for (const r of ibgeRows) { CITY_UF[r.municipio_nome] = r.uf }
   } catch { /* IBGE offline */ }
 
-  // ── STATS: agregação via REST (1 query, colunas mínimas) ──
+  // ── STATS: agregação via REST API (bypass JS client type filtering) ──
   try {
-    const supabase = getAdminClient()
-    // Fetch ALL place_ids + cols mínimas para stats (sem range cap)
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
+    const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
     let statRows: any[] = []
     for (let off = 0; off < 10000; off += 1000) {
-      const { data: chunk, error } = await supabase.from("discovery_listings")
-        .select("place_id,city,category,website,phone,l3_social_links,l3_whatsapp,score_compound,schwartz_level,wa_checked,wa_is_business,wa_has_whatsapp,wa_display_name")
-        .order("place_id", { ascending: true }).range(off, off + 999)
-      if (error || !chunk?.length) break
+      const res = await fetch(
+        `${supaUrl}/rest/v1/discovery_listings?select=place_id,city,category,website,phone,l3_social_links,l3_whatsapp,score_compound,schwartz_level,wa_checked,wa_is_business,wa_has_whatsapp,wa_display_name&order=place_id.asc&limit=1000&offset=${off}`,
+        { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, signal: AbortSignal.timeout(8000) }
+      )
+      if (!res.ok) break
+      const chunk = await res.json() as any[]
+      if (!chunk?.length) break
       statRows.push(...chunk)
       if (chunk.length < 1000) break
     }
