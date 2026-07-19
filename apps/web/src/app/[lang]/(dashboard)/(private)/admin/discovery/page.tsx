@@ -413,7 +413,8 @@ const DiscoveryPage = () => {
           if (res.ok) setBasePreflight(await res.json())
         } else {
           const catParam = selected.join(',')
-          const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${catParam}`, { signal: abort.signal })
+          // Filtra também por cidade para evitar carregar pre-flights de outros estados (fix v103)
+          const res = await fetch(`/api/discovery/sessions?preflights=true&categories=${catParam}&city=${encodeURIComponent(cityName)}`, { signal: abort.signal })
           if (res.ok) {
             const d = await res.json()
             if (d.preflights?.length) {

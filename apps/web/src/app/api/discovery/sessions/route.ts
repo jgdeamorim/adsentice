@@ -73,6 +73,7 @@ export async function GET(request: Request) {
     const ufFilter = searchParams.get("uf")?.toUpperCase() || null
     const preflightsOnly = searchParams.get("preflights") === "true"
     const catFilter = searchParams.get("categories") || null
+    const cityFilter = searchParams.get("city") || null
     const targetCats = catFilter ? catFilter.split(",") : null
 
     const supabase = getAdminClient()
@@ -97,8 +98,16 @@ export async function GET(request: Request) {
           if (!targetCats) return true
           const cats: string[] = s.categories || []
           const overlap = targetCats.filter((tc: string) => cats.includes(tc)).length
-          // Match se pelo menos 1 categoria em comum (≥50% das selecionadas OU 100% se 2 ou menos)
+          // Match se pelo menos 1 categoria em comum — filtro de cidade opcional
           return overlap >= Math.max(1, Math.ceil(targetCats.length * 0.3))
+        })
+        .filter((s: any) => {
+          if (!cityFilter) return true
+          let meta: any = {}
+          try { meta = typeof s.search_metadata === "string" ? JSON.parse(s.search_metadata) : s.search_metadata || {} } catch {}
+          const pfCity = (meta.city || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+          const targetCity = cityFilter.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+          return pfCity === targetCity || pfCity.includes(targetCity) || targetCity.includes(pfCity)
         })
         .slice(0, 60)  // 34 municípios × até 2 ondas = ~68 pre-flights máximo
         .map((s: any) => {
