@@ -150,9 +150,21 @@ return {
       city: (addrInfo.city as string) || null,
       district: (addrInfo.borough as string) || null,
       website: (item.url as string) || null,
-      phone: (item.phone as string) || null,           // fix v104: API retorna, adapter descartava
-      total_photos: (item.total_photos as number) ?? null,  // fix v113: API retorna, adapter descartava
-      description: (item.description as string) || null,    // fix v113: API retorna, adapter descartava
+      phone: (item.phone as string) || null,
+      total_photos: (item.total_photos as number) ?? null,
+      description: (item.description as string) || null,
+      // v114: campos L0 que a API SEMPRE retorna e o adapter descartava
+      main_image: (item.main_image as string) || null,
+      rating_distribution: (item.rating_distribution || null) as Record<string,number> | null,
+      snippet: (item.snippet as string) || null,
+      check_url: (item.check_url as string) || null,
+      first_seen: (item.first_seen as string) || null,
+      last_updated_time: (item.last_updated_time as string) || null,
+      domain: (item.domain as string) || null,
+      people_also_search: (item.people_also_search || null) as any[] | null,
+      attributes: (item.attributes || null) as any,
+      logo: (item.logo as string) || null,
+      work_time: (item.work_time || null) as any,
     } as any
   })
 
