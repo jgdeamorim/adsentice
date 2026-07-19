@@ -97,7 +97,7 @@ const LeadsPage = async ({ params, searchParams }: {
     let statRows: any[] = []
     for (let off = 0; off < 10000; off += 1000) {
       const { data: chunk, error } = await supabase.from("discovery_listings")
-        .select("place_id,city,category,website,phone,l3_social_links,l3_whatsapp,score_compound,schwartz_level")
+        .select("place_id,city,category,website,phone,l3_social_links,l3_whatsapp,score_compound,schwartz_level,wa_checked,wa_is_business,wa_has_whatsapp,wa_display_name")
         .order("place_id", { ascending: true }).range(off, off + 999)
       if (error || !chunk?.length) break
       statRows.push(...chunk)
