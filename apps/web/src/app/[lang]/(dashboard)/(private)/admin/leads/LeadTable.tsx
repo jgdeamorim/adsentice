@@ -425,22 +425,33 @@ function socialAbbrev(links: { platform: string; url: string }[] | null): string
   return links.map(l => PLATFORM_ABBREV[l.platform?.toLowerCase()] || l.platform?.slice(0, 3) || '?').join(',')
 }
 
-/** Chip 4 estados (v127): 💼Business · 📱WhatsApp · 📱Celular · 📵Fixo */
+/** Chip 4 estados (v129): 💼Business · 📱WhatsApp · 📱Celular · 📵Fixo · ⏳Pendente
+ *
+ *  Ordem correta (ADR-0041 + ADR-0042):
+ *   1. wa_checked? → Camada 2 (wa.me) já executou
+ *   2. wa_is_business → 💼 Business (QUALQUER formato: fixo, celular, URA)
+ *   3. wa_has_whatsapp → 📱 WhatsApp
+ *   4. detectWA() → 📱 Celular (sem WhatsApp) ou 📵 Fixo (sem WhatsApp)
+ *   5. Não verificado → ⏳ Pendente (não assume nada — fixo pode ser Business!)
+ */
 function waChip4(l: any): { label: string; color: 'primary' | 'success' | 'warning' | 'default' } {
   if (!l.phone) return { label: '—', color: 'default' }
 
-  // wa-check já executou
+  // Camada 2 já executou — wa.me consultou TODOS os formatos
   if (l.wa_checked) {
+    // 💼 Business pode vir de fixo, celular, URA, 0800 — qualquer formato
     if (l.wa_is_business && l.wa_display_name) {
       const name = l.wa_display_name.length > 16 ? l.wa_display_name.slice(0, 16) + '…' : l.wa_display_name
       return { label: `💼 ${name}`, color: 'primary' }
     }
+    // 📱 WhatsApp pessoal confirmado (provavelmente celular)
     if (l.wa_has_whatsapp) return { label: '📱 WhatsApp', color: 'success' }
-    return { label: '📱 Celular', color: 'warning' }
+    // Wa-check confirmou que NÃO tem WhatsApp → usa formato pra decidir label
+    return detectWA(l.phone) ? { label: '📱 Celular', color: 'warning' } : { label: '📵 Fixo', color: 'default' }
   }
 
-  // Fallback: heurística de formato (antes do wa-check)
-  return detectWA(l.phone) ? { label: '📱 Celular', color: 'default' } : { label: '📵 Fixo', color: 'default' }
+  // ⏳ Ainda não verificado — não assume nada sobre o formato
+  return { label: '⏳ Pendente', color: 'default' }
 }
 
 /** 3 primeiras letras de cada rede social do L3 (ex: ins,x,you,lin) */
