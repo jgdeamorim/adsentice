@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -51,6 +51,8 @@ export default function WaCheckPage() {
 
   // ── Evolution API connection state ──
   const [evoStatus, setEvoStatus] = useState<{ connected: boolean; instance: any; offline: boolean }>({ connected: false, instance: null, offline: false })
+  const [qrRefresh, setQrRefresh] = useState(0)        // cache-bust key for QR image
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchEvoStatus = useCallback(async () => {
     try {
@@ -59,11 +61,16 @@ export default function WaCheckPage() {
       const data = await r.json()
       if (data.offline) { setEvoStatus({ connected: false, instance: null, offline: true }); return }
       const inst = Array.isArray(data) ? data.find((i: any) => i.name === 'adsentice') : null
-      setEvoStatus({
-        connected: inst?.connectionStatus === 'open',
-        instance: inst,
-        offline: false,
-      })
+      const connected = inst?.connectionStatus === 'open'
+      setEvoStatus({ connected, instance: inst, offline: false })
+
+      // Se conectou, para o polling
+      if (connected && pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      // QR auto-refresh — força reload da imagem
+      if (!connected) setQrRefresh(prev => prev + 1)
     } catch { setEvoStatus({ connected: false, instance: null, offline: true }) }
   }, [])
 
@@ -75,7 +82,25 @@ export default function WaCheckPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchEvoStatus(); fetchStatus() }, [fetchEvoStatus, fetchStatus])
+  // Poll Evolution API a cada 8s enquanto não conectado (QR code expira)
+  useEffect(() => {
+    fetchEvoStatus()
+    fetchStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (evoStatus.connected || evoStatus.offline) {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
+      return
+    }
+    if (!pollingRef.current) {
+      pollingRef.current = setInterval(fetchEvoStatus, 8000)
+    }
+    return () => {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
+    }
+  }, [evoStatus.connected, evoStatus.offline, fetchEvoStatus])
 
   const handleTrigger = async () => {
     setRunning(true); setError(null); setResult(null)
@@ -153,7 +178,7 @@ export default function WaCheckPage() {
               <Typography variant='h6' gutterBottom>📱 QR Code — Escaneie para Conectar</Typography>
               <Box
                 component='img'
-                src='/api/wa-check/qrcode'
+                src={`/api/wa-check/qrcode?t=${qrRefresh}`}
                 alt='QR Code WhatsApp'
                 sx={{ width: 200, height: 200, imageRendering: 'pixelated' }}
               />
