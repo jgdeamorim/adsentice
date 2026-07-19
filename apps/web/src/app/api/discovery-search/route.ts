@@ -740,8 +740,21 @@ export async function POST(request: NextRequest) {
           updated: new Date().toISOString(),
         })
         execSync(`redis-cli -p 6396 --no-auth-warning SETEX ${pendingKey} 86400 '${pending.replace(/'/g, "'\\''")}'`, { encoding: "utf-8", timeout: 2000 })
-      } catch { /* fail-soft: Redis offline não bloqueia discovery */ }
-    }
+      } catch { /* fail-soft */ }
+
+        // ── v128: Dispara wa-check automático (fire-and-forget) ──
+        const pendingPhones = result.listings
+          .filter((l: any) => l.phone)
+          .map((l: any) => l.phone)
+          .filter((p: string, i: number, arr: string[]) => arr.indexOf(p) === i)
+        if (pendingPhones.length > 0) {
+          fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phones: pendingPhones.slice(0, 200), city: bodyCity, category: (categories || [])[0] }),
+          }).catch(() => {})
+        }
+      }
 
     // ═══ L0 SCORING (11-field search results) ═══
     let scores: ScoreData[] = scoreLeads(result.listings)
