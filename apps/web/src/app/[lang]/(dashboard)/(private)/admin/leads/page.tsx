@@ -46,6 +46,12 @@ interface LeadRow {
   work_time?: Record<string, unknown> | null
   rating_distribution?: Record<string, number> | null
   people_also_search?: Array<{ title?: string; rating?: { value?: number; votes_count?: number } }> | null
+
+  // Wa-Check (v127)
+  wa_checked?: boolean | null
+  wa_has_whatsapp?: boolean | null
+  wa_is_business?: boolean | null
+  wa_display_name?: string | null
 }
 
 const PER_PAGE = 30

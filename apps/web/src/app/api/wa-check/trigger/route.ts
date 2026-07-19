@@ -122,6 +122,36 @@ export async function POST(request: Request) {
     // Limpa pendência
     redisDel('adsentice:wa-check:pending')
 
+    // ── v127: Persistir wa-check no Supabase ──
+    try {
+      const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+      const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      if (supaUrl && supaKey) {
+        const patches = Object.entries(results).map(([phone, r]) => {
+          if (!r.checked) return null
+          return {
+            phone: phone,
+            wa_checked: true,
+            wa_has_whatsapp: r.hasWhatsapp,
+            wa_is_business: r.isBusiness,
+            wa_display_name: r.displayName,
+            wa_verified_at: new Date().toISOString(),
+          }
+        }).filter(Boolean) as any[]
+
+        // PATCH listings matching each phone
+        await Promise.allSettled(patches.map(p =>
+          fetch(`${supaUrl}/rest/v1/discovery_listings?phone=eq.${encodeURIComponent(p.phone)}`, {
+            method: "PATCH",
+            headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+            body: JSON.stringify({ wa_checked: p.wa_checked, wa_has_whatsapp: p.wa_has_whatsapp, wa_is_business: p.wa_is_business, wa_display_name: p.wa_display_name, wa_verified_at: p.wa_verified_at }),
+            signal: AbortSignal.timeout(5000),
+          }).catch(() => null)
+        ))
+        console.log(`[wa-check] Persisted ${patches.length} results to Supabase`)
+      }
+    } catch (e: any) { console.warn('[wa-check] Supabase persist failed:', e.message?.slice(0, 80)) }
+
     return NextResponse.json({
       entry,
       stats: { total, business, personal, notFound, errors, businessRate: total > 0 ? Math.round((business / total) * 100) : 0 },

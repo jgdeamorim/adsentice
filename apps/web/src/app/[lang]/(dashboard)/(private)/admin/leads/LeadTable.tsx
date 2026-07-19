@@ -40,6 +40,12 @@ interface LeadRow {
   rating_distribution?: Record<string, number> | null
   people_also_search?: Array<{ title?: string; rating?: { value?: number; votes_count?: number } }> | null
 
+  // Wa-Check (v127)
+  wa_checked?: boolean | null
+  wa_has_whatsapp?: boolean | null
+  wa_is_business?: boolean | null
+  wa_display_name?: string | null
+
   // L2 fields (v0.3)
   l2_onpage_score?: number | null; l2_meta_title?: string | null
   l2_meta_description?: string | null; l2_word_count?: number | null
@@ -105,7 +111,7 @@ export default function LeadTable({ leads }: Props) {
                 <TableCell align='right'><Typography variant='body2'>{l.rating_votes || 0}</Typography></TableCell>
                 <TableCell>
                   {l.phone
-                    ? <Chip label={detectWA(l.phone) ? '💬 WhatsApp' : '📞 Fixo'} size='small' color={detectWA(l.phone) ? 'success' : 'default'} variant='tonal' />
+                    ? <Chip {...waChip4(l)} size='small' variant='tonal' />
                     : <Chip label='—' size='small' variant='outlined' sx={{ opacity: 0.5 }} />}
                 </TableCell>
                 <TableCell>
@@ -418,6 +424,26 @@ function socialAbbrev(links: { platform: string; url: string }[] | null): string
   }
   return links.map(l => PLATFORM_ABBREV[l.platform?.toLowerCase()] || l.platform?.slice(0, 3) || '?').join(',')
 }
+
+/** Chip 4 estados (v127): 💼Business · 📱WhatsApp · 📱Celular · 📵Fixo */
+function waChip4(l: any): { label: string; color: 'primary' | 'success' | 'warning' | 'default' } {
+  if (!l.phone) return { label: '—', color: 'default' }
+
+  // wa-check já executou
+  if (l.wa_checked) {
+    if (l.wa_is_business && l.wa_display_name) {
+      const name = l.wa_display_name.length > 16 ? l.wa_display_name.slice(0, 16) + '…' : l.wa_display_name
+      return { label: `💼 ${name}`, color: 'primary' }
+    }
+    if (l.wa_has_whatsapp) return { label: '📱 WhatsApp', color: 'success' }
+    return { label: '📱 Celular', color: 'warning' }
+  }
+
+  // Fallback: heurística de formato (antes do wa-check)
+  return detectWA(l.phone) ? { label: '📱 Celular', color: 'default' } : { label: '📵 Fixo', color: 'default' }
+}
+
+/** 3 primeiras letras de cada rede social do L3 (ex: ins,x,you,lin) */
 
 // ── L0 Sleeping Field Helpers (v121) ──
 
