@@ -9,7 +9,7 @@
 
 import { NextResponse } from 'next/server'
 import { execSync } from 'child_process'
-import { checkWhatsapp, checkWhatsappBaileys, type WaCheckResult } from '@/lib/wa-check'
+import { checkWhatsapp, checkWhatsappBaileys, isEvolutionApiOnline, type WaCheckResult } from '@/lib/wa-check'
 
 const AUTO_BATCH_SIZE = 500    // phones por execução automática (250-500 a cada 20-60min)
 const MIN_RESUME_MIN = 20      // delay mínimo entre lotes (minutos)
@@ -214,6 +214,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ done: true, total: 0, message: `Fila vazia. ${queueLen} na queue Redis.` })
     }
 
+    // ── Healthcheck Evolution API ──
+    const evoHealth = await isEvolutionApiOnline()
+    if (!evoHealth.online) {
+      return NextResponse.json({
+        error: 'Evolution API offline', evoHealth,
+        queueRestante: parseInt(redisRaw('LLEN adsentice:wa-check:queue') || '0'),
+      }, { status: 503 })
+    }
+
     // ── Processa ──
     const { results, business, personal, notFound, errors } = await processPhones(phones)
     const total = business + personal + notFound + errors
@@ -274,6 +283,7 @@ export async function POST(request: Request) {
       queueRestante: parseInt(redisRaw('LLEN adsentice:wa-check:queue') || '0'),
       brtTime: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
       nextRun: isAuto ? JSON.parse(redisRaw('GET adsentice:wa-check:next-run') || '{}').nextRun : null,
+      evoHealth,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message?.slice(0, 200) }, { status: 500 })

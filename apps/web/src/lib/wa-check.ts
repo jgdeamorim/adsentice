@@ -124,12 +124,49 @@ export interface BaileysResult {
 
 const baileysCache = new Map<string, BaileysResult>()
 
+// ── Healthcheck · Evolution API :3100 ──
+
+let evoHealth: { online: boolean; checkedAt: number; version?: string } | null = null
+const HEALTH_TTL_MS = 30_000 // re-verifica a cada 30s
+
+/** Verifica se Evolution API :3100 está viva. Cache 30s. */
+export async function isEvolutionApiOnline(): Promise<{ online: boolean; version?: string }> {
+  const now = Date.now()
+  if (evoHealth && (now - evoHealth.checkedAt) < HEALTH_TTL_MS) {
+    return { online: evoHealth.online, version: evoHealth.version }
+  }
+
+  try {
+    const res = await fetch('http://localhost:3100/', {
+      signal: AbortSignal.timeout(3000),
+    })
+    if (res.ok) {
+      const data = await res.json() as { version?: string; status?: number }
+      evoHealth = { online: true, checkedAt: now, version: data.version }
+      return { online: true, version: data.version }
+    }
+  } catch { /* offline */ }
+
+  evoHealth = { online: false, checkedAt: now }
+  return { online: false }
+}
+
+/** Healthcheck síncrono — usa último valor cached (sem fetch). Para UI rápida. */
+export function evoLastHealth(): { online: boolean; version?: string; checkedAt: number } | null {
+  return evoHealth
+}
+
 /** Verifica se número tem WhatsApp via Evolution API (:3100). Fallback da Camada 2. */
 export async function checkWhatsappBaileys(phone: string | null | undefined): Promise<BaileysResult | null> {
   const digits = normWaNumber(phone)
   if (!digits) return null
 
   if (baileysCache.has(digits)) return baileysCache.get(digits)!
+
+  // ── Healthcheck: pula se Evolution API offline ──
+  if (evoHealth && !evoHealth.online && (Date.now() - evoHealth.checkedAt) < HEALTH_TTL_MS) {
+    return null // sabidamente offline, não insiste
+  }
 
   try {
     const res = await fetch('http://localhost:3100/chat/whatsappNumbers/adsentice', {
@@ -138,7 +175,12 @@ export async function checkWhatsappBaileys(phone: string | null | undefined): Pr
       body: JSON.stringify({ numbers: [digits] }),
       signal: AbortSignal.timeout(5000),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      evoHealth = { online: false, checkedAt: Date.now() }
+      return null
+    }
+    // Evolution API respondeu → atualiza health
+    evoHealth = { online: true, checkedAt: Date.now() }
     const data = await res.json() as Array<{ jid?: string; exists: boolean; number: string }>
     const item = data?.[0]
     const result: BaileysResult = {
@@ -150,6 +192,7 @@ export async function checkWhatsappBaileys(phone: string | null | undefined): Pr
     baileysCache.set(digits, result)
     return result
   } catch {
+    evoHealth = { online: false, checkedAt: Date.now() }
     return null // Evolution API offline → Camada 2 decide sozinha
   }
 }

@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { execSync } from 'child_process'
+import { isEvolutionApiOnline } from '@/lib/wa-check'
 
 function redisGet(key: string): string | null {
   try {
@@ -75,6 +76,9 @@ export async function GET() {
       } catch { /* keep current */ }
     }
 
+    // Healthcheck Evolution API
+    const evoHealth = await isEvolutionApiOnline()
+
     return NextResponse.json({
       pending,
       lastRun: lastRun || null,
@@ -86,6 +90,7 @@ export async function GET() {
         totalBusiness,
         businessRate: totalVerified > 0 ? Math.round((totalBusiness / totalVerified) * 100) : 0,
       },
+      evoHealth,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
