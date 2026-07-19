@@ -189,14 +189,21 @@ export async function POST(request: Request) {
     const nextPage = page + 1
     const hasMore = remaining > 0
 
-    // ── Auto-reinvoca próximo lote (fire-and-forget) ──
+    // ── Auto-reinvoca próximo lote (fire-and-forget, com guard) ──
     if (hasMore && !body.phones) {
-      await new Promise(r => setTimeout(r, DELAY_PAGE_MS))
-      fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page: nextPage }),
-      }).catch(() => {})
+      // Verifica se fila não foi cancelada antes de continuar
+      const currentProgress = redisRaw('GET adsentice:wa-check:progress')
+      const cp = currentProgress ? JSON.parse(currentProgress) : null
+      if (cp?.status === 'running') {
+        await new Promise(r => setTimeout(r, DELAY_PAGE_MS))
+        fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page: nextPage }),
+        }).catch(() => {})
+      } else {
+        console.log('[wa-check] Fila cancelada — parando auto-chain')
+      }
     } else if (!hasMore) {
       progress.status = 'done'
       progress.completedAt = new Date().toISOString()
