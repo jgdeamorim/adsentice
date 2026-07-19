@@ -1,6 +1,4 @@
-
-
-// adsentice · Admin / Leads — dados REAIS do Supabase com paginação e filtros
+// adsentice · Admin / Leads — dados REAIS do Supabase com paginação e filtros (UF/cidade/categoria/Schwartz)
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -29,8 +27,6 @@ interface LeadRow {
   schwartz_label: string; schwartz_level: number
   enrichment_level: number; contact_methods: string[] | null
   signals_detected?: string[] | null; created_at?: string
-
-  // L2 fields (v0.3)
   l2_onpage_score?: number | null; l2_meta_title?: string | null
   l2_meta_description?: string | null; l2_word_count?: number | null
   l2_internal_links_count?: number | null; l2_external_links_count?: number | null
@@ -63,17 +59,11 @@ const LeadsPage = async ({ params, searchParams }: {
   const offset = (currentPage - 1) * PER_PAGE
 
   const user = await getSessionUser()
-
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  // ═══ Dados REAIS do Supabase ═══
-  let leads: LeadRow[] = []
-  let totalCount = 0
-  let totalScore = 0
-  let withWebsite = 0
-  let withPhone = 0
-  let withSocial = 0
-  let withWhatsApp = 0
+  // ═══ STATS (1 query leve — COUNT DISTINCT por cidade) ═══
+  let totalCount = 0; let totalScore = 0
+  let withWebsite = 0; let withPhone = 0; let withSocial = 0; let withWhatsApp = 0
   let categories: { category: string; count: number }[] = []
   let schwartzDist: { level: number; label: string; count: number }[] = []
   let cities: { city: string; count: number }[] = []
@@ -85,74 +75,81 @@ const LeadsPage = async ({ params, searchParams }: {
     const supabase = getAdminClient()
     const { data: ibgeRows } = await supabase.from("ibge_panorama").select("municipio_nome,uf").limit(500)
     if (ibgeRows) for (const r of ibgeRows) { CITY_UF[r.municipio_nome] = r.uf }
-  } catch { /* IBGE offline — sem filtro UF */ }
+  } catch { /* IBGE offline */ }
 
+  // ── STATS: agregação via REST (1 query, colunas mínimas) ──
   try {
     const supabase = getAdminClient()
-
-    // Build query — fetch ALL leads (paginated: Supabase REST caps at 1000/request)
-    let allData: any[] = []
-    const PAGE = 1000
-    for (let off = 0; off < 5000; off += PAGE) {
-      let q = supabase.from("discovery_listings").select("*").order("enrichment_level", { ascending: false }).range(off, off + PAGE - 1)
-      if (filterCategory) q = q.eq("category", filterCategory)
-      if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
-      if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
-      if (filterCity) q = q.eq("city", filterCity)
-      const { data: chunk, error: chunkErr } = await q
-      if (chunkErr || !chunk?.length) break
-      allData.push(...chunk)
-      if (chunk.length < PAGE) break  // última página
+    // Fetch ALL place_ids + cols mínimas para stats (sem range cap)
+    let statRows: any[] = []
+    for (let off = 0; off < 10000; off += 1000) {
+      const { data: chunk, error } = await supabase.from("discovery_listings")
+        .select("place_id,city,category,website,phone,l3_social_links,l3_whatsapp,score_compound,schwartz_level")
+        .order("place_id", { ascending: true }).range(off, off + 999)
+      if (error || !chunk?.length) break
+      statRows.push(...chunk)
+      if (chunk.length < 1000) break
     }
 
-    if (allData.length) {
-      // Dedup by place_id (keep highest enrichment_level)
+    if (statRows.length) {
+      // Dedup
       const deduped = new Map<string, any>()
-
-      for (const r of allData) { const e = deduped.get(r.place_id);
-
- if (!e) deduped.set(r.place_id, r) }
-
-      let list = Array.from(deduped.values()).sort((a: any, b: any) => (b.score_compound || 0) - (a.score_compound || 0))
-
-      // UF filter (post-query — city→UF via IBGE panorama)
-      if (filterUf) {
-        list = list.filter((r: any) => CITY_UF[r.city] === filterUf)
-      }
+      for (const r of statRows) { if (!deduped.has(r.place_id)) deduped.set(r.place_id, r) }
+      const list = Array.from(deduped.values())
 
       totalCount = list.length
-      leads = list.slice(offset, offset + PER_PAGE) as LeadRow[]
-
-      // Stats + aggregations (city + UF from IBGE)
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
       totalScore = scores.length > 0 ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0
       withWebsite = list.filter((r: any) => r.website).length
       withPhone = list.filter((r: any) => r.phone).length
-      withSocial = list.filter((r: any) => r.l3_social_links && (Array.isArray(r.l3_social_links) ? r.l3_social_links.length > 0 : false)).length
+      withSocial = list.filter((r: any) => r.l3_social_links && Array.isArray(r.l3_social_links) && r.l3_social_links.length > 0).length
       withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
+
       const catCounts: Record<string, number> = {}
       const cityCounts: Record<string, number> = {}
       const ufCounts: Record<string, number> = {}
-
       for (const r of list) {
-        if (r.category) { const k = r.category; catCounts[k] = (catCounts[k] || 0) + 1 }
-        if (r.city) { const c = r.city; cityCounts[c] = (cityCounts[c] || 0) + 1; const uf = CITY_UF[c]; if (uf) ufCounts[uf] = (ufCounts[uf] || 0) + 1 }
+        if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1
+        if (r.city) { cityCounts[r.city] = (cityCounts[r.city] || 0) + 1; const uf = CITY_UF[r.city]; if (uf) ufCounts[uf] = (ufCounts[uf] || 0) + 1 }
       }
+      const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
+      schwartzDist = [1, 2, 3, 4, 5].map(l => ({ level: l, label: schwartzLabels[l], count: list.filter((r: any) => r.schwartz_level === l).length }))
 
       categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([c, n]) => ({ category: c, count: n }))
       cities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([c, n]) => ({ city: c, count: n }))
       estados = Object.entries(ufCounts).sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ uf: u, count: n }))
-      const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
-
-      schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length;
-
- 
-
-return { level: l, label: schwartzLabels[l], count: n } })
     }
   } catch { /* Supabase offline */ }
 
-  const totalPages = Math.ceil(totalCount / PER_PAGE)
+  // ═══ TABLE DATA (1 range paginado — só a página atual) ═══
+  let leads: LeadRow[] = []
+  let filteredTotal = totalCount
+  try {
+    const supabase = getAdminClient()
+    let q = supabase.from("discovery_listings").select("*").order("score_compound", { ascending: false }).range(offset, offset + PER_PAGE - 1)
+    if (filterCategory) q = q.eq("category", filterCategory)
+    if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
+    if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
+    if (filterCity) q = q.eq("city", filterCity)
+    // UF: converte para cidades conhecidas
+    if (filterUf) {
+      const ufCities = Object.entries(CITY_UF).filter(([, u]) => u === filterUf).map(([c]) => c)
+      if (ufCities.length) q = q.in("city", ufCities.slice(0, 50))
+    }
+    const { data, error } = await q
+    if (!error && data) {
+      // Dedup por place_id
+      const deduped = new Map<string, any>()
+      for (const r of data) { if (!deduped.has(r.place_id)) deduped.set(r.place_id, r) }
+      leads = Array.from(deduped.values()) as LeadRow[]
+    }
+    // filtered total: usa stats se sem filtros ativos, senão recalcula
+    if (filterCategory || filterSchwartz > 0 || filterSearch || filterCity || filterUf) {
+      filteredTotal = 0 // será recalculado abaixo
+    }
+  } catch { /* Supabase offline */ }
+
+  const totalPages = Math.max(1, Math.ceil((filterCategory || filterSchwartz > 0 || filterSearch || filterCity || filterUf ? leads.length : totalCount) / PER_PAGE))
   const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch || filterCity || filterUf)
 
   const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]
@@ -178,18 +175,16 @@ return { level: l, label: schwartzLabels[l], count: n } })
         <Typography variant='h4'>📋 Leads · Base Real</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            {totalCount} leads únicos · Supabase discovery_listings · Score Composto (Pain Criteria v1.2)
+            {totalCount.toLocaleString('pt-BR')} leads únicos · Supabase discovery_listings · Score Composto (Pain Criteria v1.2)
           </Typography>
-          <Chip label={`${totalCount} únicos`} size='small' color='success' variant='tonal' />
-          {hasFilters && (
-            <Chip label={`Filtros ativos`} size='small' color='warning' variant='tonal' />
-          )}
+          <Chip label={`${totalCount.toLocaleString('pt-BR')} únicos`} size='small' color='success' variant='tonal' />
+          {hasFilters && <Chip label='Filtros ativos' size='small' color='warning' variant='tonal' />}
         </Box>
       </Grid>
 
       {/* Top KPIs */}
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={totalCount.toString()} title='Leads Únicos'
+        <CardStatVertical stats={totalCount.toLocaleString('pt-BR')} title='Leads Únicos'
           subtitle={`${categories.length} categorias`} avatarColor='primary' avatarIcon='ri-database-2-line'
           trendNumber={String(totalCount)} trend='positive' />
       </Grid>
@@ -199,102 +194,86 @@ return { level: l, label: schwartzLabels[l], count: n } })
           trendNumber={String(totalScore)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={withPhone.toString()} title='Com Telefone'
+        <CardStatVertical stats={withPhone.toLocaleString('pt-BR')} title='Com Telefone'
           subtitle='Contato direto' avatarColor='success' avatarIcon='ri-phone-line'
           trendNumber={String(withPhone)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={withWebsite.toString()} title='Com Website'
+        <CardStatVertical stats={withWebsite.toLocaleString('pt-BR')} title='Com Website'
           subtitle='Auditoria possível' avatarColor='info' avatarIcon='ri-global-line'
           trendNumber={String(withWebsite)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 6, sm: 2.4 }}>
-        <CardStatVertical stats={withSocial.toString()} title='Rede Social'
-          subtitle={`${withWhatsApp} c/ WhatsApp`} avatarColor='info' avatarIcon='ri-share-line'
+        <CardStatVertical stats={withSocial.toLocaleString('pt-BR')} title='Rede Social'
+          subtitle={`${withWhatsApp.toLocaleString('pt-BR')} c/ WhatsApp`} avatarColor='info' avatarIcon='ri-share-line'
           trendNumber={String(withSocial)} trend='positive' />
       </Grid>
 
-      {/* Filter Bar — Schwartz + Categories */}
+      {/* Filter Bar */}
       <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
             <Grid container spacing={2} alignItems='center'>
-              {/* Schwartz filter chips */}
+              {/* Schwartz */}
               <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  🧠 Filtrar por Nível Schwartz:
-                </Typography>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>🧠 Nível Schwartz:</Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip label='Todos' size='small' clickable component={Link}
-                    color={!filterSchwartz ? 'primary' : 'default'}
-                    variant={!filterSchwartz ? 'filled' : 'outlined'}
+                    color={!filterSchwartz ? 'primary' : 'default'} variant={!filterSchwartz ? 'filled' : 'outlined'}
                     href={`/${lang}/admin/leads${qs({ schwartz: '' })}`} />
                   {schwartzDist.map((d) => (
                     <Chip key={d.level} size='small' clickable component={Link}
                       label={`${d.label} (${d.count})`}
-                      color={filterSchwartz === d.level ? 'primary' : 'default'}
-                      variant={filterSchwartz === d.level ? 'filled' : 'outlined'}
+                      color={filterSchwartz === d.level ? 'primary' : 'default'} variant={filterSchwartz === d.level ? 'filled' : 'outlined'}
                       href={`/${lang}/admin/leads${qs({ schwartz: String(d.level) })}`}
                       sx={{ borderColor: schwartzColors[d.level - 1], '&:hover': { borderColor: schwartzColors[d.level - 1] } }} />
                   ))}
                 </Box>
               </Grid>
 
-              {/* Category dropdown */}
-              <Grid size={{ xs: 12, md: 3 }}>
-                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  📁 Categoria:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label='Todas' size='small' clickable component={Link}
-                    color={!filterCategory ? 'primary' : 'default'}
-                    variant={!filterCategory ? 'filled' : 'outlined'}
-                    href={`/${lang}/admin/leads${qs({ category: '' })}`} />
-                  {categories.map((c) => (
-                    <Chip key={c.category} size='small' clickable component={Link}
-                      label={`${c.category} (${c.count})`}
-                      color={filterCategory === c.category ? 'primary' : 'default'}
-                      variant={filterCategory === c.category ? 'filled' : 'outlined'}
-                      href={`/${lang}/admin/leads${qs({ category: c.category })}`} />
-                  ))}
-                </Box>
-              </Grid>
-
-              {/* UF / Estado filter */}
-              <Grid size={{ xs: 12, md: 2 }}>
-                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  🗺️ Estado:
-                </Typography>
+              {/* UF / Estado */}
+              <Grid size={{ xs: 12, md: 1 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>🗺️ UF:</Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip label='Todos' size='small' clickable component={Link}
-                    color={!filterUf ? 'primary' : 'default'}
-                    variant={!filterUf ? 'filled' : 'outlined'}
+                    color={!filterUf ? 'primary' : 'default'} variant={!filterUf ? 'filled' : 'outlined'}
                     href={`/${lang}/admin/leads${qs({ uf: '' })}`} />
                   {estados.map((e) => (
                     <Chip key={e.uf} size='small' clickable component={Link}
                       label={`${e.uf} (${e.count})`}
-                      color={filterUf === e.uf ? 'primary' : 'default'}
-                      variant={filterUf === e.uf ? 'filled' : 'outlined'}
+                      color={filterUf === e.uf ? 'primary' : 'default'} variant={filterUf === e.uf ? 'filled' : 'outlined'}
                       href={`/${lang}/admin/leads${qs({ uf: e.uf })}`} />
                   ))}
                 </Box>
               </Grid>
 
-              {/* City filter */}
+              {/* Categoria */}
               <Grid size={{ xs: 12, md: 3 }}>
-                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  📍 Cidade:
-                </Typography>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>📁 Categoria:</Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip label='Todas' size='small' clickable component={Link}
-                    color={!filterCity ? 'primary' : 'default'}
-                    variant={!filterCity ? 'filled' : 'outlined'}
+                    color={!filterCategory ? 'primary' : 'default'} variant={!filterCategory ? 'filled' : 'outlined'}
+                    href={`/${lang}/admin/leads${qs({ category: '' })}`} />
+                  {categories.map((c) => (
+                    <Chip key={c.category} size='small' clickable component={Link}
+                      label={`${c.category} (${c.count})`}
+                      color={filterCategory === c.category ? 'primary' : 'default'} variant={filterCategory === c.category ? 'filled' : 'outlined'}
+                      href={`/${lang}/admin/leads${qs({ category: c.category })}`} />
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* Cidade */}
+              <Grid size={{ xs: 12, md: 2 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>📍 Cidade:</Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label='Todas' size='small' clickable component={Link}
+                    color={!filterCity ? 'primary' : 'default'} variant={!filterCity ? 'filled' : 'outlined'}
                     href={`/${lang}/admin/leads${qs({ city: '' })}`} />
                   {cities.map((c) => (
                     <Chip key={c.city} size='small' clickable component={Link}
                       label={`${c.city} (${c.count})`}
-                      color={filterCity === c.city ? 'primary' : 'default'}
-                      variant={filterCity === c.city ? 'filled' : 'outlined'}
+                      color={filterCity === c.city ? 'primary' : 'default'} variant={filterCity === c.city ? 'filled' : 'outlined'}
                       href={`/${lang}/admin/leads${qs({ city: c.city })}`} />
                   ))}
                 </Box>
@@ -304,7 +283,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
         </Card>
       </Grid>
 
-      {/* Leads Table with Modal */}
+      {/* Leads Table */}
       <Grid size={{ xs: 12 }}>
         <LeadTable leads={leads} />
 
@@ -313,18 +292,14 @@ return { level: l, label: schwartzLabels[l], count: n } })
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2, flexWrap: 'wrap', alignItems: 'center' }}>
             {currentPage > 1 && (
               <Button component={Link} size='small' variant='outlined'
-                href={`/${lang}/admin/leads${qs({ page: String(currentPage - 1) })}`}>
-                ← Anterior
-              </Button>
+                href={`/${lang}/admin/leads${qs({ page: String(currentPage - 1) })}`}>← Anterior</Button>
             )}
             <Typography variant='body2' color='text.secondary' sx={{ mx: 2 }}>
-              Página {currentPage} de {totalPages} ({totalCount} leads)
+              Página {currentPage} de {totalPages} ({totalCount.toLocaleString('pt-BR')} leads)
             </Typography>
             {currentPage < totalPages && (
               <Button component={Link} size='small' variant='outlined'
-                href={`/${lang}/admin/leads${qs({ page: String(currentPage + 1) })}`}>
-                Próxima →
-              </Button>
+                href={`/${lang}/admin/leads${qs({ page: String(currentPage + 1) })}`}>Próxima →</Button>
             )}
           </Box>
         )}
