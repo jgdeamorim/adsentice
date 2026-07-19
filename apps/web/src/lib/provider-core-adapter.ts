@@ -150,7 +150,9 @@ return {
       city: (addrInfo.city as string) || null,
       district: (addrInfo.borough as string) || null,
       website: (item.url as string) || null,
-      phone: (item.phone as string) || null,  // fix v104: API retorna phone, adapter descartava
+      phone: (item.phone as string) || null,           // fix v104: API retorna, adapter descartava
+      total_photos: (item.total_photos as number) ?? null,  // fix v113: API retorna, adapter descartava
+      description: (item.description as string) || null,    // fix v113: API retorna, adapter descartava
     } as any
   })
 
