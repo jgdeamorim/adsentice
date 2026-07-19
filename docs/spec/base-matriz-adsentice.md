@@ -5,7 +5,7 @@ status: living
 type: spec
 version: "2.0.0"
 date: 2026-07-11
-updated: 2026-07-19T05:15:00-03:00
+updated: 2026-07-19T13:30:00-03:00
 owner: "Jeferson Galote de Amorim"
 deciders: [jgdeamorim]
 tags: [base-matriz, adsentice, mapa, navegavel, ecossistema]
