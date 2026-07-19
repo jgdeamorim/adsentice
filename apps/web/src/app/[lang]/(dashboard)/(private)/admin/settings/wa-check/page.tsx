@@ -291,7 +291,7 @@ export default function WaCheckPage() {
               <Button size='small' onClick={handleTrigger} sx={{ ml: 'auto' }}>▶️ Retomar Agora</Button>
             </Box>
             <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
-              Modo auto: 50 phones por vez · 20-60min entre lotes · padrão humano anti-bloqueio
+Modo auto: 250-500 phones por vez · 20-60min entre lotes · padrão humano anti-bloqueio
             </Typography>
           </Alert>
         </Grid>

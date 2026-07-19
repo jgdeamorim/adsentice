@@ -751,11 +751,11 @@ export async function POST(request: NextRequest) {
           // Salva lista completa na fila Redis (LPUSH + dedup)
           const queueKey = "adsentice:wa-check:queue"
           execSync(`redis-cli -p 6396 --no-auth-warning LPUSH ${queueKey} ${pendingPhones.slice(0, 500).map((p: string) => `'${p.replace(/'/g, "'\\''")}'`).join(" ")}`, { encoding: "utf-8", timeout: 3000 })
-          // Trigger imediato: só 50 phones (resto fica na fila para o scheduler)
+          // Trigger imediato: 500 phones (resto fica na fila para o scheduler)
           fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "auto", maxBatch: 50 }),
+            body: JSON.stringify({ mode: "auto", maxBatch: 500 }),
           }).catch(() => {})
         }
       }

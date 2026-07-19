@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server'
 import { execSync } from 'child_process'
 import { checkWhatsapp, checkWhatsappBaileys, type WaCheckResult } from '@/lib/wa-check'
 
-const AUTO_BATCH_SIZE = 50     // phones por execução automática
+const AUTO_BATCH_SIZE = 500    // phones por execução automática (250-500 a cada 20-60min)
 const MIN_RESUME_MIN = 20      // delay mínimo entre lotes (minutos)
 const MAX_RESUME_MIN = 60      // delay máximo entre lotes (minutos)
 const PAUSE_START_HOUR = 23.5  // 23:30 BRT
