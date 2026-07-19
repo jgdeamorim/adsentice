@@ -122,10 +122,10 @@ const LeadsPage = async ({ params, searchParams }: {
       withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
 
       // v132: wa-check breakdown
-      const withBusinessWa = list.filter((r: any) => r.wa_is_business === true).length
-      const withWhatsAppPersonal = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === true && !r.wa_is_business).length
-      const withFixoSemWa = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === false && !r.wa_is_business).length
-      const withPhonePendente = list.filter((r: any) => r.phone && r.wa_checked !== true).length
+      withBusinessWa = list.filter((r: any) => r.wa_is_business === true).length
+      withWhatsAppPersonal = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === true && !r.wa_is_business).length
+      withFixoSemWa = list.filter((r: any) => r.wa_checked === true && r.wa_has_whatsapp === false && !r.wa_is_business).length
+      withPhonePendente = list.filter((r: any) => r.phone && r.wa_checked !== true).length
 
       const catCounts: Record<string, number> = {}
       const cityCounts: Record<string, number> = {}
