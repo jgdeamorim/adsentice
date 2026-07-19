@@ -50,13 +50,14 @@ const PER_PAGE = 30
 
 const LeadsPage = async ({ params, searchParams }: {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ category?: string; schwartz?: string; page?: string; search?: string }>
+  searchParams: Promise<{ category?: string; schwartz?: string; page?: string; search?: string; city?: string }>
 }) => {
   const { lang } = await params
   const sp = await searchParams
   const filterCategory = sp.category || ''
   const filterSchwartz = parseInt(sp.schwartz || '0') || 0
   const filterSearch = sp.search || ''
+  const filterCity = sp.city || ''
   const currentPage = Math.max(1, parseInt(sp.page || '1') || 1)
   const offset = (currentPage - 1) * PER_PAGE
 
@@ -74,6 +75,7 @@ const LeadsPage = async ({ params, searchParams }: {
   let withWhatsApp = 0
   let categories: { category: string; count: number }[] = []
   let schwartzDist: { level: number; label: string; count: number }[] = []
+  let cities: { city: string; count: number }[] = []
 
   try {
     const supabase = getAdminClient()
@@ -84,6 +86,7 @@ const LeadsPage = async ({ params, searchParams }: {
     if (filterCategory) q = q.eq("category", filterCategory)
     if (filterSchwartz > 0) q = q.eq("schwartz_level", filterSchwartz)
     if (filterSearch) q = q.ilike("title", `%${filterSearch}%`)
+    if (filterCity) q = q.eq("city", filterCity)
 
     const { data, error } = await q
 
@@ -109,12 +112,15 @@ const LeadsPage = async ({ params, searchParams }: {
       withSocial = list.filter((r: any) => r.l3_social_links && (Array.isArray(r.l3_social_links) ? r.l3_social_links.length > 0 : false)).length
       withWhatsApp = list.filter((r: any) => r.l3_whatsapp).length
       const catCounts: Record<string, number> = {}
+      const cityCounts: Record<string, number> = {}
 
-      for (const r of list) { if (r.category) { const k = r.category;
+      for (const r of list) {
+        if (r.category) { const k = r.category; catCounts[k] = (catCounts[k] || 0) + 1 }
+        if (r.city) { const c = r.city; cityCounts[c] = (cityCounts[c] || 0) + 1 }
+      }
 
- catCounts[k] = (catCounts[k] || 0) + 1 } }
-
-      categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => ({ category: c, count: n }))
+      categories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([c, n]) => ({ category: c, count: n }))
+      cities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([c, n]) => ({ city: c, count: n }))
       const schwartzLabels = ["", "Unaware", "Problem Aware", "Solution Aware", "Product Aware", "Most Aware"]
 
       schwartzDist = [1, 2, 3, 4, 5].map(l => { const n = list.filter((r: any) => r.schwartz_level === l).length;
@@ -126,9 +132,22 @@ return { level: l, label: schwartzLabels[l], count: n } })
   } catch { /* Supabase offline */ }
 
   const totalPages = Math.ceil(totalCount / PER_PAGE)
-  const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch)
+  const hasFilters = !!(filterCategory || filterSchwartz > 0 || filterSearch || filterCity)
 
   const schwartzColors = ["#9e9e9e", "#42a5f5", "#ffa726", "#ef5350", "#d32f2f"]
+
+  // ── Helper: build query string preserving all filters ──
+  const qs = (overrides: Record<string, string>) => {
+    const p = new URLSearchParams()
+    const f: Record<string, string> = { page: '', ...overrides }
+    if (filterCategory) f.category = filterCategory
+    if (filterSchwartz) f.schwartz = String(filterSchwartz)
+    if (filterCity) f.city = filterCity
+    if (filterSearch) f.search = filterSearch
+    for (const [k, v] of Object.entries(f)) { if (v) p.set(k, v) }
+    const s = p.toString()
+    return s ? `?${s}` : ''
+  }
 
   return (
     <Grid container spacing={6}>
@@ -187,34 +206,54 @@ return { level: l, label: schwartzLabels[l], count: n } })
                   <Chip label='Todos' size='small' clickable component={Link}
                     color={!filterSchwartz ? 'primary' : 'default'}
                     variant={!filterSchwartz ? 'filled' : 'outlined'}
-                    href={`/${lang}/admin/leads${filterCategory ? `?category=${filterCategory}` : ''}${filterSearch ? `&search=${filterSearch}` : ''}`} />
+                    href={`/${lang}/admin/leads${qs({ schwartz: '' })}`} />
                   {schwartzDist.map((d) => (
                     <Chip key={d.level} size='small' clickable component={Link}
                       label={`${d.label} (${d.count})`}
                       color={filterSchwartz === d.level ? 'primary' : 'default'}
                       variant={filterSchwartz === d.level ? 'filled' : 'outlined'}
-                      href={`/${lang}/admin/leads?schwartz=${d.level}${filterCategory ? `&category=${filterCategory}` : ''}${filterSearch ? `&search=${filterSearch}` : ''}`}
+                      href={`/${lang}/admin/leads${qs({ schwartz: String(d.level) })}`}
                       sx={{ borderColor: schwartzColors[d.level - 1], '&:hover': { borderColor: schwartzColors[d.level - 1] } }} />
                   ))}
                 </Box>
               </Grid>
 
               {/* Category dropdown */}
-              <Grid size={{ xs: 12, md: 5 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
-                  📁 Filtrar por Categoria:
+                  📁 Categoria:
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip label='Todas' size='small' clickable component={Link}
                     color={!filterCategory ? 'primary' : 'default'}
                     variant={!filterCategory ? 'filled' : 'outlined'}
-                    href={`/${lang}/admin/leads${filterSchwartz ? `?schwartz=${filterSchwartz}` : ''}`} />
+                    href={`/${lang}/admin/leads${qs({ category: '' })}`} />
                   {categories.map((c) => (
                     <Chip key={c.category} size='small' clickable component={Link}
                       label={`${c.category} (${c.count})`}
                       color={filterCategory === c.category ? 'primary' : 'default'}
                       variant={filterCategory === c.category ? 'filled' : 'outlined'}
-                      href={`/${lang}/admin/leads?category=${c.category}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`} />
+                      href={`/${lang}/admin/leads${qs({ category: c.category })}`} />
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* City filter */}
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Typography variant='caption' fontWeight={600} gutterBottom component='div'>
+                  📍 Cidade / Região:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label='Todas' size='small' clickable component={Link}
+                    color={!filterCity ? 'primary' : 'default'}
+                    variant={!filterCity ? 'filled' : 'outlined'}
+                    href={`/${lang}/admin/leads${qs({ city: '' })}`} />
+                  {cities.map((c) => (
+                    <Chip key={c.city} size='small' clickable component={Link}
+                      label={`${c.city} (${c.count})`}
+                      color={filterCity === c.city ? 'primary' : 'default'}
+                      variant={filterCity === c.city ? 'filled' : 'outlined'}
+                      href={`/${lang}/admin/leads${qs({ city: c.city })}`} />
                   ))}
                 </Box>
               </Grid>
@@ -232,7 +271,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2, flexWrap: 'wrap', alignItems: 'center' }}>
             {currentPage > 1 && (
               <Button component={Link} size='small' variant='outlined'
-                href={`/${lang}/admin/leads?page=${currentPage - 1}${filterCategory ? `&category=${filterCategory}` : ''}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`}>
+                href={`/${lang}/admin/leads${qs({ page: String(currentPage - 1) })}`}>
                 ← Anterior
               </Button>
             )}
@@ -241,7 +280,7 @@ return { level: l, label: schwartzLabels[l], count: n } })
             </Typography>
             {currentPage < totalPages && (
               <Button component={Link} size='small' variant='outlined'
-                href={`/${lang}/admin/leads?page=${currentPage + 1}${filterCategory ? `&category=${filterCategory}` : ''}${filterSchwartz ? `&schwartz=${filterSchwartz}` : ''}`}>
+                href={`/${lang}/admin/leads${qs({ page: String(currentPage + 1) })}`}>
                 Próxima →
               </Button>
             )}
