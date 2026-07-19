@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",
+    "fast-xml-parser": "^5.10.1",
     "leaflet": "^1.9.4",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "turndown": "^7.2.4"
   }
 }
