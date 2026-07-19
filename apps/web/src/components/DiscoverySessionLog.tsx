@@ -107,8 +107,9 @@ export default function DiscoverySessionLog({
     }
 
     // Build preflight municipality map — match by nearest RM municipality
-    if (latestPf) {
-      for (const m of latestPf.municipalities) {
+    // Build preflight municipality map — iterate ALL batches (não só latest — fix BH/Betim missing)
+    for (const pf of preflights) {
+      for (const m of pf.municipalities) {
         let bestMatch: string | null = null; let bestD = Infinity
         for (const rm of rmMunicipios) {
           if (!rm.lat || !rm.lng) continue
@@ -315,7 +316,9 @@ export default function DiscoverySessionLog({
                       <Typography variant='caption'>{pf.catLabels?.slice(0, 2).join(', ')} · {pf.city}</Typography>
                       <Typography variant='caption' fontWeight={600}>{pf.totalLeads.toLocaleString('pt-BR')} leads</Typography>
                       <Typography variant='caption' color='text.secondary'>${pf.totalCost.toFixed(4)}</Typography>
-                      <Typography variant='caption' color='text.secondary'>{fmtRelative(pf.newestAt)}</Typography>
+                      <Tooltip title={`batch: ${pf.batchId?.slice(0,16)}... · ${pf.munCount} municípios · ${pf.municipalities?.[0]?.trackerId?.slice(0,16) || '?'}`}>
+                        <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace', fontSize: '0.5rem' }}>{fmtRelative(pf.newestAt)}</Typography>
+                      </Tooltip>
                     </Box>
                   ))}
                 </Box>
