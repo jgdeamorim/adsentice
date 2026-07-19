@@ -383,12 +383,18 @@ const DiscoveryPage = () => {
   const preflightCost = batchEffective > 0 ? batchEffective * 0.01380 : 0
   const preflightReady = batchMode !== 'single' && selected.length > 0 && rmMunicipios.length > 0
 
-  // Real cost from preflight data (if available) vs heuristic estimate
-  const preflightTotalPages = Object.values(preflightData).reduce((sum, d) => sum + Math.ceil(d.totalCount / viewLimit), 0)
+  // Real cost from preflight data — usa totalProportional quando cats diferem
+  const preflightTotalPages = Object.values(preflightData).reduce((sum, d: any) => sum + Math.ceil((d.totalProportional || d.totalCount) / viewLimit), 0)
   const preflightL0Cost = preflightTotalPages * l0PageCost
   const hasPreflight = Object.keys(preflightData).length > 0
   const preflightTotalCost = preflightL0Cost + l1Cost + (hasPreflight ? 0 : preflightCost) + enrichExtraCost
-  const preflightMissing = selectedLayers.l0 && !hasPreflight && preflightChecked  // v096: só bloqueia APÓS confirmar que não existe
+  const preflightMissing = selectedLayers.l0 && !hasPreflight && preflightChecked
+
+  // Nota proporcional de categorias para o popup (v102 — pre-flight de 10 cats vs seleção de 1)
+  const pfDetailAdj = hasPreflight ? (() => {
+    const d: any = Object.values(preflightData)[0] || {}
+    return d.pfCats && d.pfCats !== d.selCats ? ` (proporcional: ${d.selCats}/${d.pfCats} categorias)` : ''
+  })() : ''  // v096: só bloqueia APÓS confirmar que não existe
 
   // ── CARREGAR PRE-FLIGHT (v101): lê histórico da API sessions — sem race condition ──
   useEffect(() => {
@@ -417,7 +423,11 @@ const DiscoveryPage = () => {
                 if (c && pf.total_count) {
                   // Mantém o pre-flight com MAIOR total_count por cidade (merge de ondas)
                   if (!pfMap[c] || pf.total_count > (pfMap[c].totalCount || 0)) {
-                    pfMap[c] = { totalCount: pf.total_count, cost: pf.cost_usd || 0,
+                    const pfCats = (pf.categories || (pf.search_metadata?.categories) || []).length || 10
+                    const selCats = selected.length
+                    const totalProportional = pfCats > 0 ? Math.round(pf.total_count * (selCats / pfCats)) : pf.total_count
+                    pfMap[c] = { totalCount: pf.total_count, totalProportional, pfCats, selCats,
+                      cost: pf.cost_usd || 0,
                       websitePct: pf.websitePct ?? pf.search_metadata?.website_pct ?? null,
                       claimedPct: pf.claimedPct ?? pf.search_metadata?.claimed_pct ?? null,
                       avgRating: pf.avgRating ?? pf.search_metadata?.avg_rating ?? null }
@@ -1541,7 +1551,7 @@ return (
                 detail: !selectedLayers.l0
                   ? 'busca leads JÁ no Supabase (categoria+cidade, dedup place_id) — $0 de search'
                   : hasPreflight
-                    ? `${preflightTotalPages} págs reais × $${l0PageCost} (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads`
+                    ? `${preflightTotalPages} págs reais × $${l0PageCost} (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads${pfDetailAdj}`
                     : `$${l0PageCost}/pág × ${batchEffective} municípios (limit=${viewLimit}) · ~$${(l0PageCost / viewLimit * 100).toFixed(2)}/100 leads · 🔄 auto-paginação`,
                 always: true, free: !selectedLayers.l0 },
               { label: 'L1 · GMB Profile', cost: l1Cost, detail: `1 POST batch · $0.0054 flat rate (API confirmado)${!selectedLayers.l0 ? ' · exige L0' : ''}`, optional: true, selected: selectedLayers.l1 && selectedLayers.l0 },

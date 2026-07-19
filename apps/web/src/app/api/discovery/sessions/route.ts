@@ -97,9 +97,8 @@ export async function GET(request: Request) {
           if (!targetCats) return true
           const cats: string[] = s.categories || []
           const overlap = targetCats.filter((tc: string) => cats.includes(tc)).length
-          // Pre-flight matcha se pelo menos 80% das cats selecionadas estão no pre-flight
-          // E o pre-flight não tem mais que 3 cats extras (senão total_count superestima)
-          return overlap >= targetCats.length * 0.5 && cats.length <= targetCats.length + 4
+          // Match se pelo menos 1 categoria em comum (≥50% das selecionadas OU 100% se 2 ou menos)
+          return overlap >= Math.max(1, Math.ceil(targetCats.length * 0.3))
         })
         .slice(0, 60)  // 34 municípios × até 2 ondas = ~68 pre-flights máximo
         .map((s: any) => {
