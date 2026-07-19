@@ -260,6 +260,16 @@ const SettingsPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       ],
     },
     {
+      name: 'Wa-Check · WhatsApp Verification', icon: 'ri-whatsapp-line', color: 'success' as const,
+      detail: 'Verificador de WhatsApp Business via wa.me público. Confirma se o número tem conta real (og:title) e se é Business Account. 1.370 phones no banco aguardando verificação. Acesse o gerenciador em Settings > Wa-Check.',
+      metrics: [
+        { label: 'Phones no banco', value: '1.370', chip: 'L1+' },
+        { label: 'Custo', value: '$0', chip: 'wa.me público' },
+        { label: 'Cache', value: 'Memória', chip: 'server-side' },
+        { label: 'Timeout', value: '5s', chip: 'por chamada' },
+      ],
+    },
+    {
       name: 'DAG Skill (/dag)', icon: 'ri-mind-map', color: 'info' as const,
       detail: 'KG-first grounded recall. 5 passos: KG semântico → git log → filesystem → síntese → persist. Inspirado no c1·Recuperador do EVO-API.',
       metrics: [

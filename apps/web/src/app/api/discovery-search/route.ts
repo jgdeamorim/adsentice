@@ -723,6 +723,26 @@ export async function POST(request: NextRequest) {
       costUsd: searchCost, totalCount: result.total_count,
     })
 
+    // ── Wa-Check Alert (v122): notifica novos phones para verificação ──
+    const newPhones = result.listings.filter((l: any) => l.phone).length
+    if (newPhones > 0) {
+      try {
+        const pendingKey = "adsentice:wa-check:pending"
+        const { execSync } = await import("child_process")
+        const existingRaw = execSync(`redis-cli -p 6396 --no-auth-warning GET ${pendingKey}`, { encoding: "utf-8", timeout: 2000 }).trim()
+        const existing = existingRaw ? JSON.parse(existingRaw) : null
+        const pending = JSON.stringify({
+          count: (existing?.count || 0) + newPhones,
+          city: bodyCity || "desconhecida",
+          category: (categories || [])[0] || "desconhecida",
+          categories: (categories || []).join(","),
+          since: existing?.since || new Date().toISOString(),
+          updated: new Date().toISOString(),
+        })
+        execSync(`redis-cli -p 6396 --no-auth-warning SETEX ${pendingKey} 86400 '${pending.replace(/'/g, "'\\''")}'`, { encoding: "utf-8", timeout: 2000 })
+      } catch { /* fail-soft: Redis offline não bloqueia discovery */ }
+    }
+
     // ═══ L0 SCORING (11-field search results) ═══
     let scores: ScoreData[] = scoreLeads(result.listings)
     let listings = result.listings

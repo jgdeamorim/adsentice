@@ -135,6 +135,10 @@ const VerticalMenu = ({ dictionary, scrollMenu, role }: Props) => {
               <i className='ri-settings-3-line' style={{ marginRight: 8 }} />
               Settings
             </MenuItem>
+            <MenuItem href={`/${locale}/admin/settings/wa-check`}>
+              <i className='ri-whatsapp-line' style={{ marginRight: 8 }} />
+              Wa-Check
+            </MenuItem>
             <MenuItem href={`/${locale}/dashboards/analytics`}>
               <i className='ri-bar-chart-2-line' style={{ marginRight: 8 }} />
               Analytics
