@@ -742,16 +742,20 @@ export async function POST(request: NextRequest) {
         execSync(`redis-cli -p 6396 --no-auth-warning SETEX ${pendingKey} 86400 '${pending.replace(/'/g, "'\\''")}'`, { encoding: "utf-8", timeout: 2000 })
       } catch { /* fail-soft */ }
 
-        // ── v128: Dispara wa-check automático (fire-and-forget) ──
+        // ── v131: Enfileira phones no Redis + dispara lote de 50 ──
         const pendingPhones = result.listings
           .filter((l: any) => l.phone)
           .map((l: any) => l.phone)
           .filter((p: string, i: number, arr: string[]) => arr.indexOf(p) === i)
         if (pendingPhones.length > 0) {
+          // Salva lista completa na fila Redis (LPUSH + dedup)
+          const queueKey = "adsentice:wa-check:queue"
+          execSync(`redis-cli -p 6396 --no-auth-warning LPUSH ${queueKey} ${pendingPhones.slice(0, 500).map((p: string) => `'${p.replace(/'/g, "'\\''")}'`).join(" ")}`, { encoding: "utf-8", timeout: 3000 })
+          // Trigger imediato: só 50 phones (resto fica na fila para o scheduler)
           fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/wa-check/trigger`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phones: pendingPhones.slice(0, 200), city: bodyCity, category: (categories || [])[0] }),
+            body: JSON.stringify({ mode: "auto", maxBatch: 50 }),
           }).catch(() => {})
         }
       }

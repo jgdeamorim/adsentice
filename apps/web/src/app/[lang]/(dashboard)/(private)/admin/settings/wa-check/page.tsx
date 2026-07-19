@@ -277,6 +277,26 @@ export default function WaCheckPage() {
         </Grid>
       )}
 
+      {/* ═══ SCHEDULER STATUS (v131) ═══ */}
+      {status?.progress && status.progress.status !== 'idle' && !running && (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='info' variant='outlined'>
+            <Typography variant='body2' fontWeight={600} gutterBottom>
+              ⏰ Fila Agendada · {status.progress.status === 'queue-empty' ? 'Aguardando novos phones' : status.progress.status === 'running' ? 'Em execução' : status.progress.status}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`${status.progress.queueLen || 0} na fila`} size='small' color='info' variant='tonal' />
+              <Chip label={`BRT: ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`} size='small' variant='outlined' />
+              <Chip label='Pausa 23:30-06:00 BRT' size='small' color='warning' variant='outlined' />
+              <Button size='small' onClick={handleTrigger} sx={{ ml: 'auto' }}>▶️ Retomar Agora</Button>
+            </Box>
+            <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+              Modo auto: 50 phones por vez · 20-60min entre lotes · padrão humano anti-bloqueio
+            </Typography>
+          </Alert>
+        </Grid>
+      )}
+
       {/* ═══ PENDING ALERT ═══ */}
       {status?.pending && status.pending.count > 0 && (
         <Grid size={{ xs: 12 }}>
