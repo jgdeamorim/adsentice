@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { execSync } from 'child_process'
-import { checkWhatsapp, type WaCheckResult } from '@/lib/wa-check'
+import { checkWhatsapp, checkWhatsappBaileys, type WaCheckResult } from '@/lib/wa-check'
 
 function redisGet(key: string): string | null {
   try {
@@ -72,32 +72,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nenhum phone para verificar. Execute um discovery primeiro ou informe phones manualmente.' }, { status: 400 })
     }
 
-    // Executa em lotes de 15 (wa.me rate limit amigável)
+    // ── Pipeline 3 camadas (ADR-0041 + ADR-0042) ──
+    // Camada 1: detectWA (formato) → filtra fixos
+    // Camada 2: checkWhatsapp (wa.me) → detecta 💼 Business
+    // Camada 3: checkWhatsappBaileys (Evolution API :3100) → 📱 WhatsApp pessoal
     const unique = [...new Set(phones)]
-    const results: Record<string, WaCheckResult> = {}
+    const results: Record<string, WaCheckResult & { baileysExists?: boolean }> = {}
     let business = 0, personal = 0, notFound = 0, errors = 0
 
     for (let i = 0; i < unique.length; i += 15) {
       const batch = unique.slice(i, i + 15)
-      const batchResults = await Promise.all(
-        batch.map(async (phone) => {
+
+      // ── Lote Camada 2 (wa.me público, paralelo) ──
+      const l2Results = await Promise.all(
+        batch.map(async (phone): Promise<{ phone: string; result: WaCheckResult }> => {
           try {
             const r = await checkWhatsapp(phone)
-            return [phone, r] as const
+            return { phone, result: r }
           } catch {
-            return [phone, { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }] as const
+            return { phone, result: { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false } }
           }
         })
       )
-      for (const [phone, r] of batchResults) {
-        results[phone] = r
-        if (!r.checked) errors++
-        else if (r.isBusiness) business++
-        else if (r.hasWhatsapp) personal++
-        else notFound++
+
+      // ── Camada 3 (Evolution API) para quem NÃO é Business ──
+      const needL3 = l2Results.filter(({ result }) => result.checked && !result.isBusiness && !result.hasWhatsapp)
+      let l3Map = new Map<string, boolean>()
+      if (needL3.length > 0) {
+        const l3Phones = needL3.map(({ phone }) => phone)
+        const l3Batch = await Promise.all(
+          l3Phones.map(async (phone) => {
+            const r = await checkWhatsappBaileys(phone)
+            return { phone, existe: r?.existe ?? false }
+          })
+        )
+        for (const { phone, existe } of l3Batch) {
+          l3Map.set(phone, existe)
+        }
+      }
+
+      // ── Classifica ──
+      for (const { phone, result } of l2Results) {
+        if (!result.checked) { errors++; results[phone] = result; continue }
+        if (result.isBusiness) {
+          business++
+          results[phone] = result
+        } else if (result.hasWhatsapp) {
+          personal++
+          results[phone] = result
+        } else {
+          // Camada 2 diz "Share on WhatsApp" → Camada 3 decide
+          const existe = l3Map.get(phone)
+          if (existe === true) {
+            personal++
+            results[phone] = { hasWhatsapp: true, displayName: null, isBusiness: false, checked: true, baileysExists: true }
+          } else if (existe === false) {
+            notFound++
+            results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: true, baileysExists: false }
+          } else {
+            // Evolution API offline → classifica como "sem confirmação"
+            errors++
+            results[phone] = { hasWhatsapp: false, displayName: null, isBusiness: false, checked: false }
+          }
+        }
       }
     }
 
+    const baileysConfirmed = Object.values(results).filter(r => (r as any).baileysExists === true).length
+    const baileysNotFound = Object.values(results).filter(r => (r as any).baileysExists === false).length
     const total = business + personal + notFound + errors
     const latency = Date.now() - t0
 
@@ -106,9 +148,11 @@ export async function POST(request: Request) {
       ts: new Date().toISOString(),
       total,
       business,
-      personal: personal - errors, // ajusta
+      personal: personal - errors,
       notFound,
       errors,
+      baileysConfirmed,
+      baileysNotFound,
       latencyMs: latency,
       sampleBusiness: Object.entries(results).filter(([, r]) => r.isBusiness && r.displayName).slice(0, 5).map(([p, r]) => ({ phone: p, name: r.displayName })),
     }
@@ -154,7 +198,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       entry,
-      stats: { total, business, personal, notFound, errors, businessRate: total > 0 ? Math.round((business / total) * 100) : 0 },
+      stats: { total, business, personal, notFound, errors, baileysConfirmed, baileysNotFound, businessRate: total > 0 ? Math.round((business / total) * 100) : 0 },
       sampleBusiness: entry.sampleBusiness,
     })
   } catch (e: any) {

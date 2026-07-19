@@ -112,3 +112,44 @@ function concatU8(chunks: Uint8Array[]): Uint8Array {
   }
   return result
 }
+
+// ── Camada 3 · Evolution API (sessão autenticada) ──
+
+export interface BaileysResult {
+  existe: boolean
+  jid?: string
+  number: string
+  verifiedAt: string
+}
+
+const baileysCache = new Map<string, BaileysResult>()
+
+/** Verifica se número tem WhatsApp via Evolution API (:3100). Fallback da Camada 2. */
+export async function checkWhatsappBaileys(phone: string | null | undefined): Promise<BaileysResult | null> {
+  const digits = normWaNumber(phone)
+  if (!digits) return null
+
+  if (baileysCache.has(digits)) return baileysCache.get(digits)!
+
+  try {
+    const res = await fetch('http://localhost:3100/chat/whatsappNumbers/adsentice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: 'adsentice-wa-check-2026' },
+      body: JSON.stringify({ numbers: [digits] }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as Array<{ jid?: string; exists: boolean; number: string }>
+    const item = data?.[0]
+    const result: BaileysResult = {
+      existe: item?.exists ?? false,
+      jid: item?.jid,
+      number: digits,
+      verifiedAt: new Date().toISOString(),
+    }
+    baileysCache.set(digits, result)
+    return result
+  } catch {
+    return null // Evolution API offline → Camada 2 decide sozinha
+  }
+}
