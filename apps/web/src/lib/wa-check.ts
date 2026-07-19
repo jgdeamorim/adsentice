@@ -59,7 +59,7 @@ export async function checkWhatsapp(phone: string | null | undefined): Promise<W
     let total = 0
     const decoder = new TextDecoder()
     while (total < 8192) {
-      const { done, value } = await reader.read({})
+      const { done, value } = await reader.read()
       if (done) break
       chunks.push(value!)
       total += value!.length
