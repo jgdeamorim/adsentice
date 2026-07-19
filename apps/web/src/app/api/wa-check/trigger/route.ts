@@ -125,6 +125,16 @@ export async function GET() {
   const progressRaw = redisRaw('GET adsentice:wa-check:progress')
   const progress = progressRaw ? JSON.parse(progressRaw) : { total: 0, processed: 0, status: 'idle' }
   const queueLen = parseInt(redisRaw('LLEN adsentice:wa-check:queue') || '0')
+  // Recalcula total real do banco
+  try {
+    const countRes = await fetch(
+      `${SUPA_URL}/rest/v1/discovery_listings?select=place_id&phone=not.is.null&wa_checked=not.is.true&limit=1`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, ...{ Prefer: 'count=exact' } as any }, signal: AbortSignal.timeout(3000) },
+    )
+    const range = countRes.headers.get('content-range')
+    const pending = range ? parseInt(range.split('/')[1]) : 0
+    progress.total = pending + queueLen + (progress.processed || 0)
+  } catch { /* keep current */ }
   return NextResponse.json({ ...progress, queueLen, brtHour: brtHour(), isPause: isPauseWindow() })
 }
 
@@ -205,11 +215,22 @@ export async function POST(request: Request) {
     redisSet('adsentice:wa-check:history', JSON.stringify(history.slice(0, 50)), 86400 * 30)
     redisSet('adsentice:wa-check:last_run', new Date().toISOString(), 86400 * 30)
 
-    // ── Progresso ──
+    // ── Progresso (sempre recalcula total real do banco) ──
     const progressRaw = redisRaw('GET adsentice:wa-check:progress')
     const progress = progressRaw ? JSON.parse(progressRaw) : { total: 0, processed: 0, status: 'running' }
     progress.processed = (progress.processed || 0) + total
-    progress.total = progress.total || (progress.processed + parseInt(redisRaw('LLEN adsentice:wa-check:queue') || '0'))
+    // Busca total REAL do Supabase + Redis queue
+    try {
+      const countRes = await fetch(
+        `${SUPA_URL}/rest/v1/discovery_listings?select=place_id&phone=not.is.null&wa_checked=not.is.true&limit=1`,
+        { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, ...{ Prefer: 'count=exact' } as any }, signal: AbortSignal.timeout(3000) },
+      )
+      const range = countRes.headers.get('content-range')
+      const supabasePending = range ? parseInt(range.split('/')[1]) : 0
+      const queueLen = parseInt(redisRaw('LLEN adsentice:wa-check:queue') || '0')
+      progress.total = supabasePending + queueLen + (progress.processed || 0)
+      progress.status = supabasePending > 0 || queueLen > 0 ? 'running' : 'done'
+    } catch { /* keep old total */ }
     redisSet('adsentice:wa-check:progress', JSON.stringify(progress), 3600)
     redisSet('adsentice:wa-check:paused', '', 1) // limpa flag de pausa
 

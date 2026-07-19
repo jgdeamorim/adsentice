@@ -51,9 +51,29 @@ export async function GET() {
     const totalVerified = history.reduce((s: number, h: any) => s + (h.total || 0), 0)
     const totalBusiness = history.reduce((s: number, h: any) => s + (h.business || 0), 0)
 
-    // Progresso da fila (v130)
+    // Progresso da fila (v130) — recalcula total real do banco
     const progressRaw = redisGet('adsentice:wa-check:progress')
-    const progress = progressRaw ? JSON.parse(progressRaw) : null
+    let progress: any = progressRaw ? JSON.parse(progressRaw) : null
+    if (progress) {
+      try {
+        const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+        const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+        const res = await fetch(
+          `${supaUrl}/rest/v1/discovery_listings?select=place_id&phone=not.is.null&wa_checked=not.is.true&limit=1`,
+          { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` }, signal: AbortSignal.timeout(3000) },
+        )
+        if (res.ok) {
+          const range = res.headers.get('content-range')
+          const supabasePending = range ? parseInt(range.split('/')[1]) : 0
+          const queueLen = parseInt(redisGet('adsentice:wa-check:queue') || '0')
+          progress.total = supabasePending + queueLen + (progress.processed || 0)
+          progress.queueLen = queueLen
+          if (supabasePending === 0 && queueLen === 0 && progress.processed > 0) {
+            progress.status = 'done'
+          }
+        }
+      } catch { /* keep current */ }
+    }
 
     return NextResponse.json({
       pending,
