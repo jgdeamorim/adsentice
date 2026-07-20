@@ -185,6 +185,12 @@ export async function queryRelevantSkills(
   relevantSkills.push("social")
   if (leadContext.hasWebsite) relevantSkills.push("content-strategy")
 
+  // ADR-0048 #6: google-ads — análise de ads para Domínio (R$497)
+  // Leads com score alto e mercado grande → potencial de investir em ads
+  if (leadContext.score > 65 && leadContext.competitorCount > 5) {
+    relevantSkills.push("ads")
+  }
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []

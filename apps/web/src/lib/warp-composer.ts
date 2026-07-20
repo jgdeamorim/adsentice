@@ -1607,6 +1607,29 @@ function extractSocialCalendar(frameworkContent: string, nichoName: string, inst
   return { postsPerWeek, platforms, contentPillars, hashtagStrategy, igHandle: instagramHandle || null }
 }
 
+/** ADR-0048 #6: extrai insights de Google Ads do framework */
+function extractAdsInsights(frameworkContent: string, nichoName: string, local: string, competitorCount: number): { campaignTypes: string[]; budgetEstimate: string; keywordsSuggested: string[]; competitionLevel: string } | null {
+  const campaignTypes: string[] = []
+  if (/search|pesquisa/i.test(frameworkContent)) campaignTypes.push("Search (pesquisa)")
+  if (/display|banner/i.test(frameworkContent)) campaignTypes.push("Display (banner)")
+  if (/video|youtube/i.test(frameworkContent)) campaignTypes.push("Video (YouTube)")
+  if (/local|maps|gmb/i.test(frameworkContent)) campaignTypes.push("Local (Google Maps)")
+  if (/shopping|produto/i.test(frameworkContent)) campaignTypes.push("Shopping")
+  if (campaignTypes.length === 0) campaignTypes.push("Search (pesquisa)", "Local (Google Maps)")
+  // Budget estimate
+  const budgetMatch = frameworkContent.match(/(?:budget|orçamento|investimento)[:\s]*R?\$?\s*(\d{2,5})/i)
+  const budgetEstimate = budgetMatch
+    ? `R$${budgetMatch[1]}/mês estimado`
+    : `R$${Math.max(200, competitorCount * 30)}-${Math.max(500, competitorCount * 50)}/mês recomendado`
+  // Keywords
+  const kwMatch = frameworkContent.match(/(?:keywords|palavras.chave|termos)[:\s]*([^\n]{20,300})/i)
+  const keywordsSuggested = kwMatch
+    ? kwMatch[1].split(/[,;]/).map(k => k.trim()).filter(k => k.length > 3).slice(0, 8)
+    : [`${nichoName} ${local}`, `melhor ${nichoName}`, `${nichoName} perto de mim`, `agendar ${nichoName}`]
+  const competitionLevel = competitorCount > 20 ? "alta" : competitorCount > 8 ? "média" : "baixa"
+  return { campaignTypes, budgetEstimate, keywordsSuggested, competitionLevel }
+}
+
 /** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
  *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
  *  Custo: $0 (crawler local, sem API externa). */
@@ -2036,6 +2059,9 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const socialFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("social"))
     const socialCalendar = socialFW ? extractSocialCalendar(socialFW.content, nicho.name, l2bSocialIG) : null
     const contentFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("content-strategy"))
+    // ADR-0048 #6: google-ads → análise de ads + budget pacing para Domínio (R$497)
+    const adsFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("ads") || f.skillName.includes("advertising"))
+    const adsAnalysis = adsFW ? extractAdsInsights(adsFW.content, nicho.name, local, competitors) : null
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -2080,6 +2106,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       wa: whatsAppFW ? { cta: waCTA, insight: waInsight, hasPhone: !!lead.phone, source: "whatsapp-business framework" } : { cta: waCTA, hasPhone: !!lead.phone },
       mktPlan: mktPlanReady ? { sections: mktPlanSections, totalSections: mktPlanSections.length, source: "marketing-plan framework", plan: "Domínio (R$497)" } : null,
       social: socialCalendar ? { calendar: socialCalendar, contentStrategy: contentFW ? "Framework content-strategy aplicado" : null, source: "social-media framework", plan: "Sentinela (R$197)" } : null,
+      ads: adsAnalysis ? { ...adsAnalysis, source: "ads framework", plan: "Domínio (R$497)", rationale: adsAnalysis.competitionLevel === "alta" ? "Mercado competitivo — ads são essenciais para se destacar" : "Invista em ads para capturar tráfego qualificado" } : null,
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
