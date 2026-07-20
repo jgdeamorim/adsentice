@@ -1792,6 +1792,18 @@ function buildLandingCopyFallback(
   }
 }
 
+// ── CTA Validation: reject non-conversion labels from DeepSeek ──
+const NON_CTA_PATTERNS = /ver no|google maps|saiba mais|conheça|visite|acesse o site|mapa|localização|endereço|navegue|explorar/i
+function isValidCTA(label: string): boolean {
+  return label.length > 3 && label.length < 60 && !NON_CTA_PATTERNS.test(label)
+}
+function reinforceCTA(ai: { label: string; sub: string }, fb: { label: string; sub: string }): { label: string; sub: string } {
+  return {
+    label: (ai.label && isValidCTA(ai.label)) ? ai.label : fb.label,
+    sub: (ai.sub && !(/ver no|google maps|mapa/i.test(ai.sub))) ? ai.sub : fb.sub,
+  }
+}
+
 // ── Merge: DeepSeek slot a slot com fallback nos vazios ──
 function mergeLandingCopy(ai: LandingCopy | null, fb: LandingCopy): { copy: LandingCopy; model: string } {
   if (!ai) return { copy: fb, model: 's11-fallback' }
@@ -1807,7 +1819,8 @@ function mergeLandingCopy(ai: LandingCopy | null, fb: LandingCopy): { copy: Land
         riskRemoval: ai.pricing.riskRemoval || fb.pricing.riskRemoval,
       },
       faq: { items: ai.faq.items?.length >= 3 ? ai.faq.items : fb.faq.items },
-      cta: { label: ai.cta.label || fb.cta.label, sub: ai.cta.sub || fb.cta.sub },
+      // ADR-0054 F1: Validate CTA — reject non-conversion links (Google Maps, "Ver no", etc.)
+      cta: reinforceCTA(ai.cta, fb.cta),
     },
     model: 'deepseek-landing',
   }
@@ -2104,10 +2117,12 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     ])
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S11')
     // ADR-0054 F1: Brand DNA fonts do L2b substituem a fonte padrão (Inter)
+    // Validação: ignora monospace, Courier, ícones e fontes não-web
+    const MONO_PATTERN = /courier|mono|console|typewriter|pitch|terminal/i
     if (l2bBrandFonts?.heading) {
-      const brandFont = l2bBrandFonts.heading.split(':')[0].trim()  // "Roboto:1,100,300..." → "Roboto"
-      if (brandFont && brandFont.length > 1 && !brandFont.startsWith('var(')) {
-        T.font = brandFont  // "Roboto" substitui "Inter"
+      const brandFont = l2bBrandFonts.heading.split(':')[0].trim()
+      if (brandFont && brandFont.length > 1 && !brandFont.startsWith('var(') && !MONO_PATTERN.test(brandFont)) {
+        T.font = brandFont
       }
     }
 
