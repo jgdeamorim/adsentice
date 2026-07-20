@@ -2054,7 +2054,17 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const [mktFrameworks, bestPractices, marketOntology, recommendations] = await Promise.all([
       queryRelevantSkills(leadCtx).catch(() => []),
       queryBestPractices("landing-page", seg, "S11").catch(() => []),
-      computeMarketOntology(seg, city).catch(() => null),
+      Promise.resolve().then(() => computeMarketOntology({
+        category: lead.category || cat, nichoName: nicho.name,
+        nichoSpecialties: l2bServices, nichoAudience: nicho.audience,
+        nichoKeywords: nicho.keywords, nichoPains: nicho.pains,
+        nichoObjections: [], nichoConversionTriggers: nicho.conversionTriggers,
+        segment: seg, schwartzLevel: lead.schwartz_label || 'Problem Aware',
+        competitors, city, district,
+        score: lead.score_compound || 50, rating: lead.rating_value || 0,
+        reviews: lead.rating_votes || 0, claimed: lead.is_claimed || false,
+        categoryDisplay: nicho.name,
+      })).catch(() => null),
       Promise.resolve(recommendEngine.generateForSegment(
         lead.title, lead.category || cat, seg as any,
         {
@@ -2068,7 +2078,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
         }
       )),
     ])
-    const mktAngles = (mktFrameworks as MarketingFramework[]).slice(0, 3).map(f => ({
+    const mktAngles = (Array.isArray(mktFrameworks) ? mktFrameworks : []).slice(0, 3).map(f => ({
       skill: f.skillName, score: f.score,
     }))
     const bpRules = (bestPractices as BestPracticeRule[]).filter((bp: BestPracticeRule) => bp.score > 0.4)
@@ -2077,7 +2087,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const quickWin = (recommendations as RecommendResult)?.quickWin || null
     // ADR-0048: local-seo insight → keywords + meta para a landing page
     const localSEOFw = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("local-seo"))
-    const seoKeywords = localSEOFw ? extractSEOKeywords(localSEOFw.content, nicho.name, local) : nicho.keywords.slice(0, 5)
+    const seoKeywords = localSEOFw ? extractSEOKeywords(localSEOFw.content, nicho.name, local) : (nicho.keywords || []).slice(0, 5)
     const seoMetaTitle = localSEOFw ? `${lead.title} — ${nicho.name} em ${local} | ${lead.rating_value || 0}★` : `${lead.title} — ${nicho.name} em ${local}`
     // ADR-0048 #2: objection-crusher → vendor sales enablement
     const objectionFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("objection") || f.skillName.includes("battle-card"))
@@ -2112,6 +2122,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
 
     // 7. Por ESTRATÉGIA: layout + copy + render (2 variantes)
     const variants: S11Variant[] = []
+    let lastQg: { slopWarnings: number; passed: boolean } | null = null
     for (const strat of [strategies.A, strategies.B]) {
       const composed = composeLayout(intent, slotMorph, strat)
       const fb = buildLandingCopyFallback(lead, nicho, local, strat)
@@ -2133,6 +2144,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA })
       // ADR-0049 §4: Quality Gate — Unslop validation
       const qg = applyQualityGate(rawHtml)
+      lastQg = qg
       const html = qg.html
       variants.push({ ab: strat.abLabel, html, strategyFacet: strat.facet, hypothesis: strat.hypothesis, copyModel: model, headline: copy.hero.headline })
     }
@@ -2149,7 +2161,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       mktPlan: mktPlanReady ? { sections: mktPlanSections, totalSections: mktPlanSections.length, source: "marketing-plan framework", plan: "Domínio (R$497)" } : null,
       social: socialCalendar ? { calendar: socialCalendar, contentStrategy: contentFW ? "Framework content-strategy aplicado" : null, source: "social-media framework", plan: "Sentinela (R$197)" } : null,
       ads: adsAnalysis ? { ...adsAnalysis, source: "ads framework", plan: "Domínio (R$497)", rationale: adsAnalysis.competitionLevel === "alta" ? "Mercado competitivo — ads são essenciais para se destacar" : "Invista em ads para capturar tráfego qualificado" } : null,
-      quality: { slopWarnings: qg.slopWarnings, passed: qg.passed, source: "Unslop (ADR-0049 §4)" },
+      quality: { slopWarnings: lastQg?.slopWarnings ?? 0, passed: lastQg?.passed ?? false, source: "Unslop (ADR-0049 §4)" },
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
@@ -2158,5 +2170,5 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const result: S11ComposeResult = { variants, meta }
     await s11Cache.set(cacheKey, result, 300_000)
     return result
-  } catch (e: any) { console.error("[composeS11]", e.message); return null }
+  } catch (e: any) { console.error("[composeS11]", e.message); console.error("[composeS11 stack]", e.stack?.split("\n").slice(0, 5).join(" | ")); return null }
 }
