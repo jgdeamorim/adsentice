@@ -65,32 +65,44 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
     }
   } catch { /* Supabase offline */ }
 
+  // ═══ Runbooks por estágio (ADR-0051 #2) · condition + cost + autoTrigger ═══
+  const RUNBOOKS: Record<string, { condition: string; action: string; cost: number; autoTrigger: boolean; planLink: string }> = {
+    S0: { condition: "opportunityScore > 50", action: "Discovery automático em gaps prioritários", cost: 0.048, autoTrigger: false, planLink: "/admin/discovery" },
+    S1: { condition: "scoreCompound > 70 AND wa_is_business = true", action: "Enviar Raio-X via WhatsApp (S10)", cost: 0, autoTrigger: true, planLink: "/admin/leads" },
+    S2: { condition: "hasWebsite AND enrichmentLevel >= 2", action: "Gerar S11-MK (MockUp ReBrand, R$0.001)", cost: 0.001, autoTrigger: false, planLink: "/admin/surface" },
+    S3: { condition: "scoreCompound > 60 AND competitorCount > 5", action: "Gerar S11K (Landing Técnica, R$0.093)", cost: 0.093, autoTrigger: false, planLink: "/admin/surface" },
+    S4: { condition: "ibgeRenda > 2000 AND scoreCompound > 70", action: "Proposta Domínio (R$497/mês)", cost: 0.02, autoTrigger: false, planLink: "/admin/solutions" },
+    S5: { condition: "cnpjEnriched = true", action: "Qualificação fiscal completa — prosseguir para proposta", cost: 0, autoTrigger: true, planLink: "/admin/leads" },
+    S6: { condition: "proposalGenerated = true", action: "Follow-up D+3 com dados reais do concorrente", cost: 0, autoTrigger: true, planLink: "/admin/leads" },
+    S7: { condition: "planActive = true", action: "Onboarding + NPS 30 dias + A/B tracking ativo", cost: 0, autoTrigger: true, planLink: "/admin/surface" },
+  }
+
   // ═══ Funil de Captação — 7 camadas de enriquecimento (ADR-0046) ═══
   const funnelStages = [
     { stage: 'S0', label: 'L0 · GMB Data', count: enrichmentCounts.l0, icon: 'ri-radar-line',
       desc: 'Leads encontrados no Google Meu Negócio. Nome, telefone, endereço, rating, 41 campos.',
-      action: 'Executar Discovery Engine', color: 'primary' as const, pct: 100 },
+      action: RUNBOOKS.S0.action, color: 'primary' as const, pct: 100, runbook: RUNBOOKS.S0 },
     { stage: 'S1', label: 'L2a · SEO Técnico', count: enrichmentCounts.l2a, icon: 'ri-global-line',
       desc: 'Lighthouse, CMS, analytics, meta tags, HTTPS, schema.org. 12 sinais W1-W12.',
-      action: 'Enviar Raio-X gratuito (S10)', color: 'info' as const, pct: Math.round((enrichmentCounts.l2a/Math.max(enrichmentCounts.l0,1))*100) },
+      action: RUNBOOKS.S1.action, color: 'info' as const, pct: Math.round((enrichmentCounts.l2a/Math.max(enrichmentCounts.l0,1))*100), runbook: RUNBOOKS.S1 },
     { stage: 'S2', label: 'L2b · Conteúdo+DNA', count: enrichmentCounts.l2b, icon: 'ri-palette-line',
       desc: 'Serviços, equipe, convênios, Brand DNA (cores+fontes), UX. Crawler modular .TS · $0.',
-      action: 'Proposta MockUp ReBrand (S11-MK)', color: 'secondary' as const, pct: Math.round((enrichmentCounts.l2b/Math.max(enrichmentCounts.l0,1))*100) },
+      action: RUNBOOKS.S2.action, color: 'secondary' as const, pct: Math.round((enrichmentCounts.l2b/Math.max(enrichmentCounts.l0,1))*100), runbook: RUNBOOKS.S2 },
     { stage: 'S3', label: 'L3 · Competitive', count: enrichmentCounts.l3, icon: 'ri-bar-chart-2-line',
       desc: 'Backlinks, Share of Voice, keyword gaps, concorrentes. DataForSEO · $0.08/lead.',
-      action: 'Proposta Domínio (R$497/mês)', color: 'success' as const, pct: Math.round((enrichmentCounts.l3/Math.max(enrichmentCounts.l0,1))*100) },
+      action: RUNBOOKS.S3.action, color: 'success' as const, pct: Math.round((enrichmentCounts.l3/Math.max(enrichmentCounts.l0,1))*100), runbook: RUNBOOKS.S3 },
     { stage: 'S4', label: 'L4 · IBGE Contexto', count: enrichmentCounts.l4, icon: 'ri-map-pin-line',
       desc: 'Renda média, PIB per capita, população do município. Supabase · $0.',
-      action: 'Qualificação por poder aquisitivo', color: 'warning' as const, pct: Math.round((enrichmentCounts.l4/Math.max(enrichmentCounts.l0,1))*100) },
+      action: RUNBOOKS.S4.action, color: 'warning' as const, pct: Math.round((enrichmentCounts.l4/Math.max(enrichmentCounts.l0,1))*100), runbook: RUNBOOKS.S4 },
     { stage: 'S5', label: 'L5 · CNPJ', count: enrichmentCounts.l5, icon: 'ri-government-line',
       desc: 'CNAE validado, regime tributário, sócios. ReceitaWS · $0 (3/min, fila assíncrona).',
-      action: 'Formalização confirmada', color: 'error' as const, pct: Math.round((enrichmentCounts.l5/Math.max(enrichmentCounts.l0,1))*100) },
+      action: RUNBOOKS.S5.action, color: 'error' as const, pct: Math.round((enrichmentCounts.l5/Math.max(enrichmentCounts.l0,1))*100), runbook: RUNBOOKS.S5 },
     { stage: 'S6', label: 'L6 · Proposta', count: 0, icon: 'ri-file-text-line',
       desc: 'S11-MK enviado (MockUp ReBrand) ou S11K entregue (Landing Técnica).',
-      action: 'Follow-up D+3 com dados reais', color: 'error' as const, pct: 0 },
+      action: RUNBOOKS.S6.action, color: 'error' as const, pct: 0, runbook: RUNBOOKS.S6 },
     { stage: 'S7', label: 'L7 · Cliente', count: 0, icon: 'ri-star-line',
       desc: 'Plano ativo. A/B tracking. Learning loop → próximos leads melhores.',
-      action: 'Onboarding + NPS 30 dias', color: 'success' as const, pct: 0 },
+      action: RUNBOOKS.S7.action, color: 'success' as const, pct: 0, runbook: RUNBOOKS.S7 },
   ]
 
   const maxFunnel = Math.max(enrichmentCounts.l0, 1)
@@ -189,6 +201,16 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
                     <Typography variant='caption' color='warning.main' sx={{ mt: 0.5, display: 'block', fontWeight: 600 }}>
                       🎯 {s.action}
                     </Typography>
+                    {(s as any).runbook && (
+                      <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                        <Chip label={(s as any).runbook.autoTrigger ? '🤖 Auto' : '👤 Manual'} size='small' variant='tonal'
+                          color={(s as any).runbook.autoTrigger ? 'success' : 'default'} sx={{ height: 18, fontSize: '0.6rem' }} />
+                        {(s as any).runbook.cost > 0 && (
+                          <Chip label={`\$${(s as any).runbook.cost}`} size='small' variant='tonal'
+                            color='warning' sx={{ height: 18, fontSize: '0.6rem' }} />
+                        )}
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>

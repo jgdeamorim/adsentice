@@ -128,6 +128,22 @@ const MARKET_IBGE_SIGNALS: PainSignal[] = [
   { id: 'M4', name: 'PIB Per Capita Alto', condition: 'ibge_pib_per_capita > 30000', points: 10, dimension: 'Engagement', layer: 'L4', description: 'PIB per capita acima de R$30K — poder aquisitivo alto', impact: 'Publico com renda = ticket maior. Planos premium tem mais aderencia.' },
 ]
 
+// ═══ TRIGGERS DE AÇÃO (ADR-0051 #4) · combinações de sinais → ações ═══
+const CRITERIA_TRIGGERS = [
+  { signals: ["I1", "E4"], condition: "I1 (não reivindicado, 25pts) AND E4 (não reivindicado, 10pts) = 35pts de urgência",
+    action: "Ensinar a reivindicar GMB (5min, grátis). Script WhatsApp pronto para envio.", auto: true, plan: "Raio-X (R$0)" },
+  { signals: ["W1", "W4"], condition: "W1 (sem HTTPS, 20pts) OR W4 (sem meta tags, 8pts)",
+    action: "S11-MK: proposta visual mostrando site com SSL + SEO profissional", auto: false, plan: "Sentinela (R$197/mês)" },
+  { signals: ["D2", "D5"], condition: "D2 (design amador, 10pts) OR D5 (design datado, 8pts)",
+    action: "MockUp ReBrand com Brand DNA real extraído do site atual", auto: false, plan: "Sentinela (R$197/mês)" },
+  { signals: ["C12", "C13"], condition: "C12 (sem WhatsApp, 10pts) OR C13 (sem agendamento, 12pts) = 22pts perda de conversão",
+    action: "Landing page S11K com CTA WhatsApp + agendamento online integrado", auto: false, plan: "Sentinela (R$197/mês)" },
+  { signals: ["C9", "C11"], condition: "C9 (sem serviços listados, 8pts) OR C11 (sem convênios, 8pts)",
+    action: "Extrair serviços e convênios do site via L2b crawler + landing page atualizada", auto: false, plan: "Domínio (R$497/mês)" },
+  { signals: ["M2", "M3"], condition: "M2 (alta densidade, 10pts) AND M3 (mercado grande, 10pts)",
+    action: "Estratégia agressiva de diferenciação + Google Ads para capturar tráfego qualificado", auto: false, plan: "Domínio (R$497/mês)" },
+]
+
 const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()

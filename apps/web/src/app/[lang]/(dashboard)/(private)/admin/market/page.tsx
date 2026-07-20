@@ -19,6 +19,7 @@ import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { nicheIntelligence, listMarketCategories, marketOverview, getPreflightMarketIntel } from '@/lib/market-intel'
+import { getCategoryOpportunityQuick } from '@/lib/category-intel'
 import MarketCoverageMapWrapper from '@/components/MarketCoverageMapWrapper'
 
 export const dynamic = 'force-dynamic'
@@ -57,11 +58,12 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
   const filterCategory = sp.category || ''
   const filterCity = sp.city || ''
 
-  const [categories, overview, mapPins, preflightIntel] = await Promise.all([
+  const [categories, overview, mapPins, preflightIntel, catOpportunities] = await Promise.all([
     listMarketCategories(),
     marketOverview(),
     getMapPins(),
     getPreflightMarketIntel(),
+    getCategoryOpportunityQuick(),
   ])
 
   const intel = filterCategory ? await nicheIntelligence(filterCategory, filterCity || null) : null
@@ -146,6 +148,43 @@ async function MarketContent({ lang, searchParams }: { lang: string; searchParam
               subtitle={`${overview.hasAnalyticsPct}% com analytics`} avatarColor='error' avatarIcon='ri-global-line'
               trendNumber={String(overview.hasWebsitePct)} trend='positive' />
           </Grid>
+
+          {/* ═══ CATEGORY INTELLIGENCE · TOP OPORTUNIDADES (ADR-0050/0051) ═══ */}
+          {catOpportunities.length > 0 && (
+            <Grid size={{ xs: 12 }}>
+              <Card sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box>
+                      <Chip label='🎯 Oportunidades Ranqueadas' size='small' color='success' />
+                      <Typography variant='caption' color='text.secondary' sx={{ ml: 1 }}>
+                        Auto-Pilot · Category Intelligence · oportunidade 0-100
+                      </Typography>
+                    </Box>
+                    <Link href={`/${lang}/admin/discovery`} style={{ fontSize: '0.75rem', color: 'var(--p)' }}>
+                      Executar Discovery →
+                    </Link>
+                  </Box>
+                  <Grid container spacing={1}>
+                    {catOpportunities.map((op: { category: string; label: string; score: number; totalLeads: number; gapCities: number }, i: number) => (
+                      <Grid key={op.category} size={{ xs: 6, sm: 4, md: 2.4 }}>
+                        <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1, borderLeft: 3, borderColor: i === 0 ? 'success.main' : i < 3 ? 'warning.main' : 'grey.400' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant='caption' fontWeight={700}>{i + 1}º {op.label}</Typography>
+                            <Chip label={`${op.score}pts`} size='small' color={op.score >= 60 ? 'success' : op.score >= 40 ? 'warning' : 'default'} variant='tonal' sx={{ height: 18, fontSize: '0.65rem' }} />
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Typography variant='caption' color='text.secondary'>{op.totalLeads} leads</Typography>
+                            <Typography variant='caption' color='error.main'>{op.gapCities} gaps</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
 
           {/* ═══ PRE-FLIGHT MARKET INTEL (ADR-0029) ═══ */}
           {preflightIntel.length > 0 && (
