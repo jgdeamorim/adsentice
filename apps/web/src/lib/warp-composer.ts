@@ -2016,6 +2016,14 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const l2bServices = l2b?.services?.length ? l2b.services : nicho.specialties
     const l2bDoctors = l2b?.doctors?.length ? l2b.doctors : []
     const l2bInsurance = l2b?.insurance?.length ? l2b.insurance : []
+    // L2b-first: triggers, pains, persona offer derivam dos dados REAIS
+    const l2bContactCTA = l2b?.hasWhatsApp || l2b?.bookingPlatform === 'whatsapp' ? 'WhatsApp' : 'telefone'
+    const l2bTriggers = l2b?.enriched
+      ? [`Agende pelo ${l2bContactCTA}`, ...l2bServices.slice(0, 2).map(s => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' '))]
+      : nicho.conversionTriggers
+    const l2bPains = l2b?.enriched
+      ? [`Falta de agendamento online fácil`, `Dificuldade de ser encontrado no Google`, `Concorrência local forte`]
+      : nicho.pains
     const l2bBrandColors = l2b?.designDNA?.colors || null
     const l2bBrandFonts = l2b?.designDNA?.typography || null
     const l2bHasBooking = l2b?.hasBooking || false
@@ -2064,7 +2072,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     //    L2b inject: serviços REAIS, médicos REAIS, convênios REAIS
     const primaryEmotion = seg === 'saude' ? 'Confiança + Profissionalismo' : seg === 'beleza' ? 'Autoestima + Transformação' : 'Resultado + Crescimento'
     const preVocab = resolveIntentVocab(seg, {
-      persona: { who: lead.schwartz_label || 'Problem Aware', schwartzLevel: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: l2bServices[0] || nicho.conversionTriggers[0] || '', urgency: 'média' as const },
+      persona: { who: lead.schwartz_label || 'Problem Aware', schwartzLevel: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: l2bServices[0] || l2bTriggers[0] || '', urgency: 'média' as const },
       psychology: { primaryEmotion, colorPsychology: '', urgencyLevel: 'medium', toneOfVoice: nicho.tone, copyRules: [], triggers: [] },
       designSystem: { recommended: '', atmosphere: '', colorPalette: { primary: p, secondary: s, accent: a, hue: 0 }, typography: { heading: l2bBrandFonts?.heading || '', body: l2bBrandFonts?.body || '' }, spacingStyle: '', motionStyle: '' },
       marketData: { competitors, category: lead.category || seg, categoryDisplay: nicho.name, city, district, avgScore: 32, claimed: lead.is_claimed || false, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 },
@@ -2086,9 +2094,9 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       gapCount: 0, topGapSeverity: '', isClaimed: lead.is_claimed || false,
       hasWebsite: !!lead.website, competitorCount: competitors,
       primaryEmotion, designAtmosphere: '',
-      conversionTriggers: nicho.conversionTriggers || [],
-      personaOffer: nicho.conversionTriggers[0] || '', personaWho: '',
-      nichePains: nicho.pains, nicheAudience: nicho.audience,
+      conversionTriggers: l2bTriggers || [],
+      personaOffer: l2bTriggers[0] || '', personaWho: '',
+      nichePains: l2bPains, nicheAudience: nicho.audience,
       ontology: { marketData: { rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 } },
     }
     const strategies = resolveStrategies(intent, preVocab.conversionFacets)
@@ -2177,16 +2185,13 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     for (const strat of [strategies.A, strategies.B]) {
       const composed = composeLayout(intent, slotMorph, strat)
       const fb = buildLandingCopyFallback(lead, nicho, local, strat, l2b?.enriched ? l2bCtx : null)
-      // DeepSeek: serviços REAIS como specialties + triggers REAIS (não NICHO_MAP)
-      const realTriggers = l2b?.enriched
-        ? [`Agende pelo ${l2bCtx.hasWhatsApp ? 'WhatsApp' : 'telefone'}`, ...l2bServices.slice(0, 2)]
-        : nicho.conversionTriggers
+      // DeepSeek: serviços REAIS + triggers REAIS (não NICHO_MAP)
       const ai = await generateLandingCopy({
         name: lead.title, category: lead.category, nichoName: nicho.name,
         clientTerm: nicho.clientTerm || 'cliente', specialties: l2bServices,
         local, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
-        isClaimed: lead.is_claimed || false, triggers: realTriggers,
-        pains: l2b?.enriched ? [`Agendamento rápido pelo ${l2bCtx.hasWhatsApp ? 'WhatsApp' : 'telefone'}`, 'Atendimento de qualidade'] : nicho.pains, tone: nicho.tone,
+        isClaimed: lead.is_claimed || false, triggers: l2bTriggers,
+        pains: l2bPains, tone: nicho.tone,
         // L2b inject · dados REAIS da clínica para a copy
         ...(l2bDoctors.length > 0 ? { doctors: l2bDoctors.slice(0, 2) } as any : {}),
         ...(l2bInsurance.length > 0 ? { insurance: l2bInsurance.slice(0, 5) } as any : {}),
