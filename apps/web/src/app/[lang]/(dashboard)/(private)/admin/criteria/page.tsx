@@ -100,6 +100,34 @@ const CONTENT_GAP_SIGNALS: PainSignal[] = [
   { id: 'C5', name: 'Sem Estrategia de Conteudo', condition: 'falta 2+ de {sitemap, robots, schema}', points: 8, dimension: 'Fit', layer: 'L2', description: 'Infraestrutura basica de SEO ausente', impact: 'Sem sitemap/robots/schema = Google nao consegue indexar e apresentar o site corretamente.' },
 ]
 
+const DESIGN_DNA_SIGNALS: PainSignal[] = [
+  { id: 'D1', name: 'Design Profissional', condition: 'designScore >= 70', points: 15, dimension: 'Engagement', layer: 'L2b', description: 'Site com design system consistente (cores, fontes, componentes)', impact: 'Design profissional = confianca. Cliente percebe qualidade imediatamente.' },
+  { id: 'D2', name: 'Design Amador', condition: 'designScore < 30', points: 10, dimension: 'Fit', layer: 'L2b', description: 'Design inconsistente ou visualmente datado', impact: 'Design amador afasta clientes. Oportunidade clara de melhoria com S11-MK (MockUp ReBrand).' },
+  { id: 'D3', name: 'Identidade Consistente', condition: 'uxDNA.consistency >= 70', points: 10, dimension: 'Engagement', layer: 'L2b', description: 'Mesmos padroes visuais em todo o site (cores, fontes, espacamento)', impact: 'Consistencia visual = profissionalismo. Inconsistencia = amadorismo.' },
+  { id: 'D4', name: 'Boa Acessibilidade', condition: 'a11yScore >= 50 (WCAG A+)', points: 8, dimension: 'Engagement', layer: 'L2b', description: 'Alt text, aria labels, HTML5 semantico, navegavel por teclado', impact: 'Acessibilidade e requisito legal e melhora SEO. Sites inacessiveis perdem clientes.' },
+  { id: 'D5', name: 'Design Datado', condition: 'visualStyle parece > 5 anos', points: 8, dimension: 'Fit', layer: 'L2b', description: 'Site com estetica de 2015-2020 — sem design system moderno', impact: 'Design antigo = marca parece ultrapassada. Cliente confia menos.' },
+  { id: 'D6', name: 'Schema.org LocalBusiness', condition: 'hasSchemaOrg = true', points: 5, dimension: 'Engagement', layer: 'L2b', description: 'Dados estruturados JSON-LD no site', impact: 'Google entende o negocio. Rich results (estrelas, endereco) na SERP.' },
+  { id: 'D7', name: 'Redes Sociais Linkadas', condition: 'socialLinksCount >= 2', points: 5, dimension: 'Engagement', layer: 'L2b', description: 'Instagram + Facebook linkados no site', impact: 'Presenca cross-channel = marca ativa. Sem redes sociais = invisivel.' },
+]
+
+const CONTENT_L2B_SIGNALS: PainSignal[] = [
+  { id: 'C9', name: 'Sem Servicos Listados', condition: 'services.length < 2', points: 8, dimension: 'Fit', layer: 'L2b', description: 'Site nao lista servicos/procedimentos claramente', impact: 'Cliente nao sabe o que o negocio faz. Perde lead imediatamente.' },
+  { id: 'C10', name: 'Sem Equipe Visivel', condition: '!hasAnyStaff', points: 5, dimension: 'Engagement', layer: 'L2b', description: 'Site nao mostra profissionais/equipe (medicos, advogados, etc.)', impact: 'Sem equipe = sem credibilidade. Cliente quer saber QUEM vai atende-lo.' },
+  { id: 'C11', name: 'Sem Convenios', condition: '!acceptsInsurance', points: 8, dimension: 'Fit', layer: 'L2b', description: 'Nao informa convenios/planos aceitos (saude) ou credenciamentos', impact: 'Convenio e criterio #1 de escolha. Sem informacao = lead vai pro concorrente.' },
+  { id: 'C12', name: 'Sem WhatsApp no Site', condition: '!hasWhatsAppLink', points: 10, dimension: 'Intent', layer: 'L2b', description: 'Canal #1 de venda no Brasil ausente do site', impact: '80% dos clientes preferem WhatsApp. Sem link = perde contato.' },
+  { id: 'C13', name: 'Sem Agendamento Online', condition: '!hasBooking', points: 12, dimension: 'Intent', layer: 'L2b', description: 'Cliente nao consegue agendar pelo site', impact: 'Agendamento online aumenta conversao em 40%. Sem ele = perde agendamento.' },
+  { id: 'C14', name: 'Blog Inativo', condition: '!blogActive', points: 5, dimension: 'Engagement', layer: 'L2b', description: 'Blog sem posts recentes (> 90 dias) ou inexistente', impact: 'Blog ativo = autoridade. Blog morto = pior que nao ter blog.' },
+  { id: 'C15', name: 'Sem Depoimentos', condition: '!hasTestimonials', points: 5, dimension: 'Engagement', layer: 'L2b', description: 'Sem prova social no site (depoimentos, reviews, casos)', impact: 'Depoimentos aumentam confianca. Sem eles = lead desconfia.' },
+  { id: 'C16', name: 'Precos Ocultos', condition: '!hasPrices', points: 8, dimension: 'Intent', layer: 'L2b', description: 'Site nao mostra precos — falta transparencia', impact: 'Preco e a 2a maior objecao. Transparencia = confianca.' },
+]
+
+const MARKET_IBGE_SIGNALS: PainSignal[] = [
+  { id: 'M1', name: 'Baixa Renda do Municipio', condition: 'ibge_renda_media < 1500', points: 5, dimension: 'Fit', layer: 'L4', description: 'Renda media do municipio abaixo de R$1.500', impact: 'Ticket menor. Precisa de oferta mais acessivel. Volume > ticket.' },
+  { id: 'M2', name: 'Alta Densidade Competitiva', condition: 'concorrentes_mesma_cat > 50', points: 10, dimension: 'Intent', layer: 'L4', description: 'Muitos concorrentes na mesma categoria/cidade', impact: 'Mercado saturado = diferenciacao e critica. Lead precisa de estrategia agressiva.' },
+  { id: 'M3', name: 'Mercado Grande', condition: 'ibge_populacao > 500000', points: 10, dimension: 'Engagement', layer: 'L4', description: 'Municipio com mais de 500K habitantes', impact: 'Mercado grande = mais leads potenciais. Vale a pena investir em SEO/ads.' },
+  { id: 'M4', name: 'PIB Per Capita Alto', condition: 'ibge_pib_per_capita > 30000', points: 10, dimension: 'Engagement', layer: 'L4', description: 'PIB per capita acima de R$30K — poder aquisitivo alto', impact: 'Publico com renda = ticket maior. Planos premium tem mais aderencia.' },
+]
+
 const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
@@ -115,7 +143,7 @@ const CriteriaPage = async ({ params }: { params: Promise<{ lang: string }> }) =
       <Grid size={{ xs: 12 }}>
         <Typography variant='h4'>🎯 Critérios de Atração</Typography>
         <Typography variant='body2' color='text.secondary'>
-          Pain Criteria v1.2 — Score Composto (Fit×0.40 + Engagement×0.35 + Intent×0.25) · Schwartz Awareness Levels
+          Pain Criteria v2.0 — 87 sinais em 11 famílias (L0+L2a+L2b+L4) · Score Composto (Fit×0.40 + Engagement×0.35 + Intent×0.25)
         </Typography>
       </Grid>
 
