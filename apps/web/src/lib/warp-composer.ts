@@ -345,15 +345,6 @@ function normalizeCategory(raw: string | null | undefined): string {
   return CAT_ALIAS[k] || k
 }
 
-// ── PERSONA FALLBACKS (port from Python) ──
-const PERSONA_FALLBACK: Record<string, { headline: string; cta: string; offer: string }> = {
-  "Unaware":         { headline:"{N} {SERVIÇO}s em {LOCAL} — você está perdendo clientes?", cta:"Quero aparecer no Google", offer:"Seu negócio existe, mas seus clientes não te encontram online." },
-  "Problem Aware":   { headline:"{N} {SERVIÇO}s em {LOCAL} — como atrair mais clientes pelo Google?", cta:"Quero meu diagnóstico grátis", offer:"Você sabe que precisa estar online, mas não sabe por onde começar. Nosso Raio-X mostra o caminho." },
-  "Solution Aware":  { headline:"Apareça no Google antes dos seus concorrentes em {LOCAL}", cta:"Quero resolver isso", offer:"Você já tentou algumas coisas, mas ainda não vê resultado. O Raio-X mostra exatamente o que está faltando." },
-  "Product Aware":   { headline:"Seu negócio no topo do Google em {LOCAL} — comprovado por dados", cta:"Quero meu Raio-X gratuito", offer:"Você tem presença digital. Agora é hora de otimizar para liderar o mercado local." },
-  "Most Aware":      { headline:"Dados reais do seu mercado em {LOCAL} — tome decisões baseadas em evidência", cta:"Ver meus dados agora", offer:"Você está pronto para escalar. Precisa de dados reais para decisões estratégicas." },
-}
-
 // ── S10Lead (from Supabase discovery_listings) ──
 interface S10Lead {
   place_id: string; title: string; category: string
@@ -1834,6 +1825,9 @@ function renderS11_GREEN(input: {
   waPhone?: string | null; waCTA?: string
   /** ADR-0044: L2b real service count (usa count do site, não do NICHO_MAP) */
   l2bServiceCount?: number
+  /** ADR-0054 F1: L2b data for conditional slots */
+  l2bDoctors?: { name: string; crm: string; specialty: string }[]
+  l2bSocialIG?: string | null
 }): string {
   const { lead, nicho, local, copy, strategy, composedLayout, T, p, s, p15, p12, icons } = input
   const seoKeywords = input.seoKeywords || nicho.keywords?.slice(0, 5) || []
@@ -1897,9 +1891,31 @@ function renderS11_GREEN(input: {
       `<p>${esc(copy.cta.sub || copy.pricing.offerLine)}</p>` +
       `<a class="s11-btn s11-btn-inv" href="${ctaHref}">${esc(copy.cta.label)}</a>` +
       `</div></section>`,
+    // ADR-0054 F1: Slots condicionais — só renderizam se L2b extraiu dados reais
+    doctors: () => {
+      const docs = input.l2bDoctors
+      if (!docs?.length) return ''
+      return `<section class="s11-sec${em('doctors')}" aria-label="Nossa equipe"><div class="s11-wrap">` +
+        `<h2>Nossa equipe</h2><div class="s11-grid3">` +
+        docs.slice(0, 3).map(d => `<div class="s11-card" style="--i:0"><h3>${esc(d.name)}</h3><p>${esc(d.specialty)}${d.crm ? ` · CRM ${esc(d.crm)}` : ''}</p></div>`).join('') +
+        `</div></div></section>`
+    },
+    social: () => {
+      const ig = input.l2bSocialIG
+      if (!ig) return ''
+      const handle = ig.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')
+      return `<section class="s11-sec s11-alt${em('social')}" aria-label="Redes sociais"><div class="s11-wrap s11-voice">` +
+        `<h2>Nos acompanhe nas redes</h2>` +
+        `<p class="s11-voice-t">Siga <a class="s11-voice-link" href="https://instagram.com/${esc(handle)}" target="_blank" rel="noopener">@${esc(handle)}</a> no Instagram e acompanhe novidades, promoções e conteúdo exclusivo.</p>` +
+        `</div></section>`
+    },
   }
 
-  const order: string[] = (composedLayout?.slots || []).map((sl: any) => sl.slotName).filter((n: string) => R[n])
+  // ADR-0054 F1: strategy.slotOrder determina a narrativa de conversão (não ordem fixa)
+  const stratOrder = (input.strategy as any)?.slotOrder as string[] | undefined
+  const order: string[] = (stratOrder?.length
+    ? stratOrder.filter((n: string) => R[n])  // strategy decides order
+    : (composedLayout?.slots || []).map((sl: any) => sl.slotName).filter((n: string) => R[n]))
   const finalOrder = order.length ? order : Object.keys(R)
   // Landmarks ARIA: hero = <header role=banner> (já) · slots = <main> · footer = contentinfo
   const heroHtml = finalOrder.includes('hero') ? R.hero() : ''
@@ -2063,9 +2079,10 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       surface: 'S11', market: { category: lead.category || cat, region: city || 'BR' },
     }).catch(() => null)
     const palette = segmentPalette(seg as SegmentId)
-    const p = m9Result?.tokens.palette.primary || palette.primary
-    const s = m9Result?.tokens.palette.secondary || palette.secondary
-    const a = m9Result?.tokens.palette.accent || palette.accent
+    // ADR-0054 F1: Brand DNA do L2b tem PRIORIDADE sobre palette do NICHO_MAP
+    const p = l2bBrandColors?.primary || m9Result?.tokens.palette.primary || palette.primary
+    const s = l2bBrandColors?.secondary || m9Result?.tokens.palette.secondary || palette.secondary
+    const a = l2bBrandColors?.accent || m9Result?.tokens.palette.accent || palette.accent
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // 4. Vocab (agora com conversionFacets) + sensor queries (paralelas)
@@ -2086,6 +2103,13 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       queryCSSPatterns(seg, 'S11').catch(() => null),
     ])
     const T = unifyTokens(seg, { primary: p, secondary: s, accent: a }, odSystem, materio, 'S11')
+    // ADR-0054 F1: Brand DNA fonts do L2b substituem a fonte padrão (Inter)
+    if (l2bBrandFonts?.heading) {
+      const brandFont = l2bBrandFonts.heading.split(':')[0].trim()  // "Roboto:1,100,300..." → "Roboto"
+      if (brandFont && brandFont.length > 1 && !brandFont.startsWith('var(')) {
+        T.font = brandFont  // "Roboto" substitui "Inter"
+      }
+    }
 
     // 5. ESTRATÉGIAS (o cérebro A/B — vocab.conversion do KG + sinais reais)
     const intent = {
@@ -2201,7 +2225,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
-      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA, l2bServiceCount: l2b?.enriched ? l2bServices.length : undefined })
+      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA, l2bServiceCount: l2b?.enriched ? l2bServices.length : undefined, l2bDoctors: l2b?.enriched ? l2bDoctors : undefined, l2bSocialIG: l2b?.enriched ? l2bSocialIG : undefined })
       // ADR-0049 §4: Quality Gate — Unslop validation
       const qg = applyQualityGate(rawHtml)
       lastQg = qg
