@@ -170,6 +170,10 @@ export async function queryRelevantSkills(
     relevantSkills.push("battle-card") // complementa: pitch + close
   }
 
+  // ADR-0048 #3: whatsapp-business — canal #1 de venda no Brasil
+  // Todo SMB brasileiro usa WhatsApp. Framework cobre Cloud API, templates, automação
+  relevantSkills.push("whatsapp-business")
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []

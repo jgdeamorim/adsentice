@@ -1960,6 +1960,14 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     // ADR-0048 #2: objection-crusher → vendor sales enablement
     const objectionFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("objection") || f.skillName.includes("battle-card"))
     const salesObjections = objectionFW ? extractObjections(objectionFW.content, lead.title, lead.rating_value || 0) : extractObjections("", lead.title, lead.rating_value || 0)
+    // ADR-0048 #3: whatsapp-business → CTA otimizado + automação
+    const whatsAppFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("whatsapp"))
+    const waCTA = whatsAppFW && lead.phone
+      ? `WhatsApp: (${lead.phone?.replace(/\D/g, "").slice(2, 4) || "11"}) ${lead.phone?.replace(/\D/g, "").slice(4, 13) || ""} — resposta em até 5 minutos`
+      : lead.phone ? `Fale conosco pelo WhatsApp: ${lead.phone}` : "Agende sua consulta"
+    const waInsight = whatsAppFW
+      ? "Canal #1 de venda no Brasil. 80% dos clientes preferem WhatsApp. Templates, catálogo e respostas automáticas disponíveis."
+      : null
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -2001,6 +2009,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       l2b: l2b?.enriched ? { services: l2bServices.length, doctors: l2bDoctors.length, insurance: l2bInsurance.length, designScore: l2bBrandColors ? l2b?.designDNA?.score || 0 : 0 } : { enriched: false },
       seo: localSEOFw ? { metaTitle: seoMetaTitle, keywords: seoKeywords, source: "local-seo framework" } : null,
       sales: salesObjections.length > 0 ? { objections: salesObjections, source: objectionFW?.skillName || "fallback", ready: true } : null,
+      wa: whatsAppFW ? { cta: waCTA, insight: waInsight, hasPhone: !!lead.phone, source: "whatsapp-business framework" } : { cta: waCTA, hasPhone: !!lead.phone },
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
