@@ -306,6 +306,9 @@ import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
 import { pluginRegistry } from "../../../../packages/warp/src/plugins"
 import { computeMarketOntology } from "../../../../packages/warp/src/market-ontology"
+import { queryRelevantSkills, type MarketingFramework, type LeadContext as MKGLeadContext } from "../../../../packages/warp/src/marketing-kg"
+import { queryBestPractices, type BestPracticeRule } from "../../../../packages/warp/src/best-practice-kg"
+import { recommendEngine } from "../../../../packages/warp/src/recommend-engine"
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
 import { resolveMorph, composeLayout } from "../../../../packages/warp/src/morph-resolver"
 import { resolveStrategies, type ConversionStrategy } from "../../../../packages/warp/src/strategy-resolver"
@@ -1878,6 +1881,25 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     }
     const strategies = resolveStrategies(intent, preVocab.conversionFacets)
 
+    // ── CÉREBRO ADSENTICE · 4 módulos KG (ADR-0047) ──
+    const leadCtx: MKGLeadContext = {
+      businessName: lead.title, category: lead.category || cat, segment: seg,
+      city, district, score: lead.score_compound || 50,
+      rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
+      isClaimed: lead.is_claimed || false, hasWebsite: !!lead.website,
+      competitorCount: competitors, topGaps: [], schwartzLevel: lead.schwartz_label || 'Problem Aware',
+    }
+    const [mktFrameworks, bestPractices, marketOntology] = await Promise.all([
+      queryRelevantSkills(leadCtx).catch(() => []),
+      queryBestPractices("landing-page", seg, "S11").catch(() => []),
+      computeMarketOntology(seg, city).catch(() => null),
+    ])
+    const mktAngles = (mktFrameworks as MarketingFramework[]).slice(0, 3).map(f => ({
+      skill: f.skillName, score: f.score,
+    }))
+    const bpRules = (bestPractices as BestPracticeRule[]).filter((bp: BestPracticeRule) => bp.score > 0.4)
+    const bpScore = bpRules.length ? Math.round(bpRules.reduce((s: number, bp: BestPracticeRule) => s + bp.score, 0) / bpRules.length * 100) : 0
+
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
       segment: seg, designFacets: preVocab.designFacets, animationFacets: preVocab.animationFacets,
@@ -1916,7 +1938,8 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       strategies: { A: strategies.A.facet, B: strategies.B.facet, scores: strategies.scores, reasoning: strategies.reasoning.slice(0, 8) },
       conversionFacets: preVocab.conversionFacets,
       l2b: l2b?.enriched ? { services: l2bServices.length, doctors: l2bDoctors.length, insurance: l2bInsurance.length, designScore: l2bBrandColors ? l2b?.designDNA?.score || 0 : 0 } : { enriched: false },
-      _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044)` },
+      brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null },
+      _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
     }
 
