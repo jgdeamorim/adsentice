@@ -159,6 +159,10 @@ export async function queryRelevantSkills(
   relevantSkills.push("pricing")
   relevantSkills.push("marketing-psychology")
 
+  // ADR-0048: local-seo — todo SMB precisa (GMB, Local Pack, NAP)
+  relevantSkills.push("local-seo")
+  if (leadContext.rating < 4.0) relevantSkills.push("reviews-and-reputation")
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []

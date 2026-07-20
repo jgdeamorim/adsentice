@@ -1516,6 +1516,24 @@ interface L2bEnrichData {
   error?: string
 }
 
+/** ADR-0048: extrai keywords SEO do framework local-seo + dados do lead */
+function extractSEOKeywords(frameworkContent: string, nichoName: string, local: string): string[] {
+  const keywords = new Set<string>()
+  const kwMatch = frameworkContent.match(/keywords?:?\s*([^\n]{10,200})/i)
+  if (kwMatch) {
+    kwMatch[1].split(/[,;•●]/).forEach(k => {
+      const cleaned = k.trim().replace(/^[-*\s]+/, "").slice(0, 60)
+      if (cleaned.length > 3) keywords.add(cleaned)
+    })
+  }
+  if (keywords.size < 3) {
+    keywords.add(`${nichoName.toLowerCase()} em ${local}`)
+    keywords.add(`${nichoName.toLowerCase()} ${local}`)
+    keywords.add(`melhor ${nichoName.toLowerCase()} ${local}`)
+  }
+  return [...keywords].slice(0, 8)
+}
+
 /** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
  *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
  *  Custo: $0 (crawler local, sem API externa). */
@@ -1913,6 +1931,10 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const bpScore = bpRules.length ? Math.round(bpRules.reduce((s: number, bp: BestPracticeRule) => s + bp.score, 0) / bpRules.length * 100) : 0
     const recommendedActions = (recommendations as RecommendResult)?.actions?.slice(0, 5) || []
     const quickWin = (recommendations as RecommendResult)?.quickWin || null
+    // ADR-0048: local-seo insight → keywords + meta para a landing page
+    const localSEOFw = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("local-seo"))
+    const seoKeywords = localSEOFw ? extractSEOKeywords(localSEOFw.content, nicho.name, local) : nicho.keywords.slice(0, 5)
+    const seoMetaTitle = localSEOFw ? `${lead.title} — ${nicho.name} em ${local} | ${lead.rating_value || 0}★` : `${lead.title} — ${nicho.name} em ${local}`
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -1952,6 +1974,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       strategies: { A: strategies.A.facet, B: strategies.B.facet, scores: strategies.scores, reasoning: strategies.reasoning.slice(0, 8) },
       conversionFacets: preVocab.conversionFacets,
       l2b: l2b?.enriched ? { services: l2bServices.length, doctors: l2bDoctors.length, insurance: l2bInsurance.length, designScore: l2bBrandColors ? l2b?.designDNA?.score || 0 : 0 } : { enriched: false },
+      seo: localSEOFw ? { metaTitle: seoMetaTitle, keywords: seoKeywords, source: "local-seo framework" } : null,
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
