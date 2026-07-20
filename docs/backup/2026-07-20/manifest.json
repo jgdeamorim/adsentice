@@ -1,0 +1,73 @@
+{
+  "backup_date": "2026-07-20T14:06:30.524611+00:00",
+  "supabase_url": "https://tdigauruusdhnpvppixb.supabase.co",
+  "tables": {
+    "discovery_listings": {
+      "rows": 8626,
+      "count_exact": 8626,
+      "file": "discovery_listings.json",
+      "size_bytes": 21961490
+    },
+    "discovery_searches": {
+      "rows": 355,
+      "count_exact": 355,
+      "file": "discovery_searches.json",
+      "size_bytes": 291042
+    },
+    "s10_artifacts": {
+      "rows": 4,
+      "count_exact": 4,
+      "file": "s10_artifacts.json",
+      "size_bytes": 3277
+    },
+    "s11_events": {
+      "rows": 15,
+      "count_exact": 15,
+      "file": "s11_events.json",
+      "size_bytes": 3020
+    },
+    "market_holds": {
+      "rows": 18,
+      "count_exact": 18,
+      "file": "market_holds.json",
+      "size_bytes": 5541
+    },
+    "keyword_history": {
+      "rows": 0,
+      "count_exact": -1,
+      "file": "keyword_history.json",
+      "size_bytes": 2
+    },
+    "ibge_panorama": {
+      "rows": 419,
+      "count_exact": 419,
+      "file": "ibge_panorama.json",
+      "size_bytes": 181800
+    },
+    "district_registry": {
+      "rows": 422,
+      "count_exact": 422,
+      "file": "district_registry.json",
+      "size_bytes": 69766
+    },
+    "ibge_income": {
+      "rows": 27,
+      "count_exact": -1,
+      "file": "ibge_income.json",
+      "size_bytes": 1932
+    },
+    "ibge_market_size": {
+      "rows": 782,
+      "count_exact": 782,
+      "file": "ibge_market_size.json",
+      "size_bytes": 167381
+    },
+    "cnpj_queue": {
+      "rows": 0,
+      "count_exact": -1,
+      "file": "cnpj_queue.json",
+      "size_bytes": 2
+    }
+  },
+  "total_rows": 10668
+}

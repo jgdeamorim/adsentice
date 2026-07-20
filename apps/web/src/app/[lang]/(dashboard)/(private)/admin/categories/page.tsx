@@ -1,7 +1,8 @@
 
-// adsentice · Admin / Categorias — dados REAIS do Supabase + Redis
-// 29 categorias SMB Brasil · 7 segmentos de mercado
+// adsentice · Admin / Categorias — dados REAIS do Supabase + Category Intelligence Engine
+// 29 categorias SMB Brasil · 7 segmentos · getCategoryIntelligence() (ADR-0050)
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -10,75 +11,31 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import LinearProgress from '@mui/material/LinearProgress'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
+import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getPreflightMarketIntel } from '@/lib/market-intel'
+import { getCategoryIntelligence } from '@/lib/category-intel'
+import type { CategoryIntelligence } from '@/lib/category-intel'
 
 export const dynamic = 'force-dynamic'
 
-// ═══ Mapeamento: código GMB → label Discovery ═══
-const CATEGORY_INFO: Record<string, { label: string; market: string; tier: number; segment: string; why: string }> = {
-  // Saúde — nicho primário adsentice
-  dentist: { label: '🦷 Dentistas', market: '~400K', tier: 1, segment: 'Saúde', why: 'Alta rotatividade de pacientes. GMB é o principal canal de captação. Ticket R$150-500. Convênio + particular.' },
-  orthodontist: { label: '🦷 Ortodontistas', market: '~25K', tier: 1, segment: 'Saúde', why: 'Nicho premium dentro de dentista. Ticket R$3K-15K. Aparelho/Invisalign. Altíssimo valor por paciente.' },
-  medical_aesthetic_clinic: { label: '💉 Clínicas Estéticas', market: '~80K', tier: 1, segment: 'Saúde', why: 'Harmonização facial, botox, laser. Crescimento 40% ao ano. Dependem de Instagram + GMB. Ticket R$500-3K.' },
-  medical_clinic: { label: '🏥 Clínicas Médicas', market: '~200K', tier: 1, segment: 'Saúde', why: 'Clínico geral + especialidades. Atendem convênio + particular. GMB essencial para agendamento.' },
-  veterinarian: { label: '🐾 Veterinários', market: '~60K', tier: 1, segment: 'Saúde', why: 'Brasil: 2º maior mercado pet do mundo. Donos pesquisam no Google. Urgência = busca imediata. Ticket R$100-500.' },
-  psychologist: { label: '🧠 Psicólogos', market: '~350K', tier: 1, segment: 'Saúde', why: 'Crescimento explosivo pós-pandemia. Atendimento online + presencial. Precisam de site + Instagram + GMB. Ticket R$100-300/sessão.' },
-  physical_therapist: { label: '🦴 Fisioterapeutas', market: '~150K', tier: 1, segment: 'Saúde', why: 'Atendem convênio + particular. Pilates, RPG, reabilitação. GMB crítico para captação local. Ticket R$80-200.' },
-  ophthalmologist: { label: '👁️ Oftalmologistas', market: '~30K', tier: 1, segment: 'Saúde', why: 'Cirurgia refrativa, lentes, exames. Ticket alto (R$2K-10K). Clínicas particulares competem por pacientes no Google.' },
-  cardiologist: { label: '🫀 Cardiologistas', market: '~25K', tier: 1, segment: 'Saúde', why: 'Consultório particular. Check-up, exames. Público 40+. Ticket R$300-800. Google = principal fonte de agendamento.' },
-
-  // Beleza & Bem-Estar
-  beauty_salon: { label: '💇 Salões de Beleza', market: '~600K', tier: 1, segment: 'Beleza', why: 'MAIOR categoria SMB do Brasil. Manicure, cabeleireiro, estética. Altíssima rotatividade. Instagram + GMB = vitais. Ticket R$30-200.' },
-  barber_shop: { label: '💈 Barbearias', market: '~400K', tier: 1, segment: 'Beleza', why: 'Crescimento acelerado. Público masculino. Agendamento via WhatsApp + GMB. Ticket R$40-80.' },
-  gym: { label: '🏋️ Academias', market: '~35K', tier: 2, segment: 'Beleza', why: 'Mensalidade recorrente. GMB mostra horários, fotos, modalidades. Instagram para resultados de alunos. Ticket R$80-200/mês.' },
-
-  // Serviços Profissionais
-  lawyer: { label: '⚖️ Advogados', market: '~300K', tier: 1, segment: 'Serviços Profissionais', why: '1M+ advogados no Brasil (OAB). Escritórios competem por Google. Áreas: trabalhista, cível, família. Ticket R$1K-10K.' },
-  accountant: { label: '📊 Contadores', market: '~300K', tier: 1, segment: 'Serviços Profissionais', why: 'MEI, LTDA, Simples Nacional. Todo negócio precisa. GMB + site com CNPJ/CRC. Ticket R$200-800/mês.' },
-  architect: { label: '🏗️ Arquitetos', market: '~180K', tier: 2, segment: 'Serviços Profissionais', why: 'Portfólio visual. Instagram + site + GMB. Projetos residenciais e comerciais. Ticket R$3K-30K.' },
-  interior_designer: { label: '🎨 Designers de Interiores', market: '~120K', tier: 2, segment: 'Serviços Profissionais', why: 'Mesmo perfil do arquiteto. Portfólio visual essencial. Instagram é canal #1. Ticket R$1K-15K.' },
-  real_estate_agency: { label: '🏠 Imobiliárias', market: '~70K', tier: 2, segment: 'Serviços Profissionais', why: 'Cada venda paga comissão alta. GMB + portal + Google Ads. Fotos profissionais essenciais. Ticket R$5K-50K comissão.' },
-
-  // Alimentação
-  restaurant: { label: '🍽️ Restaurantes', market: '~1M', tier: 2, segment: 'Alimentação', why: 'Maior categoria absoluta. GMB com cardápio, fotos, horários. Reviews críticas. Ticket R$30-100.' },
-  pizza_restaurant: { label: '🍕 Pizzarias', market: '~60K', tier: 2, segment: 'Alimentação', why: 'Delivery + presencial. GMB + iFood + Instagram. Fotos dos sabores = venda direta. Ticket R$40-80.' },
-  bakery: { label: '🥖 Padarias', market: '~70K', tier: 3, segment: 'Alimentação', why: 'Negócio de bairro. Alta frequência, ticket baixo. GMB mostra horários, fotos, cardápio. Ticket R$5-30.' },
-
-  // Comércio & Serviços Locais
-  pet_store: { label: '🐶 Pet Shops', market: '~200K', tier: 1, segment: 'Comércio Local', why: 'SMB puro. Banho/tosa + venda de ração. GMB essencial. Donos pesquisam "pet shop perto de mim". Ticket R$50-200.' },
-  car_repair: { label: '🔧 Oficinas Mecânicas', market: '~150K', tier: 2, segment: 'Comércio Local', why: 'Urgência = busca no Google. GMB com fotos, avaliações, telefone. Ticket R$100-2K.' },
-  pharmacy: { label: '💊 Farmácias', market: '~90K', tier: 3, segment: 'Comércio Local', why: 'Redes dominam (Droga Raia, Drogasil). SMB independente compete por conveniência local. GMB com horários + telefone.' },
-  electrician: { label: '🔌 Eletricistas', market: '~200K', tier: 2, segment: 'Comércio Local', why: 'Profissional liberal. Só GMB. Zero presença digital. Urgência = cliente liga pro primeiro que aparece. Ticket R$100-500.' },
-  plumber: { label: '🔧 Encanadores', market: '~250K', tier: 2, segment: 'Comércio Local', why: 'Mesmo perfil do eletricista. Urgência máxima. Quem aparece no Google ganha o serviço. Ticket R$100-500.' },
-  cleaning_service: { label: '🧹 Serviços de Limpeza', market: '~300K', tier: 2, segment: 'Comércio Local', why: 'Terceirização residencial + comercial. Google é principal canal de prospecção. Ticket R$200-800/mês.' },
-
-  // Educação & Hospitalidade
-  school: { label: '📚 Escolas Particulares', market: '~40K', tier: 3, segment: 'Educação', why: 'Ticket alto (mensalidade R$500-3K). Período de matrícula = pico de busca. GMB + site com proposta pedagógica. Decisão familiar.' },
-  driving_school: { label: '🚗 Autoescolas', market: '~15K', tier: 3, segment: 'Educação', why: 'Pequeno, local, alta dor digital. Primeira CNH = busca no Google. Ticket R$1.5K-2.5K.' },
-  hotel: { label: '🏨 Pousadas/Hotéis', market: '~30K', tier: 3, segment: 'Hospitalidade', why: 'Dependem de Google/Booking/Decolar. SEO local crítico. Fotos + reviews = decisão de reserva. Ticket R$150-500/diária.' },
-}
-
-interface CategoryRow {
-  category: string; label: string; total_listings: number; unique_businesses: number
-  avg_score: number; pain_pct: number; solution_aware_plus: number
-  product_aware_plus: number; most_aware: number
-}
-
 const SEGMENT_COLORS: Record<string, string> = {
-  Saúde: '#16a34a', Beleza: '#d97706', 'Serviços Profissionais': '#2563eb',
-  Alimentação: '#ef4444', 'Comércio Local': '#8b5cf6', Educação: '#ec4899', Hospitalidade: '#0891b2',
+  'Saúde': '#16a34a', 'Beleza': '#d97706', 'Serviços Profissionais': '#2563eb',
+  'Alimentação': '#ef4444', 'Comércio Local': '#8b5cf6', 'Educação': '#ec4899',
+  'Hospitalidade': '#0891b2', 'servicos': '#2563eb', 'saude': '#16a34a',
+  'beleza': '#d97706', 'alimentacao': '#ef4444', 'comercio': '#8b5cf6',
+  'educacao': '#ec4899', 'hospitalidade': '#0891b2',
+}
+
+function catBadge(ci: CategoryIntelligence) {
+  if (ci.coverage.totalDiscovered === 0) return { label: 'Não prospectada', color: 'default' as const, icon: '🔴' }
+  if (ci.opportunity.score >= 50) return { label: `${ci.opportunity.score}pts`, color: 'success' as const, icon: '🟢' }
+  if (ci.opportunity.score >= 25) return { label: `${ci.opportunity.score}pts`, color: 'warning' as const, icon: '🟡' }
+  return { label: `${ci.opportunity.score}pts`, color: 'error' as const, icon: '🟠' }
 }
 
 const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
@@ -87,116 +44,74 @@ const CategoriesPage = async ({ params }: { params: Promise<{ lang: string }> })
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
 
-  // ═══ Dados REAIS do Supabase ═══
-  let categories: CategoryRow[] = []
-  let dataSource: 'supabase' | 'redis' | 'none' = 'none'
-  let enrichmentStats = { l0: 0, l1: 0, l4: 0, l5: 0 }
+  // ═══ Dados DINÂMICOS: Category Intelligence Engine (ADR-0050) ═══
+  let catIntel: CategoryIntelligence[] = []
+  let catIntelError = ''
+  try {
+    catIntel = await getCategoryIntelligence()
+  } catch (e: unknown) {
+    catIntelError = (e as Error).message?.slice(0, 120) || 'unknown'
+  }
 
+  // ═══ Dados do Supabase (KPIs + enrichment) ═══
+  let enrichmentStats = { l0: 0, l1: 0, l4: 0, l5: 0 }
   try {
     const supabase = getAdminClient()
-    const { data: listings, error } = await supabase.from("discovery_listings").select("place_id,category,score_compound,enrichment_level,schwartz_level").limit(3000)
+    const { data: listings } = await supabase.from("discovery_listings")
+      .select("place_id,enrichment_level")
+      .limit(10000)
 
-    if (!error && listings?.length) {
-      dataSource = 'supabase'
-
-      // Aggregar por categoria (dedup por place_id)
-      const byCategory: Record<string, { places: Set<string>; scores: number[]; pains: number; qual: number; prod: number; most: number }> = {}
-      const deduped = new Map<string, { category: string; score: number; el: number; sl: number }>()
-
+    if (listings?.length) {
+      const deduped = new Map<string, number>()
       for (const r of listings as any[]) {
-        const pid = r.place_id
-
-        if (!pid) continue
-        const existing = deduped.get(pid)
-
-        if (!existing || (r.enrichment_level || 0) > existing.el) {
-          deduped.set(pid, { category: r.category || "?", score: r.score_compound || 0, el: r.enrichment_level || 0, sl: r.schwartz_level || 1 })
+        if (!r.place_id) continue
+        const existing = deduped.get(r.place_id)
+        if (!existing || (r.enrichment_level || 0) > existing) {
+          deduped.set(r.place_id, r.enrichment_level || 0)
         }
       }
+      enrichmentStats.l0 = deduped.size
+      enrichmentStats.l1 = [...deduped.values()].filter(v => v >= 1).length
 
-      for (const [pid, info] of deduped) {
-        const c = info.category
+      const { count: l4Count } = await supabase.from("discovery_listings")
+        .select("place_id", { count: "exact", head: true })
+        .not("l4_ibge_populacao", "is", null)
+      enrichmentStats.l4 = l4Count || 0
 
-        if (!byCategory[c]) byCategory[c] = { places: new Set(), scores: [], pains: 0, qual: 0, prod: 0, most: 0 }
-        byCategory[c].places.add(pid)
-        byCategory[c].scores.push(info.score)
-        if (info.sl >= 3) byCategory[c].pains++
-        if (info.sl >= 4) byCategory[c].prod++
-        if (info.sl >= 5) byCategory[c].most++
-      }
-
-      const catList = Object.entries(byCategory)
-        .map(([cat, data]) => ({
-          category: cat,
-          label: CATEGORY_INFO[cat]?.label || cat,
-          total_listings: 0,
-          unique_businesses: data.places.size,
-          avg_score: Math.round(data.scores.reduce((a: number,b: number)=>a+b,0)/Math.max(data.scores.length,1)),
-          pain_pct: Math.round((data.pains/Math.max(data.places.size,1))*100),
-          solution_aware_plus: data.pains,
-          product_aware_plus: data.prod,
-          most_aware: data.most,
-        }))
-        .sort((a, b) => b.pain_pct - a.pain_pct)
-
-      categories = catList
-      // Enrichment pipeline stats (ADR-0024 + ADR-0028)
-      enrichmentStats = {
-        l0: deduped.size,
-        l1: Array.from(deduped.values()).filter(v => (v.el || 0) >= 1).length,
-        l4: 0,  // populated below
-        l5: 0,  // populated below
-      }
+      const { count: l5Count } = await supabase.from("discovery_listings")
+        .select("place_id", { count: "exact", head: true })
+        .eq("cnpj_enriched", true)
+      enrichmentStats.l5 = l5Count || 0
     }
+  } catch { /* supabase offline */ }
 
-    // L4 IBGE count
-    const { data: l4Rows } = await supabase.from("discovery_listings")
-      .select("place_id")
-      .not("l4_ibge_populacao", "is", null)
-      .limit(1)
-
-    if (l4Rows) enrichmentStats.l4 = l4Rows.length
-
-    // L5 CNPJ count
-    const { data: l5Rows } = await supabase.from("discovery_listings")
-      .select("place_id")
-      .eq("cnpj_enriched", true)
-      .limit(1)
-
-    if (l5Rows) enrichmentStats.l5 = l5Rows.length
-  } catch { /* Supabase offline */ }
-
-  // ═══ Pre-flight market intel (ADR-0029) ═══
-  // DataForSEO retorna total_count agregado (não quebra por categoria).
-  // Mostramos apenas stats gerais — sem breakdown por categoria individual.
+  // ═══ Pre-flight market intel ═══
   let pfSummary: { stateCount: number; totalLeads: number; states: string[] } | null = null
   try {
     const pfIntel = await getPreflightMarketIntel()
-    pfSummary = {
-      stateCount: pfIntel.length,
-      totalLeads: pfIntel.reduce((s, pf) => s + pf.totalLeads, 0),
-      states: pfIntel.map(pf => pf.stateUf),
+    if (pfIntel.length) {
+      pfSummary = {
+        stateCount: pfIntel.length,
+        totalLeads: pfIntel.reduce((s, pf) => s + pf.totalLeads, 0),
+        states: pfIntel.map(pf => pf.stateUf).filter(Boolean),
+      }
     }
-  } catch { /* no preflight data */ }
+  } catch { /* no preflight */ }
 
-  const hasData = categories.length > 0
-  const totalBusinesses = hasData ? categories.reduce((s, c) => s + c.total_listings, 0) : 0
-  const totalLeads = hasData ? categories.reduce((s, c) => s + c.solution_aware_plus, 0) : 0
+  const hasIntel = catIntel.length > 0
+  const totalDiscovered = hasIntel ? catIntel.reduce((s, ci) => s + ci.coverage.totalDiscovered, 0) : 0
+  const totalUnique = hasIntel ? catIntel.reduce((s, ci) => s + ci.coverage.uniquePlaceIds, 0) : 0
+  const avgOppScore = hasIntel
+    ? Math.round(catIntel.reduce((s, ci) => s + ci.opportunity.score, 0) / catIntel.length)
+    : 0
+  const withData = catIntel.filter(ci => ci.coverage.totalDiscovered > 0).length
+  const withoutData = catIntel.filter(ci => ci.coverage.totalDiscovered === 0).length
 
-  // ═══ Mercado total BR (estimado) ═══
-  const totalMarketBR = Object.values(CATEGORY_INFO).reduce((s, info) => {
-    const match = info.market.match(/~(\d+)/)
-
-    
-return s + (match ? parseInt(match[1]) * 1000 : 0)
-  }, 0)
-
-  // Segment metrics
+  // Segment aggregation
   const segments = Object.entries(
-    Object.values(CATEGORY_INFO).reduce((acc, info) => {
-      acc[info.segment] = (acc[info.segment] || 0) + 1
-      
-return acc
+    catIntel.reduce((acc, ci) => {
+      acc[ci.segment] = (acc[ci.segment] || 0) + 1
+      return acc
     }, {} as Record<string, number>)
   ).sort(([, a], [, b]) => b - a)
 
@@ -204,13 +119,14 @@ return acc
     <Grid container spacing={6}>
       {/* ── Header ── */}
       <Grid size={{ xs: 12 }}>
-        <Typography variant='h4'>📁 Categorias · Discovery Engine</Typography>
+        <Typography variant='h4'>📁 Categorias · Category Intelligence</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            29 categorias SMB Brasil · 7 segmentos · {(totalMarketBR / 1_000_000).toFixed(1)}M+ negócios mapeáveis
+            29 categorias SMB Brasil · 7 segmentos · {totalDiscovered.toLocaleString('pt-BR')} leads descobertos
           </Typography>
-          {dataSource === 'supabase' && <Chip label='Supabase' size='small' color='success' variant='tonal' />}
-          {dataSource === 'none' && <Chip label='Execute 1ª descoberta' size='small' color='default' variant='tonal' />}
+          {hasIntel && <Chip label='Category Intel API' size='small' color='success' variant='tonal' />}
+          {catIntelError && <Chip label={`Erro: ${catIntelError}`} size='small' color='error' variant='tonal' />}
+          {!hasIntel && !catIntelError && <Chip label='Execute 1ª descoberta' size='small' color='default' variant='tonal' />}
         </Box>
       </Grid>
 
@@ -221,22 +137,22 @@ return acc
           trendNumber="29" trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <CardStatVertical stats={`${(totalMarketBR / 1_000_000).toFixed(1)}M`} title='Negócios Mapeáveis'
-          subtitle='Mercado SMB Brasil · estimado' avatarColor='success' avatarIcon='ri-building-line'
-          trendNumber={String(Math.round(totalMarketBR / 1_000_000))} trend='positive' />
+        <CardStatVertical stats={totalDiscovered.toLocaleString('pt-BR')} title='Leads Descobertos'
+          subtitle={`${totalUnique.toLocaleString('pt-BR')} unique place_ids`} avatarColor='success' avatarIcon='ri-building-line'
+          trendNumber={String(totalDiscovered)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <CardStatVertical stats={hasData ? totalBusinesses.toLocaleString('pt-BR') : '—'} title='Leads Encontrados'
-          subtitle={hasData ? `${categories.length} categorias com dados` : 'Execute 1ª descoberta'} avatarColor='warning'
-          avatarIcon='ri-radar-line' trendNumber={String(totalBusinesses)} trend='positive' />
+        <CardStatVertical stats={`${avgOppScore}/100`} title='Score Médio Oportunidade'
+          subtitle={`${withData}/29 categorias com dados`} avatarColor='warning'
+          avatarIcon='ri-radar-line' trendNumber={String(avgOppScore)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <CardStatVertical stats={hasData ? totalLeads.toLocaleString('pt-BR') : '—'} title='Solution Aware+'
-          subtitle='Score ≥ 50 · leads qualificados' avatarColor='error' avatarIcon='ri-user-search-line'
-          trendNumber={String(totalLeads)} trend='positive' />
+        <CardStatVertical stats={String(withoutData)} title='Não Prospectadas'
+          subtitle='Categorias com 0 leads' avatarColor='error' avatarIcon='ri-alert-line'
+          trendNumber={String(withoutData)} trend='negative' />
       </Grid>
 
-      {/* ── Enrichment Pipeline (ADR-0024 + ADR-0028) ── */}
+      {/* ── Enrichment Pipeline ── */}
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical stats={`${enrichmentStats.l0}`} title='L0 · Descobertos'
           subtitle='Total de leads encontrados no GMB' avatarColor='success' avatarIcon='ri-radar-line'
@@ -249,22 +165,22 @@ return acc
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical stats={`${enrichmentStats.l4}`} title='L4 · IBGE Context'
-          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l4 / enrichmentStats.l0) * 100) : 0}% — pop+PIB+densidade`} avatarColor='warning' avatarIcon='ri-government-line'
+          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l4 / Math.max(enrichmentStats.l0, 1)) * 100) : 0}% — pop+PIB+densidade`} avatarColor='warning' avatarIcon='ri-government-line'
           trendNumber={String(enrichmentStats.l4)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <CardStatVertical stats={`${enrichmentStats.l5}`} title='L5 · CNPJ Validados'
-          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l5 / enrichmentStats.l0) * 100) : 0}% — CNAE+regime+sócios`} avatarColor='error' avatarIcon='ri-file-search-line'
+          subtitle={`${enrichmentStats.l0 > 0 ? Math.round((enrichmentStats.l5 / Math.max(enrichmentStats.l0, 1)) * 100) : 0}% — CNAE+regime+sócios`} avatarColor='error' avatarIcon='ri-file-search-line'
           trendNumber={String(enrichmentStats.l5)} trend='positive' />
       </Grid>
 
-      {/* ═══ Pre-flight Market Intel KPI (ADR-0029) ═══ */}
+      {/* ── Pre-flight KPI ── */}
       {pfSummary && (
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardStatVertical
             stats={pfSummary.totalLeads.toLocaleString('pt-BR')}
             title='🔬 Pre-flight Mercado'
-            subtitle={`${pfSummary.stateCount} estado(s): ${pfSummary.states.join(', ')} · valor agregado (não por categoria)`}
+            subtitle={`${pfSummary.stateCount} estado(s): ${pfSummary.states.join(', ')}`}
             avatarColor='secondary' avatarIcon='ri-radar-line'
             trendNumber={String(pfSummary.stateCount)} trend='positive' />
         </Grid>
@@ -283,7 +199,7 @@ return acc
                   </Typography>
                   <Typography variant='caption' color='text.secondary'>{seg}</Typography>
                   <LinearProgress variant='determinate' value={Math.round((count / 29) * 100)}
-                    sx={{ height: 4, borderRadius: 2, mt: 0.5, bgcolor: `${SEGMENT_COLORS[seg]}22`, '& .MuiLinearProgress-bar': { bgcolor: SEGMENT_COLORS[seg] } }} />
+                    sx={{ height: 4, borderRadius: 2, mt: 0.5, bgcolor: `${SEGMENT_COLORS[seg] || '#666'}22`, '& .MuiLinearProgress-bar': { bgcolor: SEGMENT_COLORS[seg] || '#666' } }} />
                 </Box>
               ))}
             </Box>
@@ -291,102 +207,158 @@ return acc
         </Card>
       </Grid>
 
-      {/* ── Category Table with Market Data ── */}
+      {/* ═══ CATEGORY CARDS · DINÂMICOS (getCategoryIntelligence) ═══ */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h6' gutterBottom>
-          🏆 Categorias por Prioridade de Prospecção
-          <Chip label='29 categorias · 7 segmentos' size='small' variant='outlined' sx={{ ml: 2 }} />
+          🏆 Categorias por Oportunidade de Prospecção
+          <Chip label={`${withData}/29 com dados · ${withoutData} não prospectadas`} size='small' variant='outlined' sx={{ ml: 2 }} />
         </Typography>
-        <TableContainer component={Paper}>
-          <Table size='small'>
-            <TableHead>
-              <TableRow>
-                <TableCell width={40}>#</TableCell>
-                <TableCell>Categoria</TableCell>
-                <TableCell>Segmento</TableCell>
-                <TableCell>Mercado BR</TableCell>
-                <TableCell>Por que Importa?</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.entries(CATEGORY_INFO)
-                .sort(([, a], [, b]) => a.tier - b.tier)
-                .map(([id, info], idx) => {
-                  const segColor = SEGMENT_COLORS[info.segment] || '#666'
-
-                  return (
-                    <TableRow key={id} hover>
-                      <TableCell>
-                        <Typography fontWeight={700} color='text.secondary'>{idx + 1}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography fontWeight={600} fontSize='0.9rem'>{info.label}</Typography>
-                          <Chip label={`T${info.tier}`} size='small'
-                            color={info.tier === 1 ? 'error' : info.tier === 2 ? 'warning' : 'info'} variant='tonal'
-                            sx={{ minWidth: 32, fontFamily: 'monospace', fontSize: '0.65rem' }} />
-                        </Box>
-                        <Typography variant='caption' sx={{ fontFamily: 'monospace', fontSize: '0.65rem', color: 'text.secondary' }}>
-                          {id}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={info.segment} size='small' variant='outlined'
-                          sx={{ borderColor: segColor, color: segColor, fontSize: '0.7rem' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Typography fontWeight={600}>{info.market}</Typography>
-                        <Typography variant='caption' color='text.secondary'>negócios</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.4 }}>
-                          {info.why}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-            </TableBody>
-          </Table>
-        </TableContainer>
       </Grid>
 
-      {/* ── Tier explanation ── */}
-      <Grid size={{ xs: 12 }}>
-        <Card sx={{ bgcolor: 'var(--pastel-coral)' }}>
-          <CardContent>
-            <Typography variant='h6' gutterBottom>📊 Estratégia de Priorização (Tier 1 → 3)</Typography>
-            <Grid container spacing={2}>
-              {[
-                { tier: 'T1', color: 'error', label: 'Nicho Primário', desc: '17 categorias · Maior dor digital · Maior ticket · Clientes que mais precisam de marketing. FOCO do adsentice.', cats: Object.entries(CATEGORY_INFO).filter(([, info]) => info.tier === 1).map(([, i]) => i.label).join(', ') },
-                { tier: 'T2', color: 'warning', label: 'Expansão', desc: '9 categorias · Bom potencial · Abordar após consolidar T1.', cats: Object.entries(CATEGORY_INFO).filter(([, info]) => info.tier === 2).map(([, i]) => i.label).join(', ') },
-                { tier: 'T3', color: 'info', label: 'Oportunidade', desc: '3 categorias · Nicho específico · Abordar sob demanda.', cats: Object.entries(CATEGORY_INFO).filter(([, info]) => info.tier === 3).map(([, i]) => i.label).join(', ') },
-              ].map((t) => (
-                <Grid key={t.tier} size={{ xs: 12, md: 4 }}>
-                  <Card sx={{ borderLeft: 3, borderColor: `${t.color}.main` }}>
-                    <CardContent>
-                      <Chip label={`${t.tier} · ${t.label}`} size='small' color={t.color as any} variant='tonal' sx={{ mb: 1 }} />
-                      <Typography variant='body2' sx={{ mb: 1 }}>{t.desc}</Typography>
-                      <Typography variant='caption' color='text.secondary'>{t.cats}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+      {hasIntel ? (
+        catIntel.map((ci) => {
+          const badge = catBadge(ci)
+          const segColor = SEGMENT_COLORS[ci.segment] || '#666'
+          const hasData = ci.coverage.totalDiscovered > 0
+
+          return (
+            <Grid key={ci.category} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card sx={{
+                height: '100%',
+                borderLeft: 4,
+                borderColor: hasData ? `${badge.color}.main` : 'divider',
+                opacity: hasData ? 1 : 0.7,
+              }}>
+                <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, height: '100%' }}>
+                  {/* Header */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box>
+                      <Typography variant='subtitle1' fontWeight={700}>
+                        {ci.label}
+                      </Typography>
+                      <Typography variant='caption' sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                        {ci.category}
+                      </Typography>
+                    </Box>
+                    <Chip label={badge.label} size='small' color={badge.color} variant='tonal' />
+                  </Box>
+
+                  {/* Segment + Opportunity */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip label={ci.segment} size='small' variant='outlined'
+                      sx={{ borderColor: segColor, color: segColor, fontSize: '0.7rem' }} />
+                    {hasData && (
+                      <Chip label={`Score ${ci.opportunity.score}/100`} size='small'
+                        color={ci.opportunity.score >= 50 ? 'success' : ci.opportunity.score >= 25 ? 'warning' : 'error'}
+                        variant='tonal' />
+                    )}
+                  </Box>
+
+                  {/* Metrics */}
+                  {hasData ? (
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Box>
+                        <Typography variant='h6' fontWeight={700}>{ci.coverage.totalDiscovered}</Typography>
+                        <Typography variant='caption' color='text.secondary'>leads</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant='h6' fontWeight={700}>{ci.coverage.uniquePlaceIds}</Typography>
+                        <Typography variant='caption' color='text.secondary'>únicos</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant='h6' fontWeight={700}>{ci.coverage.coveragePctBR}%</Typography>
+                        <Typography variant='caption' color='text.secondary'>cobertura</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant='h6' fontWeight={700}>{ci.quality.avgScore}</Typography>
+                        <Typography variant='caption' color='text.secondary'>score médio</Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant='body2' color='text.secondary' sx={{ fontStyle: 'italic' }}>
+                      Nenhum lead descoberto. Execute o primeiro discovery nesta categoria.
+                    </Typography>
+                  )}
+
+                  {/* Gaps */}
+                  {ci.coverage.gaps.length > 0 && (
+                    <Box>
+                      <Typography variant='caption' fontWeight={600} color='warning.main'>
+                        🔴 {ci.coverage.gaps.length} gaps · {ci.coverage.gaps.slice(0, 2).map(g => g.city).join(', ')}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Opportunity next action */}
+                  {hasData && ci.opportunity.nextAction && (
+                    <Typography variant='caption' color='text.secondary' sx={{ lineHeight: 1.3 }}>
+                      💡 {ci.opportunity.nextAction.length > 120
+                        ? ci.opportunity.nextAction.slice(0, 120) + '...'
+                        : ci.opportunity.nextAction}
+                    </Typography>
+                  )}
+
+                  {/* Marketing Intel */}
+                  {ci.marketingIntel.enriched && ci.marketingIntel.topSkills.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {ci.marketingIntel.topSkills.slice(0, 3).map(skill => (
+                        <Chip key={skill} label={skill} size='small' variant='outlined'
+                          sx={{ fontSize: '0.6rem', height: 18 }} />
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Actions */}
+                  <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 1 }}>
+                    <Button
+                      size='small'
+                      variant='contained'
+                      color='primary'
+                      href={`/${lang}/admin/discovery?cat=${ci.category}`}
+                      startIcon={<i className='ri-radar-line' />}
+                    >
+                      Prospectar
+                    </Button>
+                    {hasData && (
+                      <Button
+                        size='small'
+                        variant='outlined'
+                        href={`/${lang}/admin/leads?category=${ci.category}`}
+                      >
+                        Ver Leads
+                      </Button>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
             </Grid>
-          </CardContent>
-        </Card>
-      </Grid>
+          )
+        })
+      ) : (
+        <Grid size={{ xs: 12 }}>
+          <Alert severity='warning'>
+            <Typography variant='body2' fontWeight={600}>
+              ⚠️ Category Intelligence não disponível
+            </Typography>
+            <Typography variant='caption'>
+              {catIntelError
+                ? `Erro: ${catIntelError}`
+                : 'Execute o primeiro discovery para popular dados de categoria.'}
+            </Typography>
+          </Alert>
+        </Grid>
+      )}
 
       {/* ── Data Source ── */}
       <Grid size={{ xs: 12 }}>
         <Alert severity='info' variant='outlined'>
           <Typography variant='body2' fontWeight={600}>
-            📊 Dados de mercado: IBGE + Google Meu Negócio + projeções adsentice
+            📊 Fonte: Category Intelligence Engine (ADR-0050) · Supabase · Qdrant · IBGE
           </Typography>
           <Typography variant='caption'>
-            Tamanho de mercado estimado com base em dados do IBGE (CEMPRE 2024), registros de GMB por categoria,
-            e projeções de penetração digital. Dados de leads REAIS virão do Supabase após buscas no Discovery Engine.
-            Custo para mapear todas as 29 categorias em SP: ~$0.44 (R$2.42).
+            Dados em tempo real do Supabase ({totalDiscovered.toLocaleString('pt-BR')} leads em {withData}/29 categorias).
+            Categorias com 0 leads precisam de prospecção via Discovery Engine.
+            Marketing Intelligence via Qdrant semantic search (832 pts). Custo de dados: $0.
           </Typography>
         </Alert>
       </Grid>

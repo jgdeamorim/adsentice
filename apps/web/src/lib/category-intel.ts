@@ -96,7 +96,7 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
     const allListings: any[] = []
     const fields = "category,place_id,city,district,score_compound,schwartz_label,website,phone,wa_is_business,wa_has_whatsapp,enrichment_level,is_claimed,rating_value"
     const pageSize = 1000
-    for (let offset = 0; offset < 6000; offset += pageSize) {
+    for (let offset = 0; offset < 12000; offset += pageSize) {
       const pageRes = await fetch(
         `${SUPA_URL}/rest/v1/discovery_listings?select=${encodeURIComponent(fields)}&limit=${pageSize}&offset=${offset}&order=created_at.desc`,
         { headers: supaHeaders(), signal: AbortSignal.timeout(10000) },
