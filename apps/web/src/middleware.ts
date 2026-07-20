@@ -73,5 +73,5 @@ return NextResponse.redirect(url)
 
 export const config = {
   // roda em tudo, menos assets estáticos e o _next
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/wa-check|api/cockpit|api/category|api/auto-pilot|api/semantic-registry|api/health|api/cnpj|api/geo|api/discovery|api/surface|api/cep|api/coverage|api/s10-artifacts|images|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)']
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/wa-check|api/cockpit|api/category|api/auto-pilot|api/semantic-registry|api/health|api/cnpj|api/geo|api/discovery|api/surface|api/cep|api/coverage|api/s10-artifacts|api/l2b-test|images|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)']
 }

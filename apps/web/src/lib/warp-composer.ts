@@ -1707,50 +1707,97 @@ async function enrichS11L2b(website: string | null | undefined): Promise<L2bEnri
   }
 }
 
-// ── Fallback determinístico HONESTO (dados reais do nicho/lead — zero jargão interno) ──
-function buildLandingCopyFallback(lead: S11Lead, nicho: NichoProfile, local: string, strategy: ConversionStrategy): LandingCopy {
+// ── Fallback determinístico HONESTO (dados REAIS do lead/L2b — NUNCA template interno) ──
+// v2 · 2026-07-20: L2b-first — serviços/contato/booking reais substituem NICHO_MAP triggers
+interface L2bContext {
+  services: string[]; doctors: { name: string; crm: string; specialty: string }[]
+  insurance: string[]; hasBooking: boolean; bookingPlatform: string | null
+  hasWhatsApp: boolean; hasPrices: boolean; instagram?: string
+}
+function buildLandingCopyFallback(
+  lead: S11Lead, nicho: NichoProfile, local: string, strategy: ConversionStrategy,
+  l2b?: L2bContext | null,
+): LandingCopy {
   const term = nicho.clientTerm || 'cliente'
-  const spec = nicho.specialties.slice(0, 3)
-  const trigger = nicho.conversionTriggers[0] || 'Atendimento personalizado'
+  // L2b-first: serviços REAIS do site. Só usa NICHO_MAP se L2b falhou
+  const realServices = (l2b?.services?.length ? l2b.services : nicho.specialties).slice(0, 4)
+  const hasRealData = l2b?.services?.length && l2b.services.length > 0
   const rating = lead.rating_value || 0
   const reviews = lead.rating_votes || 0
   const social = rating >= 4 && reviews >= 10 ? `${rating}★ no Google com ${reviews} avaliações` : `${nicho.name} em ${local}`
+  const contactMethod = l2b?.hasWhatsApp ? 'WhatsApp' : l2b?.bookingPlatform === 'whatsapp' ? 'WhatsApp' : 'telefone'
+  const contactAction = l2b?.hasWhatsApp || l2b?.bookingPlatform === 'whatsapp' ? 'Chame no WhatsApp' : 'Ligue agora'
+
+  // Hero: vende os SERVIÇOS REAIS da clínica, nunca nosso lead magnet
+  const heroHeadline = hasRealData
+    ? `${lead.title} — ${realServices.slice(0, 2).join(' e ')} em ${local}`
+    : `${lead.title} — ${nicho.name} em ${local}`
+  const heroSubtitle = hasRealData
+    ? `${realServices.slice(0, 3).join(', ')}${realServices.length > 3 ? ' e mais' : ''}. ${social}.`
+    : strategy.facet === 'social_proof' && rating >= 4
+      ? `${social}. ${realServices[0]} e ${realServices[1] || 'atendimento completo'} perto de você.`
+      : `${realServices.slice(0, 2).join(' e ')}. Atendimento em ${local}.`
+
   return {
     hero: {
-      headline: `${lead.title} — ${nicho.name} em ${local}`,
-      subtitle: strategy.facet === 'social_proof' && rating >= 4
-        ? `${social}. ${spec[0]} e ${spec[1] || 'atendimento completo'} perto de você.`
-        : `${spec.slice(0, 2).join(' e ')} com ${trigger.toLowerCase()}.`,
+      headline: heroHeadline,
+      subtitle: heroSubtitle,
     },
     how: {
-      title: 'Como funciona',
-      steps: [
-        { title: 'Fale conosco', desc: `Chame no WhatsApp e conte o que você precisa — resposta rápida e sem compromisso.` },
-        { title: 'Atendimento', desc: `Você é recebido por quem entende de ${(spec[0] || nicho.name).toLowerCase()}.` },
-        { title: 'Acompanhamento', desc: `Seu caso acompanhado do início ao fim, como todo ${term} merece.` },
-      ],
+      title: hasRealData ? 'Nossos serviços' : 'Como funciona',
+      steps: hasRealData
+        ? realServices.slice(0, 3).map((svc, i) => ({
+            title: svc.charAt(0).toUpperCase() + svc.slice(1),
+            desc: i === 0 ? `Agende pelo ${contactMethod} e receba atendimento personalizado em ${local}.`
+                 : i === 1 ? `Atendimento com profissionais experientes em ${svc.toLowerCase()}.`
+                 : `Acompanhamento completo do seu caso — do diagnóstico ao resultado final.`,
+          }))
+        : [
+            { title: 'Fale conosco', desc: `Chame no ${contactMethod} e conte o que você precisa.` },
+            { title: 'Atendimento', desc: `Você é recebido por quem entende de ${(realServices[0] || nicho.name).toLowerCase()}.` },
+            { title: 'Acompanhamento', desc: `Seu caso acompanhado do início ao fim.` },
+          ],
     },
     capabilities: {
-      title: `Especialidades`,
-      items: spec.map(s => ({ title: s, desc: `${s} com atendimento dedicado em ${local}.` })),
-    },
-    voice: { title: reviews >= 10 ? `Quem já veio, avaliou: ${rating}★ em ${reviews} avaliações públicas no Google.` : `Atendimento avaliado publicamente no Google.` },
-    pricing: {
-      title: strategy.pricingFrame === 'free-first' ? 'Comece sem compromisso' : 'Sua primeira visita',
-      offerLine: trigger,
-      riskRemoval: strategy.pricingFrame === 'guarantee'
-        ? 'Tire todas as dúvidas antes de decidir — sem pressão, sem surpresa.'
-        : 'Agende quando fizer sentido para você — cancelamento sem burocracia.',
-    },
-    faq: {
-      items: nicho.pains.slice(0, 4).map((p, i) => ({
-        q: i === 0 ? `Por que escolher ${lead.title}?` : `E se "${p.toLowerCase()}"?`,
-        a: i === 0
-          ? `${social}. Especialidades: ${spec.join(', ')}.${lead.is_claimed ? ' Perfil verificado no Google.' : ''}`
-          : `É exatamente por isso que o primeiro contato é sem compromisso — você conhece o atendimento antes de decidir.`,
+      title: hasRealData ? 'Especialidades' : `O que oferecemos`,
+      items: realServices.map(s => ({
+        title: s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' '),
+        desc: hasRealData
+          ? `${s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')} com atendimento dedicado em ${local}.`
+          : `${s} em ${local}.`,
       })),
     },
-    cta: { label: 'Falar no WhatsApp', sub: trigger },
+    voice: {
+      title: reviews >= 10
+        ? `Nossa reputação real: ${rating}★ com ${reviews} avaliações no Google. Os pacientes falam por si.`
+        : `Atendimento avaliado publicamente no Google.`,
+    },
+    pricing: {
+      title: hasRealData ? 'Agende sua consulta' : 'Comece sem compromisso',
+      offerLine: hasRealData
+        ? `${contactAction} — agendamento rápido e sem burocracia.`
+        : `${contactAction} e descubra como podemos ajudar.`,
+      riskRemoval: l2b?.hasPrices
+        ? 'Consulte valores e opções de pagamento diretamente conosco.'
+        : 'Tire todas as dúvidas antes de decidir — sem pressão, sem surpresa.',
+    },
+    faq: {
+      items: hasRealData
+        ? [
+            { q: `Por que escolher ${lead.title}?`, a: `${social}.${l2b?.insurance?.length ? ` Aceitamos ${l2b.insurance.slice(0, 3).join(', ')}.` : ''} Especialidades: ${realServices.join(', ')}.` },
+            { q: 'Quanto custa?', a: l2b?.hasPrices ? 'Temos opções para diferentes orçamentos. Consulte nossos valores ao agendar.' : 'Agende uma consulta para receber um orçamento personalizado sem compromisso.' },
+            { q: 'Como agendar?', a: `${contactAction} e marque seu horário. Resposta rápida, sem burocracia.` },
+            { q: 'Aceitam convênios?', a: l2b?.insurance?.length ? `Sim, trabalhamos com ${l2b.insurance.slice(0, 5).join(', ')} e outros.` : 'Sim, consulte nossa lista de convênios ao agendar.' },
+          ]
+        : nicho.pains.slice(0, 4).map((p, i) => ({
+            q: i === 0 ? `Por que escolher ${lead.title}?` : `E se "${p.toLowerCase()}"?`,
+            a: i === 0 ? `${social}. Especialidades: ${realServices.join(', ')}.` : `Agende e conheça nosso atendimento antes de decidir.`,
+          })),
+    },
+    cta: {
+      label: l2b?.hasWhatsApp || l2b?.bookingPlatform === 'whatsapp' ? 'Falar no WhatsApp' : contactAction,
+      sub: hasRealData ? `${realServices.slice(0, 2).join(', ')} e mais — ${contactAction.toLowerCase()} agora.` : contactAction,
+    },
   }
 }
 
@@ -1785,6 +1832,8 @@ function renderS11_GREEN(input: {
   seoKeywords?: string[]; seoMetaTitle?: string
   /** ADR-0048: WhatsApp CTA com número real do lead */
   waPhone?: string | null; waCTA?: string
+  /** ADR-0044: L2b real service count (usa count do site, não do NICHO_MAP) */
+  l2bServiceCount?: number
 }): string {
   const { lead, nicho, local, copy, strategy, composedLayout, T, p, s, p15, p12, icons } = input
   const seoKeywords = input.seoKeywords || nicho.keywords?.slice(0, 5) || []
@@ -1825,7 +1874,7 @@ function renderS11_GREEN(input: {
       `</div></div></section>`,
     stats: () => `<section class="s11-stats${em('stats')}" aria-label="Números"><div class="s11-wrap s11-stats-row">` +
       (hasSocial ? `<div class="s11-stat"><div class="s11-stat-v">${rating.toFixed(1)}★</div><div class="s11-stat-l">nota no Google</div></div><div class="s11-stat"><div class="s11-stat-v">${reviews}</div><div class="s11-stat-l">avaliações públicas</div></div>` : '') +
-      `<div class="s11-stat"><div class="s11-stat-v">${nicho.specialties.length}</div><div class="s11-stat-l">especialidades</div></div>` +
+      `<div class="s11-stat"><div class="s11-stat-v">${input.l2bServiceCount || nicho.specialties.length}</div><div class="s11-stat-l">especialidades</div></div>` +
       `<div class="s11-stat"><div class="s11-stat-v">${esc(lead.district || lead.city || 'local')}</div><div class="s11-stat-l">atendimento em</div></div>` +
       `</div></section>`,
     voice: () => `<section class="s11-sec${em('voice')}" aria-label="Reputação"><div class="s11-wrap s11-voice">` +
@@ -1963,6 +2012,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
 
     // ── L2b Enrichment (ADR-0044/0046) · dados REAIS do site · $0 ──
     const l2b = await enrichS11L2b(lead.website)
+    console.log("[composeS11 L2b]", lead.website, "→", l2b?.enriched ? `✅ services:${l2b.services.length} doctors:${l2b.doctors.length} insurance:${l2b.insurance.length} designScore:${l2b?.designDNA?.score || 0}` : `❌ fallback · error: ${(l2b as any)?.error || 'no data'}`)
     const l2bServices = l2b?.services?.length ? l2b.services : nicho.specialties
     const l2bDoctors = l2b?.doctors?.length ? l2b.doctors : []
     const l2bInsurance = l2b?.insurance?.length ? l2b.insurance : []
@@ -2123,15 +2173,20 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     // 7. Por ESTRATÉGIA: layout + copy + render (2 variantes)
     const variants: S11Variant[] = []
     let lastQg: { slopWarnings: number; passed: boolean } | null = null
+    const l2bCtx: L2bContext = { services: l2bServices, doctors: l2bDoctors, insurance: l2bInsurance, hasBooking: l2bHasBooking, bookingPlatform: l2bBookingPlatform, hasWhatsApp: l2bHasWhatsApp, hasPrices: l2bHasPrices, instagram: l2bSocialIG || undefined }
     for (const strat of [strategies.A, strategies.B]) {
       const composed = composeLayout(intent, slotMorph, strat)
-      const fb = buildLandingCopyFallback(lead, nicho, local, strat)
+      const fb = buildLandingCopyFallback(lead, nicho, local, strat, l2b?.enriched ? l2bCtx : null)
+      // DeepSeek: serviços REAIS como specialties + triggers REAIS (não NICHO_MAP)
+      const realTriggers = l2b?.enriched
+        ? [`Agende pelo ${l2bCtx.hasWhatsApp ? 'WhatsApp' : 'telefone'}`, ...l2bServices.slice(0, 2)]
+        : nicho.conversionTriggers
       const ai = await generateLandingCopy({
         name: lead.title, category: lead.category, nichoName: nicho.name,
         clientTerm: nicho.clientTerm || 'cliente', specialties: l2bServices,
         local, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
-        isClaimed: lead.is_claimed || false, triggers: nicho.conversionTriggers,
-        pains: nicho.pains, tone: nicho.tone,
+        isClaimed: lead.is_claimed || false, triggers: realTriggers,
+        pains: l2b?.enriched ? [`Agendamento rápido pelo ${l2bCtx.hasWhatsApp ? 'WhatsApp' : 'telefone'}`, 'Atendimento de qualidade'] : nicho.pains, tone: nicho.tone,
         // L2b inject · dados REAIS da clínica para a copy
         ...(l2bDoctors.length > 0 ? { doctors: l2bDoctors.slice(0, 2) } as any : {}),
         ...(l2bInsurance.length > 0 ? { insurance: l2bInsurance.slice(0, 5) } as any : {}),
@@ -2141,7 +2196,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
-      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA })
+      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA, l2bServiceCount: l2b?.enriched ? l2bServices.length : undefined })
       // ADR-0049 §4: Quality Gate — Unslop validation
       const qg = applyQualityGate(rawHtml)
       lastQg = qg
