@@ -423,28 +423,28 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 | `ADS.PRD.chat.analyze` | Deep-dive credit-gated | 🔴 a construir |
 | `ADS.PRD.chat.message` | Chat livre com contexto do negócio | 🔴 a construir |
 
-### ADS.PRD.enrichment — Funil de Enriquecimento (5 camadas)
+### ADS.PRD.enrichment — Funil de Enriquecimento (7 camadas · ADR-0046 v137)
 
 | Rota | Camada | Dados | Custo/lead | Status |
 |---|---|---|---|---|
-| `ADS.PRD.enrich.l0_gmb` | L0 · Atração GMB | 27 campos canônicos | $0.015 | ✅ live |
-| `ADS.PRD.enrich.l1_website` | L1 · Website Lighthouse | SEO, performance, analytics, CMS, schema | $0.0001 | 🟡 spec pronta |
-| `ADS.PRD.enrich.l2_social` | L2 · Social Media | Instagram, Facebook, TikTok, engajamento | $0.0005 | 🔴 v0.3 |
-| `ADS.PRD.enrich.l3_brand` | L3 · Brand & Market | Branded search, SOV, backlinks, AI mentions | $0.03 | 🔴 v0.5 |
-| `ADS.PRD.enrich.l4_diagnostic` | L4 · Diagnóstico LLM | Plano 7/30/90, script abordagem, proposta | $0.02 | 🔴 v0.5 |
+| `ADS.PRD.enrich.l0_gmb` | L0 · Atração GMB | 41 campos canônicos (ADR-0040) · nome, tel, address, rating, fotos, attributes | $0.048 | ✅ live |
+| `ADS.PRD.enrich.l2a_seo` | L2a · SEO Técnico | Lighthouse, CMS, analytics, meta tags, HTTPS (DataForSEO) | $0.012 | ✅ live |
+| `ADS.PRD.enrich.l2b_content` | L2b · Conteúdo+Design DNA | Serviços, equipe, convênios, Brand DNA, UX DNA · Crawler modular .TS (ADR-0044) | $0 | 🟡 80% implementado (17 módulos) |
+| `ADS.PRD.enrich.l3_competitive` | L3 · Competitive Intel | Backlinks, SOV, keyword gaps, domain rank (DataForSEO) | $0.08 | ✅ live |
+| `ADS.PRD.enrich.l4_ibge` | L4 · Market Context | IBGE: renda, PIB per capita, população, densidade (Supabase) | $0 | 🟡 dados prontos, scoring pendente |
+| `ADS.PRD.enrich.l5_cnpj` | L5 · CNPJ | CNAE, regime tributário, sócios · ReceitaWS (ADR-0028) | $0 | 🟡 proposed |
+| `ADS.PRD.enrich.l6_generation` | L6 · Geração | S10 Raio-X, S11 Landing A/B, Warp Composer (ADR-0037, ADR-0045) | $0 | 🟡 2/22 surfaces LIVE |
+| `ADS.PRD.enrich.l7_analytics` | L7 · Mensuração+Feedback | A/B tracking, conversão, Learning Loop → novas Strategies | $0 | 🔴 spec |
 
-### ADS.PRD.products — Produtos por Camada
+### ADS.PRD.products — Produtos por Camada (v137)
 
 | Rota | Produto | Preço | Camada | Status |
 |---|---|---|---|---|
-| `ADS.PRD.products.raio_x` | Raio-X (diagnóstico gratuito) | R$0 | L0 | 🟡 spec pronta |
-| `ADS.PRD.products.auditoria` | Auditoria de Site (PDF 30+ checks) | R$47 | L1 | 🔴 v0.3 |
-| `ADS.PRD.products.social_kit` | Social Media Kit (templates+calendário) | R$47 | L2 | 🔴 v0.4 |
-| `ADS.PRD.products.sentinela` | Sentinela (monitoramento 24/7) | R$197/mês | L0-L2 | 🔴 v0.4 |
-| `ADS.PRD.products.seo_local` | SEO Local (otimização contínua) | R$197/mês | L1 | 🔴 v0.3 |
-| `ADS.PRD.products.brandformance` | Brandformance (mix brand+performance) | R$497/mês | L3 | 🔴 v0.5 |
-| `ADS.PRD.products.dominio` | Domínio (full stack) | R$497/mês | L0-L4 | 🔴 v0.6 |
-| `ADS.PRD.products.consultoria` | Consultoria (diagnóstico completo) | ticket | L4 | 🔴 v0.6 |
+| `ADS.PRD.products.raio_x` | Raio-X (diagnóstico gratuito) | R$0 | L0+L2a | 🟡 S10 LIVE (0.54s, ADR-0038) |
+| `ADS.PRD.products.sentinela` | Sentinela (landing page + monitoramento) | R$197/mês | L0+L2a+L2b+L3 | 🟡 S11 LIVE · S11-MK/S11K spec (ADR-0045) |
+| `ADS.PRD.products.dominio` | Domínio (full stack + competitive) | R$497/mês | Sentinela+L4+L5 | 🟡 spec (ADR-0045) |
+| `ADS.PRD.products.escala` | Escala (multi-surface + analytics) | R$997/mês | Domínio+L6+L7 | 🔴 spec |
+| `ADS.PRD.products.growth_os` | Growth OS (multi-tenant + white-label) | R$1.497/mês | Todos | 🔴 spec |
 
 ### ADS.PRD.solutions — Soluções
 

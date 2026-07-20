@@ -300,6 +300,7 @@ ${morph.css}
 // ═══════════════════════════════════════════════════════════════
 
 import { generateCopy, generateLandingCopy, trackLLMCost, type LandingCopy } from "./deepseek"
+import { fetchSite, parseHTML, extractServices, extractContacts, extractSocial, extractBooking, extractStaff, extractInsurance, extractDesignDNA, extractComponentDNA, extractUXDNA, normalizeAll, computeConfidence, detectFramework } from "./l2b/index"
 import { searchDesignInspiration, queryDesignBestPractices, queryComponentsByIntent, fetchComponentsByIds, queryDesignSystem, queryMaterioTokens, queryMediaAnimation, queryMediaIcons, queryCSSPatterns, queryK0ForSurface } from "./warp-kg"
 import { S10RaioXPipeline } from "../../../../packages/warp/src/s10-raio-x"
 import { unifyTokens } from "../../../../packages/warp/src/tokens-unifier"
@@ -1496,6 +1497,60 @@ export interface S11ComposeResult {
   meta: Record<string, unknown>
 }
 
+// ═══ L2b Enrichment · ADR-0044 + ADR-0046 · Wire dados REAIS no S11 ═══
+
+interface L2bEnrichData {
+  services: string[]
+  doctors: { name: string; crm?: string; specialty?: string }[]
+  insurance: string[]
+  socialLinks: { instagram?: string; facebook?: string; tiktok?: string }
+  hasBooking: boolean
+  bookingPlatform: string | null
+  hasWhatsApp: boolean
+  hasPrices: boolean
+  designDNA: { colors: { primary: string; secondary: string; accent: string }; typography: { heading: string; body: string }; score: number } | null
+  enriched: boolean
+  error?: string
+}
+
+/** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
+ *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
+ *  Custo: $0 (crawler local, sem API externa). */
+async function enrichS11L2b(website: string | null | undefined): Promise<L2bEnrichData | null> {
+  if (!website) return null
+  try {
+    // 1. Fetch site
+    const fetched = await fetchSite(website)
+    if (!fetched.html || fetched.html.length < 100) return null
+    // 2. Parser
+    const site = parseHTML(fetched.html, fetched.finalUrl || website)
+    // 3. Extractors (paralelo onde possível)
+    const [contacts, services, social, booking, staff, insurance, designDNA] = await Promise.all([
+      Promise.resolve(extractContacts(site)),
+      Promise.resolve(extractServices(site)),
+      Promise.resolve(extractSocial(site)),
+      Promise.resolve(extractBooking(site)),
+      Promise.resolve(extractStaff(site)),
+      Promise.resolve(extractInsurance(site)),
+      Promise.resolve(extractDesignDNA(site)),
+    ])
+    return {
+      services: services.services,
+      doctors: staff.members.filter(m => m.confidence >= 40).map(m => ({ name: m.name, crm: m.registryNumber, specialty: m.specialty })),
+      insurance: insurance.plans,
+      socialLinks: { instagram: social.instagram || undefined, facebook: social.facebook || undefined, tiktok: social.tiktok || undefined },
+      hasBooking: booking.hasBooking,
+      bookingPlatform: booking.platform,
+      hasWhatsApp: contacts.hasWhatsApp,
+      hasPrices: /R\$\s?\d|preço|valor|investimento/i.test(site.bodyText),
+      designDNA: { colors: designDNA.colors, typography: designDNA.typography, score: designDNA.score },
+      enriched: true,
+    }
+  } catch (e: unknown) {
+    return { services: [], doctors: [], insurance: [], socialLinks: {}, hasBooking: false, bookingPlatform: null, hasWhatsApp: false, hasPrices: false, designDNA: null, enriched: false, error: (e as Error).message?.slice(0, 80) }
+  }
+}
+
 // ── Fallback determinístico HONESTO (dados reais do nicho/lead — zero jargão interno) ──
 function buildLandingCopyFallback(lead: S11Lead, nicho: NichoProfile, local: string, strategy: ConversionStrategy): LandingCopy {
   const term = nicho.clientTerm || 'cliente'
@@ -1741,8 +1796,22 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const district = lead.district || ""
     const local = district ? `${district}, ${city}` : (city || 'sua região')
 
+    // ── L2b Enrichment (ADR-0044/0046) · dados REAIS do site · $0 ──
+    const l2b = await enrichS11L2b(lead.website)
+    const l2bServices = l2b?.services?.length ? l2b.services : nicho.specialties
+    const l2bDoctors = l2b?.doctors?.length ? l2b.doctors : []
+    const l2bInsurance = l2b?.insurance?.length ? l2b.insurance : []
+    const l2bBrandColors = l2b?.designDNA?.colors || null
+    const l2bBrandFonts = l2b?.designDNA?.typography || null
+    const l2bHasBooking = l2b?.hasBooking || false
+    const l2bBookingPlatform = l2b?.bookingPlatform || null
+    const l2bHasWhatsApp = l2b?.hasWhatsApp || false
+    const l2bHasPrices = l2b?.hasPrices || false
+    const l2bSocialIG = l2b?.socialLinks?.instagram || null
+
     // ── CACHE (mesmo padrão ADR-0038 do S10) ──
-    const cacheKey = `s11v1:${placeId}:${seg}:${lead.score_compound || 0}`
+    const l2bHash = l2b?.enriched ? `l2b:${l2bServices.join(',')}:${l2bDoctors.map(d=>d.name).join(',')}` : 'l2b:none'
+    const cacheKey = `s11v2:${placeId}:${seg}:${lead.score_compound || 0}:${l2bHash.slice(0, 60)}`
     const cached = await s11Cache.get(cacheKey)
     if (cached) return cached
 
@@ -1777,13 +1846,14 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // 4. Vocab (agora com conversionFacets) + sensor queries (paralelas)
+    //    L2b inject: serviços REAIS, médicos REAIS, convênios REAIS
     const primaryEmotion = seg === 'saude' ? 'Confiança + Profissionalismo' : seg === 'beleza' ? 'Autoestima + Transformação' : 'Resultado + Crescimento'
     const preVocab = resolveIntentVocab(seg, {
-      persona: { who: lead.schwartz_label || 'Problem Aware', schwartzLevel: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: nicho.conversionTriggers[0] || '', urgency: 'média' as const },
+      persona: { who: lead.schwartz_label || 'Problem Aware', schwartzLevel: lead.schwartz_label || 'Problem Aware', approach: '', headlineTemplate: '', cta: '', offer: l2bServices[0] || nicho.conversionTriggers[0] || '', urgency: 'média' as const },
       psychology: { primaryEmotion, colorPsychology: '', urgencyLevel: 'medium', toneOfVoice: nicho.tone, copyRules: [], triggers: [] },
-      designSystem: { recommended: '', atmosphere: '', colorPalette: { primary: '', secondary: '', accent: '', hue: 0 }, typography: { heading: '', body: '' }, spacingStyle: '', motionStyle: '' },
+      designSystem: { recommended: '', atmosphere: '', colorPalette: { primary: p, secondary: s, accent: a, hue: 0 }, typography: { heading: l2bBrandFonts?.heading || '', body: l2bBrandFonts?.body || '' }, spacingStyle: '', motionStyle: '' },
       marketData: { competitors, category: lead.category || seg, categoryDisplay: nicho.name, city, district, avgScore: 32, claimed: lead.is_claimed || false, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0 },
-      niche: { name: nicho.name, specialties: nicho.specialties, audience: nicho.audience, keywords: nicho.keywords, pains: nicho.pains, objections: [], conversionTriggers: nicho.conversionTriggers },
+      niche: { name: nicho.name, specialties: l2bServices, audience: nicho.audience, keywords: nicho.keywords, pains: nicho.pains, objections: [], conversionTriggers: nicho.conversionTriggers },
       skills: [], computedAt: new Date().toISOString(),
     })
     const [odSystem, materio, icons, cssPatterns] = await Promise.all([
@@ -1823,10 +1893,16 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       const fb = buildLandingCopyFallback(lead, nicho, local, strat)
       const ai = await generateLandingCopy({
         name: lead.title, category: lead.category, nichoName: nicho.name,
-        clientTerm: nicho.clientTerm || 'cliente', specialties: nicho.specialties,
+        clientTerm: nicho.clientTerm || 'cliente', specialties: l2bServices,
         local, rating: lead.rating_value || 0, reviews: lead.rating_votes || 0,
         isClaimed: lead.is_claimed || false, triggers: nicho.conversionTriggers,
         pains: nicho.pains, tone: nicho.tone,
+        // L2b inject · dados REAIS da clínica para a copy
+        ...(l2bDoctors.length > 0 ? { doctors: l2bDoctors.slice(0, 2) } as any : {}),
+        ...(l2bInsurance.length > 0 ? { insurance: l2bInsurance.slice(0, 5) } as any : {}),
+        ...(l2bHasBooking ? { bookingPlatform: l2bBookingPlatform } as any : {}),
+        ...(l2bHasPrices ? { hasPrices: true } as any : {}),
+        ...(l2bSocialIG ? { instagram: l2bSocialIG } as any : {}),
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
@@ -1839,7 +1915,8 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       local, competitors, phone: lead.phone || null,
       strategies: { A: strategies.A.facet, B: strategies.B.facet, scores: strategies.scores, reasoning: strategies.reasoning.slice(0, 8) },
       conversionFacets: preVocab.conversionFacets,
-      _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: 'g0 + strategy A/B (ADR-0037 F6)' },
+      l2b: l2b?.enriched ? { services: l2bServices.length, doctors: l2bDoctors.length, insurance: l2bInsurance.length, designScore: l2bBrandColors ? l2b?.designDNA?.score || 0 : 0 } : { enriched: false },
+      _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044)` },
       computedAt: new Date().toISOString(),
     }
 
