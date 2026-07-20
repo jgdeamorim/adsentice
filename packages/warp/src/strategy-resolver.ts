@@ -10,6 +10,7 @@
 //   liking, reciprocity, commitment
 //
 // resolveStrategies(): score cada facet pelos SINAIS REAIS do lead
+// ADR-0049 §2: estrategicamente enriquecida com semantic skill discovery
 // (rating, reviews, claimed, competitors, score, triggers do nicho)
 // → dominante (A) + challenger de família diversa (B).
 // A variante é congelada por artefato (ADR-0038 ab_variant).
@@ -17,6 +18,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import type { LayoutIntent } from './morph-resolver'
+import { discoverSkills, type DiscoveredSkill } from './marketing-kg'
 
 // ═══ TYPES ═══
 

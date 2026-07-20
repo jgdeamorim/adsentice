@@ -21,6 +21,7 @@
  */
 
 import type { SegmentId } from './tokens-composer'
+import { discoverSkills, type DiscoveredSkill } from './marketing-kg'
 
 // ═══════════════════════════════════════════════════════════════
 // Types
@@ -298,9 +299,32 @@ export class RecommendEngine {
     }
   }
 
+  /** ADR-0049: Semantic enrichment via Discovery Layer (832 pts) */
+  async generateWithDiscovery(
+    businessName: string, category: string, segment: SegmentId,
+    signals: Record<string, unknown>,
+    leadCtx: { segment: string; category: string; score: number; hasWebsite: boolean; competitorCount: number; rating: number; city: string },
+  ): Promise<{ result: RecommendResult; discoveredSkills: DiscoveredSkill[] }> {
+    const base = this.generateForSegment(businessName, category, segment, signals)
+    const discovered = await discoverSkills(leadCtx as any, 6).catch(() => [])
+    if (discovered.length > 0) {
+      base.actions = [
+        ...base.actions,
+        ...discovered.slice(0, 3).map(d => ({
+          priority: 'media' as const, category: 'IA · Marketing Intelligence',
+          effort: 'horas' as const, impact: 'alto' as const, revenuePotential: 'alto' as const,
+          title: d.skillName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          description: d.content.slice(0, 200),
+          score: Math.round(d.score * 100),
+          evidenceSignal: `qdr:${d.repo}`, evidenceValue: d.source,
+        })),
+      ].slice(0, 9)
+    }
+    return { result: base, discoveredSkills: discovered }
+  }
+
   /**
    * Retorna todas as ações disponíveis para um segmento (catálogo).
-   * Útil para o frontend mostrar possibilidades antes do diagnóstico completo.
    */
   getCatalogForSegment(segment: SegmentId): RecommendAction[] {
     return SEGMENT_ACTIONS[segment] || []

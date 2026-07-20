@@ -1607,6 +1607,46 @@ function extractSocialCalendar(frameworkContent: string, nichoName: string, inst
   return { postsPerWeek, platforms, contentPillars, hashtagStrategy, igHandle: instagramHandle || null }
 }
 
+/** ADR-0049 §4: Quality Gate — Unslop validation (33 padrões anti-AI) */
+function applyQualityGate(html: string): { html: string; slopWarnings: number; passed: boolean } {
+  // Unslop patterns: remove AI clichés from output
+  const slopPatterns = [
+    /\b(delve|dive deep|unleash|unlock|supercharge|elevate|revolutionize|game.changer|cutting.edge|next.level)\b/gi,
+    /\b(in today's|in the world of|in the ever.evolving|in the fast.paced|in the digital age)\b/gi,
+    /\b(seamless|robust|cutting-edge|best-in-class|world-class|state-of-the-art|unparalleled)\b/gi,
+    /\b(embark on a journey|transform your|discover the power|experience the difference)\b/gi,
+    /\b(——|—|–)\s*(não apenas|not only|but also|mas também)\b/gi,
+    /\b(it's not just|it is not just|this isn't just)\b/gi,
+    /\b(we understand|we know|we believe|we're passionate|we're dedicated)\b/gi,
+  ]
+  let slopWarnings = 0
+  let cleaned = html
+  for (const pattern of slopPatterns) {
+    const matches = cleaned.match(pattern)
+    if (matches) {
+      slopWarnings += matches.length
+      cleaned = cleaned.replace(pattern, (match) => {
+        // Replace with simpler alternatives
+        const replacements: Record<string, string> = {
+          'delve': 'explore', 'dive deep': 'analyze', 'unleash': 'use', 'unlock': 'get',
+          'supercharge': 'improve', 'elevate': 'raise', 'revolutionize': 'change',
+          'game-changer': 'difference', 'cutting-edge': 'modern', 'next-level': 'better',
+          'in today\'s': 'no', 'in the world of': 'em', 'in the ever-evolving': 'no',
+          'in the fast-paced': 'no', 'in the digital age': 'atualmente',
+          'seamless': 'fácil', 'robust': 'confiável', 'best-in-class': 'excelente',
+          'world-class': 'ótimo', 'state-of-the-art': 'moderno', 'unparalleled': 'único',
+        }
+        const lower = match.toLowerCase().replace(/[^a-z]/g, '')
+        for (const [k, v] of Object.entries(replacements)) {
+          if (lower.includes(k.replace(/[^a-z]/g, ''))) return match.replace(new RegExp(k, 'i'), v)
+        }
+        return '' // remove if no replacement
+      })
+    }
+  }
+  return { html: cleaned, slopWarnings, passed: slopWarnings <= 3 }
+}
+
 /** ADR-0048 #6: extrai insights de Google Ads do framework */
 function extractAdsInsights(frameworkContent: string, nichoName: string, local: string, competitorCount: number): { campaignTypes: string[]; budgetEstimate: string; keywordsSuggested: string[]; competitionLevel: string } | null {
   const campaignTypes: string[] = []
@@ -2091,7 +2131,10 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
-      const html = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA })
+      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA })
+      // ADR-0049 §4: Quality Gate — Unslop validation
+      const qg = applyQualityGate(rawHtml)
+      const html = qg.html
       variants.push({ ab: strat.abLabel, html, strategyFacet: strat.facet, hypothesis: strat.hypothesis, copyModel: model, headline: copy.hero.headline })
     }
 
@@ -2107,6 +2150,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       mktPlan: mktPlanReady ? { sections: mktPlanSections, totalSections: mktPlanSections.length, source: "marketing-plan framework", plan: "Domínio (R$497)" } : null,
       social: socialCalendar ? { calendar: socialCalendar, contentStrategy: contentFW ? "Framework content-strategy aplicado" : null, source: "social-media framework", plan: "Sentinela (R$197)" } : null,
       ads: adsAnalysis ? { ...adsAnalysis, source: "ads framework", plan: "Domínio (R$497)", rationale: adsAnalysis.competitionLevel === "alta" ? "Mercado competitivo — ads são essenciais para se destacar" : "Invista em ads para capturar tráfego qualificado" } : null,
+      quality: { slopWarnings: qg.slopWarnings, passed: qg.passed, source: "Unslop (ADR-0049 §4)" },
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
