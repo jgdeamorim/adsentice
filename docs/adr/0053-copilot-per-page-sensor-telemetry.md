@@ -1,643 +1,530 @@
-# ADR-0053 · Copilot Lateral por Página — Sensor + Finding + Telemetria
+# ADR-0053 · SPEC-Driven Analysis Engine — Brain OODA como Motor de Consistência Cross-Page
 
-**Status:** PROPOSED
+**Status:** PROPOSED (v2 · reformulada após feedback do founder)
 **Date:** 2026-07-20
 **Author:** jeffer + Claude Opus 4.8
-**Supersedes:** ADR-0052 v2.1 (substitui — a necessidade real não é distribuir dados de categoria, é uma camada META de observação)
-**Reference:** EVO-API ADR-0139 (Founder Cockpit), ADR-0141 (Finding Sensor rsxt-fnd), ADR-0148 (Cognitive Twin), ADR-0149 (Cockpit Components), ADR-0164 (Per-Page Telemetry), ADR-0198 (rsxt-chat v2 Context-Conscious Copilot)
-**Sources:** DAG cross-project — 6 ADRs EVO-API + cockpit.py + ecosystem_cockpit.py + 12 páginas adsentice + finding_arbiter.py (já existe) + telemetry.ts (já existe)
+**Supersedes:** ADR-0053 v1 (CopilotRail UI — sintoma, não causa)
+**Extends:** ADR-0047 (Brain KG), ADR-0050 (Category Intel), ADR-0051 (Auto-Pilot)
+**Reference:** EVO-API ADR-0141 (rsxt-fnd Finding Sensor), ADR-0148 (Cognitive Twin), ADR-0139 (Founder Cockpit), ADR-0164 (Per-Page Telemetry-Jury)
+**Sources:** DAG cross-project — 6 ADRs EVO-API + 12 páginas adsentice + finding_arbiter.py + cockpit.py
 
 ---
 
-## 0. O Problema Real (reformulado)
+## 0. Diagnóstico Real (o founder cravou)
 
-A ADR-0052 tentou resolver "estratégia de vendas não aparece nas páginas" injetando dados de categoria. Mas o problema é mais profundo:
+### 0.1 O sintoma
 
-**Nenhuma página do dashboard :3000 sabe se está mostrando a verdade.**
+12 páginas admin · 7,128 linhas · construídas em 155 versões · sem spec canônica por página.
 
-Cada página foi construída em sessões diferentes, com dados diferentes, por 2 agentes (founder + Claude). Não existe uma camada que:
-1. **Identifique** qual página é essa e qual seu propósito
-2. **Verifique** se os dados que ela mostra batem com a realidade do banco
-3. **Detecte** gaps entre o que a UI promete e o que o sistema entrega
-4. **Sugira** refinamentos baseados em evidência
+Quando o founder olha para `/admin/categories` e vê 29 categorias estáticas, ele **não tem como saber** se isso é o comportamento correto ou um bug. Não existe um SPEC que diga: "Categories deve mostrar dados dinâmicos de `getCategoryIntelligence()` com cards de oportunidade."
 
-O founder pediu: **um copilot lateral em cada página** — igual ao `CopilotRail` do EVO-API cockpit (ADR-0139).
+### 0.2 A causa raiz
+
+> "Iniciamos com a documentação técnica errada e não estamos conseguindo analisar o sistema por completo sobre contextualidade semântica de SPEC-driven."
+
+**Não somos SPEC-driven.** Cada página foi construída ad-hoc, sem um contrato declarativo do que ela DEVE ser. Sem spec, não há como medir drift. Sem medir drift, o founder precisa inspecionar manualmente cada página para encontrar gaps — e o Claude não tem contexto cross-page para ajudar.
+
+### 0.3 O que o founder precisa (nas palavras dele)
+
+1. **Análise periódica** — o Brain OODA executa ciclos de análise, não sensores on-demand
+2. **Cross-page** — une rotas, estratégias globais, e lógicas de outras páginas
+3. **SPEC-driven** — cada página tem um spec canônico; a análise compara spec vs realidade
+4. **Reports + Insights** — não uma lista de findings num drawer, mas reports acionáveis com links para ADRs, código, OODA
+5. **Auto-suficiência do founder** — o founder consegue analisar sozinho e direcionar o Claude com precisão
+
+### 0.4 Exemplo concreto (dado pelo founder)
+
+> "A captação por categoria sobre regionalidade é uma camada primitiva de análise de abertura de mercado geo. Segunda camada: vender o que já temos sobre ROI e MRR de adsentice sobre suas Soluções — que as surfaces não estão completas e as soluções propostas não estão entregando o que o cliente precisa."
+
+**Tradução:** Category Intel (ADR-0050) é Layer 1 — primitivo, geográfico. Layer 2 deveria ser **vender o valor do adsentice** (ROI, MRR) — mas:
+- As surfaces (S10, S11) não estão completas
+- As soluções (`/admin/solutions`) não refletem o que o cliente realmente recebe
+- Ninguém detectou isso porque não há SPEC que defina o que cada camada deve entregar
+
+**Se tivéssemos SPEC-driven analysis:**
+- O Brain detectaria: "`/admin/solutions` promete 5 planos mas `/admin/surface` mostra 22 superfícies com status beta/spec — drift entre produto vendido e produto entregue"
+- O founder leria o report, concordaria, e diria: "Claude, ajusta `/admin/solutions` para refletir o estado real das surfaces"
+- O Claude leria o SPEC de Solutions, o SPEC de Surface, o diff report, e faria o ajuste cirúrgico
 
 ---
 
-## 1. Contexto
+## 1. Contexto (DAG cross-project)
 
-### 1.1 O padrão EVO-API (3 ADRs de referência)
+### 1.1 O padrão EVO-API que queremos replicar
+
+O EVO-API não tem "telemetria de clique". Tem **Cognitive Twin** (ADR-0148):
 
 ```
-ADR-0139 · Founder Context Cockpit
-├── NarrativeCard — tag + narrativa da página
-├── AlertLane — gaps críticos · pulse
-├── PatchCard — diffs/commits relevantes
-└── CopilotRail — agente finding lateral (DeepSeek · gated)
-
-ADR-0141 · Finding Sensor (rsxt-fnd)
-├── SENSOR ≠ ÁRBITRO (doutrina inviolável)
-├── RETRIEVE → CROSS-REF → COMPLETENESS-CRITIC
-├── FindingCandidate { kind, layer, src, confidence, evidence[] }
-├── Taxonomy: Gap · Drift · Risk · Refine · Opportunity · Delta
-└── Determinístico $0 + 1 synth (LLM gated)
-
-ADR-0164 · Per-Page Telemetry-Jury Set
-├── QUALITY-JURY (build-time): a11y · objetivo/CTA · SEO · LGPD
-├── TELEMETRY RUNTIME (comportamento): client-id · time-on-page · cta-clicks
-├── DADO por página (editável · zero código por página)
-└── Gerenciador: /control/surfaces
+Event → Twin → Projection → Morph → UI
+         ↑
+    Structural Graph  (deps, edges)
+    Runtime Graph     (influence, data flow)
+    Cognitive Graph   (findings → hypotheses → decisions)
 ```
 
-### 1.2 Tradução para adsentice
+O Twin é o MODELO do sistema. Os sensores comparam o modelo com a realidade. Os findings alimentam o modelo. O founder vê projeções (reports), não dados brutos.
 
-| EVO-API | adsentice |
-|---------|-----------|
-| `rsxt-fnd` (Rust crate) | `copilot-sensor.ts` (TypeScript module) |
-| `evoapi:cockpit:evidence` (Redis :6395) | `adsentice:copilot:{page}:findings` (Redis :6396) |
-| `CopilotRail` (DCTMorph gen) | `<CopilotRail>` (React/MUI drawer) |
-| `FindingArbiter` (DeepSeek gated) | `brainTurn()` via Cockpit API (já existe) |
-| `surface-family.json` (DADO por página) | `PAGE_REGISTRY` (const em `copilot-sensor.ts`) |
-| `/control/surfaces` | `/admin/*` (as próprias páginas) |
+**O que o adsentice precisa é de um Twin do ecossistema de negócio** — não um gêmeo de código (Rust crates), mas um gêmeo de **estratégia + produto + dados**:
 
-### 1.3 Infraestrutura adsentice JÁ existente (reutilizável)
+```
+SPEC (o que cada página/surface/solução DEVE ser)
+  ↓
+Brain OODA periódico: SPEC vs REALIDADE
+  ↓
+Findings cross-page com links para ADRs, código, OODA
+  ↓
+Report: "Estas 3 páginas estão driftadas. Estas 2 soluções não têm surface completa.
+        Prioridade: X. Custo estimado: Y. Documentação relevante: ADR-Z."
+```
 
-**Não estamos começando do zero.** O adsentice já tem 4 peças do padrão EVO-API:
+### 1.2 Infraestrutura JÁ existente
 
-| Peça adsentice | Equivalente EVO-API | Estado |
-|---------------|---------------------|--------|
-| `lib/telemetry.ts` (`pushEvent`, `pushAlert`, `getRouteStats`) | `k0_breath.rs` (edge quality sensor) | ✅ LIVE |
-| `tools/adsentice_finding_arbiter.py` (DeepSeek SRE, cost-capped, cron) | FindingArbiter trait (DeepSeek gated) | ✅ LIVE |
-| `api/cockpit/ask/route.ts` (`brainTurn`, cross-collection Qdrant) | CopilotRail + rsxt-fnd synth sensor | ✅ LIVE |
-| `packages/warp/src/6-telemetry.ts` (WarpTracker, Design Quality Score) | `var/sensors/*.finding.json` | ✅ LIVE |
-
-**O que falta:** o componente UI (`<CopilotRail>`) + o `PAGE_REGISTRY` + os 5 sensores determinísticos + wire nas 12 páginas.
-
-### 1.4 ADR-0198 — Page Tag vira Policy (contexto consciente)
-
-O ADR-0198 do EVO-API (`rsxt-chat v2 Copilot Context-Conscious`) estabelece:
-
-> O **page tag** vira **policy** — a célula que restringe o escopo do chat.
-> Turn v2: `{msg, origin: {tenant, page_tag, surface}, who: {user_id, role}, mode: Scoped|Global}`
-
-No adsentice, isso significa:
-- CopilotRail em `/admin/categories` → contexto É `categories`
-- Queries ao Cockpit carregam `origin.page_tag = '/admin/categories'`
-- Brain OODA restringe recall ao escopo da página
-- Founder alterna `Scoped` (página atual) ↔ `Global` (cross-pages)
+| Peça | Arquivo | Função |
+|------|---------|--------|
+| Brain OODA | `brain/b3-decide.ts` | Motor de decisão com certainty scoring |
+| Cockpit API | `api/cockpit/ask/route.ts` | Q&A cross-collection (self + conversation + memory) |
+| Finding Arbiter | `tools/adsentice_finding_arbiter.py` | DeepSeek SRE, cost-capped, já lê Redis e emite veredictos |
+| Telemetry | `lib/telemetry.ts` | `pushEvent`, `pushAlert`, `getRouteStats` |
+| Category Intel | `lib/category-intel.ts` | 29 dimensões de mercado com coverage/quality/opportunity |
+| Auto-Pilot | `lib/auto-pilot.ts` | Decisão de prospecção com 3-tier viability |
+| Qdrant self | `adsentice-self` (20,647 pts) | Docs, ADRs, specs, código — CORPUS de documentação |
+| Redis OODA | `adsentice:ooda:*` | Estado atual do ciclo OODA |
 
 ---
 
 ## 2. Decisão
 
-**Criar uma camada META de observação — o Copilot — que vive LATERALMENTE em cada página admin, executando sensores determinísticos ($0) e emitindo findings ancorados com evidência.**
+**Criar um SPEC-Driven Analysis Engine onde cada página/superfície/solução do adsentice tem um SPEC canônico, o Brain OODA executa ciclos periódicos de análise cross-page comparando SPEC vs REALIDADE, e emite Reports acionáveis com links semânticos para documentação (ADRs, código, OODA).**
 
-### 2.1 O Copilot NÃO é
+### 2.1 O que NÃO é
 
-- ❌ Um chatbot (já temos o Cockpit `/api/cockpit/ask`)
-- ❌ Um dashboard separado (já temos `/admin`)
-- ❌ Injeção de dados de categoria nas páginas (isso era ADR-0052)
-- ❌ Um editor de página
-- ❌ Um substituto do founder
+- ❌ Um drawer lateral com sensores on-click (isso é UI, não análise)
+- ❌ Telemetria de comportamento de usuário (CTR, time-on-page)
+- ❌ Um dashboard de "page health" genérico
+- ❌ Um substituto do founder na tomada de decisão
 
-### 2.2 O Copilot É
+### 2.2 O que É
 
-- ✅ Um **painel lateral** (drawer) que abre em qualquer página admin
-- ✅ Um **sensor** que verifica se a página está mostrando a verdade
-- ✅ Um **emissor de findings** ancorados com proveniência
-- ✅ Um **auto-crítico** que sugere refinamentos baseados em gaps detectados
-- ✅ **Per-page**: cada página tem seu próprio conjunto de sensores e telemetria
+- ✅ Um **SPEC canônico por página** — declara o que cada página DEVE ser
+- ✅ Um **motor de análise periódica** — Brain OODA roda ciclos, não espera clique
+- ✅ **Cross-page por desenho** — análise conecta páginas, rotas, estratégias, surfaces
+- ✅ **SPEC vs REALIDADE** — compara o spec com o que o código realmente faz
+- ✅ **Reports semânticos** — cada finding linka para ADRs, arquivos, commits, OODA
+- ✅ **Auto-suficiência do founder** — founder lê o report, entende, decide, direciona
 
 ---
 
 ## 3. Arquitetura
 
-### 3.1 Componentes
+### 3.1 O SPEC (coração do sistema)
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  /admin/categories                                               │
-│  ┌────────────────────────────────────┐  ┌─────────────────────┐ │
-│  │                                    │  │ 🔍 COPILOT          │ │
-│  │  Conteúdo normal da página         │  │                     │ │
-│  │  (já existe)                       │  │ 📋 Page Tag         │ │
-│  │                                    │  │ /admin/categories   │ │
-│  │                                    │  │ Propósito: rankear  │ │
-│  │                                    │  │ nichos e descobrir  │ │
-│  │                                    │  │ melhores leads      │ │
-│  │                                    │  ├─────────────────────┤ │
-│  │                                    │  │ 🔬 Sensores (5)     │ │
-│  │                                    │  │ ✅ dados Supabase   │ │
-│  │                                    │  │ ⚠ 29 cats estático  │ │
-│  │                                    │  │ ❌ sem getCategory   │ │
-│  │                                    │  │    Intel()          │ │
-│  │                                    │  ├─────────────────────┤ │
-│  │                                    │  │ 🎯 Findings (3)     │ │
-│  │                                    │  │ GAP: CATEGORY_INFO  │ │
-│  │                                    │  │ hardcoded, não usa   │ │
-│  │                                    │  │ API real            │ │
-│  │                                    │  │ DRIFT: 6/29 cats    │ │
-│  │                                    │  │ têm dados vs 29     │ │
-│  │                                    │  │ estáticas           │ │
-│  │                                    │  │ REFINE: trocar      │ │
-│  │                                    │  │ tabela por cards     │ │
-│  │                                    │  │ dinâmicos           │ │
-│  │                                    │  ├─────────────────────┤ │
-│  │                                    │  │ 📊 Telemetria       │ │
-│  │                                    │  │ Page view: 12       │ │
-│  │                                    │  │ Avg time: 2.3min    │ │
-│  │                                    │  │ (runtime · futuro)  │ │
-│  │                                    │  └─────────────────────┘ │
-│  └────────────────────────────────────┘                          │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### 3.2 Pipeline do Sensor (adaptado de rsxt-fnd)
-
-```
-PAGE_REGISTRY[page] → define sensores esperados para esta página
-        ↓
-SENSORES DETERMINÍSTICOS ($0) — rodam a cada page load
-        ↓
-   ┌─────────────────────────────────────────────────┐
-   │ S1 · DataSourceSensor                           │
-   │   "Esta página usa dados REAIS ou hardcoded?"   │
-   │   Verifica: Supabase? Redis? MOCK? static?      │
-   │                                                 │
-   │ S2 · FreshnessSensor                            │
-   │   "Os dados exibidos são atuais ou stale?"      │
-   │   Compara: timestamp da query vs now()          │
-   │                                                 │
-   │ S3 · StrategyAlignmentSensor                    │
-   │   "A UI reflete a estratégia definida?"         │
-   │   Ex: categorias com 0 leads deveriam mostrar   │
-   │   badge 'não prospectada', não score vazio      │
-   │                                                 │
-   │ S4 · CoverageSensor                             │
-   │   "O que esta página cobre vs deveria cobrir?"  │
-   │   Ex: 29 cats no ICP vs 6 com dados reais       │
-   │                                                 │
-   │ S5 · IntegrationSensor                          │
-   │   "Esta página se conecta com as outras?"       │
-   │   Ex: /admin/categories linka para Discovery?   │
-   │   Ex: /admin/leads linka para Pipeline?         │
-   └─────────────────────────────────────────────────┘
-        ↓
-CROSS-REFERENCE: discrepância entre DADO real e UI → finding-candidato
-        ↓
-FindingCandidate[] → Redis → CopilotRail renderiza
-```
-
-### 3.3 Tipos (TypeScript)
+Cada página/superfície/solução tem um **SPEC canônico** — um documento declarativo que define:
 
 ```typescript
-// ── Finding (adaptado de rsxt-fnd Kind) ──
-
-type FindingKind = 'gap' | 'drift' | 'risk' | 'refine' | 'opportunity' | 'delta'
-
-interface FindingCandidate {
-  kind: FindingKind
-  layer: 'data' | 'ui' | 'strategy' | 'integration'
-  title: string                      // 1 linha
-  detail: string                     // 2-3 linhas com evidência
-  src: string                        // proveniência: "category-intel.ts:89" | "Supabase.count()" 
-  confidence: number                 // 0.0-1.0 (determinístico = 1.0)
-  evidence: string[]                 // fatos medidos que sustentam o finding
-  severity: 'critical' | 'warning' | 'info'
-}
-
-// ── Page Tag ──
-
-interface PageTag {
-  route: string                      // "/admin/categories"
-  label: string                      // "Categorias"
-  purpose: string                    // "Rankear nichos e descobrir melhores leads"
-  dataSources: ('supabase' | 'redis' | 'qdrant' | 'static' | 'mock')[]
-  builtIn: string                    // sessão/ADR que criou: "v081 · ADR-0031"
-  lastModified: string               // último commit que mexeu
-  linesOfCode: number
-}
-
-// ── Sensor ──
-
-interface PageSensor {
-  id: string
-  name: string
-  description: string
-  run: (page: PageTag) => Promise<FindingCandidate[]>  // determinístico · $0
-}
-
-// ── Per-Page Telemetry Config (ADR-0164 · DADO) ──
-
-interface PageTelemetryConfig {
-  route: string
-  qualityLenses: string[]            // ex: ['data-freshness', 'strategy-alignment', 'cross-linking']
-  runtimeSignals: string[]           // ex: ['page-view', 'time-on-page', 'cta-click'] (fase futura)
-  findingsCount: number
-  lastSensorRun: string | null
-}
-```
-
----
-
-## 4. Registro de Páginas (PAGE_REGISTRY)
-
-DADO canônico — editável, zero código por página adicionada.
-
-```typescript
-const PAGE_REGISTRY: Record<string, PageTag> = {
-  '/admin': {
-    route: '/admin',
-    label: 'Dashboard · Control Plane',
-    purpose: 'Visão geral do ecossistema: BOA, infra, Schwartz, links rápidos',
-    dataSources: ['redis', 'supabase', 'static'],
-    builtIn: 'v081 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 345,
-  },
-  '/admin/categories': {
-    route: '/admin/categories',
-    label: 'Categorias · Discovery Engine',
-    purpose: 'Rankear 29 nichos SMB, mostrar oportunidades de prospecção',
-    dataSources: ['supabase', 'static'],
-    builtIn: 'v142 · ADR-0050',
-    lastModified: '2026-07-20',
-    linesOfCode: 397,
-  },
-  '/admin/discovery': {
-    route: '/admin/discovery',
-    label: 'Discovery · Prospecção L0-L4',
-    purpose: 'Buscar leads no Google Meu Negócio com mapa, Auto-Pilot e session log',
-    dataSources: ['redis', 'supabase', 'dataforseo'],
-    builtIn: 'v120-v155 · ADR-0022',
-    lastModified: '2026-07-20',
-    linesOfCode: 2239,
-  },
-  '/admin/pipeline': {
-    route: '/admin/pipeline',
-    label: 'Pipeline · Funil L0-L7',
-    purpose: 'Visualizar progresso dos leads por estágio de enriquecimento',
-    dataSources: ['supabase', 'static'],
-    builtIn: 'v120 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 316,
-  },
-  '/admin/leads': {
-    route: '/admin/leads',
-    label: 'Leads · Tabela com Filtros',
-    purpose: 'Navegar, filtrar e analisar leads individuais com score e L2',
-    dataSources: ['supabase'],
-    builtIn: 'v089 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 345,
-  },
-  '/admin/costs': {
-    route: '/admin/costs',
-    label: 'Custos · Centro de Custos',
-    purpose: 'Monitorar gastos DataForSEO, DeepSeek, Redis e margem por plano',
-    dataSources: ['redis', 'supabase', 'filesystem'],
-    builtIn: 'v089 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 502,
-  },
-  '/admin/criteria': {
-    route: '/admin/criteria',
-    label: 'Critérios · Sinais de Score',
-    purpose: 'Documentar os 66+ sinais de scoring com pesos e descrições',
-    dataSources: ['static'],
-    builtIn: 'v081 · ADR-0022',
-    lastModified: '2026-07-20',
-    linesOfCode: 651,
-  },
-  '/admin/solutions': {
-    route: '/admin/solutions',
-    label: 'Soluções · Planos e Produtos',
-    purpose: 'Apresentar os 5 planos (Raio-X → Growth OS) com personas e projeções',
-    dataSources: ['static'],
-    builtIn: 'v081 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 526,
-  },
-  '/admin/market': {
-    route: '/admin/market',
-    label: 'Market Intelligence',
-    purpose: 'Inteligência de nicho por categoria × região com mapa de cobertura',
-    dataSources: ['supabase', 'redis'],
-    builtIn: 'v089 · ADR-0009',
-    lastModified: '2026-07-20',
-    linesOfCode: 536,
-  },
-  '/admin/surface': {
-    route: '/admin/surface',
-    label: 'Surface · Design System',
-    purpose: 'Gerenciar 22 superfícies Warp, skills, especialistas e artefatos',
-    dataSources: ['qdrant', 'supabase'],
-    builtIn: 'v087 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 434,
-  },
-  '/admin/telemetry': {
-    route: '/admin/telemetry',
-    label: 'Telemetria · Logs e Alertas',
-    purpose: 'Monitorar eventos, erros, SRE arbiter e saúde das rotas',
-    dataSources: ['redis', 'supabase'],
-    builtIn: 'v120 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 233,
-  },
-  '/admin/settings': {
-    route: '/admin/settings',
-    label: 'Settings · Configuração',
-    purpose: 'Gerenciar infra, integrações, features e inteligência do ecossistema',
-    dataSources: ['redis', 'process.env'],
-    builtIn: 'v089 · ADR-0031',
-    lastModified: '2026-07-20',
-    linesOfCode: 604,
-  },
-}
-```
-
----
-
-## 5. Sensores Determinísticos ($0)
-
-### S1 · DataSourceSensor
-
-```typescript
-// Verifica se a página usa dados reais ou hardcoded/mock
-async function dataSourceSensor(page: PageTag): Promise<FindingCandidate[]> {
-  const findings: FindingCandidate[] = []
+interface PageSpec {
+  // ── Identidade ──
+  route: string                        // "/admin/categories"
+  label: string                        // "Categorias · Discovery Engine"
   
-  if (page.dataSources.includes('static') && page.dataSources.length === 1) {
-    findings.push({
-      kind: 'gap',
-      layer: 'data',
-      title: `${page.label}: 100% dados estáticos (hardcoded)`,
-      detail: `Esta página usa ${page.linesOfCode} linhas mas NENHUM dado do Supabase/Redis/Qdrant. Mudanças no banco não se refletem na UI.`,
-      src: `page.tsx:1-${page.linesOfCode} (audit DAG 2026-07-20)`,
-      confidence: 1.0,
-      evidence: [`dataSources = [${page.dataSources.join(', ')}]`, `${page.linesOfCode} linhas`],
-      severity: 'warning',
-    })
+  // ── Propósito (SPEC-driven) ──
+  purpose: string                      // "Rankear 29 nichos SMB por oportunidade de prospecção"
+  strategyLayer: number                // 1=primitivo(geo) 2=produto(ROI/MRR) 3=ecosistema(cross)
+  
+  // ── Contrato de Dados ──
+  dataContract: {
+    sources: ('supabase' | 'redis' | 'qdrant' | 'dataforseo' | 'static')[]
+    primaryQuery: string               // "getCategoryIntelligence()" | "Supabase REST discovery_listings"
+    refreshPolicy: 'realtime' | 'cache-5min' | 'static'
+    expectedCardinality: string        // "29 categorias" | "~5745 leads" | "22 superfícies"
   }
   
-  if (page.dataSources.includes('mock')) {
-    findings.push({
-      kind: 'risk',
-      layer: 'data',
-      title: `${page.label}: dados MOCK — não reflete realidade`,
-      detail: 'MOCK_DATA hardcoded. Qualquer decisão baseada nesta página é baseada em ficção.',
-      src: `page.tsx (grep MOCK_)`,
-      confidence: 1.0,
-      evidence: ['dataSources inclui mock'],
-      severity: 'critical',
-    })
+  // ── Contrato de UI ──
+  uiContract: {
+    renderMode: 'server' | 'client' | 'hybrid'
+    primaryComponents: string[]        // ["CardStatVertical", "Table", "Chip"]
+    userActions: string[]              // ["filtrar por categoria", "clicar para Discovery", "ver lead detail"]
   }
   
-  return findings
+  // ── Integração Cross-Page ──
+  crossPageLinks: {
+    linksTo: string[]                  // ["/admin/discovery", "/admin/leads?category=X"]
+    linkedFrom: string[]               // ["/admin (quick link)", "/admin/market"]
+    dataSharedWith: string[]           // ["discovery_listings (Supabase)", "category-intel.ts"]
+  }
+  
+  // ── Estratégia ──
+  strategyAlignment: {
+    servesPlan: string[]               // ["Raio-X", "Sentinela"]
+    servesPersona: string[]            // ["Problem Aware", "Solution Aware"]
+    businessGoal: string               // "Converter visitante em lead qualificado"
+    kpiTarget: string                  // "Cobertura > 50% nas 29 categorias"
+  }
+  
+  // ── Proveniência ──
+  provenance: {
+    createdIn: string                  // "v142 · ADR-0050"
+    lastSpecReview: string             // "2026-07-20"
+    implementedBy: string[]            // ["jeffer", "claude"]
+    relatedADRs: string[]              // ["ADR-0050", "ADR-0051", "ADR-0046"]
+  }
 }
 ```
 
-### S2 · FreshnessSensor
+### 3.2 O Engine de Análise
 
-```typescript
-// Verifica se a query ao Supabase é limitada (paginação) e se os dados estão frescos
-async function freshnessSensor(page: PageTag): Promise<FindingCandidate[]> {
-  // Ex: /admin/categories faz .limit(3000) — se tiver >3000 leads, está truncando
-  // Ex: /admin/pipeline faz .limit(2000) — mesma coisa
-  // Ex: /admin/criteria NÃO faz query nenhuma — dados 100% estáticos
-}
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    BRAIN OODA · Ciclo de Análise                    │
+│                                                                    │
+│  Cron: a cada 6h (ou manual: POST /api/spec/analyze)               │
+│                                                                    │
+│  PASSO 1 · LOAD SPECs                                              │
+│  ├── PAGE_SPECS (12 páginas)                                       │
+│  ├── SURFACE_SPECS (22 superfícies Warp)                           │
+│  ├── SOLUTION_SPECS (5 planos)                                     │
+│  └── STRATEGY_SPEC (estratégia global adsentice)                   │
+│                                                                    │
+│  PASSO 2 · MEASURE REALITY                                         │
+│  ├── Lê código real de cada página (fs.readFile)                   │
+│  ├── Query Supabase para dados reais (count, avg, distribuição)    │
+│  ├── Query Redis para estado OODA                                  │
+│  └── Query Qdrant para documentação relevante                      │
+│                                                                    │
+│  PASSO 3 · CROSS-REFERENCE (SPEC vs REALITY)                       │
+│  ├── DataContract: a página usa as fontes que o SPEC declara?      │
+│  ├── UIContract: a página renderiza o que o SPEC declara?          │
+│  ├── CrossPageLinks: as integrações declaradas funcionam?          │
+│  ├── StrategyAlignment: a página serve a estratégia declarada?     │
+│  └── Cardinalidade: os dados batem com o esperado?                 │
+│                                                                    │
+│  PASSO 4 · CROSS-PAGE ANALYSIS                                     │
+│  ├── Página A declara link para B → B realmente recebe?            │
+│  ├── Solution X promete superfície Y → Y está live ou spec?        │
+│  ├── Estratégia global diz "foco em T1" → páginas refletem T1?    │
+│  └── Dados fluem entre páginas como o SPEC declara?                │
+│                                                                    │
+│  PASSO 5 · GENERATE REPORT                                         │
+│  ├── Findings por página (SPEC vs REALITY)                         │
+│  ├── Findings cross-page (inconsistências entre páginas)           │
+│  ├── Insights estratégicos (o que o ecossistema está dizendo)      │
+│  ├── Links semânticos (ADRs, código, commits, OODA)                │
+│  └── Priorização (critical > warning > info)                       │
+│                                                                    │
+│  OUTPUT: Report salvo em Redis + Qdrant + acessível via API        │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### S3 · StrategyAlignmentSensor
+### 3.3 Tipos de Finding (expandidos)
 
-```typescript
-// Verifica se a UI reflete a estratégia de negócio
-// Ex: 23 categorias com 0 leads → a página /admin/categories mostra isso?
-// Ex: 6 categorias com dados → a página /admin/market já importa getCategoryOpportunityQuick
-async function strategyAlignmentSensor(page: PageTag): Promise<FindingCandidate[]> {
-  // Cross-reference: PAGE_REGISTRY.purpose vs dados reais do Supabase
-  // Ex: "Rankear nichos e descobrir melhores leads" → mas 23/29 cats sem dados
-}
+```
+Kind                 O que detecta                    Exemplo
+────────────────────────────────────────────────────────────────────
+SPEC-DRIFT           Código diverge do SPEC           "SPEC declara getCategoryIntelligence()
+                     canônico                         mas código usa CATEGORY_INFO hardcoded"
+                                                      [src: page.tsx:30 vs spec.ts:45]
+
+DATA-CONTRACT        Fonte de dados não bate          "/admin/criteria declara 'supabase'
+BREACH                                                mas 651 linhas são 100% estáticas"
+                                                      [evidence: grep "supabase" page.tsx → 0 hits]
+
+CROSS-PAGE-LINK      Link declarado quebrado           "/admin/solutions linka para /admin/surface
+BROKEN                                                mas a rota de surface não tem query param" 
+                                                      [src: solutions/page.tsx:440]
+
+STRATEGY-MISALIGN    Página não serve a estratégia    "/admin/market declara 'inteligência por
+                     declarada no SPEC                categoria' mas não importa category-intel"
+                                                      [evidence: grep "getCategoryIntelligence" → 0]
+
+SURFACE-GAP          Solução prometida sem surface    "Plano Sentinela declara S11-MK surface
+                     correspondente                   mas surface.status = 'spec' (não live)"
+                                                      [src: solutions/page.tsx vs surface/status API]
+
+PRODUCT-DRIFT        Produto vendido ≠ entregue       "Solutions promete 'Landing Page A/B'
+                                                      mas composeS11 gera 1 variante fixa"
+                                                      [evidence: warp-composer.ts:composeS11()]
+
+ECOSYSTEM-GAP        Falta camada inteira             "Layer 1 (Category Intel geo) existe.
+                                                      Layer 2 (ROI/MRR por solução) não existe.
+                                                      Layer 3 (cross-ecosystem) não existe."
+                                                      [src: estratégia global vs SPECs existentes]
+
+DOCUMENTATION-GAP    SPEC sem lastro em ADR           "SPEC de /admin/criteria declara 87 sinais
+                                                      mas ADR-0022 define 66 — gap de 21"
+                                                      [src: criteria/page.tsx vs ADR-0022]
 ```
 
-### S4 · CoverageSensor
+### 3.4 O Report (output do ciclo de análise)
 
-```typescript
-// Verifica se a página cobre tudo que deveria cobrir
-// Ex: /admin/criteria tem 66 sinais mas diz "87 sinais" na UI — drift de 21 sinais
-// Ex: /admin/categories mostra 29 cats estáticas mas só 6 têm dados reais
-```
+```markdown
+# 📊 ADSENTICE · SPEC Analysis Report
+## 2026-07-20 · Ciclo #1 · Brain OODA B2 · certainty 0.87
 
-### S5 · IntegrationSensor
+---
 
-```typescript
-// Verifica se a página linka com as outras páginas do dashboard
-// Ex: /admin/categories → linka para Discovery? Sim (via chips de tier)
-// Ex: /admin/pipeline → linka para Leads? Sim (top categories table)
-// Ex: /admin/solutions → linka para alguma página? Não diretamente
+## 🔴 CRITICAL (2)
+
+### PRODUCT-DRIFT · Solutions promete mas surfaces não entregam
+**Páginas:** /admin/solutions → /admin/surface
+**SPEC diz:** Sentinela R$197 entrega "Landing Page A/B (S11K)" + "SEO audit integrado"
+**Realidade:** S11K surface status = 'spec' (não 'live'). composeS11() gera 1 variante, não A/B.
+**Impacto:** Cliente paga R$197 por produto que não está pronto. Risco de churn antes de começar.
+**Docs:** ADR-0038 (S10 generate-then-serve) · ADR-0037 (S11 A/B) · ADR-0047 (Brain KG)
+**Ação sugerida:** Priorizar S11K A/B como próxima milestone OU ajustar solutions para refletir status real.
+
+### ECOSYSTEM-GAP · Layer 2 (ROI/MRR) inexistente
+**Páginas afetadas:** /admin/solutions, /admin/costs, /admin/surface
+**SPEC diz:** "Vender o que já temos sobre ROI e MRR"
+**Realidade:** conversion.mrrByCategory hardcoded a 0. Sem tabela clients/mrr. Sem tracking de conversão.
+**Impacto:** Não conseguimos provar ROI do adsentice para o cliente. O core value proposition é invisível.
+**Docs:** ADR-0052 v2.1 (schema audit) · ADR-0016 (Hetzner/Supabase)
+**Ação sugerida:** Criar tracking de conversão (nova migration) como pré-requisito para Layer 2.
+
+---
+
+## 🟡 WARNING (5)
+
+### SPEC-DRIFT · /admin/categories — SPEC vs realidade
+**SPEC declara:** dataContract.sources = ['supabase', 'qdrant'] · primaryQuery = 'getCategoryIntelligence()'
+**Realidade:** CATEGORY_INFO hardcoded (29 entries estáticas). Supabase usado apenas para KPIs, não para cards.
+**Gap:** 23/29 categorias sem dados → página mostra como se todas tivessem.
+**Docs:** ADR-0050 (Category Intel) · category-intel.ts:89
+**Ação:** Trocar tabela estática por cards dinâmicos de getCategoryIntelligence()
+
+### DATA-CONTRACT-BREACH · /admin/criteria — 100% estático
+**SPEC declara:** dataContract.sources = ['supabase']
+**Realidade:** 651 linhas, zero queries ao Supabase. 66 sinais hardcoded.
+**Gap:** Novos sinais adicionados no código (scoring.ts) não aparecem na UI.
+**Docs:** ADR-0022 (Scoring Engine) · scoring.ts (856 linhas, 35+ sinais)
+**Ação:** Gerar tabela de sinais dinamicamente do scoring.ts OU adicionar query de distribuição real
+
+### SURFACE-GAP · 22 superfícies, quantas live?
+**SPEC declara:** Soluções usam superfícies Warp como interface com cliente
+**Realidade:** /api/surface/status retorna 22 superfícies. Quantas 'live' vs 'spec' vs 'beta'?
+**Impacto:** Planos vendem superfícies que podem não estar prontas.
+**Docs:** ADR-0031 (Warp Family) · ADR-0038 (S10 generation)
+**Ação:** Auditar status real de cada superfície e alinhar com solutions
+
+[... mais findings por página ...]
+
+---
+
+## 🔵 INFO (3)
+
+### CROSS-PAGE-LINK · Integração entre páginas — 71% funcional
+**Mapeamento:** 12 páginas × 12 links cruzados possíveis
+**Realidade:** 32 links existem, 28 funcionam, 4 quebrados (12.5%)
+**Quebrados:** /admin/solutions → /admin/surface (sem query param) · /admin/costs → plans (link interno)
+**Docs:** VerticalMenu.tsx · middleware.ts
+**Ação:** Corrigir 4 links quebrados
+
+[... mais insights ...]
+
+---
+
+## 📈 INSIGHTS ESTRATÉGICOS
+
+### 1. Estamos vendendo Layer 2 sem ter Layer 1 completo
+6/29 categorias têm dados. 23 não prospectadas. Mas já estamos construindo produto pago.
+**Recomendação:** Completar Layer 1 (prospecção das 23) antes de investir em Layer 2 (ROI tracking).
+
+### 2. SPEC-driven revela que 33% das páginas são 100% estáticas
+/admin/criteria, /admin/solutions, /admin/leads/[id] — não refletem mudanças no banco.
+**Recomendação:** Priorizar wire-up de dados reais nas 4 páginas estáticas.
+
+### 3. Documentação e código divergem em 21 sinais
+scoring.ts tem 35+ sinais mas criteria/page.tsx documenta 66 — gap de ~31 sinais não documentados ou documentação inflada.
+**Recomendação:** Auditoria de sinais: quais existem no código vs quais estão na UI vs quais estão nos ADRs.
+
+---
+
+## 🔗 Links Semânticos
+
+- [ADR-0050 · Category Intelligence Engine](docs/adr/0050-*.md)
+- [ADR-0051 · Auto-Pilot](docs/adr/0051-*.md)
+- [ADR-0052 · Schema Audit](docs/adr/0052-*.md)
+- [scoring.ts · 856 linhas](apps/web/src/lib/scoring.ts)
+- [category-intel.ts · 315 linhas](apps/web/src/lib/category-intel.ts)
+- [OODA · Redis :6396](redis://adsentice:ooda:*)
+- [Brain OODA · b3-decide](apps/web/src/lib/brain/b3-decide.ts)
+
+---
+Gerado por: Brain OODA B2 · certainty 0.87 · 6 sensores · 12 SPECs · 22 superfícies · 5 planos
+Próximo ciclo: 2026-07-20 20:00 BRT
 ```
 
 ---
 
-## 6. CopilotRail — Componente UI
+## 4. API
 
-### 6.1 Localização
-
-Lateral direita, abre como **drawer** (MUI Drawer, variant='persistent', 360px). 
-Botão flutuante no canto inferior direito: `<Fab icon={ri-robot-2-line} />` com badge de findings não-lidos.
-
-### 6.2 Anatomia
-
-```
-┌─────────────────────────┐
-│ 🔍 COPILOT    [×]       │  ← Header com page tag
-│ /admin/categories       │
-│ Propósito: rankear...   │
-├─────────────────────────┤
-│ 🔬 Sensores (5)         │
-│ ✅ S1 DataSource        │  ← verde = passou
-│ ⚠ S2 Freshness          │  ← amarelo = warning
-│ ❌ S3 StrategyAlign      │  ← vermelho = falhou
-│ ✅ S4 Coverage          │
-│ ✅ S5 Integration       │
-├─────────────────────────┤
-│ 🎯 Findings (3)         │
-│                          │
-│ ⚠ GAP — CATEGORY_INFO   │
-│ hardcoded, não usa API  │
-│ real. 29 cats estáticas │
-│ vs 6 com dados no banco │
-│ [src: page.tsx:30-71]   │
-│                          │
-│ ⚠ DRIFT — 23/29 cats    │
-│ nunca prospectadas.     │
-│ Página mostra todas     │
-│ como se tivessem dados. │
-│ [src: Supabase count]   │
-│                          │
-│ 💡 REFINE — Trocar       │
-│ tabela estática por     │
-│ cards de getCategory    │
-│ Intelligence(). Mesmo   │
-│ padrão do Market Intel. │
-│ [src: category-intel.ts]│
-├─────────────────────────┤
-│ 📊 Telemetria            │
-│ Page views: —           │
-│ Avg time: —              │
-│ (runtime · fase futura) │
-├─────────────────────────┤
-│ [Abrir Cockpit →]       │  ← link para /api/cockpit/ask
-└─────────────────────────┘
-```
-
-### 6.3 Props
+### 4.1 `POST /api/spec/analyze` — Dispara ciclo de análise
 
 ```typescript
-interface CopilotRailProps {
-  page: PageTag                          // identificação da página atual
-  findings: FindingCandidate[]           // do sensor run
-  telemetry: PageTelemetryConfig         // config de telemetria
-  onRefresh: () => Promise<void>         // re-rodar sensores
-}
+// Body: { scope?: 'all' | 'page' | 'cross-page', page?: string }
+// Opcional: { mode: 'spec-driven' | 'llm-arbiter' } — spec-driven = $0 determinístico
+// Retorna: SpecAnalysisReport
 ```
 
-### 6.4 States
-
-| State | Gatilho | UI |
-|-------|---------|-----|
-| **idle** | Page load, sensores ainda não rodaram | Botão FAB pulsando (azul) |
-| **running** | Sensores executando | Spinner no drawer |
-| **clean** | 0 findings | Drawer vazio, mensagem "✅ Nenhum finding — página sincronizada" |
-| **findings** | >0 findings | Lista de findings por severity |
-| **error** | Sensor falhou | Mensagem de erro + retry button |
-
----
-
-## 7. API
-
-### 7.1 `GET /api/copilot/findings?page=/admin/categories`
+### 4.2 `GET /api/spec/report` — Último report gerado
 
 ```typescript
-// Retorna findings cacheados (Redis TTL 5min) ou re-roda sensores se stale
-interface CopilotResponse {
-  page: PageTag
-  findings: FindingCandidate[]
-  sensorResults: { sensorId: string; passed: boolean; findings: number }[]
-  telemetry: PageTelemetryConfig
-  cached: boolean
-  generatedAt: string
-}
+// Query: ?page=/admin/categories (filtra findings de 1 página)
+// Query: ?kind=critical (filtra por severity)
+// Retorna: SpecAnalysisReport (cache Redis TTL 6h)
 ```
 
-### 7.2 `POST /api/copilot/refresh`
+### 4.3 `GET /api/spec/page?route=/admin/categories` — SPEC de uma página
 
 ```typescript
-// Força re-run dos sensores para uma página (ou todas)
-// Body: { page?: string }  — se omitido, todas as páginas
+// Retorna: PageSpec completo (dataContract, uiContract, crossPageLinks, strategyAlignment, provenance)
 ```
 
-### 7.3 `GET /api/copilot/summary`
+### 4.4 `PUT /api/spec/page` — Atualiza SPEC de uma página
 
 ```typescript
-// Resumo cross-page: quantas páginas têm findings críticos? quantas estão OK?
-interface CopilotSummary {
-  totalPages: number
-  pagesWithCriticalFindings: number
-  pagesOk: number
-  totalFindings: number
-  topFindings: FindingCandidate[]  // top 5 mais críticos
-}
+// Body: PageSpec parcial (merge com existente)
+// Founder edita o SPEC → próximo ciclo de análise usa SPEC atualizado
 ```
 
 ---
 
-## 8. Sequência de Implementação
+## 5. SPEC Registry Inicial (12 páginas · a construir)
 
-| # | O que | Tipo | Esforço | Dependência |
-|---|-------|------|---------|-------------|
-| **1** | `copilot-sensor.ts` — PAGE_REGISTRY + 5 sensores | Lib | 2h | Nenhuma |
-| **2** | `api/copilot/findings/route.ts` — GET endpoint | API | 30min | #1 |
-| **3** | `api/copilot/summary/route.ts` — GET cross-page | API | 20min | #1 |
-| **4** | `<CopilotRail>` — drawer lateral MUI | Component | 2h | #1, #2 |
-| **5** | `<CopilotFab>` — botão flutuante com badge | Component | 30min | #4 |
-| **6** | Wire CopilotRail em `/admin/categories` | Integration | 15min | #4 |
-| **7** | Wire nas outras 11 páginas admin | Integration | 1.5h | #4 |
-| **8** | Redis cache `adsentice:copilot:*` | Infra | 30min | #2 |
-| **9** | Telemetria runtime (tracker client-side) | Futuro | Fase 2 | — |
+| Página | Strategy Layer | Data Sources | Status SPEC |
+|--------|---------------|--------------|-------------|
+| `/admin` | 3 (ecosistema) | redis, supabase, static | 🔴 sem SPEC |
+| `/admin/categories` | 1 (geo) | supabase, static | 🔴 sem SPEC |
+| `/admin/discovery` | 1 (geo) | redis, supabase, dataforseo | 🔴 sem SPEC |
+| `/admin/pipeline` | 2 (produto) | supabase, static | 🔴 sem SPEC |
+| `/admin/leads` | 2 (produto) | supabase | 🔴 sem SPEC |
+| `/admin/costs` | 2 (produto) | redis, supabase, filesystem | 🔴 sem SPEC |
+| `/admin/criteria` | 2 (produto) | static | 🔴 sem SPEC |
+| `/admin/solutions` | 2 (produto) | static | 🔴 sem SPEC |
+| `/admin/market` | 1 (geo) | supabase, redis | 🔴 sem SPEC |
+| `/admin/surface` | 3 (ecosistema) | qdrant, supabase | 🔴 sem SPEC |
+| `/admin/telemetry` | 3 (ecosistema) | redis, supabase | 🔴 sem SPEC |
+| `/admin/settings` | 3 (ecosistema) | redis, process.env | 🔴 sem SPEC |
 
-**Total Fase 1 (sensores + UI): ~7h. Custo: $0.**
-**Fase 2 (telemetria runtime): ~4h. Custo: $0 (Redis + Supabase).**
+Todas as 12 estão **sem SPEC canônico**. Este é o gap fundamental.
+
+---
+
+## 6. Sequência de Implementação
+
+### Fase 1 · SPEC Foundation (4h · $0)
+
+| # | O que | Descrição | Tempo |
+|---|-------|-----------|-------|
+| 1.1 | `PageSpec` types | Tipos TypeScript: PageSpec, SurfaceSpec, SolutionSpec, StrategySpec | 30min |
+| 1.2 | `PAGE_SPECS` registry | 12 specs iniciais (1 por página) — DADO canônico, editável | 2h |
+| 1.3 | `SURFACE_SPECS` registry | 22 specs de superfície (do `/api/surface/status`) | 1h |
+| 1.4 | `SOLUTION_SPECS` registry | 5 specs de plano (dos STRATEGIC_PLANS + estado real) | 30min |
+
+### Fase 2 · Analysis Engine (5h · $0)
+
+| # | O que | Descrição | Tempo |
+|---|-------|-----------|-------|
+| 2.1 | `spec-analyzer.ts` | Motor determinístico: SPEC vs REALITY (fs.readFile + Supabase + Redis) | 3h |
+| 2.2 | `cross-page-analyzer.ts` | Análise cross-page: links, data flow, strategy alignment | 1.5h |
+| 2.3 | `report-generator.ts` | Gera Markdown report com findings + links semânticos | 30min |
+
+### Fase 3 · API + Brain OODA Integration (2.5h · $0)
+
+| # | O que | Descrição | Tempo |
+|---|-------|-----------|-------|
+| 3.1 | `POST /api/spec/analyze` | Dispara ciclo de análise | 30min |
+| 3.2 | `GET /api/spec/report` | Último report | 20min |
+| 3.3 | `GET /api/spec/page` | SPEC de uma página | 20min |
+| 3.4 | `PUT /api/spec/page` | Atualiza SPEC | 20min |
+| 3.5 | Brain OODA cron | Cron job (ou systemd timer) para ciclo a cada 6h | 1h |
+| 3.6 | Redis persistence | `adsentice:spec:report:*` (TTL 24h) + `adsentice:spec:page:*` | 20min |
+
+### Fase 4 · UI de Análise (futuro · após validação)
+
+Só depois que o engine estiver rodando e o founder validar os reports:
+- Página `/admin/spec` — dashboard de SPEC-driven analysis
+- CopilotRail (ADR-0053 v1) — drawer lateral com findings da página atual
+- Alertas no `/admin` cockpit quando há findings críticos
+
+**Total Fase 1-3: ~11.5h · $0 · 0 páginas novas · SPEC-driven foundation.**
+
+---
+
+## 7. Diferança fundamental vs ADR-0053 v1 (CopilotRail)
+
+| ADR-0053 v1 (descartada) | ADR-0053 v2 (esta) |
+|--------------------------|---------------------|
+| Drawer lateral com sensores on-click | **SPEC-driven analysis engine** periódico |
+| "Copilot" — assistente reativo | **SPEC** — contrato canônico proativo |
+| Findings por página isolada | **Cross-page** — integração entre páginas |
+| UI component (CopilotRail) | **Report engine** (SPEC vs REALITY + insights) |
+| Telemetria = CTR/page-view | **Análise** = consistência estratégica |
+| Founder clica para ver | **Brain OODA** executa ciclos, founder lê report |
+| ~7h (UI) | **~11.5h** (SPEC + Engine + API + Brain) |
+
+---
+
+## 8. Exemplo de uso (fluxo do founder)
+
+```
+1. Brain OODA executa ciclo às 06:00 BRT
+2. Report gerado: "SPEC Analysis · 2026-07-21 · Ciclo #1"
+3. Redis: adsentice:spec:report:latest ← report completo
+4. Qdrant: adsentice-self ← report ingerido (searchable)
+
+5. Founder abre o report (markdown no /admin/spec ou arquivo)
+6. Lê: "CRITICAL: PRODUCT-DRIFT · Solutions promete mas surfaces não entregam"
+7. Entende: S11K A/B está spec, não live. Soluções vendem o que não existe.
+
+8. Founder: "Claude, prioriza S11K A/B. Aqui está o report e os ADRs linkados."
+9. Claude: Lê o SPEC de Solutions, SPEC de Surface, ADR-0037, ADR-0038.
+10. Claude: Implementa S11K A/B com contexto completo e SPEC-driven.
+```
+
+**O founder não precisa mais inspecionar cada página manualmente. O SPEC-driven engine faz isso.**
 
 ---
 
 ## 9. Verificação (medido=verdade)
 
-1. Abrir `/admin/categories` → FAB visível no canto inferior direito
-2. Clicar FAB → drawer abre com sensores + findings para aquela página
-3. `/admin/criteria` → finding "100% dados estáticos" (severity: warning)
-4. `/admin/leads/[id]` → finding "dados MOCK" (severity: critical)
-5. `GET /api/copilot/summary` → retorna contagem cross-page
-6. Redis `adsentice:copilot:/admin/categories:findings` → cache populado
-7. Clicar "Abrir Cockpit" → navega para `/api/cockpit/ask` com contexto da página
+1. `GET /api/spec/page?route=/admin/categories` → retorna PageSpec completo
+2. `POST /api/spec/analyze` → retorna report com findings para 12 páginas
+3. Report contém `kind: 'spec-drift'` para `/admin/categories` (CATEGORY_INFO hardcoded vs SPEC)
+4. Report contém `kind: 'product-drift'` para `/admin/solutions` (planos vs surfaces)
+5. Report contém `kind: 'ecosystem-gap'` para Layer 2 (ROI/MRR)
+6. Cada finding tem `src` (arquivo:linha), `evidence[]`, links para ADRs
+7. Redis `adsentice:spec:report:latest` populado com TTL 24h
+8. Qdrant `adsentice-self` contém o report (searchable via `adsentice_search`)
 
 ---
 
-## 10. Diferença fundamental vs ADR-0052
+## 10. Fontes (DAG cross-project)
 
-| ADR-0052 (v2.1) | ADR-0053 (esta) |
-|-----------------|-----------------|
-| Injeta **dados de categoria** nas páginas | Injeta **camada META de observação** nas páginas |
-| Modifica o CONTEÚDO de cada página | Adiciona um PAINEL LATERAL que observa a página |
-| Resolve "a estratégia não aparece" | Resolve "a página não sabe se está certa" |
-| Cria funções de domínio (getCategorySalesStrategy) | Cria sensores genéricos (DataSourceSensor, CoverageSensor) |
-| 4 funções lib + 8 páginas modificadas | 1 lib sensor + 1 componente + 12 páginas wireadas |
-| ~8.5h | ~7h |
+### EVO-API (padrão)
 
-**As duas ADRs são complementares, não excludentes.** A 0053 é pré-requisito: primeiro saber O QUE está errado em cada página (sensor), depois injetar os dados certos (0052).
+| ADR | Arquivo | Conceito aplicado |
+|-----|---------|-------------------|
+| ADR-0139 | `0139-founder-context-cockpit.md` | Evidência seletiva, NarrativeCard, AlertLane |
+| ADR-0141 | `0141-rsxt-fnd-finding-sensor-soberano.md` | SENSOR≠ÁRBITRO, FindingCandidate, Taxonomy |
+| ADR-0148 | `0148-evo-twin-cognitive-twin-soberano.md` | Twin como grafo, projeções, morph |
+| ADR-0164 | `0164-per-page-telemetry-jury-set.md` | DADO por página, zero código per-page |
+| ADR-0198 | `0198-rsxt-chat-v2-copiloto-contexto-consciente.md` | Page tag = policy, Scoped/Global |
 
----
+### adsentice (páginas + infra)
 
-## 11. Fontes (DAG cross-project)
+| Fonte | Arquivo | Linhas |
+|--------|---------|--------|
+| 12 páginas admin | `apps/web/src/app/[lang]/(dashboard)/(private)/admin/*/page.tsx` | 7,128 |
+| Category Intel | `apps/web/src/lib/category-intel.ts` | 315 |
+| Auto-Pilot | `apps/web/src/lib/auto-pilot.ts` | 161 |
+| Scoring | `apps/web/src/lib/scoring.ts` | 856 |
+| Brain OODA | `apps/web/src/lib/brain/b3-decide.ts` | — |
+| Cockpit API | `apps/web/src/app/api/cockpit/ask/route.ts` | 139 |
+| Finding Arbiter | `tools/adsentice_finding_arbiter.py` | — |
+| Telemetry | `apps/web/src/lib/telemetry.ts` | — |
+| 20 migrations | `packages/db/supabase/migrations/` | schema real |
 
-### EVO-API (padrão de referência)
-
-| ADR | Arquivo | Conceito |
-|-----|---------|----------|
-| ADR-0139 | `EVO-API/main/docs/adr/0139-founder-context-cockpit.md` | CopilotRail, evidência cross-kg, NarrativeCard, AlertLane |
-| ADR-0141 | `EVO-API/main/docs/adr/0141-rsxt-fnd-finding-sensor-soberano.md` | Finding Sensor, SENSOR≠ÁRBITRO, RETRIEVE→CROSS-REF→COMPLETENESS-CRITIC |
-| ADR-0164 | `EVO-API/main/docs/adr/0164-per-page-telemetry-jury-set.md` | Per-page telemetry, QUALITY-JURY + RUNTIME, DADO editável |
-
-### adsentice (páginas auditadas)
-
-| Página | Linhas | DataSources |
-|--------|--------|-------------|
-| `/admin` | 345 | redis, supabase, static |
-| `/admin/categories` | 397 | supabase, static |
-| `/admin/discovery` | 2,239 | redis, supabase, dataforseo |
-| `/admin/pipeline` | 316 | supabase, static |
-| `/admin/leads` | 345 + 532 (LeadTable) | supabase |
-| `/admin/costs` | 502 | redis, supabase, filesystem |
-| `/admin/criteria` | 651 | **static** |
-| `/admin/solutions` | 526 | **static** |
-| `/admin/market` | 536 | supabase, redis |
-| `/admin/surface` | 434 | qdrant, supabase |
-| `/admin/telemetry` | 233 | redis, supabase |
-| `/admin/settings` | 604 | redis, process.env |
-
-### APIs existentes (reutilizáveis)
-
-| API | Uso no Copilot |
-|-----|---------------|
-| `GET /api/category/intel` | Sensor S4 (Coverage) cross-reference |
-| `GET /api/auto-pilot/decide` | Sensor S3 (Strategy) — o Auto-Pilot recomenda algo que a página mostra? |
-| `POST /api/cockpit/ask` | Link "Abrir Cockpit" no drawer |
-| `GET /api/surface/status` | Sensor S5 (Integration) — superfícies ativas vs páginas |
-
-**Confiança:** HIGH — 3 ADRs EVO-API + 12 páginas adsentice + 4 APIs + 20 migrations + DAG 5-passos.
+**Confiança:** HIGH — 5 ADRs EVO-API + 12 páginas adsentice + 8 fontes de código + DAG 5-passos.
 
 ---
 
-*v1.0 · 2026-07-20 · adsentice · Padrão EVO-API CopilotRail + rsxt-fnd adaptado para MUI/React · SENSOR≠ÁRBITRO*
+*v2.0 · 2026-07-20 · adsentice · SPEC-Driven Analysis Engine · Brain OODA como motor de consistência cross-page*
