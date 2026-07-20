@@ -46,6 +46,11 @@ export interface LeadContext {
   schwartzLevel: string
 }
 
+export interface DiscoveredSkill extends MarketingFramework {
+  kind: string      // marketing-skill, foundation, execution, framework...
+  repo: string      // marketingskills, claude-seo, unslop, advertising-skills...
+}
+
 // ═══════════════════════════════════════════════════════════════
 // QDRANT + EMBED clients
 // ═══════════════════════════════════════════════════════════════
@@ -131,11 +136,85 @@ export async function queryMarketingSkill(
  *   - recommend.ts: ActionPlan generation consumes framework content
  *   - battle-card.ts: ObjectionResponse + Pitch consume framework content
  *   - product-context.ts: Section enrichment consumes framework content
- *   - composeS10_BLUE: gap enrichment via framework knowledge
+/**
+ * ADR-0049 · DISCOVERY LAYER — Semantic skill discovery from ALL 830 pts
+ *
+ * Em vez de lista hardcoded de nomes, faz busca semântica com o contexto
+ * completo do lead. Isso desbloqueia automaticamente:
+ *   - Claude-SEO (192 pts) · Unslop (196 pts) · Kim Barrett (12 pts)
+ *   - AI-Marketing (71 pts) · Strategy frameworks (18 pts)
+ *   - Vercel writing/design guidelines (15 pts)
+ *
+ * Pipe: leadContext → embed(query) → Qdrant(tag=adsentice) → top-N skills
+ * Fallback: se < 3 resultados, volta pra lista hardcoded (queryRelevantSkills)
+ *
+ * Custo: $0 · Qdrant :6352 + Embed :8081
+ * medido=verdade · 2026-07-20
+ */
+export async function discoverSkills(
+  leadContext: LeadContext,
+  limit = 12,
+): Promise<DiscoveredSkill[]> {
+  try {
+    // Build semantic query from lead context (all dimensions)
+    const queryParts = [
+      leadContext.segment,
+      leadContext.category,
+      leadContext.schwartzLevel,
+      leadContext.score > 60 ? "high potential" : leadContext.score > 40 ? "medium" : "needs help",
+      leadContext.competitorCount > 5 ? "high competition market" : "",
+      leadContext.hasWebsite ? "has website" : "no website needs digital presence",
+      leadContext.rating < 4.0 ? "needs reputation improvement" : "",
+      leadContext.city,
+    ].filter(Boolean)
+
+    const query = `marketing strategy for ${queryParts.join(" ")}`
+    const vec = await embedQuery(query)
+    if (vec.length === 0) return []
+
+    // Semantic search: tag=adsentice, no hardcoded names
+    // This automatically discovers skills from ALL sources
+    const results = await qdrantSearch(vec, {
+      must: [{ key: "tag", match: { value: "adsentice" } }],
+    }, limit)
+
+    if (!results.length) return []
+
+    return results.map(p => {
+      const pl = p.payload || {}
+      const src = (pl.source as string) || ""
+      const repo = src.split("/")[0] || "unknown"
+      const rawSkill = src.replace(/^(?:marketingskills|advertising-skills|claude-seo|ai-marketing-skills|unslop|vercel-agent-skills|adsentice-original|marketing-strategy|corey-haines-marketing)\//, "").replace(/\//g, "_")
+      return {
+        skillName: rawSkill || (pl.skillName as string) || "unknown",
+        source: src,
+        content: (pl.text as string) || "",
+        score: p.score || 0,
+        kind: (pl.kind as string) || "unknown",
+        repo,
+      }
+    }).filter(s => s.score > 0.25).sort((a, b) => b.score - a.score)
+  } catch (e: unknown) { void e; return [] }
+}
+
+/**
+ * Batch query — agora com Discovery Layer ADR-0049.
+ * Primary: discoverSkills() (semântico, descobre skills de TODAS as fontes)
+ * Fallback: lista hardcoded (compatibilidade + garantia de cobertura)
  */
 export async function queryRelevantSkills(
   leadContext: LeadContext,
 ): Promise<MarketingFramework[]> {
+  // ADR-0049 · DISCOVERY LAYER: semantic search FIRST (all 830 pts)
+  const discovered = await discoverSkills(leadContext, 12)
+  if (discovered.length >= 5) {
+    // Rich results from semantic discovery — return directly
+    return discovered.map(d => ({
+      skillName: d.skillName, source: d.source, content: d.content, score: d.score,
+    }))
+  }
+
+  // Fallback: hardcoded list (compatibility + guaranteed coverage)
   const relevantSkills: string[] = []
 
   relevantSkills.push("copywriting")
