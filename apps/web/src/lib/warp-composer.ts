@@ -1668,8 +1668,16 @@ function renderS11_GREEN(input: {
   copy: LandingCopy; strategy: ConversionStrategy; composedLayout: any
   T: ReturnType<typeof unifyTokens>; p: string; s: string; a: string; p15: string; p12: string
   icons: Record<string, string>
+  /** ADR-0048: SEO keywords + meta title do framework local-seo */
+  seoKeywords?: string[]; seoMetaTitle?: string
+  /** ADR-0048: WhatsApp CTA com número real do lead */
+  waPhone?: string | null; waCTA?: string
 }): string {
   const { lead, nicho, local, copy, strategy, composedLayout, T, p, s, p15, p12, icons } = input
+  const seoKeywords = input.seoKeywords || nicho.keywords?.slice(0, 5) || []
+  const seoMetaTitle = input.seoMetaTitle || `${lead.title} · ${nicho.name} em ${local}`
+  const waPhone = input.waPhone || lead.phone || null
+  const waCTA = input.waCTA || (waPhone ? `Fale conosco pelo WhatsApp: ${waPhone}` : "Agende sua consulta")
   const esc = (t: unknown) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const icon = (n: string) => icons[n] || ''
   const rating = lead.rating_value || 0
@@ -1806,7 +1814,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">` +
     `<meta name="description" content="${esc(copy.hero.subtitle || copy.hero.headline)}">` +
-    `<title>${esc(lead.title)} · ${esc(nicho.name)} em ${esc(local)}</title>` +
+    (seoKeywords.length ? `<meta name="keywords" content="${seoKeywords.join(', ')}">` : '') +
+    `<title>${esc(seoMetaTitle)}</title>` +
     `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` +
     `<link href="https://fonts.googleapis.com/css2?family=${(T.font || 'Inter').replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap" rel="stylesheet">` +
     `<style>/* S11 · strategy=${strategy.facet} (${strategy.abLabel}) · ${esc(strategy.hypothesis)} */\n${css}</style>` +
@@ -1997,7 +2006,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
-      const html = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons })
+      const html = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA })
       variants.push({ ab: strat.abLabel, html, strategyFacet: strat.facet, hypothesis: strat.hypothesis, copyModel: model, headline: copy.hero.headline })
     }
 
