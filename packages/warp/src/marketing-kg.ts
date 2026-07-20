@@ -180,6 +180,11 @@ export async function queryRelevantSkills(
     relevantSkills.push("marketing-plan")
   }
 
+  // ADR-0048 #5: social-media — calendário editorial para Sentinela (R$197)
+  // Todo negócio precisa de presença social. Diferencial do plano Sentinela.
+  relevantSkills.push("social")
+  if (leadContext.hasWebsite) relevantSkills.push("content-strategy")
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []

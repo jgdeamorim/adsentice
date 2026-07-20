@@ -1587,6 +1587,26 @@ function extractMarketingPlanSections(frameworkContent: string): { section: stri
   return sections.slice(0, 13)
 }
 
+/** ADR-0048 #5: extrai calendário editorial do framework social-media */
+function extractSocialCalendar(frameworkContent: string, nichoName: string, instagramHandle: string | null | undefined): { postsPerWeek: number; platforms: string[]; contentPillars: string[]; hashtagStrategy: string; igHandle: string | null } | null {
+  const postsMatch = frameworkContent.match(/(\d+)[-–]\s*(\d+)\s*posts?\s*(?:por|per|\/)\s*semana/i)
+  const postsPerWeek = postsMatch ? parseInt(postsMatch[1] + postsMatch[2]) / 2 : 4
+  const platforms: string[] = []
+  if (/instagram/i.test(frameworkContent)) platforms.push("instagram")
+  if (/facebook/i.test(frameworkContent)) platforms.push("facebook")
+  if (/tiktok/i.test(frameworkContent)) platforms.push("tiktok")
+  if (/linkedin/i.test(frameworkContent)) platforms.push("linkedin")
+  if (platforms.length === 0) platforms.push("instagram", "facebook")
+  // Extrai pilares de conteúdo (bullet points com • ou - ou *)
+  const pillarMatch = frameworkContent.match(/(?:pilares|pillars|categories?)[:\s]*([^\n]{20,200})/i)
+  const contentPillars = pillarMatch
+    ? pillarMatch[1].split(/[,;•●*-]/).map(p => p.trim()).filter(p => p.length > 3).slice(0, 5)
+    : ["Conteúdo educativo", "Bastidores", "Prova social", "Promoções", nichoName]
+  const hashtagMatch = frameworkContent.match(/hashtags?[:\s]*([^\n]{20,300})/i)
+  const hashtagStrategy = hashtagMatch ? hashtagMatch[1].trim() : `#${nichoName.toLowerCase().replace(/\s+/g, "")} #negociolocal #${nichoName.toLowerCase().replace(/\s+/g, "")}brasil`
+  return { postsPerWeek, platforms, contentPillars, hashtagStrategy, igHandle: instagramHandle || null }
+}
+
 /** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
  *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
  *  Custo: $0 (crawler local, sem API externa). */
@@ -2012,6 +2032,10 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const mktPlanFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("marketing-plan") || f.skillName.includes("marketing_plan"))
     const mktPlanSections = mktPlanFW ? extractMarketingPlanSections(mktPlanFW.content) : []
     const mktPlanReady = mktPlanSections.length >= 5 // mínimo 5 seções = plano válido
+    // ADR-0048 #5: social-media → calendário editorial + sugestões de posts
+    const socialFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("social"))
+    const socialCalendar = socialFW ? extractSocialCalendar(socialFW.content, nicho.name, l2bSocialIG) : null
+    const contentFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("content-strategy"))
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -2055,6 +2079,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       sales: salesObjections.length > 0 ? { objections: salesObjections, source: objectionFW?.skillName || "fallback", ready: true } : null,
       wa: whatsAppFW ? { cta: waCTA, insight: waInsight, hasPhone: !!lead.phone, source: "whatsapp-business framework" } : { cta: waCTA, hasPhone: !!lead.phone },
       mktPlan: mktPlanReady ? { sections: mktPlanSections, totalSections: mktPlanSections.length, source: "marketing-plan framework", plan: "Domínio (R$497)" } : null,
+      social: socialCalendar ? { calendar: socialCalendar, contentStrategy: contentFW ? "Framework content-strategy aplicado" : null, source: "social-media framework", plan: "Sentinela (R$197)" } : null,
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),
