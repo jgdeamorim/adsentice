@@ -1893,9 +1893,9 @@ function renderS11_GREEN(input: {
       copy.faq.items.map(f => `<details class="s11-faq-i"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('') +
       `</div></section>`,
     cta: () => `<section class="s11-cta${em('cta')}" aria-label="Fale conosco"><div class="s11-wrap">` +
-      `<h2>${esc(copy.hero.headline.length > 60 ? copy.pricing.offerLine : copy.hero.headline)}</h2>` +
-      `<p>${esc(copy.cta.sub)}</p>` +
-      `<a class="s11-btn s11-btn-inv" href="${ctaHref}">${icon('arrow-right')}${esc(copy.cta.label)}</a>` +
+      `<h2>${esc(copy.pricing.title || copy.hero.headline)}</h2>` +
+      `<p>${esc(copy.cta.sub || copy.pricing.offerLine)}</p>` +
+      `<a class="s11-btn s11-btn-inv" href="${ctaHref}">${esc(copy.cta.label)}</a>` +
       `</div></section>`,
   }
 
