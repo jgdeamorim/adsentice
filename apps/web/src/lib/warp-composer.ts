@@ -312,7 +312,6 @@ import { recommendEngine, type RecommendResult } from "../../../../packages/warp
 import { resolveIntentVocab } from "../../../../packages/warp/src/vocab-resolver"
 import { resolveMorph, composeLayout } from "../../../../packages/warp/src/morph-resolver"
 import { resolveStrategies, type ConversionStrategy } from "../../../../packages/warp/src/strategy-resolver"
-import { queryRelevantSkills } from "../../../../packages/warp/src/marketing-kg"
 import { getSurfaceSpecialist } from "../../../../packages/warp/src/4-composer"
 import { WarpCache } from "../../../../packages/warp/src/7-cache"
 import { TokenComposer } from "../../../../packages/warp/src/tokens-composer"
