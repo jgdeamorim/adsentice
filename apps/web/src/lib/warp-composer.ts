@@ -1502,6 +1502,7 @@ interface L2bEnrichData {
   hasWhatsApp: boolean
   hasPrices: boolean
   designDNA: { colors: { primary: string; secondary: string; accent: string }; typography: { heading: string; body: string }; score: number } | null
+  contacts?: { emails?: string[]; phones?: string[] }
   enriched: boolean
   error?: string
 }
@@ -1691,10 +1692,11 @@ async function enrichS11L2b(website: string | null | undefined): Promise<L2bEnri
       hasWhatsApp: contacts.hasWhatsApp,
       hasPrices: /R\$\s?\d|preço|valor|investimento/i.test(site.bodyText),
       designDNA: { colors: designDNA.colors, typography: designDNA.typography, score: designDNA.score },
+      contacts: { emails: contacts.emails, phones: contacts.phones },
       enriched: true,
     }
   } catch (e: unknown) {
-    return { services: [], doctors: [], insurance: [], socialLinks: {}, hasBooking: false, bookingPlatform: null, hasWhatsApp: false, hasPrices: false, designDNA: null, enriched: false, error: (e as Error).message?.slice(0, 80) }
+    return { services: [], doctors: [], insurance: [], socialLinks: {}, hasBooking: false, bookingPlatform: null, hasWhatsApp: false, hasPrices: false, designDNA: null, contacts: undefined, enriched: false, error: (e as Error).message?.slice(0, 80) }
   }
 }
 
@@ -1841,6 +1843,8 @@ function renderS11_GREEN(input: {
   /** ADR-0054 F1: L2b data for conditional slots */
   l2bDoctors?: { name: string; crm: string; specialty: string }[]
   l2bSocialIG?: string | null
+  l2bInsurance?: string[]
+  l2bEmail?: string | null
 }): string {
   const { lead, nicho, local, copy, strategy, composedLayout, T, p, s, p15, p12, icons } = input
   const seoKeywords = input.seoKeywords || nicho.keywords?.slice(0, 5) || []
@@ -1924,10 +1928,22 @@ function renderS11_GREEN(input: {
     },
   }
 
-  // ADR-0054 F1: strategy.slotOrder determina a narrativa de conversão (não ordem fixa)
+  // ADR-0054 F1: strategy.slotOrder + L2b-conditional slots (doctors, social)
   const stratOrder = (input.strategy as any)?.slotOrder as string[] | undefined
+  const l2bSlots: string[] = []
+  if (input.l2bDoctors?.length) l2bSlots.push('doctors')
+  if (input.l2bSocialIG) l2bSlots.push('social')
+  // Inject L2b slots after capabilities/voice (before pricing)
+  const injectAfter = 'voice'
   const order: string[] = (stratOrder?.length
-    ? stratOrder.filter((n: string) => R[n])  // strategy decides order
+    ? (() => {
+        const base = stratOrder.filter((n: string) => R[n])
+        if (!l2bSlots.length) return base
+        const idx = base.indexOf(injectAfter)
+        const before = idx >= 0 ? base.slice(0, idx + 1) : base
+        const after = idx >= 0 ? base.slice(idx + 1) : []
+        return [...before, ...l2bSlots.filter(s => R[s]), ...after]
+      })()
     : (composedLayout?.slots || []).map((sl: any) => sl.slotName).filter((n: string) => R[n]))
   const finalOrder = order.length ? order : Object.keys(R)
   // Landmarks ARIA: hero = <header role=banner> (já) · slots = <main> · footer = contentinfo
@@ -2012,7 +2028,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);line-height:1.
     `<style>/* S11 · strategy=${strategy.facet} (${strategy.abLabel}) · ${esc(strategy.hypothesis)} */\n${css}</style>` +
     `<script type="application/ld+json">${schemaJson}</script>` +
     `</head><body>\n${body}\n` +
-    `<footer class="s11-footer" role="contentinfo"><p>${esc(lead.title)} · ${esc(local)} · <a href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a></p><p>Página por <a href="https://adsentice.com.br" rel="noopener">adsentice</a></p></footer>` +
+    `<footer class="s11-footer" role="contentinfo"><p>${esc(lead.title)} · ${esc(local)}${input.l2bEmail ? ` · <a href="mailto:${esc(input.l2bEmail)}">${esc(input.l2bEmail)}</a>` : ''} · <a href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a></p><p>Página gerada por <a href="https://adsentice.com.br" rel="noopener">adsentice</a></p></footer>` +
     `</body></html>`
 }
 
@@ -2092,10 +2108,20 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       surface: 'S11', market: { category: lead.category || cat, region: city || 'BR' },
     }).catch(() => null)
     const palette = segmentPalette(seg as SegmentId)
-    // ADR-0054 F1: Brand DNA do L2b tem PRIORIDADE sobre palette do NICHO_MAP
-    const p = l2bBrandColors?.primary || m9Result?.tokens.palette.primary || palette.primary
-    const s = l2bBrandColors?.secondary || m9Result?.tokens.palette.secondary || palette.secondary
-    const a = l2bBrandColors?.accent || m9Result?.tokens.palette.accent || palette.accent
+    // ADR-0054 F1: Brand DNA do L2b tem PRIORIDADE. Filtra cores inválidas (branco, preto, cinza)
+    const brandPrimary = l2bBrandColors?.primary
+    const isValidBrandColor = (c?: string | null): c is string =>
+      !!c && c.length === 7 && c.startsWith('#') && !/^#(fff|000|808080|f0f0f0|fafafa|f5f5f5|e5e5e5|eee|ddd|ccc|bbb|aaa|999)/i.test(c)
+    const p = (isValidBrandColor(brandPrimary) ? brandPrimary : null)
+      || (isValidBrandColor(l2bBrandColors?.secondary) ? l2bBrandColors!.secondary! : null)
+      || (isValidBrandColor(l2bBrandColors?.accent) ? l2bBrandColors!.accent! : null)
+      || m9Result?.tokens.palette.primary || palette.primary
+    const s = isValidBrandColor(l2bBrandColors?.secondary) && l2bBrandColors!.secondary !== p
+      ? l2bBrandColors!.secondary!
+      : m9Result?.tokens.palette.secondary || palette.secondary
+    const a = isValidBrandColor(l2bBrandColors?.accent) && l2bBrandColors!.accent !== p && l2bBrandColors!.accent !== s
+      ? l2bBrandColors!.accent!
+      : m9Result?.tokens.palette.accent || palette.accent
     const p15 = withAlpha(p, "15"); const p12 = withAlpha(p, "12")
 
     // 4. Vocab (agora com conversionFacets) + sensor queries (paralelas)
@@ -2240,7 +2266,8 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       }, { facet: strat.facet, copyAngle: strat.copyAngle, pricingFrame: strat.pricingFrame, faqAngle: strat.faqAngle }).catch(() => null)
       if (ai) await trackLLMCost(0.001)
       const { copy, model } = mergeLandingCopy(ai, fb)
-      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA, l2bServiceCount: l2b?.enriched ? l2bServices.length : undefined, l2bDoctors: l2b?.enriched ? l2bDoctors : undefined, l2bSocialIG: l2b?.enriched ? l2bSocialIG : undefined })
+      const l2bEmail = l2b?.enriched ? l2b?.contacts?.emails?.[0] || null : null
+      const rawHtml = renderS11_GREEN({ lead, nicho, local, seg, copy, strategy: strat, composedLayout: composed, T, p, s, a, p15, p12, icons, seoKeywords, seoMetaTitle, waPhone: lead.phone, waCTA, l2bServiceCount: l2b?.enriched ? l2bServices.length : undefined, l2bDoctors: l2b?.enriched ? l2bDoctors : undefined, l2bSocialIG: l2b?.enriched ? l2bSocialIG : undefined, l2bInsurance: l2b?.enriched ? l2bInsurance : undefined, l2bEmail })
       // ADR-0049 §4: Quality Gate — Unslop validation
       const qg = applyQualityGate(rawHtml)
       lastQg = qg
