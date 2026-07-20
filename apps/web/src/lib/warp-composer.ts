@@ -1556,6 +1556,37 @@ function extractObjections(frameworkContent: string, bizName: string, rating: nu
   return objections.slice(0, 5)
 }
 
+/** ADR-0048 #4: extrai seções do marketing-plan framework → plano de ação */
+function extractMarketingPlanSections(frameworkContent: string): { section: string; summary: string }[] {
+  const sections: { section: string; summary: string }[] = []
+  // Padrão: "## Section Name" ou "### Section Name" ou numbered "1. Section Name"
+  const sectionRe = /(?:^|\n)(?:#{1,3}\s*|(?:\d{1,2}\.\s*))(.{5,80})(?:\n|$)/gm
+  let match
+  while ((match = sectionRe.exec(frameworkContent)) !== null) {
+    const title = match[1].trim()
+    // Captura o parágrafo seguinte (até 200 chars)
+    const afterIdx = match.index + match[0].length
+    const nextPara = frameworkContent.slice(afterIdx, afterIdx + 350).split(/\n\n|\n#{1,3}/)[0].trim().slice(0, 180)
+    if (title.length > 5 && !/^name\b|^description\b|^---/i.test(title)) {
+      sections.push({ section: title, summary: nextPara || "Estratégia personalizada para o negócio." })
+    }
+  }
+  // Fallback: 13 seções canônicas
+  if (sections.length < 5) {
+    const fallbackSections = [
+      "Executive Summary", "Market Analysis", "Target Audience & ICP",
+      "Competitive Landscape", "Positioning & Messaging", "SEO & Content Strategy",
+      "Social Media & Channels", "Conversion & CRO", "Pricing & Offers",
+      "Retention & Referrals", "Budget & Resources", "Timeline 30/60/90",
+      "KPIs & Success Metrics",
+    ]
+    for (const s of fallbackSections) {
+      sections.push({ section: s, summary: "Seção do plano de marketing — preenchida com dados reais do diagnóstico." })
+    }
+  }
+  return sections.slice(0, 13)
+}
+
 /** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
  *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
  *  Custo: $0 (crawler local, sem API externa). */
@@ -1977,6 +2008,10 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const waInsight = whatsAppFW
       ? "Canal #1 de venda no Brasil. 80% dos clientes preferem WhatsApp. Templates, catálogo e respostas automáticas disponíveis."
       : null
+    // ADR-0048 #4: marketing-plan → 13-seção plan para Domínio (R$497)
+    const mktPlanFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("marketing-plan") || f.skillName.includes("marketing_plan"))
+    const mktPlanSections = mktPlanFW ? extractMarketingPlanSections(mktPlanFW.content) : []
+    const mktPlanReady = mktPlanSections.length >= 5 // mínimo 5 seções = plano válido
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -2019,6 +2054,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       seo: localSEOFw ? { metaTitle: seoMetaTitle, keywords: seoKeywords, source: "local-seo framework" } : null,
       sales: salesObjections.length > 0 ? { objections: salesObjections, source: objectionFW?.skillName || "fallback", ready: true } : null,
       wa: whatsAppFW ? { cta: waCTA, insight: waInsight, hasPhone: !!lead.phone, source: "whatsapp-business framework" } : { cta: waCTA, hasPhone: !!lead.phone },
+      mktPlan: mktPlanReady ? { sections: mktPlanSections, totalSections: mktPlanSections.length, source: "marketing-plan framework", plan: "Domínio (R$497)" } : null,
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),

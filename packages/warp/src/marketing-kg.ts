@@ -174,6 +174,12 @@ export async function queryRelevantSkills(
   // Todo SMB brasileiro usa WhatsApp. Framework cobre Cloud API, templates, automação
   relevantSkills.push("whatsapp-business")
 
+  // ADR-0048 #4: marketing-plan — plano 13 seções para Domínio (R$497)
+  // Leads com score alto (>60) têm potencial de upsell de Sentinela→Domínio
+  if (leadContext.score > 60 && leadContext.competitorCount > 3) {
+    relevantSkills.push("marketing-plan")
+  }
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []
