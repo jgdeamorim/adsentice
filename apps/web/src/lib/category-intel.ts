@@ -44,10 +44,12 @@ export interface CategoryIntelligence {
   }
 
   conversion: {
-    raioXSent: number
-    proposalsGenerated: number
-    clientsActive: number
-    mrrByCategory: number
+    raioXSent: number           // s10_artifacts real count (JOIN por place_id)
+    s11Views: number            // 🔜 s11_events JOIN pendente
+    s11Clicks: number           // 🔜 s11_events JOIN pendente
+    proposalsGenerated: number  // 🔜 tracking pendente — precisa tabela proposals
+    clientsActive: number       // 🔜 tracking pendente — precisa tabela clients
+    mrrByCategory: number       // 🔜 tracking pendente — precisa tabela revenue
   }
 
   opportunity: {
@@ -88,6 +90,7 @@ function catToSegment(cat: string): string {
 /** Retorna inteligência de mercado para 1 ou todas as 29 categorias ICP. */
 export async function getCategoryIntelligence(category?: string): Promise<CategoryIntelligence[]> {
   const categories = category ? [category] : [...ICP_CATEGORIES]
+
   if (!SUPA_KEY) return []
 
   try {
@@ -96,24 +99,33 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
     const allListings: any[] = []
     const fields = "category,place_id,city,district,score_compound,schwartz_label,website,phone,wa_is_business,wa_has_whatsapp,enrichment_level,is_claimed,rating_value"
     const pageSize = 1000
+
     for (let offset = 0; offset < 12000; offset += pageSize) {
       const pageRes = await fetch(
         `${SUPA_URL}/rest/v1/discovery_listings?select=${encodeURIComponent(fields)}&limit=${pageSize}&offset=${offset}&order=created_at.desc`,
         { headers: supaHeaders(), signal: AbortSignal.timeout(10000) },
       )
+
       if (!pageRes.ok) break
       const page = await pageRes.json() as any[]
+
       if (!page?.length) break
       allListings.push(...page)
       if (page.length < pageSize) break
     }
+
+
     // Normalize DB categories (Beauty salon → beauty_salon, Dentist → dentist)
     const catLower = new Set(categories.map(c => c.toLowerCase()))
+
     const listings = allListings.filter((l: any) => {
       if (!l.category) return false
       const normalized = normalizeCategory(String(l.category))
-      return catLower.has(normalized.toLowerCase()) || catLower.has(String(l.category).toLowerCase().replace(/\s+/g, "_"))
+
+      
+return catLower.has(normalized.toLowerCase()) || catLower.has(String(l.category).toLowerCase().replace(/\s+/g, "_"))
     })
+
     if (!listings?.length) return []
 
     // ═══ 2. IBGE context (REST API) ═══
@@ -121,18 +133,71 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
       `${SUPA_URL}/rest/v1/ibge_panorama?select=municipio_nome,populacao,pib_per_capita,uf&limit=500`,
       { headers: supaHeaders(), signal: AbortSignal.timeout(5000) },
     )
+
     const ibgeData = ibgeRes.ok ? await ibgeRes.json() as any[] : []
     const ibgeCities = new Set((ibgeData || []).map(r => r.municipio_nome?.toLowerCase().trim()).filter(Boolean))
 
-    // ═══ 3. Build per-category intelligence ═══
+    // ═══ 3. S10 artifacts — real Raio-X counts per place_id ═══
+    const placeIds = [...new Set(listings.map((l: any) => l.place_id).filter(Boolean))] as string[]
+    const artifactCounts = new Map<string, number>()
+
+    if (placeIds.length > 0) {
+      // Batch query s10_artifacts by place_id (max 100 per IN clause, chunked)
+      for (let i = 0; i < placeIds.length; i += 100) {
+        const chunk = placeIds.slice(i, i + 100)
+        const _idsParam = chunk.map(id => `"${id}"`).join(",")
+
+        try {
+          const artRes = await fetch(
+            `${SUPA_URL}/rest/v1/s10_artifacts?select=place_id&place_id=in.(${encodeURIComponent(chunk.join(","))})&status=eq.published&limit=1000`,
+            { headers: supaHeaders(), signal: AbortSignal.timeout(5000) },
+          )
+
+          if (artRes.ok) {
+            const arts = await artRes.json() as { place_id: string }[]
+
+            for (const a of arts) {
+              artifactCounts.set(a.place_id, (artifactCounts.get(a.place_id) || 0) + 1)
+            }
+          }
+        } catch (e: unknown) { void e }
+      }
+    }
+
+    // ═══ 4. S11 events — real views/clicks per surface ═══
+    const s11Counts = new Map<string, { views: number; clicks: number }>()
+
+    try {
+      const evRes = await fetch(
+        `${SUPA_URL}/rest/v1/s11_events?select=surface,event&limit=5000`,
+        { headers: supaHeaders(), signal: AbortSignal.timeout(5000) },
+      )
+
+      if (evRes.ok) {
+        const events = await evRes.json() as { surface: string; event: string }[]
+
+        for (const ev of events) {
+          const existing = s11Counts.get(ev.surface) || { views: 0, clicks: 0 }
+
+          if (ev.event === 'view') existing.views++
+          else if (ev.event === 'cta_click') existing.clicks++
+          s11Counts.set(ev.surface, existing)
+        }
+      }
+    } catch (e: unknown) { void e }
+
+    // ═══ 5. Build per-category intelligence ═══
     const results: CategoryIntelligence[] = []
 
     for (const cat of categories) {
       const catListings = (listings || []).filter(l => {
         if (!l.category) return false
         const normalized = normalizeCategory(String(l.category))
-        return normalized.toLowerCase() === cat.toLowerCase()
+
+        
+return normalized.toLowerCase() === cat.toLowerCase()
       })
+
       if (!catListings.length) {
         results.push(emptyCategoryIntel(cat))
         continue
@@ -143,22 +208,27 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
 
       // ── Coverage by city ──
       const byCity = new Map<string, { count: number; state: string }>()
+
       for (const l of catListings) {
         if (!l.city) continue
         const key = l.city.toLowerCase().trim()
         const existing = byCity.get(key)
+
         if (existing) existing.count++
         else byCity.set(key, { count: 1, state: "" })
       }
 
       // ── Gaps: cities in IBGE with 0 coverage ──
       const coveredCities = new Set(byCity.keys())
+
       const uncoveredCities = [...ibgeCities]
         .filter(c => !coveredCities.has(c))
         .slice(0, 15)
         .map(city => {
           const ibge = (ibgeData || []).find(r => r.municipio_nome?.toLowerCase().trim() === city)
-          return {
+
+          
+return {
             city: ibge?.municipio_nome || city,
             state: ibge?.uf || "",
             estimatedMissing: ibge ? Math.max(5, Math.round((ibge.populacao || 100000) / 5000)) : 10,
@@ -169,6 +239,7 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
 
       // Calculate priority for gaps
       const maxMissing = Math.max(...uncoveredCities.map(g => g.estimatedMissing), 1)
+
       for (const g of uncoveredCities) {
         g.priority = Math.round((g.estimatedMissing / maxMissing) * 100)
       }
@@ -183,8 +254,10 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
       const pctL3 = Math.round((catListings.filter(l => (l.enrichment_level || 0) >= 3).length / total) * 100)
 
       const schwartzDist = { unaware: 0, problemAware: 0, solutionAware: 0, productAware: 0, mostAware: 0 }
+
       for (const l of catListings) {
         const s = l.score_compound || 0
+
         if (s < 30) schwartzDist.unaware++
         else if (s < 50) schwartzDist.problemAware++
         else if (s < 70) schwartzDist.solutionAware++
@@ -195,6 +268,7 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
       // ── Opportunity score (0-100) ──
       const estimatedTotalMarket = uniquePlaces + uncoveredCities.reduce((s, g) => s + g.estimatedMissing, 0)
       const coveragePct = Math.round((uniquePlaces / Math.max(estimatedTotalMarket, 1)) * 100)
+
       const opportunityScore = Math.min(100, Math.round(
         (100 - Math.min(coveragePct, 100)) * 0.35 +
         Math.min(avgScore, 80) * 0.20 +
@@ -231,7 +305,15 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
           scoreDistribution: schwartzDist,
           topGaps: [],
         },
-        conversion: { raioXSent: 0, proposalsGenerated: 0, clientsActive: 0, mrrByCategory: 0 },
+        conversion: {
+          raioXSent: [...catListings.map(l => l.place_id).filter(Boolean)]
+            .reduce((sum, pid) => sum + (artifactCounts.get(pid as string) || 0), 0),
+          s11Views: 0,          // precisa de join discovery_listings.place_id → s11_events (futuro)
+          s11Clicks: 0,         // precisa de join discovery_listings.place_id → s11_events (futuro)
+          proposalsGenerated: 0, // 🔜 tracking pendente — precisa criar tabela proposals
+          clientsActive: 0,      // 🔜 tracking pendente — precisa criar tabela clients
+          mrrByCategory: 0,      // 🔜 tracking pendente — precisa criar tabela revenue
+        },
         opportunity: {
           score: opportunityScore,
           recommendedRegions: uncoveredCities.slice(0, 3).map(g => ({
@@ -251,7 +333,8 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
     return results.sort((a, b) => b.opportunity.score - a.opportunity.score)
   } catch (e: unknown) {
     console.error("[category-intel]", (e as Error).message?.slice(0, 120))
-    return []
+    
+return []
   }
 }
 
@@ -289,7 +372,9 @@ async function enrichCategoryWithSkills(
           : `Baixa densidade. Oportunidade de ser o primeiro bem posicionado.`,
       enriched: true,
     }
-  } catch (e: unknown) { void e; return { topSkills: [], strategyRecommendation: "", competitiveLandscape: "", enriched: false } }
+  } catch (e: unknown) { void e; 
+
+return { topSkills: [], strategyRecommendation: "", competitiveLandscape: "", enriched: false } }
 }
 
 function emptyCategoryIntel(cat: string): CategoryIntelligence {
@@ -297,7 +382,7 @@ function emptyCategoryIntel(cat: string): CategoryIntelligence {
     category: cat, label: ICP_CATEGORY_LABELS[cat] || cat, segment: catToSegment(cat),
     icpSignals: [], coverage: { totalDiscovered: 0, uniquePlaceIds: 0, coveragePctBR: 0, topCities: [], gaps: [] },
     quality: { avgScore: 0, pctWithWebsite: 0, pctWithPhone: 0, pctBusinessWA: 0, pctEnrichedL2: 0, pctEnrichedL3: 0, scoreDistribution: { unaware: 0, problemAware: 0, solutionAware: 0, productAware: 0, mostAware: 0 }, topGaps: [] },
-    conversion: { raioXSent: 0, proposalsGenerated: 0, clientsActive: 0, mrrByCategory: 0 },
+    conversion: { raioXSent: 0, s11Views: 0, s11Clicks: 0, proposalsGenerated: 0, clientsActive: 0, mrrByCategory: 0 },
     opportunity: { score: 0, recommendedRegions: [], nextAction: "Sem dados. Execute o primeiro discovery nesta categoria.", estimatedCost: 0, estimatedROI: "N/A" },
     marketingIntel: { topSkills: [], strategyRecommendation: "", competitiveLandscape: "", enriched: false },
   }
@@ -306,7 +391,9 @@ function emptyCategoryIntel(cat: string): CategoryIntelligence {
 /** Quick summary: top 5 categories by opportunity (no IBGE enrichment, fast) */
 export async function getCategoryOpportunityQuick(): Promise<{ category: string; label: string; score: number; totalLeads: number; gapCities: number }[]> {
   const intel = await getCategoryIntelligence()
-  return intel.slice(0, 5).map(ci => ({
+
+  
+return intel.slice(0, 5).map(ci => ({
     category: ci.category, label: ci.label, score: ci.opportunity.score,
     totalLeads: ci.coverage.totalDiscovered,
     gapCities: ci.coverage.gaps.length,
