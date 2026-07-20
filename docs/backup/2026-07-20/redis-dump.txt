@@ -1,0 +1,422 @@
+---KEY: adsentice:cnpj:queue:ChIJnaASwWp_mQARvdXsCSxtG44---
+{"lead_id":"ChIJnaASwWp_mQARvdXsCSxtG44","website":"https://instagram.com/m.k.odontologia","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJa2aAZF1_mQARPaddO9WRApo---
+{"lead_id":"ChIJa2aAZF1_mQARPaddO9WRApo","website":"http://www.centraldenterj.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:discovery:cost:today---
+27.41924999999999963
+
+---KEY: adsentice:llm:calls:today---
+86
+
+---KEY: adsentice:cnpj:queue:ChIJnc6y_N-BmQARmuYj3VDezpg---
+{"lead_id":"ChIJnc6y_N-BmQARmuYj3VDezpg","website":"http://www.clinicadebret.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:stability:score---
+0.7654
+
+---KEY: adsentice:boa:performance:weighted---
+0.2
+
+---KEY: adsentice:cnpj:queue:ChIJd2-5dWB_mQAR9VW62y5nUZE---
+{"lead_id":"ChIJd2-5dWB_mQAR9VW62y5nUZE","website":"http://www.halitorio.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJwR2Jf7oXuAARRVWCueXDu5Y---
+{"lead_id":"ChIJwR2Jf7oXuAARRVWCueXDu5Y","website":"https://drrogeriomachado.my.canva.site/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:session:62bee5de-791d-4e98-8f5c-9290e5da2ff3:message_count---
+0
+
+---KEY: adsentice:discovery:cost:total---
+27.41924999999999963
+
+---KEY: adsentice:ooda:session:9496706a-5f0a-43fd-9e27-904bc8d2bc63:message_count---
+0
+
+---KEY: adsentice:ooda:session:unknown:message_count---
+0
+
+---KEY: adsentice:ooda:total_compacts---
+19
+
+---KEY: adsentice:boa:composition:bbc---
+91.9
+
+---KEY: adsentice:cnpj:queue:ChIJYT0hMF9_mQARSXLJEIPhUZg---
+{"lead_id":"ChIJYT0hMF9_mQARSXLJEIPhUZg","website":"https://www.facebook.com/integraliodonto?mibextid=LQQJ4d","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJLcA0i9-BmQARt92Rf4BKK6g---
+{"lead_id":"ChIJLcA0i9-BmQARt92Rf4BKK6g","website":"https://leogrinstein.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:founder_signal:weighted---
+0.3045
+
+---KEY: adsentice:boa:composition:verdict---
+EXCELLENT
+
+---KEY: adsentice:cnpj:queue:ChIJX1-VnR8WuAARXsgRwcWFeJA---
+{"lead_id":"ChIJX1-VnR8WuAARXsgRwcWFeJA","website":"http://sdc-odonto.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:commits---
+479 commits · 33 ADRs · 7 skills · Qdrant 103.066 pts (self 18.464 · conversation 84.522 · memory 45+ · materio 36) · sync 2026-07-18
+
+---KEY: adsentice:ooda:meta:mission---
+Hub inteligente de marketing para negocios locais (SMB Brasil)
+
+---KEY: adsentice:ooda:score:produto---
+40/100 · composeS10 vivo + 21 rotas API adsentice (32 total - 11 template Materio) + provider-core v2 + discovery L0/L1 vivo (1.247 leads, $14.07 total) · falta: enrichment L2/L3 em batch (0 enriched), deploy producao, auth/billing · medido 2026-07-18
+
+---KEY: adsentice:embed:quality:content_hash---
+30236b13d4bd
+
+---KEY: adsentice:cnpj:queue:ChIJvTFPGHB_mQARlMu8afOIS50---
+{"lead_id":"ChIJvTFPGHB_mQARlMu8afOIS50","website":"http://dramariahslovinski.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:embed:quality:golden_hits---
+12
+
+---KEY: adsentice:cnpj:queue:ChIJSxEfHosXuAARAb_VB2NToJ4---
+{"lead_id":"ChIJSxEfHosXuAARAb_VB2NToJ4","website":"https://sites.google.com/view/cadastroinovedent-/in%C3%ADcio","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ_QpE7WZQsqYRKW-ZRD1SOBA---
+{"lead_id":"ChIJ_QpE7WZQsqYRKW-ZRD1SOBA","website":"https://www.instagram.com/lumo.odontologiaa?igsh=ZDNqYWk1dm1pdTRu","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:corpora---
+A=self 19.838 · B=cliente 0 · C=conversa 91.421 · materio 36 · claude-memory 70 · total cross-KG 111.365 (medido pós-ingest v120 · 2026-07-19)
+
+---KEY: adsentice:cnpj:queue:ChIJySfaWat_mQARs8IURZ4rFa8---
+{"lead_id":"ChIJySfaWat_mQARs8IURZ4rFa8","website":"http://elizabethaguiar.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:embed:quality:last_commit---
+3d5c3d9
+
+---KEY: adsentice:ooda:session:e134e571-a09b-42bc-93ad-831c20b9924d:compact_at---
+2026-07-14T23:06:37.690743+00:00
+
+---KEY: adsentice:boa:error_free:score---
+1.0
+
+---KEY: adsentice:ooda:current_session_id---
+seed-20260711160437
+
+---KEY: adsentice:telemetry:events---
+WRONGTYPE Operation against a key holding the wrong kind of value
+
+
+---KEY: adsentice:cnpj:queue:ChIJ33sNHpDVmwARWT_ki3T8og4---
+{"lead_id":"ChIJ33sNHpDVmwARWT_ki3T8og4","website":"https://j-juca-odontologia.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ2QKsIX1_mQARIgg1Hixx0hI---
+{"lead_id":"ChIJ2QKsIX1_mQARIgg1Hixx0hI","website":"https://www.dentistaortodrjaqueline.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:benchmark:dual_twin---
+{"timestamp": "2026-07-18T12:21:32.723617", "composite": 71, "verdict": "GOOD", "dimensions": {"pipeline": 70, "vocabulary": 82, "surfaces": 8, "patterns": 88, "media": 75, "design_system": 92, "operations": 100}, "gaps": [["pipeline", 70], ["surfaces", 8], ["media", 75]]}
+
+---KEY: adsentice:cnpj:queue:ChIJBxNsPboXuAARMNfCOJ2NOJw---
+{"lead_id":"ChIJBxNsPboXuAARMNfCOJ2NOJw","website":"https://www.odontoexcellencevilavelha.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJXzN4R3oXuAARxfY0IfCW2J4---
+{"lead_id":"ChIJXzN4R3oXuAARxfY0IfCW2J4","website":"https://www.instagram.com/capeliemarinsodonto/profilecard/?igsh=OHVrcmg2ajVwazBu","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:session:62bee5de-791d-4e98-8f5c-9290e5da2ff3:compact_at---
+2026-07-18T07:31:09.894726+00:00
+
+---KEY: adsentice:boa:score---
+0.8841
+
+---KEY: adsentice:embed:quality:checked_at---
+2026-07-15T04:19:21.280435+00:00
+
+---KEY: adsentice:ooda:score:boa---
+{"score": 0.8841, "verdict": "EXCELLENT", "stability": 0.7654, "performance": 1.0, "error_free": 1.0, "founder_signal": 0.87}
+
+---KEY: adsentice:cnpj:queue:ChIJbcnVYKJ_mQAR6EgLGgGAaaQ---
+{"lead_id":"ChIJbcnVYKJ_mQAR6EgLGgGAaaQ","website":"https://www.doctoralia.com.br/tariza-gallicchio-moreira-2/cirurgiao-buco-maxilo-facial-dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=72245&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:performance:score---
+1.0
+
+---KEY: adsentice:boa:error_free:detail---
+{"vault_tests": "6/6", "vault_score": 1.0, "base_matriz_exists": true, "adr_0001_exists": true, "chat_spec_exists": true, "doc_score": 1.0}
+
+---KEY: adsentice:boa:founder_signal:score---
+0.87
+
+---KEY: adsentice:cnpj:queue:ChIJte1AQPJ_mQARLoGiTFRQQJc---
+{"lead_id":"ChIJte1AQPJ_mQARLoGiTFRQQJc","website":"http://mhelenaestomatologia.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:stage:act---
+SELADO ADR-0053 v2 · SPEC-Driven Analysis Engine · 20/jul 20:00 BRT. Commit d577ec0. 3 camadas estratégicas: L1 geo (Category Intel) · L2 produto (ROI/MRR tracking) · L3 ecosistema (cross-page consistency). 12 páginas sem SPEC canônico — PageSpec registry a construir. 8 kinds de finding. Brain OODA cron a cada 6h. Fase 1-3: ~11.5h $0. Aguardando sinal do founder para implementar.
+
+---KEY: adsentice:telemetry:status:/api/discovery-search---
+WRONGTYPE Operation against a key holding the wrong kind of value
+
+
+---KEY: adsentice:cnpj:queue:ChIJJwdqJxkWuAARjk48S2DYsZ0---
+{"lead_id":"ChIJJwdqJxkWuAARjk48S2DYsZ0","website":"http://almirmendespereira.vitrinevirtual.net/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:telemetry:arbiter_verdict---
+{"verdict": "**Parecer SRE \u2013 adsentice**  \n\ud83d\udfe2 **Severidade geral: Healthy** \u2013 Nenhum erro registrado nas \u00faltimas 24h e zero alertas ativos. Sistema operacionalmente est\u00e1vel.\n\n**Principais problemas identificados**  \n- A \u00fanica rota monitorada (`/api/discovery-search`) apresenta **lat\u00eancia m\u00e9dia de 752ms**, o que pode indicar sobrecarga incremental ou depend\u00eancias lentas (DataForSEO, DeepSeek). Sem erros, mas lat\u00eancia alta deve ser investi
+---KEY: adsentice:cnpj:queue:ChIJEc_bHct_mQAR2WCb4jR4ggE---
+{"lead_id":"ChIJEc_bHct_mQAR2WCb4jR4ggE","website":"https://www.doctoralia.com.br/ana-maria-destri-2/dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=403834&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:evidences---
+vault 6/6 testes · DataForSEO 9 modulos via MCP oficial · Qwen local $0 · DeepSeek cost-capped
+
+---KEY: adsentice:embed:quality:score---
+100.0
+
+---KEY: adsentice:ooda:score:docs---
+85/100 · 8 documentos estrategicos + base-matriz + ADR-0001
+
+---KEY: adsentice:boa:founder_signal:detail---
+{"session": "seed-20260711160437", "total_decisions_captured": 74, "claude_memory_count": 74, "ooda_decisions": 0, "git_decisions_30d": 607, "combined_signal": 0.8, "base_signal": 0.9, "explicit_boost": 0.0, "act_stage": "SELADO v155 FINAL · 20/jul 13:00 BRT · Pipeline auto-compact completo · self 2024 chunks + conversat", "decide_stage": "v154 20/jul. Próximos passos: 1) Prospectar 23 categorias novas (Pre-flight→Discovery L0) 2) Wire Ki", "recent_memories": ["dag-2026-07-18-s10-genealogi
+---KEY: adsentice:cnpj:queue:ChIJO72uDc4XuAARm1TPUwdelJo---
+{"lead_id":"ChIJO72uDc4XuAARm1TPUwdelJo","website":"http://www.orttho.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJQeGK0Jo9uAARTjDomrIT_Ys---
+{"lead_id":"ChIJQeGK0Jo9uAARTjDomrIT_Ys","website":"https://cesolclinica.com.br/","status":"pending","attempts":1,"enqueued_at":"2026-07-17T02:40:57.126Z","last_error":"fetch failed"}
+
+---KEY: adsentice:ooda:initialized_at---
+2026-07-11T19:04:37.502238+00:00
+
+---KEY: adsentice:ooda:session:496dba5f-6fd8-4aa8-a4bb-c9bca737f5d4:compact_at---
+2026-07-15T07:26:00.074043+00:00
+
+---KEY: adsentice:cnpj:queue:ChIJ46GhEMcXuAARf7nZc9TWy4w---
+{"lead_id":"ChIJ46GhEMcXuAARf7nZc9TWy4w","website":"https://www.iosclinica.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:embed:quality:trend---
+stable
+
+---KEY: adsentice:ooda:conversation:ingest:last---
+skip · sem mensagens · trigger=manual
+
+---KEY: adsentice:ooda:meta:portas---
+Redis :6396 · Qdrant :6352 · Embed :8081 (compartilhado)
+
+---KEY: adsentice:ooda:stage:orient---
+v154 20/jul. Sessão v133→v154 ENCERRADA. 41 commits, 9 ADRs. Auto-Pilot e Category Intelligence transformaram 29 categorias ICP de labels planas em dimensões de mercado vivas. 6 categorias prontas para vender AGORA. 23 aguardando prospecção. Estratégia de vendas por categoria mapeada: Dentista💰 (Sentinela→Domínio), Psicólogo📈 (volume→Raio-X), Barbearia🎨 (visual→Brand DNA), Ortodontista💎 (Domínio direto).
+
+---KEY: adsentice:boa:error_free:weighted---
+0.15
+
+---KEY: adsentice:ooda:meta:foundation---
+2026-07-11
+
+---KEY: adsentice:cnpj:queue:ChIJB2AP9V1_mQARl-RsHchrFqc---
+{"lead_id":"ChIJB2AP9V1_mQARl-RsHchrFqc","website":"https://www.instagram.com/clinicaherrerorodriguez/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJVV8dHYd_mQARBOxwijJtKp4---
+{"lead_id":"ChIJVV8dHYd_mQARBOxwijJtKp4","website":"http://www.espacooral.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:verdict---
+EXCELLENT
+
+---KEY: adsentice:cnpj:stats---
+{"total_queue":118,"pending":58,"extracted":0,"enriched":2,"no_cnpj":0,"total_enriched_leads":2,"total_leads_with_website":118}
+
+---KEY: adsentice:ooda:last_compact_session---
+bb61a535-b700-4eaa-a2b2-883702453dfc
+
+---KEY: adsentice:ooda:session:e134e571-a09b-42bc-93ad-831c20b9924d:message_count---
+0
+
+---KEY: adsentice:ooda:session:unknown:compact_at---
+2026-07-18T17:15:55.763302+00:00
+
+---KEY: adsentice:wa-check:history---
+[{"ts":"2026-07-19T20:04:30.181Z","total":199,"business":51,"personal":31,"notFound":117,"errors":0,"baileysConfirmed":31,"latencyMs":46932,"mode":"auto"},{"ts":"2026-07-19T20:00:47.323Z","total":3,"business":1,"personal":1,"notFound":1,"errors":0,"baileysConfirmed":1,"latencyMs":1876,"mode":"manual"},{"ts":"2026-07-19T19:47:54.462Z","total":195,"business":75,"personal":27,"notFound":93,"errors":0,"baileysConfirmed":27,"latencyMs":111392,"mode":"manual"},{"ts":"2026-07-19T19:42:03.555Z","total":
+---KEY: adsentice:cross-kg:evo-api:latest---
+{"generated_at": "2026-07-18T12:21:43.893222", "cross_edges_count": 18, "evo_collections": ["claude-memory", "gaer.inspiration-corebox", "my-coder-patterns", "cognitive-codebase", "founder_conversations", "evoapi_provider_docs", "founder_global_inspirations", "wc-inspiration", "rsxt_codebase", "rsxt-inspiration", "evoapi-inspiration", "kg-capital.RS", "blackbox", "evoapi_conversation"], "ads_collections": ["claude-memory", "adsentice-kg", "adsentice-materio", "adsentice-conversation", "adsentice
+---KEY: adsentice:ooda:meta:niche_primary---
+clinicas esteticas SP (100% coberto)
+
+---KEY: adsentice:ooda:score:infra---
+90/100 · 6/6 MCP online · Redis+Qdrant+Embed saudáveis · 1043 pts corpus
+
+---KEY: adsentice:cnpj:queue:ChIJycOykIZ_mQARbgDXI4YKDZg---
+{"lead_id":"ChIJycOykIZ_mQARbgDXI4YKDZg","website":"https://wa.me/5521991694542","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJoZQm6lZ_mQARStkVTOiETRA---
+{"lead_id":"ChIJoZQm6lZ_mQARStkVTOiETRA","website":"https://www.doctoralia.com.br/leonardo-kastrup/dentista/niteroi?utm_source=google&utm_medium=gmb&utm_campaign=569290&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:llm:cost:total---
+0.085003049
+
+---KEY: adsentice:cnpj:queue:ChIJw_i_ZQAXuAARvlPVk2Ki-Yw---
+{"lead_id":"ChIJw_i_ZQAXuAARvlPVk2Ki-Yw","website":"https://www.instagram.com/larissa_patrocinio?igsh=MXgwa2U1NXh5ZTBwdw==","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ0a0bqXMXuAARcAmMcRYp9pI---
+{"lead_id":"ChIJ0a0bqXMXuAARcAmMcRYp9pI","website":"https://linktr.ee/draluanaestevam","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:stack---
+Frontend atual: Next.js 15 + MUI/Materio (:3000) · Target (ADR-0017): React 19 + Vite + Tailwind + shadcn/ui · Backend target (ADR-0016): Hetzner CAX11 ($5.39/mes) + Cloudflare Workers (Hono) + Supabase · Railway DESCARTADO
+
+---KEY: adsentice:ooda:stage:observe---
+ADR-0053 PROPOSED · Copilot Lateral per-page. Padrão EVO-API (6 ADRs: 0139, 0141, 0148, 0149, 0164, 0198) adaptado para adsentice. DAG cross-project: cockpit.py + ecosystem_cockpit.py + finding_arbiter.py (já existe) + telemetry.ts (já existe). 5 sensores determinísticos ($0): DataSource, Freshness, StrategyAlignment, Coverage, Integration. 12 páginas no PAGE_REGISTRY. CopilotRail drawer MUI com findings ancorados (src, confidence, evidence). SENSOR≠ÁRBITRO (doutrina rsxt-fnd). Fase 1: 
+---KEY: adsentice:cnpj:queue:ChIJcfLMu_F_mQAR1MJbqQuGEbw---
+{"lead_id":"ChIJcfLMu_F_mQAR1MJbqQuGEbw","website":"http://www.santarosadelimaodontologia.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:repo---
+github.com/jgdeamorim/adsentice
+
+---KEY: adsentice:cnpj:queue:ChIJzR6GGTMXuAAR3Epp0vXUqA4---
+{"lead_id":"ChIJzR6GGTMXuAAR3Epp0vXUqA4","website":"http://www.cieo.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:wa-check:last_run---
+2026-07-19T20:04:30.194Z
+
+---KEY: adsentice:wa-check:online---
+{"status":"unknown","instance":"adsentice","ts":"2026-07-20T00:36:31.457Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJl9DHSEt_mQARK1E2uekhiIw---
+{"lead_id":"ChIJl9DHSEt_mQARK1E2uekhiIw","website":"https://www.doctoralia.com.br/leticia-milena-ferreira-da-silva/dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=740155&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJwYanFJMXuAARUl2d65fXzIs---
+{"lead_id":"ChIJwYanFJMXuAARUl2d65fXzIs","website":"http://www.economicsaude.com.br/","status":"enriched","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z","cnpj_raw":"36349272000149"}
+
+---KEY: adsentice:cnpj:queue:ChIJYwy-MdMXuAAR3bSAE0heqZs---
+{"lead_id":"ChIJYwy-MdMXuAAR3bSAE0heqZs","website":"http://www.instagram.com/drarafaelasampaio","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:meta:ticket---
+R$0 (free) · R$47 (starter) · R$197 (pro) · R$497 (escala)
+
+---KEY: adsentice:cnpj:queue:ChIJBzbDflh_mQARdyxKjQ6ad6Q---
+{"lead_id":"ChIJBzbDflh_mQARdyxKjQ6ad6Q","website":"https://www.doctoralia.com.br/ana-paula-rodrigues-da-costa-pinto/dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=73181&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:computed_at---
+2026-07-20T13:24:54.006118+00:00
+
+---KEY: adsentice:ooda:last_compact_at---
+2026-07-20T13:23:17.124614+00:00
+
+---KEY: adsentice:cnpj:queue:ChIJLRsAz_wXuAARuq-xc_KI_Y0---
+{"lead_id":"ChIJLRsAz_wXuAARuq-xc_KI_Y0","website":"https://dvodontologia.com.br/atendimento-odontologico-vitoria-e-vila-velha/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJX252YjFjmQARrpbjA5zUJJE---
+{"lead_id":"ChIJX252YjFjmQARrpbjA5zUJJE","website":"https://akolodontologia.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ6yV5GscXuAARIcpEEhNkSJk---
+{"lead_id":"ChIJ6yV5GscXuAARIcpEEhNkSJk","website":"https://rision-odontologia.negocio.site/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:performance:detail---
+{"embed_latency_ms": 15.8, "embed_score": 1.0, "qdrant_online": true, "redis_online": true, "corpus_points": 20771, "corpus_score": 1.0}
+
+---KEY: adsentice:cnpj:queue:ChIJqbMLtAh_mQAREn3r9H-4GJs---
+{"lead_id":"ChIJqbMLtAh_mQAREn3r9H-4GJs","website":"http://www.oralshape.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:session:bb61a535-b700-4eaa-a2b2-883702453dfc:message_count---
+0
+
+---KEY: adsentice:cnpj:queue:ChIJiakec0t_mQARXMFiRPXRCRA---
+{"lead_id":"ChIJiakec0t_mQARXMFiRPXRCRA","website":"http://www.odontologiasiqueira.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJLSlKVHB_mQARy4l3Hk94bKo---
+{"lead_id":"ChIJLSlKVHB_mQARy4l3Hk94bKo","website":"https://www.serviceodonto.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJy11wWPZ_mQARrMjapNzC5Jg---
+{"lead_id":"ChIJy11wWPZ_mQARrMjapNzC5Jg","website":"https://cmrodontologia.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJdfZOWF09uAARCJmPwwFmJIs---
+{"lead_id":"ChIJdfZOWF09uAARCJmPwwFmJIs","website":"https://odontoclinic.com.br/","status":"enriched","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z","cnpj_raw":"11519109000156"}
+
+---KEY: adsentice:brain:cache:5aa030af68a19579---
+{"reply":"Com base no Knowledge Graph do adsentice:\n\n[market-intel] {\"traceId\":\"s10_15a4363ac066\",\"category\":\"dentist\",\"segment\":\"saude\",\"city\":\"Rio de Janeiro\",\"district\":\"Copacabana\",\"score\":72,\"schwartzLevel\":\"Produ\n[market-intel] {\"traceId\":\"s10_23903b319e23\",\"kind\":\"market-intel\",\"tag\":\"adsentice\",\"category\":\"dentist\",\"segment\":\"saude\",\"city\":\"Rio de Janeiro\",\"district\":\"Madur\n[market-intel] {\"traceId\":\"s10_3f3492a3f3c0\",\"kind\":\
+---KEY: adsentice:cnpj:queue:ChIJaT8LhmB_mQARd5Y35tjjl7c---
+{"lead_id":"ChIJaT8LhmB_mQARd5Y35tjjl7c","website":"http://drbiasoli.net/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJz0OuLaEXuAARulnHIhUmdQ4---
+{"lead_id":"ChIJz0OuLaEXuAARulnHIhUmdQ4","website":"https://bagy.bio/raizabrasil","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJDZoi4tp_mQARryEPvBeDZKk---
+{"lead_id":"ChIJDZoi4tp_mQARryEPvBeDZKk","website":"https://www.doctoralia.com.br/vitor-nunes/dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=438358&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ8xFR2WN_mQARcxIb_fqHZow---
+{"lead_id":"ChIJ8xFR2WN_mQARcxIb_fqHZow","website":"http://www.sempreodonto.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJoaw2X9QXuAARpTelu0iK5pY---
+{"lead_id":"ChIJoaw2X9QXuAARpTelu0iK5pY","website":"https://www.clinicakamillascalzer.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:llm:calls:total---
+86
+
+---KEY: adsentice:cnpj:queue:ChIJt8ZYOzkVuAARqEE-ayA98Z8---
+{"lead_id":"ChIJt8ZYOzkVuAARqEE-ayA98Z8","website":"https://dralarascandian.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJfeHqXM0XuAARAHxKSRUTo5Q---
+{"lead_id":"ChIJfeHqXM0XuAARAHxKSRUTo5Q","website":"https://www.instagram.com/pauloeduardorezendegoncalves/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:llm:cost:today---
+0.085003049
+
+---KEY: adsentice:cnpj:queue:ChIJcVOJWd-BmQAROCyOxFjhY7c---
+{"lead_id":"ChIJcVOJWd-BmQAROCyOxFjhY7c","website":"https://www.dradeboracirilo.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJ0S6mYoh_mQARVZhAi8RG3ZM---
+{"lead_id":"ChIJ0S6mYoh_mQARVZhAi8RG3ZM","website":"https://dentistasflamengo.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:score:overall---
+88/100 · BOA EXCELLENT · 2026-07-20
+
+---KEY: adsentice:cnpj:queue:ChIJhVBEdJB_mQAR77WdxIX5Opg---
+{"lead_id":"ChIJhVBEdJB_mQAR77WdxIX5Opg","website":"https://xn--amicitt-nwa.com.br/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:benchmark:s10---
+karina=37 atual=95 diff=57
+
+---KEY: adsentice:ooda:session:496dba5f-6fd8-4aa8-a4bb-c9bca737f5d4:message_count---
+0
+
+---KEY: adsentice:ooda:stage:decide---
+v156 20/jul. ADR-0052 v2.1 pronta para implementação. Sequência: 1) Criar 4 funções lib (getCategorySalesStrategy, rankLeadsByAction, getFunnelByCategory, getRecommendedPlan) 2) Refatorar /admin/categories com dados dinâmicos de getCategoryIntelligence() 3) Adicionar 4 Cockpit cards no /admin 4) Chips de estratégia no Leads 5) Seletor de categoria no Pipeline 6) Recomendação dinâmica no Solutions 7) Seção não-descobertas no Market 8) Sinais ponderados no Criteria 9) Filtro categoria
+---KEY: adsentice:cnpj:queue:ChIJHw82h0h_mQARoteOY6w68ZY---
+{"lead_id":"ChIJHw82h0h_mQARoteOY6w68ZY","website":"https://www.drajulianasalles.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:ooda:session:9496706a-5f0a-43fd-9e27-904bc8d2bc63:compact_at---
+2026-07-17T23:43:28.750493+00:00
+
+---KEY: adsentice:embed:quality:baseline---
+100.0
+
+---KEY: adsentice:cnpj:queue:ChIJ6YbmG1J-mQARlIojgrVBv6c---
+{"lead_id":"ChIJ6YbmG1J-mQARlIojgrVBv6c","website":"http://mcsodonto.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJY13pnyHwuQAR1Psu62KlpZk---
+{"lead_id":"ChIJY13pnyHwuQAR1Psu62KlpZk","website":"https://www.instagram.com/drjhonathonberger/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJvc4ms1d_mQARXnvT-Hv9Vg4---
+{"lead_id":"ChIJvc4ms1d_mQARXnvT-Hv9Vg4","website":"http://indaramelo.com/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:handoff:next_number---
+5
+
+---KEY: adsentice:boa:stability:detail---
+{"commits_30d": 748, "commit_score": 1.0, "changed_files_5commits": 5, "churn_score": 0.83, "adrs_total": 52, "adrs_accepted": 20, "adr_acceptance_rate": 0.38}
+
+---KEY: adsentice:cnpj:queue:ChIJkT1Hj5F_mQARZgPTHVmtqp4---
+{"lead_id":"ChIJkT1Hj5F_mQARZgPTHVmtqp4","website":"https://www.doctoralia.com.br/elaine-izel/dentista/rio-de-janeiro?utm_source=google&utm_medium=gmb&utm_campaign=704995&utm_content=website","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cnpj:queue:ChIJYZt-lIZ_mQARXf-DO_izd7A---
+{"lead_id":"ChIJYZt-lIZ_mQARXf-DO_izd7A","website":"https://levyodontologia.com.br/levy-odontologia/","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:boa:stability:weighted---
+0.2296
+
+---KEY: adsentice:ooda:meta:corpus_design---
+16.244 pts design no adsentice-self (design-knowledge 15.137 + design-system 871 + component 236 · tag adsentice-warp 15.521) + adsentice-materio 36 = ~16.280 pts (88% do corpus self 18.464) · medido via scroll completo 2026-07-18
+
+---KEY: adsentice:ooda:session:bb61a535-b700-4eaa-a2b2-883702453dfc:compact_at---
+2026-07-20T13:23:17.124614+00:00
+
+---KEY: adsentice:cnpj:queue:pending---
+WRONGTYPE Operation against a key holding the wrong kind of value
+
+
+---KEY: adsentice:cnpj:queue:ChIJdQP1-R4YuAARlcIYRjmMmZo---
+{"lead_id":"ChIJdQP1-R4YuAARlcIYRjmMmZo","website":"https://www.instagram.com/abcdentvix?igsh=MTl5dm54azI0Njd3Nw==","status":"pending","attempts":0,"enqueued_at":"2026-07-17T02:40:57.126Z"}
+
+---KEY: adsentice:cron:finding_arbiter---
+*/5 * * * * python3 tools/adsentice_finding_arbiter.py --cron · INSTALADO no crontab real 2026-07-18 · cost-capped: DeepSeek so com erros/alertas ou verdict expirado (max ~12 calls/dia)
+
