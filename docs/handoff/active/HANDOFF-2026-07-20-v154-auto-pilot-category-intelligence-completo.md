@@ -1,4 +1,4 @@
-# HANDOFF v154 FINAL · 2026-07-20 · Auto-Pilot + Category Intelligence + Arsenal Enterprise
+# HANDOFF v155 FINAL · 2026-07-20 · Sessão Épica v133→v155
 
 **Selo consolidador da sessão v133→v154 · 9 ADRs · 41 commits · ~5,000 linhas**
 
