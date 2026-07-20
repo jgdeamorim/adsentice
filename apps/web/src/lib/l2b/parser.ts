@@ -178,9 +178,7 @@ export function parseHTML(html: string, url: string): ParsedSite {
 function extractDomainFromUrl(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "")
-  } catch (e: unknown) { void e }
-    return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
-  }
+  } catch (e: unknown) { void e; return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0] }
 }
 
 // ═══ Re-export para conveniência ═══
