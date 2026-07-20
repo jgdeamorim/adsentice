@@ -32,12 +32,12 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
   // ═══ Dados REAIS do Supabase — 1 query única (dedup place_id · v089 fix double-query + cap) ═══
   let categoryCounts: { category: string; count: number; label: string }[] = []
   let avgScoreAll = 0
-  const enrichmentCounts = { l0: 0, l1: 0, l2: 0, l3: 0, l5: 0 }
+  const enrichmentCounts = { l0: 0, l2a: 0, l2b: 0, l3: 0, l4: 0, l5: 0 }
 
   try {
     const supabase = getAdminClient()
     const { data, error } = await supabase.from("discovery_listings")
-      .select("place_id,score_compound,category,enrichment_level,phone,l3_social_links,l3_whatsapp,cnpj_enriched")
+      .select("place_id,score_compound,category,enrichment_level,phone,website,l3_social_links,l3_whatsapp,cnpj_enriched,ibge_renda")
       .order("enrichment_level", { ascending: false }).limit(2000)
 
     if (!error && data?.length) {
@@ -50,9 +50,10 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
 
       const list = Array.from(deduped.values())
       enrichmentCounts.l0 = list.length
-      enrichmentCounts.l1 = list.filter((r: any) => (r.enrichment_level || 0) >= 1).length
-      enrichmentCounts.l2 = list.filter((r: any) => (r.enrichment_level || 0) >= 2).length
-      enrichmentCounts.l3 = list.filter((r: any) => (r.enrichment_level || 0) >= 3).length
+      enrichmentCounts.l2a = list.filter((r: any) => (r.enrichment_level || 0) >= 2).length
+      enrichmentCounts.l2b = list.filter((r: any) => r.website && (r.enrichment_level || 0) >= 2).length
+      enrichmentCounts.l3 = list.filter((r: any) => r.l3_social_links != null || (r.enrichment_level || 0) >= 3).length
+      enrichmentCounts.l4 = list.filter((r: any) => r.ibge_renda != null).length
       enrichmentCounts.l5 = list.filter((r: any) => r.cnpj_enriched).length
 
       const scores = list.map((r: any) => r.score_compound || 0).filter((v: number) => v > 0)
@@ -64,32 +65,32 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
     }
   } catch { /* Supabase offline */ }
 
-  // ═══ Funil Ativo de Captação adsentice ═══
+  // ═══ Funil de Captação — 7 camadas de enriquecimento (ADR-0046) ═══
   const funnelStages = [
-    { stage: 'S0', label: 'Descoberto', count: enrichmentCounts.l0, icon: 'ri-radar-line',
-      desc: 'Leads encontrados no Google Meu Negócio (L0). Aguardando enriquecimento.',
-      action: 'Executar busca no Discovery Engine', color: 'primary' as const, pct: 100 },
-    { stage: 'S1', label: 'Perfilado', count: enrichmentCounts.l1, icon: 'ri-profile-line',
-      desc: 'L1 completo — 27 campos GMB (telefone, website, fotos, descrição).',
-      action: 'Enviar Raio-X gratuito via WhatsApp', color: 'info' as const, pct: Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100) },
-    { stage: 'S2', label: 'Auditado', count: enrichmentCounts.l2, icon: 'ri-global-line',
-      desc: 'L2 Website+SEO — schema, conteúdo, lighthouse, tecnologias.',
-      action: 'Proposta Sentinela (R$197/mês)', color: 'success' as const, pct: Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l0,1))*100) },
-    { stage: 'S3', label: 'Qualificado', count: enrichmentCounts.l2 > 0 ? Math.round(enrichmentCounts.l2 * 0.3) : 0, icon: 'ri-filter-3-line',
-      desc: 'Score > 70 + website próprio + GMB verificado. Alta probabilidade de conversão.',
-      action: 'Proposta Domínio (R$497/mês) — founder call', color: 'warning' as const, pct: 0 },
-    { stage: 'S4', label: 'Contatado', count: 0, icon: 'ri-whatsapp-line',
-      desc: 'WhatsApp enviado ou email disparado. Aguardando resposta.',
-      action: 'Follow-up D+3 com case de concorrente', color: 'error' as const, pct: 0 },
-    { stage: 'S5', label: 'Em Negociação', count: 0, icon: 'ri-chat-3-line',
-      desc: 'Respondeu, pediu orçamento ou demonstração.',
-      action: 'Ligação pessoal (founder) — D+7', color: 'error' as const, pct: 0 },
-    { stage: 'S6', label: 'Cliente', count: 0, icon: 'ri-star-line',
-      desc: 'Plano ativo, MRR recorrente.',
+    { stage: 'S0', label: 'L0 · GMB Data', count: enrichmentCounts.l0, icon: 'ri-radar-line',
+      desc: 'Leads encontrados no Google Meu Negócio. Nome, telefone, endereço, rating, 41 campos.',
+      action: 'Executar Discovery Engine', color: 'primary' as const, pct: 100 },
+    { stage: 'S1', label: 'L2a · SEO Técnico', count: enrichmentCounts.l2a, icon: 'ri-global-line',
+      desc: 'Lighthouse, CMS, analytics, meta tags, HTTPS, schema.org. 12 sinais W1-W12.',
+      action: 'Enviar Raio-X gratuito (S10)', color: 'info' as const, pct: Math.round((enrichmentCounts.l2a/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S2', label: 'L2b · Conteúdo+DNA', count: enrichmentCounts.l2b, icon: 'ri-palette-line',
+      desc: 'Serviços, equipe, convênios, Brand DNA (cores+fontes), UX. Crawler modular .TS · $0.',
+      action: 'Proposta MockUp ReBrand (S11-MK)', color: 'secondary' as const, pct: Math.round((enrichmentCounts.l2b/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S3', label: 'L3 · Competitive', count: enrichmentCounts.l3, icon: 'ri-bar-chart-2-line',
+      desc: 'Backlinks, Share of Voice, keyword gaps, concorrentes. DataForSEO · $0.08/lead.',
+      action: 'Proposta Domínio (R$497/mês)', color: 'success' as const, pct: Math.round((enrichmentCounts.l3/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S4', label: 'L4 · IBGE Contexto', count: enrichmentCounts.l4, icon: 'ri-map-pin-line',
+      desc: 'Renda média, PIB per capita, população do município. Supabase · $0.',
+      action: 'Qualificação por poder aquisitivo', color: 'warning' as const, pct: Math.round((enrichmentCounts.l4/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S5', label: 'L5 · CNPJ', count: enrichmentCounts.l5, icon: 'ri-government-line',
+      desc: 'CNAE validado, regime tributário, sócios. ReceitaWS · $0 (3/min, fila assíncrona).',
+      action: 'Formalização confirmada', color: 'error' as const, pct: Math.round((enrichmentCounts.l5/Math.max(enrichmentCounts.l0,1))*100) },
+    { stage: 'S6', label: 'L6 · Proposta', count: 0, icon: 'ri-file-text-line',
+      desc: 'S11-MK enviado (MockUp ReBrand) ou S11K entregue (Landing Técnica).',
+      action: 'Follow-up D+3 com dados reais', color: 'error' as const, pct: 0 },
+    { stage: 'S7', label: 'L7 · Cliente', count: 0, icon: 'ri-star-line',
+      desc: 'Plano ativo. A/B tracking. Learning loop → próximos leads melhores.',
       action: 'Onboarding + NPS 30 dias', color: 'success' as const, pct: 0 },
-    { stage: 'S7', label: 'Embaixador', count: 0, icon: 'ri-heart-line',
-      desc: 'Indica outros negócios. Motor de crescimento orgânico.',
-      action: 'Comissão de indicação', color: 'success' as const, pct: 0 },
   ]
 
   const maxFunnel = Math.max(enrichmentCounts.l0, 1)
@@ -108,33 +109,46 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         </Box>
       </Grid>
 
-      {/* Top funnel metrics */}
+      {/* Top funnel metrics — camadas de enriquecimento */}
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats={enrichmentCounts.l0.toLocaleString('pt-BR')} title='S0 · Descobertos'
+        <CardStatVertical stats={enrichmentCounts.l0.toLocaleString('pt-BR')} title='L0 · GMB Data'
           subtitle={`${categoryCounts.length} categorias · Google Meu Negócio`}
           avatarColor='primary' avatarIcon='ri-radar-line'
           trendNumber={String(enrichmentCounts.l0)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats={enrichmentCounts.l2.toLocaleString('pt-BR')}
-          title='S2 · Auditados (L2)'
-          subtitle={`${Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l0,1))*100)}% de conversão S0→S2 · Prontos p/ proposta`}
-          avatarColor='success' avatarIcon='ri-global-line'
-          trendNumber={String(enrichmentCounts.l2)} trend='positive' />
+        <CardStatVertical stats={enrichmentCounts.l2a.toLocaleString('pt-BR')}
+          title='L2a · SEO Técnico'
+          subtitle={`${Math.round((enrichmentCounts.l2a/Math.max(enrichmentCounts.l0,1))*100)}% de conversão · Lighthouse, CMS, analytics`}
+          avatarColor='info' avatarIcon='ri-global-line'
+          trendNumber={String(enrichmentCounts.l2a)} trend='positive' />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <CardStatVertical stats={enrichmentCounts.l1.toLocaleString('pt-BR')} title='S1 · Perfilados (L1)'
-          subtitle={`${Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100)}% de conversão S0→S1 · Contato disponível`}
-          avatarColor='info' avatarIcon='ri-profile-line'
-          trendNumber={String(enrichmentCounts.l1)} trend='positive' />
+        <CardStatVertical stats={enrichmentCounts.l2b.toLocaleString('pt-BR')}
+          title='L2b · Conteúdo+DNA'
+          subtitle={`${Math.round((enrichmentCounts.l2b/Math.max(enrichmentCounts.l0,1))*100)}% c/ website · Crawler modular .TS`}
+          avatarColor='secondary' avatarIcon='ri-palette-line'
+          trendNumber={String(enrichmentCounts.l2b)} trend='positive' />
       </Grid>
-
-      {/* ═══ L5 CNPJ (ADR-0028) ═══ */}
+      <Grid size={{ xs: 12, sm: 4 }}>
+        <CardStatVertical stats={enrichmentCounts.l3.toLocaleString('pt-BR')}
+          title='L3 · Competitive Intel'
+          subtitle={`${Math.round((enrichmentCounts.l3/Math.max(enrichmentCounts.l0,1))*100)}% com backlinks/SOV · DataForSEO`}
+          avatarColor='success' avatarIcon='ri-bar-chart-2-line'
+          trendNumber={String(enrichmentCounts.l3)} trend={enrichmentCounts.l3 > 0 ? 'positive' : undefined} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 4 }}>
+        <CardStatVertical stats={enrichmentCounts.l4.toLocaleString('pt-BR')}
+          title='L4 · Contexto IBGE'
+          subtitle={`${Math.round((enrichmentCounts.l4/Math.max(enrichmentCounts.l0,1))*100)}% com renda/PIB · Supabase`}
+          avatarColor='warning' avatarIcon='ri-map-pin-line'
+          trendNumber={String(enrichmentCounts.l4)} trend={enrichmentCounts.l4 > 0 ? 'positive' : undefined} />
+      </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         <CardStatVertical stats={enrichmentCounts.l5.toLocaleString('pt-BR')}
           title='L5 · CNPJ Validados'
           subtitle={`${Math.round((enrichmentCounts.l5/Math.max(enrichmentCounts.l0,1))*100)}% dos leads · CNAE + regime + sócios`}
-          avatarColor='warning' avatarIcon='ri-government-line'
+          avatarColor='error' avatarIcon='ri-government-line'
           trendNumber={String(enrichmentCounts.l5)} trend={enrichmentCounts.l5 > 0 ? 'positive' : undefined} />
       </Grid>
 
@@ -146,7 +160,7 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
         <Grid container spacing={2}>
           {funnelStages.map((s) => {
             const pct = Math.round((s.count / maxFunnel) * 100)
-            const filterMap: Record<string,string> = { S0: '', S1: 'enrichment=1', S2: 'enrichment=2', S3: 'score_min=70', S4: '', S5: '', S6: '', S7: '' }
+            const filterMap: Record<string,string> = { S0: '', S1: 'enrichment=2', S2: 'has_website=1', S3: 'enrichment=3', S4: '', S5: 'cnpj=1', S6: '', S7: '' }
             const href = s.stage !== 'S0' && s.count > 0 ? `/${lang}/admin/leads?${filterMap[s.stage] || ''}` : `/${lang}/admin/leads`
 
             return (
@@ -216,11 +230,11 @@ const PipelinePage = async ({ params }: { params: Promise<{ lang: string }> }) =
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent>
-            <Typography variant='h6' gutterBottom>📊 Taxas de Conversão do Funil</Typography>
+            <Typography variant='h6' gutterBottom>📊 Taxas de Conversão do Funil (7 camadas)</Typography>
             {[
-              { from: 'S0→S1', rate: Math.round((enrichmentCounts.l1/Math.max(enrichmentCounts.l0,1))*100), label: `Descoberto → Perfilado (${enrichmentCounts.l1} de ${enrichmentCounts.l0})` },
-              { from: 'S1→S2', rate: Math.round((enrichmentCounts.l2/Math.max(enrichmentCounts.l1,1))*100), label: `Perfilado → Auditado (${enrichmentCounts.l2} de ${enrichmentCounts.l1})` },
-              { from: 'S2→S3', rate: enrichmentCounts.l2 > 0 ? 30 : 0, label: 'Auditado → Qualificado (estimado 30%)' },
+              { from: 'L0→L2a', rate: Math.round((enrichmentCounts.l2a/Math.max(enrichmentCounts.l0,1))*100), label: `GMB → SEO Técnico (${enrichmentCounts.l2a} de ${enrichmentCounts.l0})` },
+              { from: 'L2a→L2b', rate: Math.round((enrichmentCounts.l2b/Math.max(enrichmentCounts.l2a,1))*100), label: `SEO → Conteúdo+DNA (${enrichmentCounts.l2b} de ${enrichmentCounts.l2a})` },
+              { from: 'L2b→L3', rate: Math.round((enrichmentCounts.l3/Math.max(enrichmentCounts.l2b,1))*100), label: `Conteúdo → Competitive Intel (${enrichmentCounts.l3} de ${enrichmentCounts.l2b})` },
             ].map((conv) => (
               <Box key={conv.from} sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
