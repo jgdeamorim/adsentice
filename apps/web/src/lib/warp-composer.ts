@@ -1534,6 +1534,28 @@ function extractSEOKeywords(frameworkContent: string, nichoName: string, local: 
   return [...keywords].slice(0, 8)
 }
 
+/** ADR-0048 #2: extrai objeções do framework objection-crusher → vendor sales enablement */
+function extractObjections(frameworkContent: string, bizName: string, rating: number): { objection: string; response: string }[] {
+  const objections: { objection: string; response: string }[] = []
+  // Padrão: "Price: cliente diz X → responda Y" ou bullet points com "→"
+  const lines = frameworkContent.split(/\n/)
+  for (const line of lines) {
+    const arrowMatch = line.match(/(.+?)\s*[→>]\s*(.+)/)
+    if (arrowMatch) {
+      objections.push({ objection: arrowMatch[1].trim().slice(0, 80), response: arrowMatch[2].trim().slice(0, 120) })
+    }
+  }
+  // Fallback: objeções canônicas baseadas nos dados do lead
+  if (objections.length < 2) {
+    objections.push(
+      { objection: "Já tenho site", response: `${bizName} tem site, mas ele não ranqueia para buscas locais. Uma landing page com SEO real atrai pacientes que já estão procurando.` },
+      { objection: "É caro", response: `R$197/mês é menos que 1 paciente por mês. Com ${rating}★ no Google, cada novo paciente vale R$300-500 em ticket médio.` },
+      { objection: "Não tenho tempo", response: "Você não precisa fazer nada. A landing page é gerada automaticamente com dados REAIS do seu negócio. Você só aprova." },
+    )
+  }
+  return objections.slice(0, 5)
+}
+
 /** Enriquece o composeS11 com dados REAIS do site do lead via L2b crawler .TS.
  *  Fallback: se L2b falhar ou lead não tiver website, retorna null.
  *  Custo: $0 (crawler local, sem API externa). */
@@ -1935,6 +1957,9 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
     const localSEOFw = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("local-seo"))
     const seoKeywords = localSEOFw ? extractSEOKeywords(localSEOFw.content, nicho.name, local) : nicho.keywords.slice(0, 5)
     const seoMetaTitle = localSEOFw ? `${lead.title} — ${nicho.name} em ${local} | ${lead.rating_value || 0}★` : `${lead.title} — ${nicho.name} em ${local}`
+    // ADR-0048 #2: objection-crusher → vendor sales enablement
+    const objectionFW = (mktFrameworks as MarketingFramework[]).find(f => f.skillName.includes("objection") || f.skillName.includes("battle-card"))
+    const salesObjections = objectionFW ? extractObjections(objectionFW.content, lead.title, lead.rating_value || 0) : extractObjections("", lead.title, lead.rating_value || 0)
 
     // 6. Morph (corpus-driven — reuso do MorphInput do S10)
     const slotMorph = resolveMorph({
@@ -1975,6 +2000,7 @@ export async function composeS11(placeId: string): Promise<S11ComposeResult | nu
       conversionFacets: preVocab.conversionFacets,
       l2b: l2b?.enriched ? { services: l2bServices.length, doctors: l2bDoctors.length, insurance: l2bInsurance.length, designScore: l2bBrandColors ? l2b?.designDNA?.score || 0 : 0 } : { enriched: false },
       seo: localSEOFw ? { metaTitle: seoMetaTitle, keywords: seoKeywords, source: "local-seo framework" } : null,
+      sales: salesObjections.length > 0 ? { objections: salesObjections, source: objectionFW?.skillName || "fallback", ready: true } : null,
       brain: { mktFrameworks: mktFrameworks.length, mktAngles, bpRulesApplied: bpRules.length, bpScore, marketOntology: marketOntology ? { density: (marketOntology as any).density, pibPerCapita: (marketOntology as any).pibPerCapita, saturationRisk: (marketOntology as any).saturationRisk } : null, quickWin: quickWin ? { title: quickWin.title, impact: quickWin.impact, effort: quickWin.effort } : null, recommendedActions: recommendedActions.length },
       _pipeline: { phase: 'BLUE->GREEN', surface: 'S11', doctrine: `g0 + strategy A/B (ADR-0037 F6) + L2b ${l2b?.enriched ? 'dados REAIS' : 'NICHO_MAP genérico'} (ADR-0044) + Brain KG (ADR-0047)` },
       computedAt: new Date().toISOString(),

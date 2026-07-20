@@ -163,6 +163,13 @@ export async function queryRelevantSkills(
   relevantSkills.push("local-seo")
   if (leadContext.rating < 4.0) relevantSkills.push("reviews-and-reputation")
 
+  // ADR-0048 #2: objection-crusher — vendedor fecha proposta com dados reais
+  // Leads com score baixo/médio têm mais objeções → vendor precisa de munição
+  if (leadContext.score < 60 || leadContext.rating < 4.0) {
+    relevantSkills.push("objection-crusher")
+    relevantSkills.push("battle-card") // complementa: pitch + close
+  }
+
   const unique = [...new Set(relevantSkills)]
   const contextStr = `${leadContext.segment} ${leadContext.category} ${leadContext.schwartzLevel}`
   const results: MarketingFramework[] = []
