@@ -516,7 +516,7 @@ Cobertura: **10 caps de marketing ingeridas** (55 skills analisados)
 
 ---
 
-*Base-Matriz adsentice v2.0.0 · atualizada 2026-07-19 (selo v116 · 30+ selos em 2 dias) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 38 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia) · L0 adapter 37/37 campos + migrations 017+018 · 5.644 place_ids (ES 5.444) · 341 pre-flights cross-state · pageDepth 0-5 · leads UF+Telefone+Social · backup crontab (R2+BKP) · BOA EXCELLENT*
+*Base-Matriz adsentice v3.0.0 · atualizada 2026-07-20 (selo v151 · 38 selos em 2 dias) · 7 dimensões · 160+ rotas · medido=verdade · ISOLADO do EVO-API · 50 ADRs · 2/22 surfaces LIVE (S10 0.54s + S11 A/B estratégia) · composeS11 100% brain (11/11 modules + 6 marketing skills + Quality Gate) · Arsenal Enterprise 832 pts (9 fontes) · Discovery Layer semântico · Category Intelligence Engine (29 categorias como dimensões de mercado) · Cockpit Brain OODA · L2b crawler 17 módulos .TS · L0 41 campos · 38 commits v133→v151 · BOA 0.9014 EXCELLENT*
 
 ## Changelog
 
