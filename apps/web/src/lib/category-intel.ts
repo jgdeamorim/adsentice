@@ -8,6 +8,7 @@
 
 import "server-only"
 import { ICP_CATEGORIES, ICP_CATEGORY_LABELS } from "./scoring"
+import { normalizeCategory } from "./market-intel"
 import { discoverSkills } from "../../../../packages/warp/src/marketing-kg"
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdigauruusdhnpvppixb.supabase.co"
@@ -91,16 +92,28 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
 
   try {
     // ═══ 1. Aggregate from discovery_listings (REST API) ═══
+    // Paginate: Supabase REST caps at 1000 rows/request. Fetch all pages.
+    const allListings: any[] = []
     const fields = "category,place_id,city,district,score_compound,schwartz_label,website,phone,wa_is_business,wa_has_whatsapp,enrichment_level,is_claimed,rating_value"
-    const res = await fetch(
-      `${SUPA_URL}/rest/v1/discovery_listings?select=${encodeURIComponent(fields)}&limit=5000&order=score_compound.desc`,
-      { headers: supaHeaders(), signal: AbortSignal.timeout(10000) },
-    )
-    if (!res.ok) return []
-    const allListings = await res.json() as any[]
-    // Filter in memory (DB has mixed-case categories)
+    const pageSize = 1000
+    for (let offset = 0; offset < 6000; offset += pageSize) {
+      const pageRes = await fetch(
+        `${SUPA_URL}/rest/v1/discovery_listings?select=${encodeURIComponent(fields)}&limit=${pageSize}&offset=${offset}&order=created_at.desc`,
+        { headers: supaHeaders(), signal: AbortSignal.timeout(10000) },
+      )
+      if (!pageRes.ok) break
+      const page = await pageRes.json() as any[]
+      if (!page?.length) break
+      allListings.push(...page)
+      if (page.length < pageSize) break
+    }
+    // Normalize DB categories (Beauty salon → beauty_salon, Dentist → dentist)
     const catLower = new Set(categories.map(c => c.toLowerCase()))
-    const listings = allListings.filter((l: any) => l.category && catLower.has(String(l.category).toLowerCase()))
+    const listings = allListings.filter((l: any) => {
+      if (!l.category) return false
+      const normalized = normalizeCategory(String(l.category))
+      return catLower.has(normalized.toLowerCase()) || catLower.has(String(l.category).toLowerCase().replace(/\s+/g, "_"))
+    })
     if (!listings?.length) return []
 
     // ═══ 2. IBGE context (REST API) ═══
@@ -115,7 +128,11 @@ export async function getCategoryIntelligence(category?: string): Promise<Catego
     const results: CategoryIntelligence[] = []
 
     for (const cat of categories) {
-      const catListings = (listings || []).filter(l => l.category && String(l.category).toLowerCase() === cat.toLowerCase())
+      const catListings = (listings || []).filter(l => {
+        if (!l.category) return false
+        const normalized = normalizeCategory(String(l.category))
+        return normalized.toLowerCase() === cat.toLowerCase()
+      })
       if (!catListings.length) {
         results.push(emptyCategoryIntel(cat))
         continue
