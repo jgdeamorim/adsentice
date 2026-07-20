@@ -1,7 +1,9 @@
-
-// adsentice · Admin / Solutions — Planos Estrategicos v2.0 (Strategic Plan + Cockpit TOP-K)
-// Pipeline L0-L4 → Produtos → Personas → Projecao · Social · Marketplaces · Team
+// adsentice · Admin / Solutions — Planos Estrategicos v2.0
+// Pipeline L0-L4 → Produtos → Personas → Projecao · Surface Health (C1 fix)
+// medido=verdade · 2026-07-20
 import { redirect } from 'next/navigation'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
@@ -16,47 +18,84 @@ import Divider from '@mui/material/Divider'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import { getSessionUser } from '@/libs/supabase/server'
 
-// ═══ Planos v2.0 (atualizado com Social Media, Marketplaces, Cockpit TOP-K, Growth OS Team) ═══
+// ═══ Surface Status (do warp-surface-status.json) ═══
+interface SurfaceDef {
+  id: string; name: string; group: string; plan: string
+  segment: string; skills: string[]; tokens: string[]
+  status: string; route: string | null; warpModule: string | null
+  previews: number
+}
+
+interface SurfaceData {
+  version: string; updated: string
+  surfaces: SurfaceDef[]
+  summary: {
+    total: number; live: number; partial: number; planned: number
+    groups: Record<string, { total: number; live: number; partial: number; planned: number }>
+  }
+}
+
+function getSurfaces(): SurfaceData | null {
+  try {
+    const jsonPath = join(process.cwd(), "..", "..", "docs", "spec", "warp-surface-status.json")
+    const raw = readFileSync(jsonPath, "utf-8")
+    return JSON.parse(raw) as SurfaceData
+  } catch (e: unknown) { void e; return null }
+}
+
+function surfaceStatusChip(status: string) {
+  if (status === 'live') return { label: '✅ live', color: 'success' as const }
+  if (status === 'partial') return { label: '⚠️ partial', color: 'warning' as const }
+  return { label: '📋 planned', color: 'default' as const }
+}
+
+// ═══ Planos (atualizados com status real das superfícies) ═══
+// S10 (Raio-X) live ✅ · S11 (Landing Page Cliente) live ✅
+// 2/22 live · 2/22 partial · 18/22 planned
 const PLANS = [
   {
     tier: 'free', name: 'Raio-X', price: 'R$0', priceLabel: 'Gratuito',
     cost: '$0.048/lead', margin: 'Lead magnet',
-    pipeline: 'L0 + L2a (SEO Técnico) · S10 · ADR-0038', signals: 37, status: 'live' as const,
+    pipeline: 'L0 + L2a (SEO Técnico) · S10 · ADR-0038', signals: 37,
     description: 'Diagnóstico de 1 página com score composto, nível Schwartz, TOP 3 gaps detectados. Dados reais do Google Meu Negócio + Lighthouse + CMS detection.',
     delivers: ['Score composto (Fit/Engagement/Intent)', 'Nível Schwartz com explicação', 'TOP 3 gaps detectados', 'Detecção de redes sociais', '1 recomendação gratuita'],
     channels: ['Google Maps (buscar <4.0★)', 'WhatsApp (script 3 linhas)', 'Blog SEO orgânico'],
     persona: '100% do mercado — lead magnet universal',
     color: 'success' as const, icon: 'ri-search-eye-line',
+    surfaceIds: ['S10'],  // S10 Raio-X live
   },
   {
     tier: 'starter', name: 'Sentinela', price: 'R$197/mes', priceLabel: 'Starter',
     cost: '~$0.10/mes', margin: '95%',
-    pipeline: 'Raio-X + L2b (Conteúdo+DNA) + L3 (Competitive) · S11', signals: 57, status: 'beta' as const,
-    description: 'Landing Page Técnica A/B com dados REAIS da clínica. Brand DNA (cores+fontes), SEO real, copy personalizada. Monitoramento mensal do score.',
-    delivers: ['Landing Page A/B (S11K)', 'MockUp ReBrand (S11-MK) para proposta', 'Brand DNA: cores e fontes reais da marca', 'SEO audit integrado (Lighthouse)', 'Relatório mensal de evolução', 'Alertas: score caiu, concorrente abriu', '3 recomendações/mês priorizadas'],
+    pipeline: 'Raio-X + L2b (Conteúdo+DNA) + L3 (Competitive) · S11', signals: 57,
+    description: 'Landing Page com dados REAIS da clínica. Brand DNA (cores+fontes), SEO real, copy personalizada. Monitoramento mensal do score. Geração de LP única (não A/B ainda).',
+    delivers: ['Landing Page personalizada (S11)', 'Brand DNA: cores e fontes reais da marca', 'SEO audit integrado (Lighthouse)', 'Relatório mensal de evolução', 'Alertas: score caiu, concorrente abriu', '3 recomendações/mês priorizadas'],
     channels: ['Email (D+1, D+3, D+7 pós Raio-X)', 'WhatsApp (follow-up)', 'Indicação de clientes'],
     persona: 'Problem Aware (63% do mercado) — "Tenho menos pacientes, não sei por que"',
     color: 'primary' as const, icon: 'ri-shield-check-line',
+    surfaceIds: ['S11', 'S8', 'S9', 'S13'],  // S11 live · S8/S9/S13 planned
   },
   {
     tier: 'pro', name: 'Dominio', price: 'R$497/mes', priceLabel: 'Pro',
     cost: '~$0.15/mes', margin: '95%',
-    pipeline: 'Sentinela + L4 (IBGE) + L5 (CNPJ) · S11K full stack', signals: 73, status: 'spec' as const,
+    pipeline: 'Sentinela + L4 (IBGE) + L5 (CNPJ) · S11 full stack', signals: 73,
     description: 'TUDO do Sentinela + Contexto IBGE (renda, PIB) + CNPJ validado + Radar de Mercado contínuo + Channel Health Matrix + Benchmark comparativo.',
     delivers: ['TOP 5 concorrentes com comparison table', 'Radar de Mercado: sua posição vs concorrentes', 'Contexto IBGE: renda do bairro, PIB per capita', 'CNPJ validado: CNAE, regime, sócios', 'Channel Health Matrix (CAC × Ticket × Recorrência)', 'Relatório de Inteligência de Nicho (TAM + gaps)'],
     channels: ['Ligação pessoal (founder)', 'Email com dados REAIS do concorrente', 'WhatsApp com comparison table'],
     persona: 'Solution Aware (12% do mercado) — "Já ouvi falar de SEO/Google Ads"',
     color: 'warning' as const, icon: 'ri-trophy-line',
+    surfaceIds: ['S11', 'S8'],  // mesmas superfícies do Sentinela + dados L4/L5
   },
   {
     tier: 'scale', name: 'Escala', price: 'R$997/mes', priceLabel: 'Scale',
     cost: '~$0.20/mes', margin: '95%',
-    pipeline: 'Domínio + L6 (Geração multi-surface) + L7 (Analytics)', signals: 87, status: 'spec' as const,
+    pipeline: 'Domínio + L6 (Geração multi-surface) + L7 (Analytics)', signals: 87,
     description: 'TUDO do Dominio + AI Daily Briefing via WhatsApp + Copilot IA + Social Media Strategy + Marketplace Intelligence + Brand monitoring + Consultoria mensal com founder.',
     delivers: ['AI Daily Briefing via WhatsApp (todo dia 07:00)', 'Copilot IA: "O que eu faco hoje?" → resposta com dados reais', 'Social Media Strategy: calendario editorial + sugestoes de posts', 'Marketplace Intelligence: dados agregados de marketplaces', 'Brand monitoring + Content Strategy 12 meses', 'Marketing plan 13 secoes (flagship)', 'Consultoria mensal 30min com founder'],
     channels: ['Consultoria pessoal', 'Relatorio executivo trimestral', 'Acesso prioritario'],
     persona: 'Clientes que escalam — "Quero dominar o mercado da minha regiao"',
     color: 'error' as const, icon: 'ri-rocket-2-line',
+    surfaceIds: ['S7', 'S15'],  // S7 Social/Ads planned · S15 Cockpit planned
   },
   {
     tier: 'enterprise', name: 'Growth OS', price: 'a partir de R$1.497/mes', priceLabel: 'Enterprise',
@@ -73,6 +112,7 @@ const PLANS = [
     channels: ['Demo personalizada', 'Onboarding dedicado', 'Suporte prioritario'],
     persona: 'Agencias de marketing, franquias, redes multi-unidades, negocios com equipe de marketing',
     color: 'info' as const, icon: 'ri-building-2-line',
+    surfaceIds: ['S9', 'S3'],  // S9 Portal planned · S3 Dashboard live (admin)
   },
 ]
 
@@ -104,7 +144,6 @@ const PERSONAS = [
   },
 ]
 
-// ═══ Projecao Financeira (cenario conservador) ═══
 const PROJECTION = [
   { month: 1, sentinela: 3, dominio: 0, mrr: 591 },
   { month: 2, sentinela: 7, dominio: 1, mrr: 1876 },
@@ -113,11 +152,24 @@ const PROJECTION = [
   { month: 12, sentinela: 60, dominio: 12, mrr: 17784 },
 ]
 
+function planStatus(plan: typeof PLANS[0], surfaceData: SurfaceData | null): { label: string; color: 'success' | 'warning' | 'info' | 'default' | 'error' } {
+  if (!surfaceData) return { label: 'superfícies: ?', color: 'default' }
+  const surfaces = plan.surfaceIds.map(id => surfaceData.surfaces.find(s => s.id === id)).filter(Boolean) as SurfaceDef[]
+  const liveCount = surfaces.filter(s => s.status === 'live').length
+  const partialCount = surfaces.filter(s => s.status === 'partial').length
+  if (liveCount === surfaces.length) return { label: 'superfícies: ✅ live', color: 'success' }
+  if (liveCount > 0) return { label: `${liveCount}/${surfaces.length} live · ${partialCount} partial`, color: 'warning' }
+  return { label: `${surfaces.length} planned`, color: 'info' }
+}
+
 const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) => {
   const { lang } = await params
   const user = await getSessionUser()
 
   if (user?.role !== 'admin') redirect(`/${lang}/app`)
+
+  // ═══ Surface Health (dados REAIS do warp-surface-status.json) ═══
+  const surfaceData = getSurfaces()
 
   return (
     <Grid container spacing={6}>
@@ -126,11 +178,34 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
         <Typography variant='h4'>🎯 Solucoes adsentice</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
           <Typography variant='body2' color='text.secondary'>
-            Nossos produtos — do lead magnet ao enterprise · Dados REAIS do Supabase (100 leads) + pipeline L0-L4
+            Nossos produtos — do lead magnet ao enterprise · Superfícies Warp (22 definidas, 2 live)
           </Typography>
-          <Chip label='Strategic Plan v1.0' size='small' color='primary' variant='tonal' />
-          <Chip label='ADR-0008 + ADR-0011' size='small' color='success' variant='tonal' />
+          <Chip label='Strategic Plan v2.0' size='small' color='primary' variant='tonal' />
+          <Chip label={`S10 live · S11 live`} size='small' color='success' variant='tonal' />
         </Box>
+      </Grid>
+
+      {/* ═══ SURFACE HEALTH · C1 fix ═══ */}
+      <Grid size={{ xs: 12 }}>
+        <Alert severity={surfaceData ? 'info' : 'warning'} variant='outlined'>
+          <Typography variant='subtitle2' fontWeight={700} gutterBottom>
+            🏥 Surface Health · {surfaceData ? `${surfaceData.summary.live}/${surfaceData.summary.total} live` : 'dados indisponíveis'}
+          </Typography>
+          {surfaceData ? (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`${surfaceData.summary.live} live`} size='small' color='success' variant='tonal' />
+              <Chip label={`${surfaceData.summary.partial} partial`} size='small' color='warning' variant='tonal' />
+              <Chip label={`${surfaceData.summary.planned} planned`} size='small' color='default' variant='tonal' />
+              <Chip label={`Total: ${surfaceData.summary.total} superfícies`} size='small' variant='outlined' />
+            </Box>
+          ) : (
+            <Typography variant='caption'>warp-surface-status.json não encontrado</Typography>
+          )}
+          <Typography variant='caption' color='text.secondary' sx={{ mt: 1, display: 'block' }}>
+            Cada plano depende de superfícies Warp para entregar valor ao cliente.
+            Superfícies em &quot;planned&quot; ainda não têm rota ou código — o plano que as promete está vendendo produto em desenvolvimento.
+          </Typography>
+        </Alert>
       </Grid>
 
       {/* ═══ TOP METRICS ═══ */}
@@ -150,7 +225,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
         <CardStatVertical stats='R$0' title='Google Ads CAC' subtitle='Nosso CAC: R$0 (organico)' avatarColor='error' avatarIcon='ri-google-line' trendNumber='0' trend='positive' />
       </Grid>
 
-      {/* ═══ 4 PLANOS ═══ */}
+      {/* ═══ PLANOS ═══ */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h5' gutterBottom>
           <Chip label='PLANOS' size='medium' color='primary' sx={{ mr: 1, fontWeight: 700 }} />
@@ -161,63 +236,87 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
         </Typography>
       </Grid>
 
-      {PLANS.map((plan) => (
-        <Grid key={plan.name} size={{ xs: 12, md: 6 }}>
-          <Card sx={{ borderTop: 3, borderColor: `${plan.color}.main` }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 48, height: 48, borderRadius: 'var(--r-md)', bgcolor: `${plan.color}.50`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className={plan.icon} style={{ fontSize: '1.5rem', color: `var(--mui-palette-${plan.color}-main)` }} />
-                  </Box>
-                  <Box>
-                    <Typography variant='h6'>{plan.name}</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Chip label={plan.price} size='small' color={plan.color} variant='tonal' sx={{ fontWeight: 700 }} />
-                      <Chip label={plan.priceLabel} size='small' variant='outlined' />
+      {PLANS.map((plan) => {
+        const pStatus = planStatus(plan, surfaceData)
+        const surfaces = surfaceData
+          ? plan.surfaceIds.map(id => surfaceData.surfaces.find(s => s.id === id)).filter(Boolean) as SurfaceDef[]
+          : []
+
+        return (
+          <Grid key={plan.name} size={{ xs: 12, md: 6 }}>
+            <Card sx={{ borderTop: 3, borderColor: `${plan.color}.main` }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ width: 48, height: 48, borderRadius: 'var(--r-md)', bgcolor: `${plan.color}.50`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className={plan.icon} style={{ fontSize: '1.5rem', color: `var(--mui-palette-${plan.color}-main)` }} />
+                    </Box>
+                    <Box>
+                      <Typography variant='h6'>{plan.name}</Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Chip label={plan.price} size='small' color={plan.color} variant='tonal' sx={{ fontWeight: 700 }} />
+                        <Chip label={plan.priceLabel} size='small' variant='outlined' />
+                      </Box>
                     </Box>
                   </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant='caption' color='text.secondary' component='div'>Margem</Typography>
+                    <Typography variant='body2' fontWeight={700} color='success.main'>{plan.margin}</Typography>
+                  </Box>
                 </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant='caption' color='text.secondary' component='div'>Margem</Typography>
-                  <Typography variant='body2' fontWeight={700} color='success.main'>{plan.margin}</Typography>
+
+                <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>{plan.description}</Typography>
+
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                  <Chip label={`Pipeline: ${plan.pipeline}`} size='small' variant='outlined' color='info' />
+                  <Chip label={`${plan.signals} sinais`} size='small' variant='outlined' />
+                  <Chip label={`Custo: ${plan.cost}`} size='small' variant='outlined' color='warning' />
+                  <Chip label={pStatus.label} size='small' color={pStatus.color} variant='tonal' />
                 </Box>
-              </Box>
 
-              <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>{plan.description}</Typography>
+                {/* Surface badges per plan */}
+                {surfaces.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
+                    {surfaces.map(s => {
+                      const sc = surfaceStatusChip(s.status)
+                      return (
+                        <Chip key={s.id}
+                          label={`${s.id} ${s.name} · ${sc.label}`}
+                          size='small' variant='outlined' color={sc.color}
+                          sx={{ fontSize: '0.65rem' }}
+                        />
+                      )
+                    })}
+                  </Box>
+                )}
 
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                <Chip label={`Pipeline: ${plan.pipeline}`} size='small' variant='outlined' color='info' />
-                <Chip label={`${plan.signals} sinais`} size='small' variant='outlined' />
-                <Chip label={`Custo: ${plan.cost}`} size='small' variant='outlined' color='warning' />
-              </Box>
+                <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>
+                  O que entrega:
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2 }}>
+                  {plan.delivers.map((d, i) => (
+                    <Typography key={i} variant='caption' sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>• {d}</Typography>
+                  ))}
+                </Box>
 
-              <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>
-                O que entrega:
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2 }}>
-                {plan.delivers.map((d, i) => (
-                  <Typography key={i} variant='caption' sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>• {d}</Typography>
-                ))}
-              </Box>
-
-              <Divider sx={{ my: 1 }} />
-              <Typography variant='caption' color='text.secondary'>
-                <strong>Canais:</strong> {plan.channels.join(' · ')}
-              </Typography>
-              <Box sx={{ mt: 1 }}>
-                <Chip label={plan.persona} size='small' color={plan.color} variant='tonal' sx={{ fontSize: '0.65rem' }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
+                <Divider sx={{ my: 1 }} />
+                <Typography variant='caption' color='text.secondary'>
+                  <strong>Canais:</strong> {plan.channels.join(' · ')}
+                </Typography>
+                <Box sx={{ mt: 1 }}>
+                  <Chip label={plan.persona} size='small' color={plan.color} variant='tonal' sx={{ fontSize: '0.65rem' }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        )
+      })}
 
       {/* ═══ 3 PERSONAS ═══ */}
       <Grid size={{ xs: 12 }}>
         <Typography variant='h5' gutterBottom sx={{ mt: 2 }}>
           <Chip label='PERSONAS' size='medium' color='secondary' sx={{ mr: 1, fontWeight: 700 }} />
-          Derivadas dos dados REAIS do Supabase (100 leads)
+          Derivadas dos dados REAIS do Supabase
         </Typography>
       </Grid>
 
@@ -274,14 +373,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
         </Card>
       </Grid>
 
-      {/* ═══ SOCIAL MEDIA HUB ═══ */}
-      <Grid size={{ xs: 12 }}>
-        <Typography variant='h5' gutterBottom sx={{ mt: 2 }}>
-          <Chip label='HUBS' size='medium' color='info' sx={{ mr: 1, fontWeight: 700 }} />
-          Social Media · Marketplaces · Cockpit TOP-K
-        </Typography>
-      </Grid>
-
+      {/* ═══ HUBS · Social + Marketplaces ═══ */}
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent>
@@ -300,44 +392,27 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
               <Chip label='YouTube' size='small' variant='outlined' />
               <Chip label='LinkedIn' size='small' variant='outlined' />
             </Box>
-            <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>Scores que habilita:</Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Chip label='Social Presence (+10)' size='small' color='info' variant='tonal' />
               <Chip label='Social Engagement (+15)' size='small' color='info' variant='tonal' />
-              <Chip label='Social Consistency (+10)' size='small' color='info' variant='tonal' />
-              <Chip label='Social Commerce (+5)' size='small' color='info' variant='tonal' />
             </Box>
           </CardContent>
         </Card>
-      </Grid>
-
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
+        <Card sx={{ mt: 2 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
               <i className='ri-shopping-bag-3-line' style={{ fontSize: '1.5rem', color: '#f59e0b' }} />
               <Typography variant='h6'>🛒 Marketplaces Hub</Typography>
             </Box>
             <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
-              Detecta presenca em marketplaces por segmento: iFood/Rappi/Uber Eats (alimentacao), Booking/Decolar (hoteis),
-              Mercado Livre/Shopee (comercio), GetNinjas (servicos), Doctoralia (saude). Calcula Customer Independence Score.
+              Detecta presenca em marketplaces: iFood, Rappi, Booking, Mercado Livre, Doctoralia.
+              Customer Independence Score.
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Chip label='iFood' size='small' variant='outlined' color='error' />
-              <Chip label='Rappi' size='small' variant='outlined' />
-              <Chip label='Uber Eats' size='small' variant='outlined' />
               <Chip label='Booking' size='small' variant='outlined' color='primary' />
               <Chip label='Mercado Livre' size='small' variant='outlined' color='warning' />
-              <Chip label='Shopee' size='small' variant='outlined' color='error' />
-              <Chip label='GetNinjas' size='small' variant='outlined' />
               <Chip label='Doctoralia' size='small' variant='outlined' color='info' />
-            </Box>
-            <Typography variant='caption' fontWeight={600} color='text.secondary' gutterBottom component='div'>Scores que habilita:</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip label='Customer Independence' size='small' color='warning' variant='tonal' />
-              <Chip label='Channel Health' size='small' color='warning' variant='tonal' />
-              <Chip label='Marketplace Reputation' size='small' color='warning' variant='tonal' />
-              <Chip label='Commission Burden' size='small' color='warning' variant='tonal' />
             </Box>
           </CardContent>
         </Card>
@@ -356,9 +431,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
                 <Chip label='Inspirado no EVO-API Founder Panel' size='small' variant='outlined' sx={{ color: '#a1a1aa', borderColor: '#27272a' }} />
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Chip label='Sentinela+' size='small' color='primary' variant='tonal' />
-                <Chip label='Dominio+' size='small' color='warning' variant='tonal' />
-                <Chip label='Escala+' size='small' color='error' variant='tonal' />
+                <Chip label='S15: planned' size='small' color='default' variant='tonal' />
               </Box>
             </Box>
             <Grid container spacing={2}>
@@ -405,10 +478,6 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
           <Chip label='GROWTH OS · TEAM' size='medium' color='info' sx={{ mr: 1, fontWeight: 700 }} />
           Para Agencias · Franquias · Equipes
         </Typography>
-        <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
-          Plano enterprise com multi-user, white-label, client portal e API access.
-          Projetado para agencias de marketing que gerenciam multiplos clientes.
-        </Typography>
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
@@ -419,7 +488,7 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
               {[
                 { feat: 'Multi-user (3-10)', desc: 'Admin, Analista, Cliente, Somente Leitura', color: 'primary' },
                 { feat: 'White-label', desc: 'Dashboard com logo e cores do cliente final', color: 'info' },
-                { feat: 'Client Portal', desc: 'Cada cliente acessa SEU cockpit (nao ve outros)', color: 'success' },
+                { feat: 'Client Portal', desc: 'Cada cliente acessa SEU cockpit', color: 'success' },
                 { feat: 'Team Analytics', desc: 'Produtividade: quem respondeu mais? Quem fechou mais?', color: 'warning' },
                 { feat: 'Approval Workflow', desc: 'Recomendacoes passam por aprovacao antes de executar', color: 'secondary' },
                 { feat: 'Bulk Operations', desc: 'Aplicar acao em TODOS os clientes de uma vez', color: 'error' },
@@ -478,41 +547,17 @@ const SolutionsPage = async ({ params }: { params: Promise<{ lang: string }> }) 
       </Grid>
 
       {/* ═══ ANTI-ESTRATEGIA ═══ */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card sx={{ bgcolor: 'var(--pastel-mint)' }}>
-          <CardContent>
-            <Typography variant='h6' gutterBottom>🚫 O que NAO fazer</Typography>
-            {[
-              { rule: 'Nao gastar com Google Ads agora', why: 'CAC R$28.40/lead vs nosso custo R$0.17. So faz sentido com LTV validado.' },
-              { rule: 'Nao construir app mobile', why: 'SMB dono de clinica nao baixa app. WhatsApp + Web.' },
-              { rule: 'Nao contratar vendedor', why: 'Fundador vende melhor que qualquer vendedor. Hormozi: founder-led sales ate 50 clientes.' },
-              { rule: 'Nao expandir categorias antes de dominar dentistas', why: '79% dos leads sao dentistas. Foco total.' },
-              { rule: 'Nao criar mais features antes de 10 clientes', why: 'Temos 37 sinais, 14 skills, 10 modulos. Precisamos de RECEITA, nao mais codigo.' },
-            ].map((a, i) => (
-              <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-start' }}>
-                <Chip label='NÃO' size='small' color='error' variant='tonal' sx={{ minWidth: 42 }} />
-                <Box>
-                  <Typography variant='body2' fontWeight={600}>{a.rule}</Typography>
-                  <Typography variant='caption' color='text.secondary'>{a.why}</Typography>
-                </Box>
-              </Box>
-            ))}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* ═══ METRICAS DE SUCESSO ═══ */}
       <Grid size={{ xs: 12 }}>
         <Alert severity='info' variant='outlined'>
           <Typography variant='subtitle2' fontWeight={700} gutterBottom>🎯 Metricas de Sucesso (90 dias)</Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {[
-              'Leads enriquecidos: 100 → 500',
+              'Leads enriquecidos: 8.626 → 15.000',
+              'Categorias prospectadas: 6/29 → 15/29',
               'Clientes pagantes: 0 → 10',
               'MRR: R$0 → R$1.970',
-              'Raio-X gerados: 0 → 100',
-              'Conversao Raio-X→Cliente: 0% → 10%',
-              'BOA: 0.942 → 0.980',
+              'S10 Raio-X gerados: 4 → 100',
+              'BOA: 0.88 → 0.95',
             ].map(m => (
               <Chip key={m} label={m} size='small' color='info' variant='outlined' sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }} />
             ))}
