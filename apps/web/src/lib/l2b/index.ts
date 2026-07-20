@@ -27,3 +27,6 @@ export { normalizeAll, toMinedContent, normalizePhones, normalizeEmails, normali
 export type { NormalizedData } from "./extractors/normalizer"
 export { computeConfidence } from "./extractors/confidence"
 export type { EnrichConfidence, FieldConfidence } from "./extractors/confidence"
+export { extractDesignDNA } from "./extractors/design-extractor"
+export { extractComponentDNA } from "./extractors/component-extractor"
+export { extractUXDNA } from "./extractors/ux-extractor"
