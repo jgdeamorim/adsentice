@@ -100,33 +100,24 @@ export async function queryMarketingSkill(
     const vec = await embedQuery(query)
     if (vec.length === 0) return null
 
+    // ADR-0047: tag-based filter — marketing content is tagged 'adsentice' across
+    // 6 kinds: marketing-skill, foundation, execution, pattern, framework, heuristic
     const results = await qdrantSearch(vec, {
       must: [
-        { key: "kind", match: { value: "marketing-skill" } },
-        { key: "source", match: { value: `marketingskills/${skillName}` } },
+        { key: "tag", match: { value: "adsentice" } },
       ],
-    }, 1)
+    }, 3)
 
-    if (!results.length) {
-      const fallback = await qdrantSearch(vec, {
-        must: [{ key: "kind", match: { value: "marketing-skill" } }],
-      }, 1)
-      if (!fallback.length) return null
-      const pl = fallback[0].payload || {}
-      return {
-        skillName: (pl.source as string)?.replace("marketingskills/", "") || skillName,
-        source: (pl.source as string) || "unknown",
-        content: (pl.text as string) || "",
-        score: fallback[0].score || 0,
-      }
-    }
-
-    const pl = results[0].payload || {}
+    if (!results.length) return null
+    const best = results[0]
+    const pl = best.payload || {}
+    const src = (pl.source as string) || ""
+    const rawSkill = src.replace(/^(?:marketingskills|corey-haines-marketing|strategy)\//, "").replace(/\//g, "_")
     return {
-      skillName,
-      source: (pl.source as string) || "",
+      skillName: rawSkill || skillName,
+      source: src || "unknown",
       content: (pl.text as string) || "",
-      score: results[0].score || 0,
+      score: best.score || 0,
     }
   } catch { return null }
 }
