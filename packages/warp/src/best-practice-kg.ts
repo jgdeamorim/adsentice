@@ -64,12 +64,17 @@ export async function queryBestPractices(
 
     const filter: Record<string, unknown> = {
       must: [
-        { key: "kind", match: { value: "best-practice" } },
-        { key: "domain", match: { value: domain } },
+        { key: "tag", match: { value: "adsentice-warp" } },
       ],
     }
+    // First pass: try tag=adsentice-warp (covers best-practice, rule, pattern, security)
     const results = await qdrantSearch(vec, filter, 8)
-    return results.map(p => {
+    // Fallback: kind=best-practice (any tag)
+    const fallbackResults = results.length === 0
+      ? await qdrantSearch(vec, { must: [{ key: "kind", match: { value: "best-practice" } }] }, 8)
+      : []
+    const allResults = results.length > 0 ? results : fallbackResults
+    return allResults.map(p => {
       const pl = p.payload || {}
       return {
         id: (pl.id as string) || (pl.name as string) || "",
